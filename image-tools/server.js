@@ -442,22 +442,11 @@ ${textEls}
         ).join("\n");
 
         const ruleY = H - 95;
-        const scrimColor = isDark ? "#000000" : "#ffffff";
-
         overlaySvg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="sideScrim" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="${scrimColor}" stop-opacity="0.95"/>
-      <stop offset="42%" stop-color="${scrimColor}" stop-opacity="0.88"/>
-      <stop offset="62%" stop-color="${scrimColor}" stop-opacity="0.50"/>
-      <stop offset="85%" stop-color="${scrimColor}" stop-opacity="0"/>
-    </linearGradient>
-  </defs>
-  <rect x="0" y="0" width="${Math.round(W * 0.65)}" height="${H}" fill="url(#sideScrim)"/>
   ${headSvg}
   ${pTexts}
-  <line x1="${startX}" y1="${ruleY - 24}" x2="${startX + 280}" y2="${ruleY - 24}" stroke="${lineColor}" stroke-width="1.8" stroke-opacity="0.8"/>
-  <text x="${startX}" y="${ruleY + 12}" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800" fill="${ruleColor}">${esc(takeaway)}</text>
+  <line x1="${startX}" y1="${ruleY - 24}" x2="${startX + 280}" y2="${ruleY - 24}" stroke="${lineColor}" stroke-width="2" stroke-opacity="0.85"/>
+  <text x="${startX}" y="${ruleY + 12}" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="900" fill="${ruleColor}">${esc(takeaway)}</text>
 </svg>`;
       } else if (style === "bracket") {
         // Blueprint A/B style: Clean uppercase headline with editorial brackets
