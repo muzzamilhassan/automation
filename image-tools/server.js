@@ -402,7 +402,64 @@ ${textEls}
       const W = meta.width || 1024, H = meta.height || 1024;
 
       let overlaySvg = "";
-      if (style === "bracket") {
+      if (style === "editorial-clean" || style === "swiss" || style === "editorial-dark") {
+        const isDark = style === "editorial-dark";
+        const words = insight.split(/\s+/).filter(Boolean);
+        const lines = [];
+        let cur = "";
+        for (const w of words) {
+          if ((cur + " " + w).trim().length <= 34) cur = (cur + " " + w).trim();
+          else { if (cur) lines.push(cur); cur = w; }
+        }
+        if (cur) lines.push(cur);
+
+        const startX = 64;
+        const startY = 85;
+        const headWords = headline.trim().split(/\s+/);
+        let h1 = headline, h2 = "";
+        if (headWords.length > 2) {
+          const mid = Math.ceil(headWords.length / 2);
+          h1 = headWords.slice(0, mid).join(" ");
+          h2 = headWords.slice(mid).join(" ");
+        } else if (headWords.length === 2 && headline.length > 11) {
+          h1 = headWords[0];
+          h2 = headWords[1];
+        }
+
+        const headColor = isDark ? "#ffffff" : "#0f172a";
+        const textColor = isDark ? "#e2e8f0" : "#1e293b";
+        const lineColor = isDark ? "#fbbf24" : "#334155";
+        const ruleColor = isDark ? "#ffffff" : "#0f172a";
+
+        const headSvg = h2
+          ? `<text x="${startX}" y="${startY + 64}" font-family="Arial Black, Impact, Arial, sans-serif" font-size="72" font-weight="900" fill="${headColor}" letter-spacing="1.5">${esc(h1.toUpperCase())}</text>
+             <text x="${startX}" y="${startY + 142}" font-family="Arial Black, Impact, Arial, sans-serif" font-size="72" font-weight="900" fill="${headColor}" letter-spacing="1.5">${esc(h2.toUpperCase())}</text>`
+          : `<text x="${startX}" y="${startY + 72}" font-family="Arial Black, Impact, Arial, sans-serif" font-size="76" font-weight="900" fill="${headColor}" letter-spacing="1.5">${esc(h1.toUpperCase())}</text>`;
+
+        const pStartY = h2 ? startY + 220 : startY + 160;
+        const pTexts = lines.map((l, i) =>
+          `<text x="${startX}" y="${pStartY + i * 33}" font-family="Arial, Helvetica, sans-serif" font-size="21.5" font-weight="500" fill="${textColor}" letter-spacing="0.1">${esc(l)}</text>`
+        ).join("\n");
+
+        const ruleY = H - 95;
+        const scrimColor = isDark ? "#000000" : "#ffffff";
+
+        overlaySvg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sideScrim" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="${scrimColor}" stop-opacity="0.95"/>
+      <stop offset="42%" stop-color="${scrimColor}" stop-opacity="0.88"/>
+      <stop offset="62%" stop-color="${scrimColor}" stop-opacity="0.50"/>
+      <stop offset="85%" stop-color="${scrimColor}" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="${Math.round(W * 0.65)}" height="${H}" fill="url(#sideScrim)"/>
+  ${headSvg}
+  ${pTexts}
+  <line x1="${startX}" y1="${ruleY - 24}" x2="${startX + 280}" y2="${ruleY - 24}" stroke="${lineColor}" stroke-width="1.8" stroke-opacity="0.8"/>
+  <text x="${startX}" y="${ruleY + 12}" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800" fill="${ruleColor}">${esc(takeaway)}</text>
+</svg>`;
+      } else if (style === "bracket") {
         // Blueprint A/B style: Clean uppercase headline with editorial brackets
         const fs = Math.round(W / 14);
         const y = Math.round(H * 0.12);
