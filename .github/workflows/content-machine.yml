@@ -75,6 +75,9 @@ jobs:
           POSTIZ_API_KEY: ${{ secrets.POSTIZ_API_KEY }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
         run: |
           ACHIEVEMENT_FLAG=""
           if [ "${{ github.event.inputs.achievement }}" = "true" ]; then

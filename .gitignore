@@ -3,6 +3,7 @@
 *.env.local
 *.env.*
 .mcp.json
+youtube-oauth-tokens.json
 
 # Dependencies
 node_modules/
