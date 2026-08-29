@@ -1,0 +1,15 @@
+{
+  "name": "youtube-automation",
+  "version": "1.0.0",
+  "description": "Autonomous Multi-Brand Content Machine & YouTube Automation",
+  "main": "run-content-machine.mjs",
+  "type": "module",
+  "scripts": {
+    "start": "node run-content-machine.mjs",
+    "image-tools": "node image-tools/server.js",
+    "text-posts": "node post-text-engine.mjs"
+  },
+  "dependencies": {
+    "sharp": "^0.33.5"
+  }
+}

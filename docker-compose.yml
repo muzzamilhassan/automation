@@ -1,0 +1,299 @@
+# ============================================================================
+# YouTube Content Automation — full local stack
+#   • Postiz  (YouTube upload + scheduling dashboard, with Temporal scheduler)
+#   • n8n     (workflow engine — runs the 11-node pipeline)
+#   • faster-whisper (local transcription, free)
+# Gemini API (cloud) is used for text generation + image generation via Google AI.
+# faster-whisper runs locally for transcription.
+#
+# Bring everything up:   docker compose up -d
+# Watch logs:            docker compose logs -f n8n
+# Tear down:             docker compose down   (add -v to ALSO wipe volumes)
+# ============================================================================
+name: yt-automation
+
+services:
+  # --------------------------------------------------------------------------
+  # n8n — workflow engine. Custom image adds ffmpeg (see n8n.Dockerfile).
+  # --------------------------------------------------------------------------
+  n8n:
+    build:
+      context: .
+      dockerfile: n8n.Dockerfile
+    container_name: yt-n8n
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      # Core
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: ${N8N_PORT:-5678}
+      N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
+      WEBHOOK_URL: ${WEBHOOK_URL:-http://localhost:5678/}
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE:-UTC}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      # Run triggers automatically (don't require manual activation)
+      EXECUTIONS_MODE: regular
+      # Code-node staticData persistence breaks in task-runner mode on this n8n build — keep runners OFF
+      N8N_RUNNERS_ENABLED: false
+      N8N_LOG_LEVEL: debug
+      # Allow {{$env.*}} expressions in nodes (Gemini API key lookup)
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      # Point n8n at the in-stack services by container name
+      POSTIZ_BASE_URL: ${POSTIZ_BASE_URL:-http://localhost:4007/public/v1}
+      POSTIZ_API_KEY: ${POSTIZ_API_KEY}
+      WHISPER_URL: ${WHISPER_URL:-http://faster-whisper:8000}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      FB_PAGE_TOKEN: ${FB_PAGE_TOKEN:-}
+      HF_TOKEN: ${HF_TOKEN:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    volumes:
+      - n8n-data:/home/node/.n8n
+    networks:
+      - postiz-network
+    # Extra hosts so host.docker.internal resolves on Linux hosts too.
+    # (Docker Desktop on Windows maps it automatically, but this is harmless.)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # --------------------------------------------------------------------------
+  # faster-whisper-server — OpenAI-compatible HTTP transcription API.
+  # Exposes POST /v1/audio/transcriptions (multipart field: file) and
+  # ACCEPTS VIDEO FILES DIRECTLY (it uses ffmpeg internally to extract audio).
+  # This lets us delete the ffmpeg/Execute-Command steps from the n8n
+  # workflow entirely. Also dodges the n8n 2.34+ "Execute Command node
+  # removed" issue.
+  # --------------------------------------------------------------------------
+  faster-whisper:
+    image: fedirz/faster-whisper-server:latest-cpu
+    container_name: yt-faster-whisper
+    restart: unless-stopped
+    environment:
+      # Use the base model on CPU (small + fast). Change to small/medium for
+      # higher accuracy (slower). Models are downloaded on first request.
+      - WHISPER__MODEL=Systran/faster-whisper-base
+      - WHISPER__INFERENCE_DEVICE=cpu
+    ports:
+      - "8002:8000"
+    volumes:
+      - whisper-cache:/root/.cache/huggingface
+    networks:
+      - postiz-network
+
+# ============================================================================
+# Below: the full Postiz stack, copied from Postiz's official docker-compose
+# with two changes:
+#   1) secrets read from .env
+#   2) API_LIMIT raised to 90
+# Keep this intact — Temporal services are what fire scheduled uploads.
+# ============================================================================
+
+  postiz:
+    image: ghcr.io/gitroomhq/postiz-app:latest
+    container_name: postiz
+    restart: always
+    environment:
+      MAIN_URL: 'http://localhost:5000'
+      FRONTEND_URL: 'http://localhost:5000'
+      NEXT_PUBLIC_BACKEND_URL: 'http://localhost:5000/api'
+      JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: 'postgresql://postiz-user:postiz-password@postiz-postgres:5432/postiz-db-local'
+      REDIS_URL: 'redis://postiz-redis:6379'
+      BACKEND_INTERNAL_URL: 'http://localhost:3000'
+      TEMPORAL_ADDRESS: 'temporal:7233'
+      IS_GENERAL: 'true'
+      DISABLE_REGISTRATION: 'false'
+      STORAGE_PROVIDER: 'local'
+      UPLOAD_DIRECTORY: '/uploads'
+      NEXT_PUBLIC_UPLOAD_DIRECTORY: '/uploads'
+      YOUTUBE_CLIENT_ID: ${YOUTUBE_CLIENT_ID}
+      YOUTUBE_CLIENT_SECRET: ${YOUTUBE_CLIENT_SECRET}
+      TIKTOK_CLIENT_ID: ${TIKTOK_CLIENT_ID:-}
+      TIKTOK_CLIENT_SECRET: ${TIKTOK_CLIENT_SECRET:-}
+      FACEBOOK_APP_ID: ${FACEBOOK_APP_ID:-}
+      FACEBOOK_APP_SECRET: ${FACEBOOK_APP_SECRET:-}
+      OPENAI_API_KEY: ''
+      API_LIMIT: ${API_LIMIT:-90}
+      NX_ADD_PLUGINS: 'false'
+    volumes:
+      - postiz-config:/config/
+      - postiz-uploads:/uploads/
+    ports:
+      - '5000:5000'
+      - '4007:5000'
+    networks:
+      - postiz-network
+      - temporal-network
+    depends_on:
+      postiz-postgres:
+        condition: service_healthy
+      postiz-redis:
+        condition: service_healthy
+
+  postiz-postgres:
+    image: postgres:17-alpine
+    container_name: postiz-postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: postiz-password
+      POSTGRES_USER: postiz-user
+      POSTGRES_DB: postiz-db-local
+    volumes:
+      - postgres-volume:/var/lib/postgresql/data
+    networks:
+      - postiz-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postiz-user -d postiz-db-local"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  postiz-redis:
+    image: redis:7.2
+    container_name: postiz-redis
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    volumes:
+      - postiz-redis-data:/data
+    networks:
+      - postiz-network
+
+  spotlight:
+    pull_policy: always
+    container_name: spotlight
+    ports:
+      - "8969:8969/tcp"
+    image: ghcr.io/getsentry/spotlight:latest
+    networks:
+      - postiz-network
+
+  # -----------------------
+  # Temporal Stack (Postiz's scheduler — DO NOT REMOVE)
+  # -----------------------
+  temporal-elasticsearch:
+    container_name: temporal-elasticsearch
+    image: elasticsearch:7.17.27
+    environment:
+      - cluster.routing.allocation.disk.threshold_enabled=true
+      - cluster.routing.allocation.disk.watermark.low=512mb
+      - cluster.routing.allocation.disk.watermark.high=256mb
+      - cluster.routing.allocation.disk.watermark.flood_stage=128mb
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms256m -Xmx256m
+      - xpack.security.enabled=false
+    networks:
+      - temporal-network
+    expose:
+      - "9200"
+    volumes:
+      - /var/lib/elasticsearch/data
+
+  temporal-postgresql:
+    container_name: temporal-postgresql
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: temporal
+      POSTGRES_USER: temporal
+    networks:
+      - temporal-network
+    expose:
+      - "5432"
+    volumes:
+      - /var/lib/postgresql/data
+
+  temporal:
+    container_name: temporal
+    ports:
+      - '7233:7233'
+    image: temporalio/auto-setup:1.28.1
+    depends_on:
+      - temporal-postgresql
+      - temporal-elasticsearch
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=temporal-postgresql
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+      - ENABLE_ES=true
+      - ES_SEEDS=temporal-elasticsearch
+      - ES_VERSION=v7
+      - TEMPORAL_NAMESPACE=default
+    networks:
+      - temporal-network
+    volumes:
+      - ./dynamicconfig:/etc/temporal/config/dynamicconfig
+    labels:
+      kompose.volume.type: configMap
+
+  temporal-admin-tools:
+    container_name: temporal-admin-tools
+    image: temporalio/admin-tools:1.28.1-tctl-1.18.4-cli-1.4.1
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CLI_ADDRESS=temporal:7233
+    networks:
+      - temporal-network
+    stdin_open: true
+    depends_on:
+      - temporal
+    tty: true
+
+  temporal-ui:
+    container_name: temporal-ui
+    image: temporalio/ui:2.34.0
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://127.0.0.1:3000
+    networks:
+      - temporal-network
+    ports:
+      - '8080:8080'
+
+  # ------------------------------------------------------------------------
+  # image-tools — text overlay service (crisp typography on AI images)
+  # ------------------------------------------------------------------------
+  image-tools:
+    build:
+      context: ./image-tools
+    container_name: yt-image-tools
+    restart: unless-stopped
+    ports:
+      - "3210:3210"
+    networks:
+      - postiz-network
+
+  # ------------------------------------------------------------------------
+  # tunnel — public https tunnel for Instagram Graph API media ingestion
+  # ------------------------------------------------------------------------
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: yt-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://image-tools:3210
+    networks:
+      - postiz-network
+
+volumes:
+  n8n-data:
+  whisper-cache:
+  postgres-volume:
+    external: false
+  postiz-redis-data:
+    external: false
+  postiz-config:
+    external: false
+  postiz-uploads:
+    external: false
+
+networks:
+  postiz-network:
+    external: false
+  temporal-network:
+    driver: bridge
+    name: temporal-network

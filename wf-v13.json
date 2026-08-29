@@ -1,0 +1,1582 @@
+{
+ "id": "ca346785-d474-42bd-905a-700fc45eec30",
+ "name": "Category Content Machine (Pinterest-Inspired)",
+ "description": null,
+ "active": true,
+ "activeVersionId": "5e9f7867-1ee5-44f5-b42f-bd9177ae123c",
+ "createdAt": "2026-08-21T07:39:20.017Z",
+ "updatedAt": "2026-08-24T12:07:31.045Z",
+ "isArchived": false,
+ "versionId": "5e9f7867-1ee5-44f5-b42f-bd9177ae123c",
+ "versionCounter": 32,
+ "sourceWorkflowId": null,
+ "triggerCount": 2,
+ "nodes": [
+  {
+   "parameters": {
+    "httpMethod": "POST",
+    "path": "category-post",
+    "responseMode": "onReceived",
+    "options": {}
+   },
+   "id": "029adc4b-2246-4b84-ac43-b276cc96bcba",
+   "name": "Manual Fire",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2,
+   "position": [
+    -420,
+    460
+   ],
+   "webhookId": "52305992-76ae-4eb8-834f-f0608acd4d71"
+  },
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "30 3,8,13 * * *"
+      }
+     ]
+    }
+   },
+   "id": "1a8a9564-d310-41de-ab07-a7c62423d5ad",
+   "name": "Daily 3x Staggered (8:30am, 1:30pm, 6:30pm PKT)",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    -420,
+    640
+   ]
+  },
+  {
+   "parameters": {
+    "url": "https://www.pinterest.com/wealthcraft13280/being-part-of-the-1.rss",
+    "options": {
+     "timeout": 20000,
+     "response": {
+      "response": {
+       "fullResponse": false,
+       "neverError": true,
+       "responseFormat": "text"
+      }
+     }
+    }
+   },
+   "id": "c68c49da-ad5a-4db1-a542-3c4021ea30c5",
+   "name": "Pinterest A",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    -160,
+    200
+   ],
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "url": "https://www.pinterest.com/tahasps70/motivation-motivasi.rss",
+    "options": {
+     "timeout": 20000,
+     "response": {
+      "response": {
+       "fullResponse": false,
+       "neverError": true,
+       "responseFormat": "text"
+      }
+     }
+    }
+   },
+   "id": "43141f03-6de3-405d-b87c-96bd59b20875",
+   "name": "Pinterest B",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    -160,
+    360
+   ],
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "url": "https://www.pinterest.com/sahilmpa712/_quick_creates.rss",
+    "options": {
+     "timeout": 20000,
+     "response": {
+      "response": {
+       "fullResponse": false,
+       "neverError": true,
+       "responseFormat": "text"
+      }
+     }
+    }
+   },
+   "id": "66e59888-630b-4137-81b5-b5ece64ac900",
+   "name": "Pinterest C",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    -160,
+    520
+   ],
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "url": "https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage=8",
+    "options": {
+     "timeout": 20000
+    }
+   },
+   "id": "581117f2-cdb8-4a9c-91c4-6a1d9590448d",
+   "name": "Hacker News",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    -160,
+    700
+   ],
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "http://host.docker.internal:11434/api/generate",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($(\"04 Editorial Strategy\").first().json.ollamaPayload) }}",
+    "options": {
+     "timeout": 420000
+    }
+   },
+   "id": "5428b569-15e3-40ac-b4bd-401e0b8bcdad",
+   "name": "Ollama Creator",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    340,
+    460
+   ],
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 8000
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $('06 Parse & Validate').item.json.fbUrl }}",
+    "sendBody": true,
+    "contentType": "multipart-form-data",
+    "bodyParameters": {
+     "parameters": [
+      {
+       "parameterType": "formBinaryData",
+       "name": "source",
+       "inputDataFieldName": "data"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 300000
+    }
+   },
+   "id": "8f14508a-fcd5-4cda-9fe5-2c9018f23990",
+   "name": "Post to Facebook",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1460,
+    460
+   ],
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 10000,
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "mode": "append",
+    "numberInputs": 4
+   },
+   "id": "64c18870-ed36-4d6d-af25-520246b259f5",
+   "name": "Merge Sources",
+   "type": "n8n-nodes-base.merge",
+   "typeVersion": 3.2,
+   "position": [
+    -100,
+    460
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.openai.com/v1/chat/completions",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ \"Bearer \" + $env.OPENAI_API_KEY }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "json",
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.payload) }}",
+    "options": {
+     "timeout": 180000
+    }
+   },
+   "id": "46cb49f8-2b29-4eb2-b0bb-f6e0f168b2cb",
+   "name": "AI Creator",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    340,
+    200
+   ],
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "typeValidation": "loose"
+     },
+     "conditions": [
+      {
+       "leftValue": "={{ $json.choices && $json.choices[0] ? true : false }}",
+       "operator": {
+        "type": "boolean",
+        "operation": "true"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "id": "79f014e6-ec93-412d-81b0-a2d99255409a",
+   "name": "Content OK?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    580,
+    200
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// 01 Config & Memory — central configuration + weighted category/style rotation + content memory.\n// Everything tunable lives in CONFIG. Webhook body (Manual Fire) can override: {batch, publish, categories:[...]}.\nconst CONFIG = {\n  PLATFORM: 'facebook',\n  BATCH_SIZE: 1,                    // posts per execution (1/5/10/20)\n  CAPTION_LENGTH: 'rotate',         // 'short' | 'medium' | 'long' | 'rotate'\n  IMAGE_ASPECT_RATIO: '4:5',        // '4:5' | '2:3' | '1:1' | '9:16'\n  QUALITY_THRESHOLD: 80,            // publish gate (0-100)\n  SIMILARITY_THRESHOLD: 0.55,       // Jaccard overlap that flags a duplicate\n  MAX_RETRIES: 0,                   // auto-regeneration rounds (0 = reject & log with critique)\n  CTA_FREQUENCY: 0.4,               // ~40% of posts get a natural CTA\n  HASHTAG_LIMIT: 8,                 // 5-10, never stuffed\n  TREND_RESEARCH_ENABLED: true,     // use live Pinterest/HN titles as trend context\n  AUTO_PUBLISH_ENABLED: true,       // LIVE daily flow — Manual Fire {\"publish\":false} for dry runs\n  IMAGE_SIZE: '1024x1536',          // gpt-image-2 vertical (2:3)\n  CONTENT_LANGUAGE: 'en',\n  MEMORY_LIMIT: 200                 // keep last N content records\n};\n\nconst ASPECTS = { '4:5': [1000, 1250], '2:3': [1000, 1500], '1:1': [1080, 1080], '9:16': [810, 1440] };\n\n// 20-category editorial system (weights sum ~100).\nconst CATEGORIES = [\n  { id: 'quiet_ambition', name: 'Quiet Ambition', weight: 10, core: 'Build without needing constant validation.', subs: ['building privately', 'silent progress', 'results over announcements', 'ambition without performance', 'letting results speak', 'long-term thinking', 'sustainable ambition'] },\n  { id: 'discipline_no_hustle', name: 'Discipline Without Hustle', weight: 8, core: 'Discipline without burnout or toxic productivity.', subs: ['keeping promises to yourself', 'discipline without motivation', 'rest as part of discipline', 'showing up on difficult days', 'identity-based habits', 'boring consistent work'] },\n  { id: 'ai_era_growth', name: 'AI-Era Self Improvement', weight: 10, core: 'How humans should develop themselves in an AI-heavy world.', subs: ['human judgment', 'critical thinking', 'becoming harder to replace', 'using AI instead of fearing it', 'avoiding intellectual laziness', 'continuous learning'] },\n  { id: 'future_proof_career', name: 'Future-Proof Career', weight: 7, core: 'Build valuable skills instead of depending on titles.', subs: ['skill stacking', 'portfolio over credentials', 'proof of work', 'career reinvention', 'building leverage'] },\n  { id: 'digital_detox', name: 'Digital Detox', weight: 8, core: 'Reclaim attention from phones, feeds and algorithms.', subs: ['doomscrolling', 'phone-free mornings', 'notifications', 'creating instead of consuming', 'digital minimalism', 'protecting mental space'] },\n  { id: 'slow_living', name: 'Slow Living', weight: 6, core: 'A meaningful life does not have to be rushed.', subs: ['peaceful mornings', 'ordinary moments', 'quality over speed', 'offline hobbies', 'intentional routines'] },\n  { id: 'deep_work', name: 'Deep Work & Focus', weight: 7, core: 'Attention is a competitive advantage.', subs: ['single-tasking', 'phone-free work', 'creating before consuming', 'protecting mornings', 'attention management'] },\n  { id: 'resilience', name: 'Emotional Resilience', weight: 6, core: 'Strength is the ability to recover and stay grounded.', subs: ['setbacks', 'patience', 'staying calm', 'responding instead of reacting', 'difficult seasons'] },\n  { id: 'self_trust', name: 'Self-Trust & Confidence', weight: 4, core: 'Confidence comes from evidence created by your own actions.', subs: ['keeping promises', 'decision-making', 'confidence through action', 'being misunderstood', 'personal standards'] },\n  { id: 'small_wins', name: 'Small Wins & Micro Habits', weight: 7, core: 'Small actions compound.', subs: ['1% improvement', 'tiny habits', 'compound effect', 'habit stacking', 'starting small'] },\n  { id: 'anti_comparison', name: 'Anti-Comparison', weight: 4, core: 'Stop measuring your life against highlights.', subs: ['different timelines', 'staying in your lane', 'defining your own success', 'comparison traps', 'gratitude'] },\n  { id: 'burnout_recovery', name: 'Burnout & Recovery', weight: 4, core: 'Exhaustion is not proof of ambition.', subs: ['rest', 'recovery', 'boundaries', 'energy management', 'sustainable productivity', 'saying no'] },\n  { id: 'career_growth', name: 'Career Growth', weight: 5, core: 'Become more valuable before demanding the next title.', subs: ['mentorship', 'professional reputation', 'communication', 'visibility', 'building proof'] },\n  { id: 'money_discipline', name: 'Money & Financial Discipline', weight: 3, core: 'Build stability instead of performing wealth. Educational and behavioral only — never specific investment advice.', subs: ['delayed gratification', 'lifestyle inflation', 'quiet wealth', 'spending discipline', 'avoiding status spending'] },\n  { id: 'leadership', name: 'Leadership & Character', weight: 2, core: 'Leadership begins with character and self-control.', subs: ['responsibility', 'integrity', 'listening', 'leading by example', 'accountability'] },\n  { id: 'boundaries', name: 'Boundaries & Self-Respect', weight: 3, core: 'Protect your time, attention, energy and dignity. No toxic \"cut everyone off\" messaging.', subs: ['saying no', 'overexplaining', 'people pleasing', 'protecting peace', 'mutual effort'] },\n  { id: 'reinvention', name: 'Reinvention & Starting Over', weight: 3, core: 'You are allowed to change direction.', subs: ['new beginnings', 'changing careers', 'rebuilding', 'second chances', 'leaving old versions of yourself'] },\n  { id: 'courage', name: 'Courage & Discomfort', weight: 3, core: 'Growth often begins where comfort ends.', subs: ['starting before ready', 'difficult conversations', 'rejection', 'publishing work', 'learning publicly'] },\n  { id: 'purpose', name: 'Purpose & Meaning', weight: 2, core: 'Success without meaning can still feel empty.', subs: ['defining success', 'values', 'meaningful work', 'personal philosophy'] },\n  { id: 'intentional_life', name: 'Intentional Life', weight: 8, core: 'Stop living on autopilot.', subs: ['intentional choices', 'simplifying life', 'priorities', 'environment design', 'meaningful experiences'] }\n];\n\nconst HOOK_PATTERNS = ['contrarian', 'observation', 'reframe', 'question', 'paradox', 'direct statement', 'modern problem', 'identity', 'future consequence', 'philosophical'];\nconst CAPTION_LENGTHS = ['short: 40-80 words', 'medium: 80-150 words', 'long: 150-250 words'];\nconst FORMATS = ['single image + caption', 'minimal quote poster', 'cinematic image + short statement', 'conceptual visual metaphor', 'question-based image', 'two-line philosophical statement', 'practical micro-advice', 'contrarian insight', 'short educational insight', 'reflection'];\nconst PALETTES = ['warm earth', 'charcoal + cream', 'muted green', 'deep blue', 'warm amber', 'soft gray monochrome', 'natural wood', 'subtle metallic'];\n\n// Group share pool (user-joined public groups, 2026-08-24). Each published post is assigned the NEXT\n// block of 4 groups (consecutive, non-overlapping, wraps around the pool).\nconst GROUP_POOL = [\n  { id: '557093121330339', name: 'Group 01', url: 'https://www.facebook.com/groups/557093121330339/' },\n  { id: '3068652839830302', name: 'Group 02', url: 'https://www.facebook.com/groups/3068652839830302/' },\n  { id: '1277931033721000', name: 'Group 03', url: 'https://www.facebook.com/groups/1277931033721000/' },\n  { id: '224170823053655', name: 'Group 04', url: 'https://www.facebook.com/groups/224170823053655/' },\n  { id: '175076773308988', name: 'Group 05', url: 'https://www.facebook.com/groups/175076773308988/' },\n  { id: '112168158884874', name: 'Group 06', url: 'https://www.facebook.com/groups/112168158884874/' },\n  { id: 'billionairmindsetquotes', name: 'Group 07', url: 'https://www.facebook.com/groups/billionairmindsetquotes/' },\n  { id: 'billionairesthinking', name: 'Group 08', url: 'https://www.facebook.com/groups/billionairesthinking/' },\n  { id: 'successquotess', name: 'Group 09', url: 'https://www.facebook.com/groups/successquotess/' },\n  { id: '1076951029899388', name: 'Group 10', url: 'https://www.facebook.com/groups/1076951029899388/' },\n  { id: '186297316379630', name: 'Group 11', url: 'https://www.facebook.com/groups/186297316379630/' },\n  { id: '1400779753809224', name: 'Group 12', url: 'https://www.facebook.com/groups/1400779753809224/' },\n  { id: '835580721364268', name: 'Group 13', url: 'https://www.facebook.com/groups/835580721364268/' },\n  { id: '2498396733824085', name: 'Group 14', url: 'https://www.facebook.com/groups/2498396733824085/' },\n  { id: '1936803896580105', name: 'Group 15', url: 'https://www.facebook.com/groups/1936803896580105/' }\n];\nconst GROUPS_PER_POST = 4;\n\nconst staticData = null; // memory lives in the CCM Memory Store workflow now\nconst storeResp = (() => { try { return $('01b Load Memory').first().json || {}; } catch (e) { return {}; } })();\nconst memory = storeResp.content || [];\n\n// Webhook body overrides (batch size, forced categories, one-off publish) — only present on Manual Fire runs.\nconst body = (() => { try { return $('Manual Fire').first().json.body || {}; } catch (e) { return {}; } })();\nif (body.batch) CONFIG.BATCH_SIZE = Math.min(20, Math.max(1, parseInt(body.batch, 10) || 1));\nif (typeof body.publish === 'boolean') CONFIG.AUTO_PUBLISH_ENABLED = body.publish;\nconst forcedCategories = Array.isArray(body.categories) && body.categories.length ? body.categories.slice(0, 20) : null;\n\nfunction pickWeighted(exclude) {\n  const pool = CATEGORIES.filter(c => !exclude.includes(c.id));\n  const list = pool.length ? pool : CATEGORIES;\n  let total = 0; for (const c of list) total += c.weight;\n  let r = Math.random() * total;\n  for (const c of list) { r -= c.weight; if (r <= 0) return c; }\n  return list[list.length - 1];\n}\n// Avoid the categories used by the most recent posts.\nconst exclude = memory.slice(-2).map(m => String(m.category || '').toLowerCase().replace(/[^a-z]+/g, '_'));\nconst picked = [];\nconst n = CONFIG.BATCH_SIZE;\nfor (let i = 0; i < n; i++) {\n  if (forcedCategories) {\n    const fc = CATEGORIES.find(c => c.id === forcedCategories[i % forcedCategories.length] || c.name === forcedCategories[i % forcedCategories.length]);\n    if (fc) picked.push(fc); else picked.push(pickWeighted(picked.map(p => p.id)));\n  } else {\n    picked.push(pickWeighted(picked.map(p => p.id)));\n  }\n}\n\n// Rotation: avoid repeating the last-used values.\nfunction rotate(arr, last) { const pool = arr.filter(v => !last.includes(v)); return (pool.length ? pool : arr)[Math.floor(Math.random() * (pool.length ? pool.length : arr.length))]; }\nconst styleRotation = picked.map((_, i) => rotate(FORMATS, [])); // format varies freely per post\n\n// Recent content summary for the originality engine (last 15 posts).\nconst recent = memory.slice(-15).map(m => ({ category: m.category, hook: m.hook, headline: m.headline, angle: m.angle, metaphor: m.visual_concept || m.metaphor }));\n// Recent poster layouts so the Creator rotates styles instead of repeating (last 8 that have one).\nconst recentLayouts = memory.slice(-8).map(m => m.layout).filter(Boolean);\n\n// Group rotation: the Nth post ever stored gets groups [(N*4) .. (N*4+3)] wrapped around the pool.\n// storeResp.total = records BEFORE this run, so post i in this batch advances the cursor by 4 each.\nconst groupTargets = picked.map((_, i) => {\n  const start = ((storeResp.total || memory.length) + i) * GROUPS_PER_POST % GROUP_POOL.length;\n  return { start,\n    groups: Array.from({ length: GROUPS_PER_POST }, (_, k) => GROUP_POOL[(start + k) % GROUP_POOL.length]) };\n});\n\nreturn [{ json: {\n  config: CONFIG,\n  aspect: ASPECTS[CONFIG.IMAGE_ASPECT_RATIO] || ASPECTS['2:3'],\n  picks: picked.map(p => ({ id: p.id, name: p.name, core: p.core, subs: p.subs })),\n  captionLength: CONFIG.CAPTION_LENGTH === 'rotate' ? CAPTION_LENGTHS[Math.floor(Math.random() * CAPTION_LENGTHS.length)] : CONFIG.CAPTION_LENGTH + ' words',\n  recentContent: recent,\n  recentLayouts: recentLayouts,\n  groupTargets: groupTargets,\n  memoryCount: storeResp.total || memory.length,\n  generatedAt: new Date().toISOString()\n} }];\n"
+   },
+   "id": "b979cb04-8043-474d-b5a9-724777c061eb",
+   "name": "01 Config & Memory",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -420,
+    720
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// 04 Editorial Strategy — builds the editorial mega-prompt from config, trend context and content memory.\nconst cfg = $('01 Config & Memory').first().json;\n\n// Trend context from the merged sources (Pinterest RSS titles + Hacker News).\nlet trends = [];\nfor (const item of $input.all()) {\n  const j = item.json;\n  const raw = typeof j === 'string' ? j : (j.data || JSON.stringify(j));\n  if (raw && raw.charAt(0) === '<') {\n    const items = [...raw.matchAll(/<item>[\\s\\S]*?<\\/item>/g)].slice(0, 8);\n    for (const m of items) {\n      const t = (m[0].match(/<title>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/title>/) || [])[1];\n      if (t && t.length > 8) trends.push(t.trim());\n    }\n  } else if (j && j.hits) {\n    for (const h of j.hits.slice(0, 8)) if (h.title) trends.push(h.title);\n  }\n}\ntrends = [...new Set(trends)].slice(0, 12);\n\nconst VISUAL_STYLES = {\n  'cinematic human': 'human subject in dramatic environment, realistic photography, cinematic lighting, shallow depth of field, premium editorial (good: discipline, resilience, confidence, courage)',\n  'luxury editorial': 'architectural interiors, premium materials, sophisticated workspace, black/cream neutrals, controlled composition (good: quiet ambition, career, money, leadership)',\n  'nature philosophy': 'mountains, forests, ocean, roads, trees, sunrise, fog, rain (good: growth, patience, purpose, resilience)',\n  'analog offline': 'notebooks, books, film cameras, coffee, wooden desks, handwritten notes, warm natural light (good: digital detox, slow living, focus, intentional life)',\n  'futuristic human': 'subtle futuristic architecture, sophisticated technology aesthetic, human silhouette, cinematic light — never cheesy sci-fi (good: AI-era growth, future careers, adaptability)',\n  'minimal typography': 'extremely simple background, strong negative space, minimal objects, editorial poster design (good: boundaries, confidence, self-respect, philosophy)',\n  'transformation': 'visual metaphor of change: seed to tree, darkness to light, closed door to open landscape, storm to calm (good: reinvention, growth, recovery, starting over)'\n};\nconst METAPHOR_LIBRARY = {\n  growth: ['seed becoming a tree', 'tree rings', 'staircase', 'mountain trail at dawn', 'construction site', 'sunrise'],\n  focus: ['single spotlight', 'isolated desk', 'one straight road', 'clean workspace'],\n  digital_detox: ['phone face down', 'device in a drawer', 'person outdoors without a phone', 'paper notebook'],\n  reinvention: ['open door', 'crossroads', 'new road', 'broken wall with light behind'],\n  resilience: ['tree bent by wind still standing', 'storm clearing', 'ocean after rain', 'mountain in clouds'],\n  quiet_ambition: ['late-night office light', 'empty early workspace', 'blueprint on a desk', 'unfinished structure rising']\n};\nconst HOOK_EXAMPLES = {\n  'contrarian': 'Being busy is not the same as moving forward.',\n  'observation': 'Most people don\\'t lose focus all at once. They lose it notification by notification.',\n  'reframe': 'Rest isn\\'t the opposite of discipline. Sometimes it\\'s what makes discipline sustainable.',\n  'question': 'What would change if you stopped trying to impress people who aren\\'t building your life?',\n  'paradox': 'The fastest way to burn out is to treat every day like a deadline.',\n  'direct statement': 'Build quietly.',\n  'modern problem': 'Your biggest distraction may fit inside your pocket.',\n  'identity': 'Become the person who keeps promises to themselves.',\n  'future consequence': 'The habits you ignore today become the life you inherit later.',\n  'philosophical': 'A peaceful life can still be an ambitious life.'\n};\n\nconst styleKeys = Object.keys(VISUAL_STYLES);\nconst styleGuide = cfg.picks.map((p, i) => {\n  const style = styleKeys[(cfg.memoryCount + i) % styleKeys.length]; // deterministic rotation across posts\n  return 'POST ' + (i + 1) + ' must use visual style \"' + style + '\": ' + VISUAL_STYLES[style];\n}).join('\\n');\n\nconst prompt = 'You are the editorial engine of a premium self-improvement page. Niche: \"Modern self-improvement for ambitious people living in a noisy, digital, AI-heavy world.\" Voice: calm, intelligent, mature, concise, emotionally strong, modern, reflective, confident. NEVER generic motivational-speaker content, no hustle shouting, no excessive emojis (max 1, usually 0), no fake stories, no fake statistics, no invented research, no engagement bait.\\n\\n'\n+ 'PLATFORM: ' + cfg.config.PLATFORM + ' (adapt caption depth/tone to it).\\n'\n+ 'Generate ' + cfg.picks.length + ' COMPLETELY DIFFERENT posts, one per category below. For EACH post internally generate 3-5 candidate concepts, evaluate them for originality/emotional impact/visual potential/non-cliche quality, and output ONLY the strongest one per category.\\n\\n'\n+ 'CATEGORIES FOR THIS RUN:\\n' + cfg.picks.map((p, i) => 'POST ' + (i + 1) + ' — ' + p.name + ' (core idea: ' + p.core + '). Pick ONE subtopic/angle: ' + p.subs.join('; ') + '. The post must express ONE specific content angle (a concrete insight, not a vague theme).').join('\\n') + '\\n\\n'\n+ (cfg.config.TREND_RESEARCH_ENABLED && trends.length ? 'TREND CONTEXT (recent titles from this niche — get the vibe of what people discuss, NEVER copy wording):\\n' + trends.join('\\n') + '\\n\\n' : '')\n+ 'HOOK SYSTEM: rotate hook styles across posts. Styles with examples: ' + Object.entries(HOOK_EXAMPLES).map(([k, v]) => k + ' (\"' + v + '\")').join('; ') + '. Assign a DIFFERENT hook style to each post.\\n'\n+ 'VISUAL METAPHOR LIBRARY (draw from these for the poster subject, never repeat the same metaphor as recent content): ' + Object.entries(METAPHOR_LIBRARY).map(([k, v]) => k + ': ' + v.join(', ')).join(' | ') + '\\n'\n+ 'COLOR: the poster system is monochrome + ONE accent per image — choose the accent to fit the emotion (warm gold = legacy/time/value, deep crimson = power/urgency, golden-yellow = predator focus). Never rainbow, never pastel.\\n\\n'\n+ 'PREMIUM VALUE-POSTER SYSTEM (CRITICAL): Every post generates an image that contains COMPLETE READABLE VALUE. The viewer should be able to read the image text alone in 5 seconds, understand the entire lesson, and immediately want to save/like the post.\\n'\n+ 'For EVERY post provide an \"image\" object with:\\n'\n+ '- \"layout\": one of the twelve visual layouts (isolated_beast, duality_split, matrix_grid, infographic, dark_icon, impossible_breakthrough, tension_snap, surreal_state_change, transformative_reflection, corrupting_touch, degradation_split, inevitable_loop)\\n'\n+ '- \"subject\": rich visual description of the symbolic objects/scene/metaphor — no humans, no faces\\n'\n+ '- \"accent\": single accent color (e.g. golden-yellow, deep crimson, warm gold, emerald green, amber)\\n'\n+ '- \"headline\": 2-5 WORDS, ALL CAPS, punchy concept title (e.g. \"THE LAW OF SILENT LEVERAGE\" or \"THE COST OF PROVING YOURSELF\")\\n'\n+ '- \"insight_body\": 2-3 COMPLETE, PROFOUND, HIGH-VALUE SENTENCES explaining the core insight directly on the image so the viewer gets the full meaning instantly without opening the caption.\\n'\n+ '- \"takeaway\": ONE sharp concluding rule/truth line (e.g. \"Rule: Value privacy over applause.\" or \"Truth: Real power never has to shout.\")\\n'\n+ '- \"subtext\": short fallback combination of insight_body and takeaway\\n'\n+ 'plus layout extras (duality_split: left_text, right_text, left_subject, right_subject; matrix_grid: accent_word; infographic: items and closing_line; transformative_reflection: reflection_subject; degradation_split: destroyer; impossible_breakthrough: surface).\\n\\n'\n+ 'IMAGE/CAPTION RULE: The image contains the full core value lesson. The caption expands upon it with deeper nuance and context.\\n\\n'\n+ 'CAPTION LENGTH: ' + cfg.captionLength + '.\\n'\n+ 'CTA: include a natural, non-bait CTA on roughly ' + Math.round(cfg.config.CTA_FREQUENCY * 100) + '% of posts (question inviting genuine reflection); empty string \"\" otherwise.\\n'\n+ 'HASHTAGS: 3-' + cfg.config.HASHTAG_LIMIT + ' highly relevant (core niche + topic), lowercase with #, no generic viral stuffing.\\n\\n'\n+ (cfg.recentContent.length ? 'ORIGINALITY CONTEXT — recent posts already published (DO NOT repeat their hooks, headlines, angles, metaphors or wording; your output must be clearly distinct):\\n' + cfg.recentContent.map(r => '- [' + r.category + '] hook: \"' + r.hook + '\" | headline: \"' + (Array.isArray(r.headline) ? r.headline.join(' / ') : r.headline) + '\" | angle: ' + r.angle).join('\\n') + '\\n\\n' : '')\n+ 'Return ONLY valid JSON:\\n{\"posts\":[{\"content_id\":\"' + Date.now() + '-N\",\"category\":\"\",\"subcategory\":\"\",\"trend_context\":\"one line on the underlying human concern (or empty)\",\"content_angle\":\"\",\"hook_style\":\"\",\"hook\":\"\",\"subheadline\":\"\",\"core_message\":\"\",\"visual_style\":\"\",\"visual_concept\":\"\",\"metaphor\":\"\",\"image\":{\"layout\":\"\",\"subject\":\"\",\"accent\":\"\",\"headline\":\"\",\"insight_body\":\"\",\"takeaway\":\"\",\"subtext\":\"\",\"accent_word\":\"\",\"left_text\":\"\",\"right_text\":\"\",\"left_subject\":\"\",\"right_subject\":\"\",\"closing_line\":\"\",\"reflection_subject\":\"\",\"destroyer\":\"\",\"items\":[{\"label\":\"\",\"object\":\"\"}]},\"caption\":\"\",\"cta\":\"\",\"hashtags\":[\"#\"],\"platform\":\"' + cfg.config.PLATFORM + '\",\"self_quality_score\":0}]}';\n\nconst payload = { model: 'gpt-4o-mini', messages: [{ role: 'user', content: prompt }], response_format: { type: 'json_object' }, max_tokens: 1200 };\nconst ollamaPayload = { model: 'llama3.1:8b', prompt: prompt, format: 'json', stream: false, options: { temperature: 0.85 } };\n\nreturn [{ json: { payload: payload, ollamaPayload: ollamaPayload, meta: { batch: cfg.picks.length, trendCount: trends.length, at: cfg.generatedAt } } }];\n"
+   },
+   "id": "5ac365a9-180f-45e0-9cc2-10513c3401c0",
+   "name": "04 Editorial Strategy",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    120,
+    460
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// 06 Parse & Validate — schema validation, cliché + duplicate detection, poster-prompt assembly (gpt-image-2 style engine).\nconst cfgData = $('01 Config & Memory').first().json;\nconst CONFIG = cfgData.config;\n\nlet ai = {};\ntry {\n  const resp = ($json.choices && $json.choices[0] && $json.choices[0].message && $json.choices[0].message.content) || $json.response || ($json.candidates && $json.candidates[0].content.parts[0].text) || '{}';\n  ai = typeof resp === 'string' ? JSON.parse(resp) : resp;\n} catch (e) { throw new Error('AI returned non-JSON: ' + String($json.response || $json.choices || '').substring(0, 200)); }\n\nconst posts = ai.posts || (Array.isArray(ai) ? ai : []);\nif (!posts.length) throw new Error('AI returned no posts');\n\n// Cliché detection (banned generic phrases; allowed only if genuinely subverted).\nconst CLICHES = ['never give up', 'believe in yourself', 'dream big', 'work hard', 'stay positive', 'success takes time', 'everything happens for a reason', 'you can do anything', 'keep pushing', 'be yourself', 'great things take time', 'hustle harder'];\nconst memory = (() => { try { return ($('01b Load Memory').first().json || {}).content || []; } catch (e) { return []; } })();\n\n// Jaccard word-overlap similarity for duplicate detection.\nfunction tokens(s) { return new Set(String(s || '').toLowerCase().replace(/[^a-z0-9\\s]/g, ' ').split(/\\s+/).filter(w => w.length > 3)); }\nfunction similarity(a, b) {\n  const A = tokens(a), B = tokens(b);\n  if (!A.size || !B.size) return 0;\n  let inter = 0; for (const w of A) if (B.has(w)) inter++;\n  return inter / (A.size + B.size - inter);\n}\n\n// ── PREMIUM POSTER STYLE KIT (proven 2026-08-24, variants A–J + user-supplied conceptual blueprints) ──\n// To add a new style later: append a template below + describe it in the 04 strategy prompt.\nconst POSTER_BASE = 'A highly realistic, premium minimalist social media editorial graphic. ';\nconst POSTER_NEG = ' Avoid: messy background, lifestyle photography, humans, cafes, offices, cluttered desk, busy city, generic motivational poster, cursive fonts, cartoon, illustration, 3d render, plastic, low resolution, misspelled text, rainbow colors, pastels, vintage, sepia, text covering the subject.';\nconst q = t => String(t || '').replace(/\"/g, \"'\").trim();\n\nconst POSTER_TEMPLATES = {\n  isolated_beast: im =>\n    'LAYOUT STYLE: The Value Poster. SUBJECT: ' + q(im.subject) + ', placed gracefully in the lower half. BACKGROUND: Pure studio white with a subtle soft grey gradient. LIGHTING: Dramatic high-contrast studio lighting, sharp shadows. COLOR GRADING: Monochrome white and charcoal with a single ' + q(im.accent || 'golden-yellow') + ' accent. TYPOGRAPHY AND FULL VALUE TEXT: In the clean upper negative space, bold uppercase concept title reading exactly: \"' + q(im.headline) + '\" followed by full readable insight text in crisp modern typography reading exactly: \"' + q(im.insight_body || im.subtext) + '\" and concluding with takeaway rule line reading exactly: \"' + q(im.takeaway || '') + '\" TEXT PLACEMENT: Upper half, perfectly centered, pristine typography, high contrast, 100% readable. AESTHETIC: Masterpiece, 8k, photorealistic, advertising photography, crisp edges, immaculate negative space.',\n  duality_split: im =>\n    'LAYOUT STYLE: The Duality Split. SUBJECT: A perfect 50/50 vertical split image. LEFT half: pure white background with ' + q(im.left_subject) + '. RIGHT half: pitch black background with ' + q(im.right_subject) + '. LIGHTING: High contrast, sharp studio light on both subjects. COLOR GRADING: Pure black and pure white only. TYPOGRAPHY AND FULL VALUE TEXT: Color-inverted editorial typography reading exactly \"' + q(im.left_text) + '\" in black text on the white left side and \"' + q(im.right_text) + '\" in white text on the black right side, both with readable insight subtext below: \"' + q(im.insight_body || im.subtext) + '\" AESTHETIC: Masterpiece, 8k, photorealistic, advertising photography, crisp edges, immaculate negative space.',\n  matrix_grid: im =>\n    'LAYOUT STYLE: The Matrix Textured Grid. SUBJECT: ' + q(im.subject) + ', its form partly formed from shattered bold typographic letterforms. BACKGROUND: Stark white fading into light grey texture. LIGHTING: High contrast studio lighting, stark shadows. COLOR GRADING: Monochrome black and white with a deep crimson red accent. TYPOGRAPHY AND FULL VALUE TEXT: Massive bold sans-serif headline reading: \"' + q(im.headline) + '\" with full value insight text clearly rendered below reading: \"' + q(im.insight_body || im.subtext) + '\" and rule line: \"' + q(im.takeaway || '') + '\" AESTHETIC: Masterpiece, 8k, photorealistic, advertising photography, crisp edges, immaculate negative space.',\n  infographic: im => {\n    const items = (im.items || []).slice(0, 4);\n    const objs = items.map((it, i) => (i + 1) + '. ' + q(it.object)).join(', ');\n    const labels = items.map(it => '\"' + q(it.label) + '\"').join(', ');\n    return 'LAYOUT STYLE: The Premium Infographic. SUBJECT: Four vertically stacked circular gold-rimmed frames on the left side, each containing a hyper-realistic object: ' + objs + '. BACKGROUND: Pitch black. LIGHTING: Dramatic studio rim lighting on each object. COLOR GRADING: Deep black with rich gold accents and crisp white. TYPOGRAPHY AND FULL VALUE TEXT: To the right of each circle, flawless editorial typography: main words in gold reading exactly ' + labels + ' with clear explanatory text under each. Bottom center in bold white: \"' + q(im.closing_line || im.headline) + '\" with takeaway: \"' + q(im.takeaway || im.insight_body || '') + '\" AESTHETIC: Masterpiece, 8k, photorealistic, advertising photography, crisp edges, immaculate negative space.';\n  },\n  dark_icon: im =>\n    'LAYOUT STYLE: The Dark Value Poster. SUBJECT: ' + q(im.subject) + ', placed centrally, subtle reflection below. BACKGROUND: Pure pitch black. LIGHTING: Dramatic rim lighting outlining the object, single warm gold glow. COLOR GRADING: Deep black with rich ' + q(im.accent || 'gold') + ' accent only. TYPOGRAPHY AND FULL VALUE TEXT: Massive flawless bold white sans-serif headline reading: \"' + q(im.headline) + '\" with full readable insight paragraph in clean crisp typography reading: \"' + q(im.insight_body || im.subtext) + '\" and concluding rule: \"' + q(im.takeaway || '') + '\" TEXT PLACEMENT: Upper half, perfectly spaced, high legibility. AESTHETIC: Masterpiece, 8k, photorealistic, advertising photography, crisp edges, immaculate negative space.',\n  // ── Conceptual Metaphor & Surreal Realism blueprints ──\n  impossible_breakthrough: im =>\n    'LAYOUT STYLE: The Impossible Breakthrough. SUBJECT & TWIST: ' + q(im.surface || 'A massive solid heavy grey concrete slab') + ' forcefully cracked wide open as ' + q(im.subject || 'a delicate, luminous vibrant green plant seedling') + ' erupts upward from beneath, shattering the dense stone with supernatural vigor. BACKGROUND: Monochromatic minimalist slate grey concrete floor with deep tactile fractures and debris. LIGHTING & TEXTURE: Bright crisp top-down studio and natural morning sunlight illuminating translucent green leaf veins, extreme texture contrast. TYPOGRAPHY AND FULL VALUE TEXT: Bold, clean, modern dark typography framed with minimalist editorial brackets reading: \"' + q(im.headline) + '\" followed by full readable insight text: \"' + q(im.insight_body || im.subtext) + '\" and takeaway rule: \"' + q(im.takeaway || '') + '\" TEXT PLACEMENT: Upper half clean space. AESTHETIC: Masterpiece, 8k, award-winning print ad, clever visual metaphor, crisp edges, immaculate negative space, surreal realism.',\n  tension_snap: im =>\n    'LAYOUT STYLE: The Tension Snap. SUBJECT & TWIST: ' + q(im.subject || 'A thick, heavily rusted industrial iron chain') + ' caught in the exact micro-second of violently snapping in half. The broken ends are glowing with superheated, bright orange and yellow heat, with sparks and embers flying outward violently. BACKGROUND: Dark, moody, out-of-focus brushed steel or gritty wall. LIGHTING & TEXTURE: Cinematic, dark, with extreme sharp focus on the rusted texture and the bright glowing embers acting as the main light source. TYPOGRAPHY AND FULL VALUE TEXT: Bold uppercase typography reading: \"' + q(im.headline) + '\" with full readable insight breakdown: \"' + q(im.insight_body || im.subtext) + '\" and takeaway: \"' + q(im.takeaway || '') + '\" TEXT PLACEMENT: Centered at top. AESTHETIC: Masterpiece, 8k, award-winning print ad, clever visual metaphor, crisp edges, immaculate negative space, surreal realism.',\n  surreal_state_change: im =>\n    'LAYOUT STYLE: The Surreal State Change. SUBJECT & TWIST: ' + q(im.subject || 'A highly reflective, chrome twin-bell alarm clock') + ' that is surrealistically melting and morphing into thick, glossy liquid metal. The liquid drips downward in a frozen moment. BACKGROUND: Pure stark white to light grey seamless studio background. LIGHTING & TEXTURE: Pristine advertising studio lighting, hyper-glossy reflections on the chrome, crisp 3D realism. TYPOGRAPHY AND FULL VALUE TEXT: Bold, flawless black editorial typography reading: \"' + q(im.headline) + '\" with full readable insight text: \"' + q(im.insight_body || im.subtext) + '\" and takeaway rule: \"' + q(im.takeaway || '') + '\" AESTHETIC: Masterpiece, 8k, award-winning print ad, clever visual metaphor, crisp edges, immaculate negative space, surreal realism.',\n  transformative_reflection: im =>\n    'LAYOUT STYLE: The Transformative Reflection. SUBJECT & TWIST: ' + q(im.subject) + ' standing on a highly reflective surface of dark still water. The reflection looking back at it is ' + q(im.reflection_subject) + ', massive and powerful. BACKGROUND: Dark moody cinematic deep charcoal, making the reflection glow with presence. LIGHTING: Moody cinematic rim light, one soft spotlight on the small subject. COLOR GRADING: Dark monochrome with a single ' + q(im.accent || 'warm gold') + ' accent glow inside the reflection. TYPOGRAPHY AND FULL VALUE TEXT: Bold headline: \"' + q(im.headline) + '\" with full insight paragraph: \"' + q(im.insight_body || im.subtext) + '\" and rule line: \"' + q(im.takeaway || '') + '\" AESTHETIC: Masterpiece, 8k, award-winning print ad, clever visual metaphor, crisp edges, immaculate negative space.',\n  corrupting_touch: im =>\n    'LAYOUT STYLE: The Corrupting Touch. SUBJECT & TWIST: ' + q(im.subject) + ' placed side-by-side on a surface — one object completely ruined, shriveled and rotten; the other pristine and glossy, except one small spot of rot spreading into it exactly at the point where the two touch. BACKGROUND: Pure stark white studio background. LIGHTING: Extremely bright clean high-end advertising studio lighting, hyper-detailed macro textures. TYPOGRAPHY AND FULL VALUE TEXT: Bold headline in ' + q(im.accent || 'deep red') + ' and black: \"' + q(im.headline) + '\" with full insight explanation: \"' + q(im.insight_body || im.subtext) + '\" and rule: \"' + q(im.takeaway || '') + '\" AESTHETIC: Masterpiece, 8k, award-winning print ad, clever visual metaphor, crisp edges, immaculate negative space.',\n  degradation_split: im =>\n    'LAYOUT STYLE: The 50/50 Degradation Split. SUBJECT & TWIST: A single ' + q(im.subject) + ' centered in the frame, split perfectly down the middle: the left half pristine, glossy and untouched; the right half actively being destroyed by ' + q(im.destroyer || 'swarming flies and spreading decay') + '. BACKGROUND: Also split perfectly down the middle. LIGHTING: High-end macro photography, surreal realism. TYPOGRAPHY AND FULL VALUE TEXT: Bold headline: \"' + q(im.headline) + '\" with full insight explanation: \"' + q(im.insight_body || im.subtext) + '\" and takeaway rule: \"' + q(im.takeaway || '') + '\" AESTHETIC: Masterpiece, 8k, award-winning print ad, clever visual metaphor, crisp edges, immaculate negative space.',\n  inevitable_loop: im =>\n    'LAYOUT STYLE: The Inevitable Loop. SUBJECT & TWIST: ' + q(im.subject) + ', the action traveling through two floating pitch-black space portals and immediately returning to strike the subject from behind, one glowing ' + q(im.accent || 'electric amber') + ' trajectory line tracing the full path of cause and effect. BACKGROUND: Flat solid dark grey, minimal and clean. TYPOGRAPHY AND FULL VALUE TEXT: Bold headline: \"' + q(im.headline) + '\" with full insight text: \"' + q(im.insight_body || im.subtext) + '\" and takeaway: \"' + q(im.takeaway || '') + '\" AESTHETIC: Masterpiece, 8k, award-winning print ad, clever visual metaphor, crisp edges, immaculate negative space.'\n};\n\n// Map each category to the appropriate managed Facebook Page\nconst PAGE_ROUTING = {\n  // Silent Wealth\n  'money_discipline': { id: '116157974886564', name: 'Silent Wealth' },\n  'quiet_ambition': { id: '116157974886564', name: 'Silent Wealth' },\n  'future_proof_career': { id: '116157974886564', name: 'Silent Wealth' },\n  // Strategic Silence\n  'ai_era_growth': { id: '108044922375174', name: 'Strategic Silence' },\n  'deep_work': { id: '108044922375174', name: 'Strategic Silence' },\n  'anti_comparison': { id: '108044922375174', name: 'Strategic Silence' },\n  'self_trust': { id: '108044922375174', name: 'Strategic Silence' },\n  // Eon Ventures\n  'discipline_no_hustle': { id: '1077306835630491', name: 'Eon Ventures' },\n  'small_wins': { id: '1077306835630491', name: 'Eon Ventures' },\n  'courage': { id: '1077306835630491', name: 'Eon Ventures' },\n  'career_growth': { id: '1077306835630491', name: 'Eon Ventures' },\n  // Reliq North\n  'slow_living': { id: '114550268199751', name: 'Reliq North' },\n  'digital_detox': { id: '114550268199751', name: 'Reliq North' },\n  'resilience': { id: '114550268199751', name: 'Reliq North' },\n  'purpose': { id: '114550268199751', name: 'Reliq North' },\n  'intentional_life': { id: '114550268199751', name: 'Reliq North' },\n  // The Boundaries Club\n  'boundaries': { id: '106473735839651', name: 'The Boundaries Club' },\n  'burnout_recovery': { id: '106473735839651', name: 'The Boundaries Club' },\n  'leadership': { id: '106473735839651', name: 'The Boundaries Club' },\n  'reinvention': { id: '106473735839651', name: 'The Boundaries Club' }\n};\n\n// Normalize the AI's image spec: valid layout with required fields, else graceful fallback.\nfunction buildImageSpec(p) {\n  const im = p.image || {};\n  let layout = POSTER_TEMPLATES[im.layout] ? im.layout : 'isolated_beast';\n  if (layout === 'duality_split' && !(im.left_text && im.right_text && im.left_subject && im.right_subject)) layout = 'isolated_beast';\n  if (layout === 'infographic' && (!Array.isArray(im.items) || im.items.length < 3)) layout = 'dark_icon';\n  if (layout === 'transformative_reflection' && !im.reflection_subject) layout = 'dark_icon';\n  \n  const headline = String(im.headline || p.hook || 'FOCUS.').substring(0, 50).toUpperCase();\n  const insight_body = String(im.insight_body || p.core_message || p.subheadline || '').substring(0, 200);\n  const takeaway = String(im.takeaway || '').substring(0, 80);\n  const subtext = insight_body + (takeaway ? ' ' + takeaway : '');\n\n  const spec = { ...im, layout,\n    subject: String(im.subject || p.visual_concept || p.metaphor || 'a powerful symbolic scene'),\n    headline: headline,\n    insight_body: insight_body,\n    takeaway: takeaway,\n    subtext: subtext,\n    accent: im.accent || (layout === 'matrix_grid' ? 'deep crimson' : (layout === 'tension_snap' ? 'white and gold' : 'warm gold'))\n  };\n\n  spec.expectedText = 'the headline \"' + q(spec.headline) + '\" and the readable insight text \"' + q(spec.insight_body || spec.subtext).substring(0, 100) + '\"';\n  const neg = layout === 'inevitable_loop' ? POSTER_NEG.replace('3d render, ', '') : POSTER_NEG;\n  const prompt = POSTER_BASE + POSTER_TEMPLATES[layout](spec) + neg;\n  return { spec, prompt };\n}\n\nconst out = [];\nfor (let pi = 0; pi < posts.length; pi++) {\n  const p = posts[pi];\n  const catKey = String(p.category || '').toLowerCase().replace(/[^a-z0-9]+/g, '_');\n  const targetPage = PAGE_ROUTING[catKey] || { id: '114550268199751', name: 'Reliq North' };\n  \n  const errors = [];\n  if (!p.hook) errors.push('missing hook');\n  if (!p.image || !p.image.headline) errors.push('missing image.headline');\n  if (!p.caption || p.caption.length < 40) errors.push('caption too short');\n  const text = (p.hook + ' ' + ((p.image && p.image.headline) || '') + ' ' + p.caption).toLowerCase();\n  const clicheHits = CLICHES.filter(c => text.includes(c));\n\n  // Duplicate check vs memory (hook + image headline + caption combined).\n  const candidateText = p.hook + ' ' + ((p.image && p.image.headline) || '') + ' ' + p.caption;\n  let maxSim = 0, simVs = '';\n  for (const m of memory.slice(-40)) {\n    const s = similarity(candidateText, (m.hook || '') + ' ' + (m.image_headline || m.headline || '') + ' ' + (m.caption || ''));\n    if (s > maxSim) { maxSim = s; simVs = m.content_id || ''; }\n  }\n  const duplicate = maxSim >= CONFIG.SIMILARITY_THRESHOLD;\n\n  const { spec: imageSpec, prompt: imagePrompt } = buildImageSpec(p);\n  const caption = (p.hook ? p.hook + '\\n\\n' : '') + (p.caption || '') + (p.cta ? '\\n\\n' + p.cta : '') + ((p.hashtags || []).length ? '\\n\\n' + (p.hashtags || []).join(' ') : '');\n\n  const post = {\n    content_id: p.content_id || (Date.now() + '-' + Math.random().toString(36).slice(2, 7)),\n    category: p.category || '', subcategory: p.subcategory || '', trend_context: p.trend_context || '',\n    angle: p.content_angle || '', hook_style: p.hook_style || '', hook: p.hook || '',\n    headline: [imageSpec.headline], subheadline: p.subheadline || '', core_message: p.core_message || '',\n    visual_style: p.visual_style || '', visual_concept: p.visual_concept || p.metaphor || '', metaphor: p.metaphor || '',\n    caption_full: caption, cta: p.cta || '', hashtags: p.hashtags || [],\n    self_quality_score: p.self_quality_score || 0,\n    targetPage: targetPage,\n    validation: { errors, clicheHits, maxSimilarity: Math.round(maxSim * 100) / 100, duplicate, simVs },\n    imageSpec: imageSpec,\n    imagePrompt: imagePrompt,\n    imageGenPayload: { model: 'gpt-image-2', prompt: imagePrompt, size: CONFIG.IMAGE_SIZE || '1024x1536', n: 1 },\n    group_targets: (cfgData.groupTargets && cfgData.groupTargets[pi]) || null,\n    fbUrl: 'https://graph.facebook.com/v20.0/' + targetPage.id + '/photos?access_token=' + encodeURIComponent($env.FB_PAGE_TOKEN) + '&caption=' + encodeURIComponent(caption),\n    qcPayload: {\n      model: 'gpt-4o-mini',\n      messages: [{ role: 'user', content: 'You are a strict quality-control editor for a premium self-improvement page (calm, intelligent, modern voice; niche: modern self-improvement for ambitious people in a noisy AI-heavy world). Score this post 0-100. Breakdown: originality 0-20, clarity 0-15, emotional impact 0-15, usefulness 0-15, shareability 0-10, visual strength 0-10, brand fit 0-10, non-cliche quality 0-5. Post:\\nCATEGORY: ' + p.category + '\\nPAGE: ' + targetPage.name + '\\nANGLE: ' + p.content_angle + '\\nHOOK (' + p.hook_style + '): ' + p.hook + '\\nPOSTER: layout ' + imageSpec.layout + ' — headline \"' + imageSpec.headline + '\" / insight \"' + imageSpec.insight_body + '\" / takeaway \"' + imageSpec.takeaway + '\"\\nCAPTION: ' + p.caption + '\\nCTA: ' + (p.cta || 'none') + '\\nReturn ONLY JSON: {\"score\":0,\"subs\":{\"originality\":0,\"clarity\":0,\"emotional_impact\":0,\"usefulness\":0,\"shareability\":0,\"visual_strength\":0,\"brand_fit\":0,\"non_cliche\":0},\"verdict\":\"approve|reject\",\"critique\":\"one sentence\"}' }],\n      response_format: { type: 'json_object' },\n      max_tokens: 300\n    }\n  };\n  out.push({ json: post });\n}\nreturn out;\n"
+   },
+   "id": "d1202f2d-1878-4c5d-9b4c-d08daa5cc488",
+   "name": "06 Parse & Validate",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    560,
+    460
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.openai.com/v1/chat/completions",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ \"Bearer \" + $env.OPENAI_API_KEY }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "json",
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.qcPayload) }}",
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "a6e7906a-2f88-46b6-9c9b-f4ba273e9af3",
+   "name": "07 Quality Gate",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    780,
+    460
+   ],
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "typeValidation": "loose"
+     },
+     "conditions": [
+      {
+       "leftValue": "={{ $json.score }}",
+       "rightValue": "={{ $(\"01 Config & Memory\").first().json.config.QUALITY_THRESHOLD }}",
+       "operator": {
+        "type": "number",
+        "operation": "gte"
+       }
+      },
+      {
+       "leftValue": "={{ $(\"06 Parse & Validate\").item.json.validation.duplicate }}",
+       "operator": {
+        "type": "boolean",
+        "operation": "false"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "id": "fd491ee2-7c07-41c6-ace4-42c10410ec4c",
+   "name": "08 Score OK?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    1220,
+    460
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// 10 Save Draft — attach the persistence record + compute the publish gate, pass everything through (binary preserved).\n// Publish requires ALL of: AUTO_PUBLISH_ENABLED (config or webhook override), image generated, vision QA passed.\nconst CONFIG = $('01 Config & Memory').first().json.config;\nfor (const item of $input.all()) {\n  const p = $('06 Parse & Validate').item.json;\n  const qc = (() => { try { return $('08 QC Parse').item.json; } catch (e) { return {}; } })();\n  const v = item.json || {};\n  const hasImage = !!(item.binary && item.binary.data);\n  const publishApproved = !!(CONFIG.AUTO_PUBLISH_ENABLED && v.visionOk && hasImage);\n  const publishBlockReason = publishApproved ? '' :\n    (!CONFIG.AUTO_PUBLISH_ENABLED ? 'auto_publish_off' :\n     (!hasImage ? 'image_generation_failed' :\n      'vision_qa_failed: ' + String(v.visionIssues || 'mismatch').substring(0, 120)));\n  item.json = {\n    ...item.json,\n    publishApproved,\n    publishBlockReason,\n    storeRecord: {\n      content_id: p.content_id,\n      created_at: new Date().toISOString(),\n      category: p.category, subcategory: p.subcategory, trend_context: p.trend_context,\n      angle: p.angle, hook_style: p.hook_style, hook: p.hook,\n      headline: (p.headline || []).join(' / '), core_message: p.core_message,\n      layout: p.imageSpec.layout, image_headline: p.imageSpec.headline, image_subtext: p.imageSpec.subtext,\n      visual_style: p.visual_style, visual_concept: p.visual_concept, format: 'premium-poster/' + p.imageSpec.layout,\n      caption: p.caption_full, cta: p.cta, hashtags: (p.hashtags || []).join(' '),\n      qc_score: qc.score || null,\n      vision_ok: v.visionOk === true,\n      group_targets: (p.group_targets && p.group_targets.groups || []).map(g => g.url),\n      status: 'draft',\n      platform: CONFIG.PLATFORM\n    }\n  };\n}\nreturn $input.all();\n"
+   },
+   "id": "773d9916-7cb7-4ee0-a767-1f521ae909a1",
+   "name": "10 Save Draft",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1420,
+    360
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "typeValidation": "loose"
+     },
+     "conditions": [
+      {
+       "leftValue": "={{ $json.publishApproved }}",
+       "operator": {
+        "type": "boolean",
+        "operation": "true"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "id": "076041f2-ab21-4e4e-a85b-089866c0bae0",
+   "name": "11 Publish?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    1620,
+    360
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// 12 Log & Done — final run report (no local storage; persistence happens via the memory store).\nconst fb = $json || {};\nconst feedPostId = (() => { try { return ($('Post to Facebook').first().json || {}).post_id || null; } catch (e) { return null; } })();\nconst postId = feedPostId || fb.post_id || fb.id || null;\nconst fbError = fb.error ? (fb.error.message || 'facebook error').substring(0, 120) : null;\nconst pack = $json.sharePack || null;\nconst reelId = (() => { try { return ($('15 Publish Reel').first().json || {}).id || null; } catch (e) { return null; } })();\nconst storyOk = (() => { try { return $('18 Publish Story').first().json.success === true; } catch (e) { return false; } })();\nreturn [{ json: {\n  loggedAt: new Date().toISOString(),\n  facebook: postId ? { post_id: postId } : (fbError ? { error: fbError } : { skipped: $json.publishBlockReason || 'not published — saved as draft in the CCM Memory Store' }),\n  reel: reelId ? { video_id: reelId } : null,\n  story: storyOk ? { published: true } : null,\n  share_pack: pack ? { post: pack.post_permalink, headline: pack.headline, share_into_groups: pack.share_into_groups } : null\n} }];\n"
+   },
+   "id": "96deedef-5a4f-424d-ba69-a575466757b2",
+   "name": "12 Log & Done",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1680,
+    460
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// 10r Save Rejected — build the rejection record (storage happens in \"10r2 Store Rejected\" HTTP node).\nconst CONFIG = $('01 Config & Memory').first().json.config;\nconst out = [];\nfor (const item of $input.all()) {\n  const src = $('06 Parse & Validate').item.json;\n  const qc = item.json || {};\n  out.push({ json: { storeRecord: {\n    content_id: src.content_id,\n    created_at: new Date().toISOString(),\n    category: src.category, subcategory: src.subcategory,\n    angle: src.angle, hook: src.hook, headline: (src.headline || []).join(' / '),\n    caption: src.caption_full, visual_style: src.visual_style,\n    qc_score: qc.score || null, critique: qc.critique || '',\n    similarity: src.validation ? src.validation.maxSimilarity : null,\n    status: 'rejected', reason: src.validation && src.validation.duplicate ? 'duplicate' : 'quality',\n    platform: CONFIG.PLATFORM\n  } } });\n}\nreturn out;\n"
+   },
+   "id": "a8bd60fa-9b15-4891-8efa-e0a9124d4dc2",
+   "name": "10r Save Rejected",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1000,
+    780
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// 08 QC Parse — unpack EACH gpt-5 quality-control response (choices[0].message.content) into {score, verdict, critique}.\nconst out = [];\nfor (const item of $input.all()) {\n  let qc = {};\n  try {\n    const j = item.json;\n    const raw = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || j.response || '{}';\n    qc = typeof raw === 'string' ? JSON.parse(raw) : raw;\n  } catch (e) {\n    qc = { score: 0, verdict: 'reject', critique: 'QC response unparseable: ' + String(e.message).substring(0, 100) };\n  }\n  out.push({ json: { score: typeof qc.score === 'number' ? qc.score : 0, subs: qc.subs || {}, verdict: qc.verdict || 'reject', critique: qc.critique || '' } });\n}\nreturn out;\n"
+   },
+   "id": "edba9abe-5612-426c-83bf-0810adb8172c",
+   "name": "08 QC Parse",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1000,
+    460
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "http://localhost:5678/webhook/ccm-memory",
+    "sendBody": true,
+    "contentType": "json",
+    "specifyBody": "json",
+    "jsonBody": "{\"action\":\"list\",\"limit\":40}",
+    "options": {
+     "timeout": 15000
+    }
+   },
+   "id": "07a57a8c-ab54-4ddc-8b9a-44341ba56954",
+   "name": "01b Load Memory",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    -200,
+    720
+   ],
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "http://localhost:5678/webhook/ccm-memory",
+    "sendBody": true,
+    "contentType": "json",
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({action:\"append\", records:[$json.storeRecord]}) }}",
+    "options": {
+     "timeout": 15000
+    }
+   },
+   "id": "333df666-3c60-4565-8923-9ac34900e2f0",
+   "name": "10b Store Draft",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1420,
+    560
+   ],
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "http://localhost:5678/webhook/ccm-memory",
+    "sendBody": true,
+    "contentType": "json",
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({action:\"append\", records:[$json.storeRecord]}) }}",
+    "options": {
+     "timeout": 15000
+    }
+   },
+   "id": "a7e79146-c3eb-4aca-a513-3d8a4abdd06e",
+   "name": "10r2 Store Rejected",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1660,
+    760
+   ],
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "http://localhost:5678/webhook/ccm-memory",
+    "sendBody": true,
+    "contentType": "json",
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({action:\"mark\", content_id: $(\"06 Parse & Validate\").item.json.content_id, status:\"published\", published_url: \"fb_\" + ($json.post_id || $json.id || \"\")}) }}",
+    "options": {
+     "timeout": 15000
+    }
+   },
+   "id": "ed8e41b0-8418-4455-af3d-f5f2ba6cbdb8",
+   "name": "12a Mark Published",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1660,
+    460
+   ],
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true
+  },
+  {
+   "id": "node-create-premium-image",
+   "name": "Create Premium Image",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    780,
+    460
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.openai.com/v1/images/generations",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ \"Bearer \" + $env.OPENAI_API_KEY }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "json",
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($('06 Parse & Validate').item.json.imageGenPayload) }}",
+    "options": {
+     "timeout": 240000,
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 2000
+      }
+     }
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 20000,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "id": "node-decode-image",
+   "name": "07b Decode Image",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    900,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// 07b Decode Image — turn gpt-image-2 b64 into binary + data URI, carry poster fields forward.\nconst out = [];\nfor (const item of $input.all()) {\n  const b64 = item.json && item.json.data && item.json.data[0] && item.json.data[0].b64_json;\n  const p = $('06 Parse & Validate').item.json;\n  if (!b64) {\n    out.push({ json: { imageOk: false, error: String(item.json && item.json.error && item.json.error.message || 'no image data').substring(0, 150),\n      expectedText: p.imageSpec.expectedText, content_id: p.content_id } });\n    continue;\n  }\n  out.push({ json: { imageOk: true, dataUri: 'data:image/jpeg;base64,' + b64,\n    expectedText: p.imageSpec.expectedText,\n    content_id: p.content_id, caption: p.caption_full, fbUrl: p.fbUrl },\n    binary: { data: { data: b64, mimeType: 'image/jpeg', fileName: 'poster-' + p.content_id + '.jpg' } } });\n}\nreturn out;"
+   }
+  },
+  {
+   "id": "node-vision-qa",
+   "name": "09 Vision QA",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    900,
+    620
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.openai.com/v1/chat/completions",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ \"Bearer \" + $env.OPENAI_API_KEY }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "json",
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 250, response_format: { type: 'json_object' }, messages: [{ role: 'user', content: [\n  { type: 'text', text: 'Inspect this premium social poster image. Expected text — ' + $json.expectedText + '. Quote every piece of readable text you see in the image. Rules: (1) every expected phrase must appear, spelled exactly (case-insensitive), no missing, extra, duplicated or garbled words; (2) do NOT flag text or numbers the expected-text description above explicitly allows (label subtext lines, decorative letterforms, metaphor numbers/icons) — but readable extra words, phrases, fake documents or paragraphs that are NOT allowed by the description are a FAILURE; (3) judge premium cohesion: photorealistic subject, clean typography, high contrast, minimalist. Return ONLY JSON: {\"quoted_text\":\"...\",\"text_matches\":true,\"premium\":true,\"issues\":\"short reason if anything is off\"}' },\n  { type: 'image_url', image_url: { url: $json.dataUri } }\n] }] }) }}",
+    "options": {
+     "timeout": 240000,
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 2000
+      }
+     }
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 5000,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "id": "node-qa-parse",
+   "name": "09b QA Parse",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1220,
+    360
+   ],
+   "parameters": {
+    "jsCode": "// 09b QA Parse — vision verdict + rebuild the poster binary (the HTTP node dropped it).\nconst out = [];\nfor (const item of $input.all()) {\n  let qa = { text_matches: false, premium: false, issues: 'no response' };\n  try {\n    const c = item.json.choices[0].message.content;\n    qa = typeof c === 'string' ? JSON.parse(c) : c;\n  } catch (e) {}\n  const dec = $('07b Decode Image').item;\n  const visionOk = !!(qa.text_matches === true && qa.premium === true);\n  const b64 = dec.json.dataUri ? String(dec.json.dataUri).split(',')[1] : null;\n  out.push({\n    json: { visionOk, visionIssues: String(qa.issues || '').substring(0, 150),\n      quotedText: String(qa.quoted_text || '').substring(0, 200),\n      imageOk: dec.json.imageOk === true, dataUri: dec.json.dataUri || null,\n      expectedText: dec.json.expectedText,\n      content_id: dec.json.content_id, caption: dec.json.caption, fbUrl: dec.json.fbUrl },\n    binary: b64 ? { data: { data: b64, mimeType: 'image/jpeg', fileName: 'poster.jpg' } } : undefined\n  });\n}\nreturn out;"
+   }
+  },
+  {
+   "id": "node-vision-ok",
+   "name": "09c Vision OK?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    2520,
+    300
+   ],
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "typeValidation": "loose"
+     },
+     "conditions": [
+      {
+       "leftValue": "={{ $json.visionOk }}",
+       "operator": {
+        "type": "boolean",
+        "operation": "true"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   }
+  },
+  {
+   "id": "node-retry-image",
+   "name": "09f Retry Image",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    2640,
+    520
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.openai.com/v1/images/generations",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ \"Bearer \" + $env.OPENAI_API_KEY }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "json",
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($('06 Parse & Validate').item.json.imageGenPayload) }}",
+    "options": {
+     "timeout": 240000,
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 2000
+      }
+     }
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 20000,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "id": "node-decode-2",
+   "name": "07c Decode Image 2",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2860,
+    520
+   ],
+   "parameters": {
+    "jsCode": "// 07c Decode Image 2 — decode the retry render.\nconst out = [];\nfor (const item of $input.all()) {\n  const b64 = item.json && item.json.data && item.json.data[0] && item.json.data[0].b64_json;\n  const p = $('06 Parse & Validate').item.json;\n  if (!b64) {\n    out.push({ json: { imageOk: false, error: 'retry: no image data',\n      expectedText: p.imageSpec.expectedText, content_id: p.content_id } });\n    continue;\n  }\n  out.push({ json: { imageOk: true, dataUri: 'data:image/jpeg;base64,' + b64,\n    expectedText: p.imageSpec.expectedText,\n    content_id: p.content_id, caption: p.caption_full, fbUrl: p.fbUrl },\n    binary: { data: { data: b64, mimeType: 'image/jpeg', fileName: 'poster-' + p.content_id + '.jpg' } } });\n}\nreturn out;"
+   }
+  },
+  {
+   "id": "node-vision-qa-2",
+   "name": "09g Vision QA 2",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    3080,
+    520
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.openai.com/v1/chat/completions",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ \"Bearer \" + $env.OPENAI_API_KEY }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "json",
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 250, response_format: { type: 'json_object' }, messages: [{ role: 'user', content: [\n  { type: 'text', text: 'Inspect this premium social poster image. Expected text — ' + $json.expectedText + '. Quote every piece of readable text you see in the image. Rules: (1) every expected phrase must appear, spelled exactly (case-insensitive), no missing, extra, duplicated or garbled words; (2) do NOT flag text or numbers the expected-text description above explicitly allows (label subtext lines, decorative letterforms, metaphor numbers/icons) — but readable extra words, phrases, fake documents or paragraphs that are NOT allowed by the description are a FAILURE; (3) judge premium cohesion: photorealistic subject, clean typography, high contrast, minimalist. Return ONLY JSON: {\"quoted_text\":\"...\",\"text_matches\":true,\"premium\":true,\"issues\":\"short reason if anything is off\"}' },\n  { type: 'image_url', image_url: { url: $json.dataUri } }\n] }] }) }}",
+    "options": {
+     "timeout": 240000,
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 2000
+      }
+     }
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 5000,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "id": "node-qa-parse-2",
+   "name": "09h QA Parse 2",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3300,
+    520
+   ],
+   "parameters": {
+    "jsCode": "// 09h QA Parse 2 — retry verdict (attempt 2; if still bad the draft is saved unpublished).\nconst out = [];\nfor (const item of $input.all()) {\n  let qa = { text_matches: false, premium: false, issues: 'no response' };\n  try {\n    const c = item.json.choices[0].message.content;\n    qa = typeof c === 'string' ? JSON.parse(c) : c;\n  } catch (e) {}\n  const dec = $('07c Decode Image 2').item;\n  const visionOk = !!(qa.text_matches === true && qa.premium === true);\n  const b64 = dec.json.dataUri ? String(dec.json.dataUri).split(',')[1] : null;\n  out.push({\n    json: { visionOk: visionOk, visionAttempt: 2, visionIssues: String(qa.issues || '').substring(0, 150),\n      quotedText: String(qa.quoted_text || '').substring(0, 200),\n      imageOk: dec.json.imageOk === true, dataUri: dec.json.dataUri || null,\n      expectedText: dec.json.expectedText,\n      content_id: dec.json.content_id, caption: dec.json.caption, fbUrl: dec.json.fbUrl },\n    binary: b64 ? { data: { data: b64, mimeType: 'image/jpeg', fileName: 'poster.jpg' } } : undefined\n  });\n}\nreturn out;"
+   }
+  },
+  {
+   "id": "node-fit-fb",
+   "name": "10c Fit FB Size",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    2300,
+    460
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "http://yt-image-tools:3210/fitfb",
+    "sendBody": true,
+    "contentType": "multipart-form-data",
+    "bodyParameters": {
+     "parameters": [
+      {
+       "parameterType": "formBinaryData",
+       "name": "image",
+       "inputDataFieldName": "data"
+      },
+      {
+       "parameterType": "formData",
+       "name": "id",
+       "value": "={{ $json.storeRecord.content_id }}"
+      }
+     ]
+    },
+    "responseFormat": "file",
+    "options": {
+     "timeout": 60000
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 5000,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "id": "node-share-pack",
+   "name": "13 Group Share Pack",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1440,
+    360
+   ],
+   "parameters": {
+    "jsCode": "// 13 Group Share Pack — assemble the manual group-sharing assignment for this published post.\nconst out = [];\nfor (const item of $input.all()) {\n  let postId = null;\n  try { postId = $('Post to Facebook').item.json.post_id; } catch (e) {}\n  const draft = $('10 Save Draft').item.json;\n  const groups = (draft.storeRecord && draft.storeRecord.group_targets) || [];\n  out.push({ json: { ...item.json, sharePack: {\n    post_permalink: postId ? 'https://www.facebook.com/114550268199751/posts/' + String(postId).split('_').pop() : null,\n    headline: draft.storeRecord ? draft.storeRecord.image_headline : '',\n    caption: draft.caption || (draft.storeRecord && draft.storeRecord.caption) || '',\n    share_into_groups: groups,\n    note: 'Open the post permalink -> Share -> Share to a group -> pick each assigned group. Max 1 share per group per day.'\n  } } });\n}\nreturn out;"
+   }
+  },
+  {
+   "id": "node-prep-reel",
+   "name": "13b Prep Reel",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2860,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// 13b Prep Reel — re-attach the poster binary and pick from 15 studio music tracks.\nconst out = [];\nconst MUSIC_PRESETS = [\n  'white-petals', 'sunset-drive', 'illusions', 'cozy-place',\n  'quiet-night', 'awakening-dew', 'slowly', 'le-calme',\n  'hope-for-tomorrow', 'after-the-rain', 'your-little-wings',\n  'sweet-dreams', 'airy', 'warm-pad', 'low-drone'\n];\nfor (const item of $input.all()) {\n  let dataUri = null;\n  try { dataUri = $('09h QA Parse 2').item.json.dataUri; } catch (e) {}\n  if (!dataUri) { try { dataUri = $('09b QA Parse').item.json.dataUri; } catch (e) {} }\n  const b64 = dataUri ? String(dataUri).split(',')[1] : null;\n  const mood = MUSIC_PRESETS[Math.floor(Math.random() * MUSIC_PRESETS.length)];\n  out.push({ json: { ...item.json, reelMood: mood, reelDuration: 13, reelCredit: 'Royalty-Free Audio: ' + mood },\n    binary: b64 ? { data: { data: b64, mimeType: 'image/jpeg', fileName: 'poster.jpg' } } : undefined });\n}\nreturn out;"
+   }
+  },
+  {
+   "id": "node-create-reel",
+   "name": "14 Create Reel",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    3080,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "http://yt-image-tools:3210/reel",
+    "sendBody": true,
+    "contentType": "multipart-form-data",
+    "bodyParameters": {
+     "parameters": [
+      {
+       "parameterType": "formBinaryData",
+       "name": "image",
+       "inputDataFieldName": "data"
+      },
+      {
+       "parameterType": "formData",
+       "name": "duration",
+       "value": "={{ $json.reelDuration }}"
+      },
+      {
+       "parameterType": "formData",
+       "name": "mood",
+       "value": "={{ $json.reelMood }}"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 150000
+    },
+    "responseFormat": "file"
+   },
+   "onError": "continueRegularOutput"
+  },
+  {
+   "id": "node-publish-reel",
+   "name": "15 Publish Reel",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    3300,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ \"https://graph.facebook.com/v20.0/\" + ($('06 Parse & Validate').item.json.targetPage ? $('06 Parse & Validate').item.json.targetPage.id : \"114550268199751\") + \"/videos?access_token=\" + encodeURIComponent($env.FB_PAGE_TOKEN) }}",
+    "sendBody": true,
+    "contentType": "multipart-form-data",
+    "bodyParameters": {
+     "parameters": [
+      {
+       "parameterType": "formData",
+       "name": "description",
+       "value": "={{$('06 Parse & Validate').item.json.caption_full.substring(0, 1800) + ($json.reelCredit ? String.fromCharCode(10,10) + '🎵 ' + $json.reelCredit : '')}}"
+      },
+      {
+       "parameterType": "formBinaryData",
+       "name": "source",
+       "inputDataFieldName": "data"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 300000
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 10000,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "id": "node-prep-story",
+   "name": "16 Prep Story",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3520,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// 16 Prep Story — pass poster binary for the unpublished story photo.\nconst out = [];\nfor (const item of $input.all()) {\n  let dataUri = null;\n  try { dataUri = $('09h QA Parse 2').item.json.dataUri; } catch (e) {}\n  if (!dataUri) { try { dataUri = $('09b QA Parse').item.json.dataUri; } catch (e) {} }\n  const b64 = dataUri ? String(dataUri).split(',')[1] : null;\n  out.push({ json: item.json, binary: b64 ? { data: { data: b64, mimeType: 'image/jpeg', fileName: 'poster.jpg' } } : undefined });\n}\nreturn out;"
+   }
+  },
+  {
+   "id": "node-story-photo",
+   "name": "17 Upload Story Photo",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    3740,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ \"https://graph.facebook.com/v20.0/\" + ($('06 Parse & Validate').item.json.targetPage ? $('06 Parse & Validate').item.json.targetPage.id : \"114550268199751\") + \"/photos?access_token=\" + encodeURIComponent($env.FB_PAGE_TOKEN) }}",
+    "sendBody": true,
+    "contentType": "multipart-form-data",
+    "bodyParameters": {
+     "parameters": [
+      {
+       "parameterType": "formData",
+       "name": "published",
+       "value": "false"
+      },
+      {
+       "parameterType": "formBinaryData",
+       "name": "source",
+       "inputDataFieldName": "data"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 300000
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 10000,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "id": "node-publish-story",
+   "name": "18 Publish Story",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    3960,
+    300
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ \"https://graph.facebook.com/v20.0/\" + ($('06 Parse & Validate').item.json.targetPage ? $('06 Parse & Validate').item.json.targetPage.id : \"114550268199751\") + \"/photo_stories?access_token=\" + encodeURIComponent($env.FB_PAGE_TOKEN) }}",
+    "sendBody": true,
+    "contentType": "multipart-form-data",
+    "bodyParameters": {
+     "parameters": [
+      {
+       "parameterType": "formData",
+       "name": "photo_id",
+       "value": "={{ $('17 Upload Story Photo').item.json.id }}"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 5000,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "id": "node-publish-instagram",
+   "name": "19 Publish to Instagram",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    4180,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// 19 Publish to Instagram — publishes Feed Post, Reel Video, and Story to @quotequarry8 via Instagram Graph API.\nconst out = [];\nconst token = $env.FB_PAGE_TOKEN;\nconst igUserId = $env.IG_USER_ID || '17841467537639505';\n\nfor (const item of $input.all()) {\n  const p = $('06 Parse & Validate').item.json;\n  const draft = $('10 Save Draft').item.json;\n  const contentId = (draft.storeRecord && draft.storeRecord.content_id) || p.content_id;\n  const caption = p.caption_full || '';\n  const reelCredit = item.json.reelCredit ? String.fromCharCode(10,10) + '🎵 ' + item.json.reelCredit : '';\n  const reelCaption = caption.substring(0, 1800) + reelCredit;\n\n  out.push({ json: { ...item.json, igUserId, contentId, caption, reelCaption } });\n}\nreturn out;"
+   }
+  },
+  {
+   "id": "node-publish-tiktok",
+   "name": "20 Publish to TikTok (Postiz)",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    4400,
+    300
+   ],
+   "parameters": {
+    "jsCode": "// 20 Publish to TikTok via Postiz Bridge\nconst out = [];\nconst postizApiKey = $env.POSTIZ_API_KEY;\nfor (const item of $input.all()) {\n  out.push({ json: { ...item.json, postizApiKey, tiktokReady: true } });\n}\nreturn out;"
+   }
+  }
+ ],
+ "connections": {
+  "Manual Fire": {
+   "main": [
+    [
+     {
+      "node": "01b Load Memory",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "01b Load Memory": {
+   "main": [
+    [
+     {
+      "node": "01 Config & Memory",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "01 Config & Memory": {
+   "main": [
+    [
+     {
+      "node": "Pinterest A",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Pinterest B",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Pinterest C",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Hacker News",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Pinterest A": {
+   "main": [
+    [
+     {
+      "node": "Merge Sources",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Pinterest B": {
+   "main": [
+    [
+     {
+      "node": "Merge Sources",
+      "type": "main",
+      "index": 1
+     }
+    ]
+   ]
+  },
+  "Pinterest C": {
+   "main": [
+    [
+     {
+      "node": "Merge Sources",
+      "type": "main",
+      "index": 2
+     }
+    ]
+   ]
+  },
+  "Hacker News": {
+   "main": [
+    [
+     {
+      "node": "Merge Sources",
+      "type": "main",
+      "index": 3
+     }
+    ]
+   ]
+  },
+  "Merge Sources": {
+   "main": [
+    [
+     {
+      "node": "04 Editorial Strategy",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "04 Editorial Strategy": {
+   "main": [
+    [
+     {
+      "node": "AI Creator",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "AI Creator": {
+   "main": [
+    [
+     {
+      "node": "Content OK?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Content OK?": {
+   "main": [
+    [
+     {
+      "node": "06 Parse & Validate",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Ollama Creator",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Ollama Creator": {
+   "main": [
+    [
+     {
+      "node": "06 Parse & Validate",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "06 Parse & Validate": {
+   "main": [
+    [
+     {
+      "node": "07 Quality Gate",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "07 Quality Gate": {
+   "main": [
+    [
+     {
+      "node": "08 QC Parse",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "08 QC Parse": {
+   "main": [
+    [
+     {
+      "node": "08 Score OK?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "08 Score OK?": {
+   "main": [
+    [
+     {
+      "node": "Create Premium Image",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "10r Save Rejected",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "10r Save Rejected": {
+   "main": [
+    [
+     {
+      "node": "10r2 Store Rejected",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "10 Save Draft": {
+   "main": [
+    [
+     {
+      "node": "10b Store Draft",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "11 Publish?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "11 Publish?": {
+   "main": [
+    [
+     {
+      "node": "10c Fit FB Size",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "12 Log & Done",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Post to Facebook": {
+   "main": [
+    [
+     {
+      "node": "12a Mark Published",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "12a Mark Published": {
+   "main": [
+    [
+     {
+      "node": "13b Prep Reel",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "10c Fit FB Size": {
+   "main": [
+    [
+     {
+      "node": "Post to Facebook",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Create Premium Image": {
+   "main": [
+    [
+     {
+      "node": "07b Decode Image",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "07b Decode Image": {
+   "main": [
+    [
+     {
+      "node": "09 Vision QA",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "09 Vision QA": {
+   "main": [
+    [
+     {
+      "node": "09b QA Parse",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "09b QA Parse": {
+   "main": [
+    [
+     {
+      "node": "09c Vision OK?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "09c Vision OK?": {
+   "main": [
+    [
+     {
+      "node": "10 Save Draft",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "09f Retry Image",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "09f Retry Image": {
+   "main": [
+    [
+     {
+      "node": "07c Decode Image 2",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "07c Decode Image 2": {
+   "main": [
+    [
+     {
+      "node": "09g Vision QA 2",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "09g Vision QA 2": {
+   "main": [
+    [
+     {
+      "node": "09h QA Parse 2",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "09h QA Parse 2": {
+   "main": [
+    [
+     {
+      "node": "10 Save Draft",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "13b Prep Reel": {
+   "main": [
+    [
+     {
+      "node": "14 Create Reel",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "14 Create Reel": {
+   "main": [
+    [
+     {
+      "node": "15 Publish Reel",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "15 Publish Reel": {
+   "main": [
+    [
+     {
+      "node": "16 Prep Story",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "16 Prep Story": {
+   "main": [
+    [
+     {
+      "node": "17 Upload Story Photo",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "17 Upload Story Photo": {
+   "main": [
+    [
+     {
+      "node": "18 Publish Story",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "18 Publish Story": {
+   "main": [
+    [
+     {
+      "node": "19 Publish to Instagram",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "19 Publish to Instagram": {
+   "main": [
+    [
+     {
+      "node": "20 Publish to TikTok (Postiz)",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "20 Publish to TikTok (Postiz)": {
+   "main": [
+    [
+     {
+      "node": "13 Group Share Pack",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "13 Group Share Pack": {
+   "main": [
+    [
+     {
+      "node": "12 Log & Done",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Daily 3x Staggered (8:30am, 1:30pm, 6:30pm PKT)": {
+   "main": [
+    [
+     {
+      "node": "01b Load Memory",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "nodeGroups": [],
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate"
+ },
+ "staticData": null,
+ "pinData": {},
+ "meta": null,
+ "tags": [],
+ "shared": [
+  {
+   "role": "workflow:owner",
+   "workflowId": "ca346785-d474-42bd-905a-700fc45eec30",
+   "projectId": "IA1P2sAcIN3ekBz8",
+   "project": {
+    "id": "IA1P2sAcIN3ekBz8",
+    "name": "Admin User <admin@revnix.local>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "customTelemetryTags": [],
+    "creatorId": "6ac5a0dd-cd19-4c31-9bc7-921a795c294f",
+    "createdAt": "2026-08-14T19:03:17.612Z",
+    "updatedAt": "2026-08-17T14:46:18.284Z"
+   },
+   "createdAt": "2026-08-21T07:39:19.000Z",
+   "updatedAt": "2026-08-21T07:39:19.000Z"
+  }
+ ]
+}

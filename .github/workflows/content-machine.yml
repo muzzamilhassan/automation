@@ -1,0 +1,108 @@
+name: 🚀 Autonomous Multi-Brand Content Engine
+
+on:
+  # 1. Automatic Schedule (Runs 3 times daily at 06:00, 12:00, 18:00 UTC)
+  schedule:
+    - cron: '0 6,12,18 * * *'
+
+  # 2. Manual One-Click Trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      brand:
+        description: 'Brand to Publish'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - 'all'
+          - '0 - Silent Wealth'
+          - '1 - Strategic Silence'
+          - '2 - Eon Ventures'
+          - '3 - Reliq North'
+          - '4 - The Boundaries Club'
+      achievement:
+        description: 'Publish as 🏆 Earned Achievement Milestone?'
+        required: false
+        type: boolean
+        default: false
+      mode:
+        description: 'Content Mode'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+          - 'full'
+          - 'text_posts_only'
+
+concurrency:
+  group: content-publisher
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: 🎬 Generate & Publish Content
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 📦 Install Node Dependencies
+        run: npm install
+
+      - name: 🔊 Verify FFmpeg & Fonts
+        run: |
+          ffmpeg -version | head -n 1
+          echo "FFmpeg ready."
+
+      - name: 🎨 Start Image & Video Engine (Background Service)
+        run: |
+          node image-tools/server.js &
+          sleep 3
+          curl -s http://localhost:3210/ || echo "Server starting..."
+
+      - name: 🚀 Run Autonomous Content Engine
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          POSTIZ_API_KEY: ${{ secrets.POSTIZ_API_KEY }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+        run: |
+          ACHIEVEMENT_FLAG=""
+          if [ "${{ github.event.inputs.achievement }}" = "true" ]; then
+            ACHIEVEMENT_FLAG="--achievement"
+          fi
+
+          if [ "${{ github.event.inputs.mode }}" = "text_posts_only" ]; then
+            echo "Publishing Text Posts to All Pages..."
+            node post-text-engine.mjs
+          elif [ "${{ github.event.inputs.brand }}" = "all" ] || [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "Publishing Full Multi-Format Content across ALL 5 Brands..."
+            for i in 0 1 2 3 4; do
+              echo ">>> Running Brand index $i $ACHIEVEMENT_FLAG..."
+              node run-content-machine.mjs $i $ACHIEVEMENT_FLAG || true
+            done
+          else
+            SELECTED_INDEX=$(echo "${{ github.event.inputs.brand }}" | cut -d' ' -f1)
+            echo "Publishing Brand index: $SELECTED_INDEX $ACHIEVEMENT_FLAG..."
+            node run-content-machine.mjs $SELECTED_INDEX $ACHIEVEMENT_FLAG
+          fi
+
+      - name: 🖼️ Upload Generated Media Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-media-${{ github.run_id }}
+          path: |
+            post-*.jpg
+            reel-*.mp4
+          if-no-files-found: ignore
+          retention-days: 7

@@ -1,0 +1,31 @@
+# Secrets — never commit
+.env
+*.env.local
+*.env.*
+
+# Dependencies
+node_modules/
+
+# Executables & Large Binaries
+cloudflared.exe
+*.exe
+
+# Databases & local sqlite
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+n8n-db.sqlite
+
+# Postiz dynamic config
+dynamicconfig/
+
+# Local artifacts & rendered outputs
+*.log
+uploads/
+tmp/
+post-*.jpg
+reel-*.mp4
+
+# OS junk
+.DS_Store
+Thumbs.db
