@@ -295,7 +295,7 @@ async function renderImage(prompt, outFilename, pageInfo = null, aiData = null) 
                 Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="insight"\r\n\r\n${aiData?.insight_body || ''}\r\n`),
                 Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="takeaway"\r\n\r\n${aiData?.takeaway || ''}\r\n`),
                 Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="tag"\r\n\r\n${pageInfo?.name || ''}\r\n`),
-                Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="style"\r\n\r\nvalue-dense\r\n`),
+                Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="style"\r\n\r\neditorial-clean\r\n`),
                 Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="image"; filename="img.jpg"\r\nContent-Type: image/jpeg\r\n\r\n`),
                 buf,
                 Buffer.from(`\r\n--${boundary}--\r\n`)

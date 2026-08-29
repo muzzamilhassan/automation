@@ -75,7 +75,6 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           POSTIZ_API_KEY: ${{ secrets.POSTIZ_API_KEY }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           ACHIEVEMENT_FLAG=""
