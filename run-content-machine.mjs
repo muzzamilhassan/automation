@@ -422,7 +422,7 @@ async function createReelVideo(imageBuffer, mood = 'warm-pad', duration = 13) {
       method: 'POST',
       body: form
     });
-    if (!res.ok) throw new Error('Reel service HTTP ' + res.status);
+    if (!res.ok) throw new Error('Reel service HTTP ' + res.status + ': ' + (await res.text()).substring(0, 300));
     const arr = await res.arrayBuffer();
     const buf = Buffer.from(arr);
     console.log(`      ✓ Reel Video Generated (${Math.round(buf.length / 1024)} KB)`);
