@@ -459,6 +459,37 @@ ${textEls}
   <line x1="${startX}" y1="${ruleY - 24}" x2="${startX + 280}" y2="${ruleY - 24}" stroke="${lineColor}" stroke-width="1.8" stroke-opacity="0.8"/>
   <text x="${startX}" y="${ruleY + 12}" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800" fill="${ruleColor}">${esc(takeaway)}</text>
 </svg>`;
+      } else if (style === "noir-serif") {
+        // Noir comic-poster style: bold centered serif lines, upper third,
+        // white text with the FINAL line in gold. Split lines with "|".
+        let lines = headline.split("|").map(s => s.trim()).filter(Boolean);
+        if (lines.length === 0 && insight) lines = insight.split("|").map(s => s.trim()).filter(Boolean);
+        if (lines.length === 0) lines = [String(headline || insight || "").trim()].filter(Boolean);
+        if (lines.length === 1) {
+          // auto-wrap a single long line into <=22-char lines
+          const words = lines[0].split(/\s+/).filter(Boolean);
+          const wrapped = []; let cur = "";
+          for (const w of words) {
+            if ((cur + " " + w).trim().length <= 22) cur = (cur + " " + w).trim();
+            else { if (cur) wrapped.push(cur); cur = w; }
+          }
+          if (cur) wrapped.push(cur);
+          lines = wrapped;
+        }
+        const fs = Math.round(W / Math.max(9, lines.length * 4.2));
+        const lh = Math.round(fs * 1.22);
+        const firstBaseline = Math.round(H * 0.06) + fs;
+        const textEls = lines.map((l, i) =>
+          `<text x="50%" y="${firstBaseline + i * lh}" text-anchor="middle" font-family="Liberation Serif, Noto Serif, Georgia, serif" font-size="${fs}" font-weight="700" fill="${i === lines.length - 1 ? "#f5c243" : "#f5f2ea"}" letter-spacing="${Math.max(1, Math.round(fs * 0.02))}" filter="url(#noirShadow)">${esc(l)}</text>`
+        ).join("\n");
+        overlaySvg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="noirShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="${Math.round(fs * 0.06)}" stdDeviation="${Math.round(fs * 0.09)}" flood-color="#000000" flood-opacity="0.9"/>
+    </filter>
+  </defs>
+  ${textEls}
+</svg>`;
       } else if (style === "bracket") {
         // Blueprint A/B style: Clean uppercase headline with editorial brackets
         const fs = Math.round(W / 14);
