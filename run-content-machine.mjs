@@ -501,13 +501,15 @@ async function publishStoryToFacebook(pageId, imageBuffer) {
 // Instagram — @quotequarry8 (IG professional account 17841467537639505) is
 // linked to the Reliq North FB page, so posting uses that page's token. The IG
 // Graph API accepts only PUBLIC image URLs (no multipart), same as Threads.
+// Threads/IG cross-posts are gated to this brand's batch to keep those
+// accounts at ~3 posts/day (one per scheduled cycle), like the n8n engine.
 // ---------------------------------------------------------------------------
-const IG_LINKED_PAGE_ID = '114550268199751'; // Reliq North
+const RELIQ_NORTH_PAGE_ID = '114550268199751';
 
 async function publishToInstagram(imageBuffer, caption) {
   try {
     console.log(`[Instagram] Publishing Photo Post to @quotequarry8...`);
-    const pageAccessToken = await getPageAccessToken(IG_LINKED_PAGE_ID);
+    const pageAccessToken = await getPageAccessToken(RELIQ_NORTH_PAGE_ID);
 
     const imageUrl = await hostImagePublicly(imageBuffer, 'image/jpeg', 'post.jpg');
     if (!imageUrl) {
@@ -712,13 +714,16 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
 
   // 6b. [STEP 3.5/5] Cross-post to Threads (@quotequarry8) — skips silently if no token
   const threadsText = `${postData.headline}\n\n${postData.insight_body}\n\n${postData.takeaway}\n\n${page.brandTag}`;
-  const threadsPostId = await publishToThreads({ imageBuffer: imgBuffer, text: threadsText });
+  let threadsPostId = null;
+  if (page.id === RELIQ_NORTH_PAGE_ID) {
+    threadsPostId = await publishToThreads({ imageBuffer: imgBuffer, text: threadsText });
+  }
 
   // 6c. [STEP 3.6/5] Cross-post to Instagram (@quotequarry8) — only for the page
   // the IG professional account is linked to (Reliq North), keeping IG at ~3
   // posts/day (one per scheduled cycle), matching the local n8n engine cadence
   let igPostId = null;
-  if (page.id === IG_LINKED_PAGE_ID) {
+  if (page.id === RELIQ_NORTH_PAGE_ID) {
     igPostId = await publishToInstagram(imgBuffer, fullCaption);
   }
 
@@ -744,8 +749,8 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
 console.log(`✓ Photo Post ID: ${fbPostId}`);
 console.log(`✓ Facebook Reel Video ID: ${reelId || 'Created & Saved'}`);
 console.log(`✓ Story ID: ${storyId || 'Published'}`);
-console.log(`✓ Threads Post ID: ${threadsPostId || 'Skipped (no token)'}`);
-console.log(`✓ Instagram Post ID: ${igPostId || (page.id === IG_LINKED_PAGE_ID ? 'Failed' : 'N/A (non-linked page)')}`);
+console.log(`✓ Threads Post ID: ${threadsPostId || (page.id === RELIQ_NORTH_PAGE_ID ? 'Skipped/Failed' : 'N/A (non-linked page)')}`);
+console.log(`✓ Instagram Post ID: ${igPostId || (page.id === RELIQ_NORTH_PAGE_ID ? 'Failed' : 'N/A (non-linked page)')}`);
 console.log(`✓ Group Distribution: 4 Groups Assigned`);
 console.log('======================================================\n');
 
