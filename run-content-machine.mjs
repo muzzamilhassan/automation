@@ -690,6 +690,46 @@ function getGroupSharePack(postPermalink, headline, caption, pageIndex = 3) {
   };
 }
 
+// --- Code-card image engine (user-approved SVG variant styles) -------------
+const CARD_STYLES = [
+  'gold-lux', 'midnight-copper', 'paper-shadow', 'ink-minimal', 'purple-mystic',
+  'teal-tech', 'pink-soft', 'electric-blue', 'wax-stamp', 'noir-frame', 'label-serif'
+];
+
+async function renderCodeCardImage(pageInfo, postData, outFilename) {
+  // Deterministic rotation: style changes every post & differs per page;
+  // theme (background palette) changes every post too.
+  const now = new Date();
+  const dayIdx = Math.floor(now.getTime() / 86400000);
+  const runIdx = now.getUTCHours() >= 17 ? 2 : (now.getUTCHours() >= 11 ? 1 : 0);
+  const pageIdx = PAGES.findIndex(p => p.id === pageInfo?.id);
+  const style = CARD_STYLES[(dayIdx * 3 + runIdx + Math.max(0, pageIdx) * 2) % CARD_STYLES.length];
+  const theme = (dayIdx * 3 + runIdx * 2 + Math.max(0, pageIdx)) % 6;
+  console.log(`[Code Card] style="${style}" theme=${theme} (day ${dayIdx % 1000}, run ${runIdx}, page ${pageIdx})`);
+
+  const boundary = '----cc' + Math.random().toString(36).substring(2);
+  const field = (name, val) => Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${String(val || '')}\r\n`);
+  const res = await fetch('http://localhost:3210/code-card', {
+    method: 'POST',
+    headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+    body: Buffer.concat([
+      field('headline', postData?.headline || ''),
+      field('takeaway', postData?.takeaway || ''),
+      field('tag', pageInfo?.name || ''),
+      field('style', style),
+      field('theme', theme),
+      Buffer.from(`--${boundary}--\r\n`)
+    ]),
+    signal: AbortSignal.timeout(20000)
+  });
+  if (!res.ok) throw new Error('code-card HTTP ' + res.status + ': ' + (await res.text()).substring(0, 200));
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (buf.length < 5000) throw new Error('code-card returned suspiciously small buffer');
+  fs.writeFileSync(outFilename, buf);
+  console.log(`      ✓ Saved Code Card (${style}): ${outFilename} (${Math.round(buf.length / 1024)} KB)`);
+  return buf;
+}
+
 async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
   const page = PAGES[targetPageIndex % PAGES.length];
   console.log('======================================================');
@@ -702,9 +742,15 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
   console.log(`Insight: "${postData.insight_body}"`);
   console.log(`Takeaway: "${postData.takeaway}"\n`);
 
-  // 2. Render image with full insight text
+  // 2. Render image — code cards (user-approved variant styles) primary, AI image fallback
   const imgFilename = `post-${page.id}-${Date.now()}.jpg`;
-  const imgBuffer = await renderImage(postData.image_prompt, imgFilename, page, postData);
+  let imgBuffer;
+  try {
+    imgBuffer = await renderCodeCardImage(page, postData, imgFilename);
+  } catch (e) {
+    console.log(`[Notice] Code card failed (${e.message}). Falling back to AI image engine...`);
+    imgBuffer = await renderImage(postData.image_prompt, imgFilename, page, postData);
+  }
 
   // 3. Format full caption
   const achievementTags = isAchievement ? ' #FacebookCreator #EarnedAchievement #MilestoneUnlocked #WeeklyStreak' : '';

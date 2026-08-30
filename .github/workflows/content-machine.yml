@@ -66,6 +66,12 @@ jobs:
           ffmpeg -version | head -n 1
           echo "FFmpeg ready."
 
+      - name: 🔤 Install Fonts (SVG code-card rendering)
+        run: |
+          sudo apt-get install -y -qq fonts-liberation fonts-dejavu-core fontconfig >/dev/null 2>&1 || sudo apt-get install -y -qq fonts-liberation fonts-dejavu-core
+          fc-list | grep -i -c "liberation\|dejavu" || true
+          echo "Fonts ready."
+
       - name: 🎨 Start Image & Video Engine (Background Service)
         run: |
           node image-tools/server.js &

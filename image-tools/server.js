@@ -551,8 +551,215 @@ ${textEls}
     return;
   }
 
+  // POST /code-card — pure-SVG typography cards (11 approved variants, rotating bg themes)
+  if (req.method === "POST" && url.pathname === "/code-card") {
+    try {
+      const chunks = [];
+      for await (const c of req) chunks.push(c);
+      const ctype = req.headers["content-type"] || "";
+      const parsed = parseMultipart(Buffer.concat(chunks), ctype);
+      const headline = String(parsed.fields.headline || url.searchParams.get("headline") || "").trim();
+      const takeaway = String(parsed.fields.takeaway || url.searchParams.get("takeaway") || "").trim();
+      const tag = String(parsed.fields.tag || url.searchParams.get("tag") || "").trim();
+      const style = String(parsed.fields.style || url.searchParams.get("style") || "noir-frame").trim();
+      const themeIdx = parseInt(parsed.fields.theme || url.searchParams.get("theme") || "0", 10) || 0;
+
+      const svg = buildCodeCard({ headline, takeaway, tag, style, themeIdx });
+      const out = await sharp(Buffer.from(svg), { density: 96 }).resize(1080, 1350).jpeg({ quality: 94 }).toBuffer();
+      res.writeHead(200, { "Content-Type": "image/jpeg", "Content-Length": out.length });
+      res.end(out);
+    } catch (e) {
+      res.writeHead(500, { "Content-Type": "text/plain" });
+      res.end("code-card error: " + e.message);
+    }
+    return;
+  }
+
   res.writeHead(200, { "Content-Type": "text/plain" });
   res.end("image-tools ready");
 });
+
+// ---------------------------------------------------------------------------
+// Code cards — text-fit math guarantees no overflow past each style's frame
+// ---------------------------------------------------------------------------
+const CC = {
+  serif: "Georgia, 'Liberation Serif', 'Times New Roman', serif",
+  sans: "'Segoe UI', 'Liberation Sans', Arial, sans-serif",
+  mono: "Consolas, 'Liberation Mono', 'Courier New', monospace",
+  narrow: "'Arial Narrow', 'Liberation Sans Narrow', 'Franklin Gothic Medium', Arial, sans-serif"
+};
+const ccTextW = (t, size, factor, ls = 0) => [...t].length * factor * size + Math.max(0, [...t].length - 1) * ls * size;
+const ccFit = (lines, max, inner, factor = 0.52, ls = 0) => {
+  const longest = lines.reduce((a, b) => (ccTextW(b, 1, factor, ls) > ccTextW(a, 1, factor, ls) ? b : a));
+  return Math.max(22, Math.min(max, Math.floor(inner / ccTextW(longest, 1, factor, ls))));
+};
+const ccWrap = (text, maxChars) => {
+  const words = String(text).replace(/\s+/g, " ").trim().split(" ");
+  const lines = []; let cur = "";
+  for (const w of words) {
+    if ((cur + " " + w).trim().length <= maxChars) cur = (cur + " " + w).trim();
+    else { if (cur) lines.push(cur); cur = w; }
+  }
+  if (cur) lines.push(cur);
+  return lines.slice(0, 3); // max 3 lines
+};
+const ccClip = (t, n) => { t = String(t).trim(); return t.length <= n ? t : t.slice(0, n - 1).trim() + "…"; };
+const ccTxt = (x, y, s, o = {}) =>
+  `<text x="${x}" y="${y}" text-anchor="${o.a || 'middle'}" font-family="${o.f || CC.serif}" font-weight="${o.w || 400}" ${o.it ? 'font-style="italic" ' : ''}font-size="${o.fs}" fill="${o.fill}" letter-spacing="${o.ls || 0}">${esc(s)}</text>`;
+
+function buildCodeCard({ headline, takeaway, tag, style, themeIdx }) {
+  const W = 1080, H = 1350;
+  const head = ccWrap(headline || "Make it count.", 22);
+  const sub = ccClip(takeaway || "", 52);
+  const top = ccClip((tag || "").toUpperCase(), 26);
+  const T = (themes) => themes[((themeIdx % themes.length) + themes.length) % themes.length];
+  let body = "";
+
+  // 1 GOLD LUX — cream + gold ellipse hairline + crown
+  if (style === "gold-lux") {
+    const t = T([{ bg: "#f6f1e7", ink: "#23201a", ac: "#b98d3e", sub: "#8a6a2f" }, { bg: "#f3ecdd", ink: "#2a2419", ac: "#a8802f", sub: "#7d6228" }, { bg: "#ece2cc", ink: "#262117", ac: "#97742c", sub: "#6f5a26" }]);
+    const s = ccFit(head, 92, 740, 0.5);
+    body = `<rect width="${W}" height="${H}" fill="${t.bg}"/>
+<ellipse cx="540" cy="700" rx="430" ry="500" fill="none" stroke="${t.ac}" stroke-width="1.5"/>
+<ellipse cx="540" cy="700" rx="410" ry="480" fill="none" stroke="${t.ac}" stroke-opacity="0.45" stroke-width="1"/>
+${top ? ccTxt(540, 300, top, { f: CC.sans, w: 600, fs: 30, fill: t.sub, ls: 10 }) : ''}
+${head.map((l, i) => ccTxt(540, 620 + i * s * 1.25, l, { w: 600, fs: s, fill: t.ink })).join('')}
+<path d="M 505 890 L 505 866 L 522 881 L 540 858 L 558 881 L 575 866 L 575 890 Z" fill="${t.ac}"/>
+${sub ? ccTxt(540, 1060, sub, { it: true, fs: 40, fill: t.sub }) : ''}`;
+  }
+  // 2 MIDNIGHT COPPER — dark + copper double border + crescent
+  else if (style === "midnight-copper") {
+    const t = T([{ bg: "#0e1626", ink: "#e9e4da", ac: "#c47b4a", sub: "#c47b4a" }, { bg: "#1c1426", ink: "#e9e2ee", ac: "#c78a4e", sub: "#c78a4e" }, { bg: "#0d1f22", ink: "#e2ebe9", ac: "#c98a52", sub: "#c98a52" }]);
+    const s = ccFit(head, 84, 830, 0.5);
+    body = `<rect width="${W}" height="${H}" fill="${t.bg}"/>
+<rect x="36" y="36" width="${W - 72}" height="${H - 72}" fill="none" stroke="${t.ac}" stroke-width="2"/>
+<rect x="48" y="48" width="${W - 96}" height="${H - 96}" fill="none" stroke="${t.ac}" stroke-opacity="0.6" stroke-width="1"/>
+${top ? ccTxt(540, 160, top, { f: CC.sans, w: 600, fs: 28, fill: t.ac, ls: 10 }) : ''}
+<path d="M 560 350 A 52 52 0 1 0 560 440 A 42 42 0 1 1 560 350 Z" fill="${t.ac}"/>
+${head.map((l, i) => ccTxt(540, 600 + i * s * 1.3, l, { w: 600, it: true, fs: s, fill: t.ink })).join('')}
+${sub ? ccTxt(540, 850 + s, sub, { it: true, fs: 38, fill: t.sub }) : ''}
+${ccTxt(540, 1150, 'START SMALL', { f: CC.sans, w: 600, fs: 26, fill: t.ac, ls: 12 })}`;
+  }
+  // 5 PAPER SHADOW — tilted white card + giant quote mark
+  else if (style === "paper-shadow") {
+    const t = T([{ bg: "#e9e7e3", ink: "#2b2e33", ac: "#b98d3e", sub: "#8f8a80" }, { bg: "#e7e2da", ink: "#33302b", ac: "#a8802f", sub: "#8a8578" }, { bg: "#e3e7ea", ink: "#2b3038", ac: "#8a6a2f", sub: "#7e838a" }]);
+    const s = ccFit(head, 76, 660, 0.5);
+    body = `<rect width="${W}" height="${H}" fill="${t.bg}"/>
+<g transform="rotate(-1.4 540 675)"><rect x="130" y="190" width="820" height="970" fill="#ffffff" stroke="#00000018"/></g>
+<g transform="rotate(-1.4 540 675)">
+${ccTxt(210, 430, '\u201C', { fs: 220, fill: '#d9d4cc', a: 'start' })}
+${top ? ccTxt(540, 520, top, { f: CC.sans, w: 600, fs: 26, fill: t.sub, ls: 8 }) : ''}
+${head.map((l, i) => ccTxt(540, 640 + i * s * 1.3, l, { w: 600, fs: s, fill: t.ink })).join('')}
+${sub ? '<line x1="440" y1="' + (600 + s * head.length + 90) + '" x2="640" y2="' + (600 + s * head.length + 90) + '" stroke="#b9b4aa" stroke-width="2"/>' + ccTxt(540, 600 + s * head.length + 150, sub, { it: true, fs: 34, fill: '#6f6a61' }) : ''}
+</g>`;
+  }
+  // 6 INK MINIMAL — one bold serif line + rough underline
+  else if (style === "ink-minimal") {
+    const t = T([{ bg: "#fbfaf8", ink: "#141311", ac: "#141311", sub: "#a39f98" }, { bg: "#f7f3ea", ink: "#191613", ac: "#191613", sub: "#a49d8f" }, { bg: "#f0f2f4", ink: "#15181c", ac: "#15181c", sub: "#969ca3" }]);
+    const s = ccFit(head, 100, 880, 0.5);
+    const midY = 660 - ((head.length - 1) * s * 1.15) / 2;
+    body = `<rect width="${W}" height="${H}" fill="${t.bg}"/>
+${top ? ccTxt(120, 150, top, { f: CC.mono, fs: 24, fill: t.sub, ls: 4, a: 'start' }) : ''}
+${head.map((l, i) => ccTxt(540, midY + i * s * 1.15, l, { w: 800, fs: s, fill: t.ink })).join('')}
+<path d="M 460 ${midY + (head.length - 1) * s * 1.15 + 70} q 60 14 120 2 t 100 -4" stroke="${t.ac}" stroke-width="6" fill="none" stroke-linecap="round"/>
+${sub ? ccTxt(540, 1050, sub, { it: true, fs: 36, fill: '#5f5b53' }) : ''}
+<rect x="534" y="1150" width="12" height="12" fill="${t.ink}"/>`;
+  }
+  // 7 PURPLE MYSTIC — glow + 4-point star
+  else if (style === "purple-mystic") {
+    const t = T([{ bg: "#1d1533", ink: "#e6e0fa", ac: "#b9a7ff", sub: "#9d8ee0" }, { bg: "#14182e", ink: "#e2e6fa", ac: "#a7b8ff", sub: "#8e9de0" }, { bg: "#241322", ink: "#fae6f2", ac: "#e7a7d8", sub: "#d08ec2" }]);
+    const s = ccFit(head, 80, 830, 0.5);
+    body = `<rect width="${W}" height="${H}" fill="${t.bg}"/>
+<circle cx="540" cy="610" r="420" fill="${t.ac}" fill-opacity="0.07"/>
+${top ? ccTxt(540, 170, top, { f: CC.sans, w: 600, fs: 26, fill: t.sub, ls: 10 }) : ''}
+<path d="M 540 280 L 556 336 L 612 352 L 556 368 L 540 424 L 524 368 L 468 352 L 524 336 Z" fill="${t.ac}"/>
+${head.map((l, i) => ccTxt(540, 640 + i * s * 1.3, l, { w: 500, it: true, fs: s, fill: t.ink })).join('')}
+${sub ? '<line x1="380" y1="' + (620 + s * head.length + 120) + '" x2="500" y2="' + (620 + s * head.length + 120) + `" stroke="${t.sub}" stroke-width="1.5"/><circle cx="540" cy="${620 + s * head.length + 120}" r="4" fill="${t.ac}"/><line x1="580" y1="${620 + s * head.length + 120}" x2="700" y2="${620 + s * head.length + 120}" stroke="${t.sub}" stroke-width="1.5"/>` + ccTxt(540, 620 + s * head.length + 190, sub, { it: true, fs: 36, fill: t.sub }) : ''}`;
+  }
+  // 8 TEAL TECH — stacked caps + triangles + mono tags
+  else if (style === "teal-tech") {
+    const t = T([{ bg: "#e5f2f1", ink: "#0f3833", ac: "#0d8a7f", sub: "#0d5f59" }, { bg: "#e6f4ea", ink: "#123826", ac: "#0d8a55", sub: "#0d5f42" }, { bg: "#e3eef8", ink: "#12283d", ac: "#0d6e8a", sub: "#0d5160" }]);
+    const lines = head.length === 1 ? [head[0]] : head;
+    const s = ccFit(lines.map(l => l.toUpperCase()), 86, 840, 0.6, 0.02);
+    body = `<rect width="${W}" height="${H}" fill="${t.bg}"/>
+<rect x="40" y="40" width="${W - 80}" height="${H - 80}" fill="none" stroke="${t.sub}" stroke-opacity="0.5" stroke-width="1.5"/>
+${top ? ccTxt(540, 170, top.replace(/[^A-Z0-9. ]/g, ''), { f: CC.mono, fs: 28, fill: t.sub, ls: 6 }) : ''}
+${lines.map((l, i) => ccTxt(540, 460 + i * (s * 1.35), l.toUpperCase(), { f: CC.sans, w: 800, fs: s, fill: i === lines.length - 1 && lines.length > 1 ? t.ac : t.ink, ls: 2 })).join('')}
+<path d="M 300 760 l 26 -20 v 40 Z" fill="${t.sub}"/><path d="M 780 760 l -26 -20 v 40 Z" fill="${t.sub}"/>
+${sub ? ccTxt(540, 1100, sub, { f: CC.mono, fs: 26, fill: t.sub }) : ''}`;
+  }
+  // 10 PINK SOFT — blossom + magenta serif
+  else if (style === "pink-soft") {
+    const t = T([{ bg: "#f4dfe6", ink: "#7c2140", ac: "#eab6c8", sub: "#b06a85" }, { bg: "#e9dff4", ink: "#4a2a7c", ac: "#c9b3ec", sub: "#8a6ab0" }, { bg: "#f9e8dc", ink: "#7c4a21", ac: "#ecc9ab", sub: "#b0836a" }]);
+    const s = ccFit(head, 92, 840, 0.5);
+    body = `<rect width="${W}" height="${H}" fill="${t.bg}"/>
+${[0, 72, 144, 216, 288].map(a => `<ellipse cx="540" cy="320" rx="20" ry="42" fill="${t.ac}" transform="rotate(${a} 540 320)"/>`).join('')}
+<circle cx="540" cy="320" r="14" fill="${t.ink}"/>
+${top ? ccTxt(540, 470, top, { f: CC.sans, w: 600, fs: 26, fill: t.sub, ls: 10 }) : ''}
+${head.map((l, i) => ccTxt(540, 640 + i * s * 1.25, l, { w: 700, fs: s, fill: t.ink })).join('')}
+${sub ? '<line x1="420" y1="' + (620 + s * head.length + 120) + '" x2="660" y2="' + (620 + s * head.length + 120) + '" stroke="' + t.sub + '" stroke-width="2" stroke-dasharray="2 8" stroke-linecap="round"/>' + ccTxt(540, 620 + s * head.length + 190, sub, { it: true, fs: 36, fill: t.sub }) : ''}`;
+  }
+  // 13 ELECTRIC BLUE — speed lines + lightning
+  else if (style === "electric-blue") {
+    const t = T([{ bg: "#1f3a93", ink: "#ffffff", ac: "#ffd166", sub: "#cdd9ff" }, { bg: "#27336e", ink: "#ffffff", ac: "#ffd166", sub: "#c9d0f2" }, { bg: "#16324f", ink: "#ffffff", ac: "#ffc46b", sub: "#c4d9ea" }]);
+    const s = ccFit(head, 86, 840, 0.5);
+    body = `<rect width="${W}" height="${H}" fill="${t.bg}"/>
+<line x1="90" y1="150" x2="260" y2="210" stroke="#ffffff" stroke-opacity="0.35" stroke-width="4"/>
+<line x1="90" y1="230" x2="220" y2="278" stroke="#ffffff" stroke-opacity="0.25" stroke-width="4"/>
+<path d="M 720 300 L 660 420 L 710 420 L 650 540 L 780 400 L 725 400 Z" fill="${t.ac}"/>
+${top ? ccTxt(540, 200, top, { f: CC.sans, w: 600, fs: 26, fill: t.sub, ls: 10 }) : ''}
+${head.map((l, i) => ccTxt(540, 640 + i * s * 1.25, l, { f: CC.sans, w: 700, it: true, fs: s, fill: t.ink })).join('')}
+${sub ? '<line x1="430" y1="' + (620 + s * head.length + 110) + '" x2="650" y2="' + (620 + s * head.length + 110) + `" stroke="${t.ac}" stroke-width="4"/>` + ccTxt(540, 620 + s * head.length + 180, sub, { it: true, fs: 36, fill: t.sub }) : ''}`;
+  }
+  // 15 WAX STAMP — cream + rotated red stamp
+  else if (style === "wax-stamp") {
+    const t = T([{ bg: "#f7f2e9", ink: "#2d2a24", ac: "#b0372e", sub: "#8a8578" }, { bg: "#f4f0e4", ink: "#2b2820", ac: "#a83a30", sub: "#87816d" }, { bg: "#faf6ee", ink: "#33302a", ac: "#b5453a", sub: "#908a7a" }]);
+    const s = ccFit(head, 80, 840, 0.5);
+    body = `<rect width="${W}" height="${H}" fill="${t.bg}"/>
+${top ? ccTxt(540, 190, top, { f: CC.sans, w: 600, fs: 26, fill: t.sub, ls: 12 }) : ''}
+${head.map((l, i) => ccTxt(540, 560 + i * s * 1.3, l, { w: 600, fs: s, fill: t.ink })).join('')}
+<g transform="rotate(-8 540 960)">
+<circle cx="540" cy="960" r="95" fill="${t.ac}"/>
+<circle cx="540" cy="960" r="72" fill="none" stroke="${t.bg}" stroke-width="2.5"/>
+${ccTxt(540, 952, 'OK\u2019D', { f: CC.sans, w: 800, fs: 34, fill: '#ffffff', ls: 4 })}
+${ccTxt(540, 990, sub ? ccClip(sub, 16).toUpperCase() : 'APPROVED', { f: CC.sans, w: 600, fs: 16, fill: '#f2cfc9', ls: 2 })}
+</g>
+${sub ? ccTxt(540, 1150, sub, { it: true, fs: 34, fill: t.sub }) : ''}`;
+  }
+  // NOIR FRAME — demo-quote-card: double gold frame + gem divider
+  else if (style === "noir-frame") {
+    const t = T([{ bg: "#0d0d10", ink: "#f5f2ea", ac: "#f5c243", sub: "#9a948a" }, { bg: "#16161a", ink: "#f2ede3", ac: "#e8b64c", sub: "#8f8a80" }, { bg: "#171310", ink: "#f2ead9", ac: "#d9a944", sub: "#8a8072" }]);
+    const s = ccFit(head, 96, 860, 0.5);
+    body = `<rect width="${W}" height="${H}" fill="${t.bg}"/>
+<rect x="44" y="44" width="992" height="1262" fill="none" stroke="${t.ac}" stroke-opacity="0.5" stroke-width="2"/>
+<rect x="56" y="56" width="968" height="1238" fill="none" stroke="${t.ac}" stroke-opacity="0.18" stroke-width="1"/>
+${top ? ccTxt(540, 150, '\u2014 ' + top + ' \u2014', { f: CC.serif, fs: 28, fill: t.ac, ls: 10 }) : ''}
+${head.map((l, i) => ccTxt(540, 480 + i * s * 1.34, l, { w: 700, fs: s, fill: t.ink })).join('')}
+<line x1="330" y1="900" x2="480" y2="900" stroke="${t.ac}" stroke-opacity="0.55" stroke-width="2"/>
+<g transform="translate(540,900)"><polygon points="-16,-4 -8,-14 8,-14 16,-4 0,16" fill="none" stroke="${t.ac}" stroke-width="2.5"/></g>
+<line x1="600" y1="900" x2="750" y2="900" stroke="${t.ac}" stroke-opacity="0.55" stroke-width="2"/>
+${sub ? ccTxt(540, 1010, sub, { it: true, fs: 38, fill: t.sub }) : ''}`;
+  }
+  // LABEL SERIF — svg-card-en layout: gold frame + corner Ls + caps labels
+  else {
+    const t = T([{ bg: "#101013", ink: "#f2ede3", ac: "#c9a54e", sub: "#c9a54e" }, { bg: "#12241a", ink: "#e9f2ea", ac: "#b9c98a", sub: "#b9c98a" }, { bg: "#23121a", ink: "#f2e6ea", ac: "#c98aa5", sub: "#c98aa5" }]);
+    const s = ccFit(head, 104, 840, 0.5);
+    const bottom = sub ? ccClip(sub, 26).toUpperCase() : 'DAILY WISDOM';
+    body = `<rect width="${W}" height="${H}" fill="${t.bg}"/>
+<rect x="44" y="44" width="992" height="1262" fill="none" stroke="${t.ac}" stroke-opacity="0.7" stroke-width="1.5"/>
+<path d="M 44 104 L 44 44 L 104 44" fill="none" stroke="${t.ac}" stroke-width="4"/>
+<path d="M 976 44 L 1036 44 L 1036 104" fill="none" stroke="${t.ac}" stroke-width="4"/>
+<path d="M 1036 1246 L 1036 1306 L 976 1306" fill="none" stroke="${t.ac}" stroke-width="4"/>
+<path d="M 104 1306 L 44 1306 L 44 1246" fill="none" stroke="${t.ac}" stroke-width="4"/>
+${top ? ccTxt(540, 210, top, { f: CC.sans, w: 600, fs: 36, fill: t.ac, ls: 12 }) : ''}
+${head.map((l, i) => ccTxt(540, 590 + i * s * 1.25, l, { w: 700, fs: s, fill: t.ink, lastWordAccent: false })).join('')}
+<line x1="420" y1="930" x2="510" y2="930" stroke="${t.ac}" stroke-opacity="0.7" stroke-width="1.5"/>
+<path d="M 540 918 L 552 930 L 540 942 L 528 930 Z" fill="none" stroke="${t.ac}" stroke-width="1.5"/>
+<line x1="570" y1="930" x2="660" y2="930" stroke="${t.ac}" stroke-opacity="0.7" stroke-width="1.5"/>
+${ccTxt(540, 1160, bottom, { f: CC.sans, w: 600, fs: 36, fill: t.ac, ls: 12 })}`;
+  }
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${body}</svg>`;
+}
 
 server.listen(PORT, () => console.log("image-tools listening on " + PORT));
