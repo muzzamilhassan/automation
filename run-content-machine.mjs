@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { google } from 'googleapis';
-import { publishToThreads } from './threads-publisher.mjs';
+import { publishToThreads, hostImagePublicly } from './threads-publisher.mjs';
 
 // Read local .env if available, or fall back to system process.env (GitHub Actions secrets)
 let envStr = '';
@@ -497,8 +497,46 @@ async function publishStoryToFacebook(pageId, imageBuffer) {
   }
 }
 
-async function publishToPostizTikTok(videoBuffer, title, caption) {
-  const postizApiKey = process.env.POSTIZ_API_KEY;
+// ---------------------------------------------------------------------------
+// Instagram — @quotequarry8 (IG professional account 17841467537639505) is
+// linked to the Reliq North FB page, so posting uses that page's token. The IG
+// Graph API accepts only PUBLIC image URLs (no multipart), same as Threads.
+// ---------------------------------------------------------------------------
+const IG_LINKED_PAGE_ID = '114550268199751'; // Reliq North
+
+async function publishToInstagram(imageBuffer, caption) {
+  try {
+    console.log(`[Instagram] Publishing Photo Post to @quotequarry8...`);
+    const pageAccessToken = await getPageAccessToken(IG_LINKED_PAGE_ID);
+
+    const imageUrl = await hostImagePublicly(imageBuffer, 'image/jpeg', 'post.jpg');
+    if (!imageUrl) {
+      console.warn('      [Instagram] Skipped: public image hosting failed.');
+      return null;
+    }
+
+    const createRes = await fetch(`https://graph.facebook.com/v21.0/${IG_USER_ID}/media?image_url=${encodeURIComponent(imageUrl)}&caption=${encodeURIComponent(String(caption).substring(0, 2200))}&access_token=${pageAccessToken}`, { method: 'POST' });
+    const createData = await createRes.json();
+    if (!createData.id) {
+      console.warn('      [Instagram] Container failed:', JSON.stringify(createData));
+      return null;
+    }
+
+    const pubRes = await fetch(`https://graph.facebook.com/v21.0/${IG_USER_ID}/media_publish?creation_id=${createData.id}&access_token=${pageAccessToken}`, { method: 'POST' });
+    const pubData = await pubRes.json();
+    if (pubData.id) {
+      console.log(`      ✓ Instagram Post Live! ID: ${pubData.id}`);
+      return pubData.id;
+    }
+    console.warn('      [Instagram] Publish failed:', JSON.stringify(pubData));
+    return null;
+  } catch (e) {
+    console.warn('      [Instagram] Error:', e.message);
+    return null;
+  }
+}
+
+async function publishToPostizTikTok(videoBuffer, title, caption) {  const postizApiKey = process.env.POSTIZ_API_KEY;
   if (!postizApiKey) return null;
 
   const postizBases = ['http://localhost:5000', 'http://localhost:4007'];
@@ -676,6 +714,14 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
   const threadsText = `${postData.headline}\n\n${postData.insight_body}\n\n${postData.takeaway}\n\n${page.brandTag}`;
   const threadsPostId = await publishToThreads({ imageBuffer: imgBuffer, text: threadsText });
 
+  // 6c. [STEP 3.6/5] Cross-post to Instagram (@quotequarry8) — only for the page
+  // the IG professional account is linked to (Reliq North), keeping IG at ~3
+  // posts/day (one per scheduled cycle), matching the local n8n engine cadence
+  let igPostId = null;
+  if (page.id === IG_LINKED_PAGE_ID) {
+    igPostId = await publishToInstagram(imgBuffer, fullCaption);
+  }
+
   // 7. [STEP 4/4] Generate Assigned Group Share Pack
   const groupPack = getGroupSharePack(postPermalink, postData.headline, fullCaption, targetPageIndex);
   console.log(`\n[Group Share Automation] Assigned ${groupPack.assignedGroups.length} Groups for This Post:`);
@@ -699,10 +745,11 @@ console.log(`✓ Photo Post ID: ${fbPostId}`);
 console.log(`✓ Facebook Reel Video ID: ${reelId || 'Created & Saved'}`);
 console.log(`✓ Story ID: ${storyId || 'Published'}`);
 console.log(`✓ Threads Post ID: ${threadsPostId || 'Skipped (no token)'}`);
+console.log(`✓ Instagram Post ID: ${igPostId || (page.id === IG_LINKED_PAGE_ID ? 'Failed' : 'N/A (non-linked page)')}`);
 console.log(`✓ Group Distribution: 4 Groups Assigned`);
 console.log('======================================================\n');
 
-return { page, postData, fbPostId, reelId, storyId, threadsPostId, groupPack };
+return { page, postData, fbPostId, reelId, storyId, threadsPostId, igPostId, groupPack };
 }
 
 // Check arguments: node run-content-machine.mjs [pageIndex] [--achievement]

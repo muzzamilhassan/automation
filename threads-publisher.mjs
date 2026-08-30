@@ -99,31 +99,33 @@ async function getThreadsToken() {
 }
 
 // ---------------------------------------------------------------------------
-// Public media hosting — the Threads API only accepts public image/video URLs
-// (no multipart upload), both locally and in GitHub Actions. tmpfiles.org needs
-// no API key; links live ~60 min, which is plenty: Meta fetches the media when
-// the container is created, before publish.
+// Public media hosting — the Threads AND Instagram Graph APIs only accept
+// public media URLs (no multipart upload), both locally and in GitHub Actions.
+// uguu.se needs no API key, serves raw bytes with a proper image content-type
+// (tmpfiles.org "direct" links redirect to an HTML viewer — Meta rejects them),
+// and files live ~3 hours: plenty, since Meta fetches the media when the
+// container is created, before publish.
+// Exported for reuse by run-content-machine.mjs for Instagram posting.
 // ---------------------------------------------------------------------------
-async function uploadToTmpfiles(buffer, mime, filename) {
+export async function hostImagePublicly(buffer, mime, filename) {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const form = new FormData();
-      form.append('file', new Blob([buffer], { type: mime }), filename);
-      const res = await fetch('https://tmpfiles.org/api/v1/upload', {
+      form.append('files[]', new Blob([buffer], { type: mime }), filename);
+      const res = await fetch('https://uguu.se/upload', {
         method: 'POST',
         body: form,
         signal: AbortSignal.timeout(45000)
       });
       if (!res.ok) continue;
       const data = await res.json();
-      const pageUrl = data?.data?.url;
-      if (!pageUrl) continue;
-      // Page URL -> direct download URL that serves the raw bytes
-      const directUrl = pageUrl.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+      const url = data?.files?.[0]?.url;
+      if (!url) continue;
 
-      // Verify the direct link actually serves the bytes before handing it to Meta
-      const check = await fetch(directUrl, { method: 'GET', signal: AbortSignal.timeout(20000) });
-      if (check.ok) return directUrl;
+      // Verify the link serves the actual bytes with an image/video content-type
+      const check = await fetch(url, { signal: AbortSignal.timeout(20000) });
+      const ctype = check.headers.get('content-type') || '';
+      if (check.ok && (ctype.startsWith('image/') || ctype.startsWith('video/'))) return url;
     } catch (e) {
       await sleep(2000);
     }
@@ -159,10 +161,10 @@ export async function publishToThreads({ imageBuffer, videoBuffer, text } = {}) 
     let mediaType = 'TEXT';
 
     if (imageBuffer) {
-      mediaUrl = await uploadToTmpfiles(imageBuffer, 'image/jpeg', 'post.jpg');
+      mediaUrl = await hostImagePublicly(imageBuffer, 'image/jpeg', 'post.jpg');
       if (mediaUrl) mediaType = 'IMAGE';
     } else if (videoBuffer) {
-      mediaUrl = await uploadToTmpfiles(videoBuffer, 'video/mp4', 'reel.mp4');
+      mediaUrl = await hostImagePublicly(videoBuffer, 'video/mp4', 'reel.mp4');
       if (mediaUrl) mediaType = 'VIDEO';
     }
 
