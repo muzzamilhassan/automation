@@ -3,6 +3,7 @@ import path from 'node:path';
 import { Readable } from 'node:stream';
 import { google } from 'googleapis';
 import { publishToThreads, hostImagePublicly } from './threads-publisher.mjs';
+import { publishToTikTok } from './tiktok-publisher.mjs';
 
 // Read local .env if available, or fall back to system process.env (GitHub Actions secrets)
 let envStr = '';
@@ -724,7 +725,10 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
     const reelCaption = `${postData.headline}\n\n${postData.insight_body}\n\n${postData.takeaway}\n\n🎵 Music Track: ${chosenMood}${achievementTags}\n\n${page.brandTag}`;
     reelId = await publishReelToFacebook(page.id, reelBuffer, postData.headline, reelCaption);
     youtubeShortId = await publishToYouTubeShorts(reelBuffer, postData.headline, `${postData.insight_body}\n\n${postData.takeaway}\n\n${postData.caption}`, page.brandTag);
-    tiktokId = await publishToPostizTikTok(reelBuffer, postData.headline, reelCaption);
+    // TikTok cross-post gated to the Reliq North batch (single account, ~3/day)
+    if (page.id === RELIQ_NORTH_PAGE_ID) {
+      tiktokId = await publishToTikTok({ videoBuffer: reelBuffer, title: `${postData.headline}\n${page.brandTag}` });
+    }
   }
 
   // 6. [STEP 3/5] Publish to Facebook Story
@@ -769,6 +773,7 @@ console.log(`✓ Facebook Reel Video ID: ${reelId || 'Created & Saved'}`);
 console.log(`✓ Story ID: ${storyId || 'Published'}`);
 console.log(`✓ Threads Post ID: ${threadsPostId || (page.id === RELIQ_NORTH_PAGE_ID ? 'Skipped/Failed' : 'N/A (non-linked page)')}`);
 console.log(`✓ Instagram Post ID: ${igPostId || (page.id === RELIQ_NORTH_PAGE_ID ? 'Failed' : 'N/A (non-linked page)')}`);
+console.log(`✓ TikTok Post ID: ${tiktokId || (page.id === RELIQ_NORTH_PAGE_ID ? 'Skipped (no token)' : 'N/A')}`);
 console.log(`✓ Group Distribution: 4 Groups Assigned`);
 console.log('======================================================\n');
 
