@@ -6,6 +6,7 @@ const path = require("path");
 const { execFile } = require("child_process");
 
 const PORT = 3210;
+const { buildCodeCardV2 } = require('./codecard-v2');
 const IMG_DIR = process.env.IMG_DIR || (fs.existsSync("/app/img") ? "/app/img" : path.join(__dirname, "img"));
 try { fs.mkdirSync(IMG_DIR, { recursive: true }); } catch (_) { }
 // keep the served fitted images bounded (last 60)
@@ -564,7 +565,7 @@ ${textEls}
       const style = String(parsed.fields.style || url.searchParams.get("style") || "noir-frame").trim();
       const themeIdx = parseInt(parsed.fields.theme || url.searchParams.get("theme") || "0", 10) || 0;
 
-      const svg = buildCodeCard({ headline, takeaway, tag, style, themeIdx });
+      const svg = buildCodeCardV2({ headline, takeaway, tag, style, themeIdx });
       const out = await sharp(Buffer.from(svg), { density: 96 }).resize(1080, 1350).jpeg({ quality: 94 }).toBuffer();
       res.writeHead(200, { "Content-Type": "image/jpeg", "Content-Length": out.length });
       res.end(out);
@@ -763,3 +764,4 @@ ${ccTxt(540, 1160, bottom, { f: CC.sans, w: 600, fs: 36, fill: t.ac, ls: 12 })}`
 }
 
 server.listen(PORT, () => console.log("image-tools listening on " + PORT));
+

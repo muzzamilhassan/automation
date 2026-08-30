@@ -1,8 +1,11 @@
 FROM node:20-alpine
-RUN apk add --no-cache font-noto font-liberation fontconfig ffmpeg && fc-cache -f
+RUN apk add --no-cache font-noto font-liberation fontconfig ffmpeg
 WORKDIR /app
 RUN npm install sharp --no-audit --no-fund
-COPY server.js .
+COPY server.js codecard-v2.js ./
+# Premium open fonts (OFL) for code-card rendering — identical output in container & CI
+COPY fonts/ /usr/share/fonts/truetype/custom/
+RUN fc-cache -f
 
 # Synthesize 3 royalty-free ambient audio beds (own construction — no licensing constraints).
 # To use real music instead: drop files named warm-pad.*, low-drone.*, airy.* into an ./audio

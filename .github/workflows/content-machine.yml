@@ -69,7 +69,8 @@ jobs:
       - name: 🔤 Install Fonts (SVG code-card rendering)
         run: |
           sudo apt-get install -y -qq fonts-liberation fonts-dejavu-core fontconfig >/dev/null 2>&1 || sudo apt-get install -y -qq fonts-liberation fonts-dejavu-core
-          fc-list | grep -i -c "liberation\|dejavu" || true
+          mkdir -p ~/.fonts && cp image-tools/fonts/*.ttf ~/.fonts/ && fc-cache -f
+          fc-list | grep -i -c "Playfair\|Inter\|Cinzel\|Archivo\|Cormorant\|Space Mono" || true
           echo "Fonts ready."
 
       - name: 🎨 Start Image & Video Engine (Background Service)
