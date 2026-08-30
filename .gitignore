@@ -4,6 +4,7 @@
 *.env.*
 .mcp.json
 youtube-oauth-tokens.json
+threads-oauth-tokens.json
 
 # Dependencies
 node_modules/

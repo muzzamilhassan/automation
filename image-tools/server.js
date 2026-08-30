@@ -7,13 +7,13 @@ const { execFile } = require("child_process");
 
 const PORT = 3210;
 const IMG_DIR = process.env.IMG_DIR || (fs.existsSync("/app/img") ? "/app/img" : path.join(__dirname, "img"));
-try { fs.mkdirSync(IMG_DIR, { recursive: true }); } catch (_) {}
+try { fs.mkdirSync(IMG_DIR, { recursive: true }); } catch (_) { }
 // keep the served fitted images bounded (last 60)
 function pruneImages() {
   try {
     const files = fs.readdirSync(IMG_DIR).map(f => ({ f, t: fs.statSync(path.join(IMG_DIR, f)).mtime.getTime() })).sort((a, b) => b.t - a.t);
     for (const x of files.slice(60)) fs.unlinkSync(path.join(IMG_DIR, x.f));
-  } catch (_) {}
+  } catch (_) { }
 }
 
 function esc(s) {
@@ -324,8 +324,8 @@ ${textEls}
       res.writeHead(500, { "Content-Type": "text/plain" });
       res.end("reel error: " + e.message);
     } finally {
-      try { fs.unlinkSync(tmpIn); } catch (_) {}
-      try { fs.unlinkSync(tmpOut); } catch (_) {}
+      try { fs.unlinkSync(tmpIn); } catch (_) { }
+      try { fs.unlinkSync(tmpOut); } catch (_) { }
     }
     return;
   }
@@ -391,7 +391,7 @@ ${textEls}
       const ctype = req.headers["content-type"] || "";
       const parsed = parseMultipart(body, ctype);
       const imageBuf = (parsed.files.find(f => f.name === "image") || parsed.files[0] || {}).buf || body;
-      
+
       const headline = String(parsed.fields.headline || url.searchParams.get("headline") || "").trim();
       const insight = String(parsed.fields.insight || url.searchParams.get("insight") || "").trim();
       const takeaway = String(parsed.fields.takeaway || url.searchParams.get("takeaway") || "").trim();
@@ -442,11 +442,22 @@ ${textEls}
         ).join("\n");
 
         const ruleY = H - 95;
+        const scrimColor = isDark ? "#000000" : "#ffffff";
+
         overlaySvg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sideScrim" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="${scrimColor}" stop-opacity="0.95"/>
+      <stop offset="42%" stop-color="${scrimColor}" stop-opacity="0.88"/>
+      <stop offset="62%" stop-color="${scrimColor}" stop-opacity="0.50"/>
+      <stop offset="85%" stop-color="${scrimColor}" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="${Math.round(W * 0.65)}" height="${H}" fill="url(#sideScrim)"/>
   ${headSvg}
   ${pTexts}
-  <line x1="${startX}" y1="${ruleY - 24}" x2="${startX + 280}" y2="${ruleY - 24}" stroke="${lineColor}" stroke-width="2" stroke-opacity="0.85"/>
-  <text x="${startX}" y="${ruleY + 12}" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="900" fill="${ruleColor}">${esc(takeaway)}</text>
+  <line x1="${startX}" y1="${ruleY - 24}" x2="${startX + 280}" y2="${ruleY - 24}" stroke="${lineColor}" stroke-width="1.8" stroke-opacity="0.8"/>
+  <text x="${startX}" y="${ruleY + 12}" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800" fill="${ruleColor}">${esc(takeaway)}</text>
 </svg>`;
       } else if (style === "bracket") {
         // Blueprint A/B style: Clean uppercase headline with editorial brackets

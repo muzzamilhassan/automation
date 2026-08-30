@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { google } from 'googleapis';
+import { publishToThreads } from './threads-publisher.mjs';
 
 // Read local .env if available, or fall back to system process.env (GitHub Actions secrets)
 let envStr = '';
@@ -671,6 +672,10 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
   // 6. [STEP 3/5] Publish to Facebook Story
   const storyId = await publishStoryToFacebook(page.id, imgBuffer);
 
+  // 6b. [STEP 3.5/5] Cross-post to Threads (@quotequarry8) — skips silently if no token
+  const threadsText = `${postData.headline}\n\n${postData.insight_body}\n\n${postData.takeaway}\n\n${page.brandTag}`;
+  const threadsPostId = await publishToThreads({ imageBuffer: imgBuffer, text: threadsText });
+
   // 7. [STEP 4/4] Generate Assigned Group Share Pack
   const groupPack = getGroupSharePack(postPermalink, postData.headline, fullCaption, targetPageIndex);
   console.log(`\n[Group Share Automation] Assigned ${groupPack.assignedGroups.length} Groups for This Post:`);
@@ -690,13 +695,14 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
   console.log(`✓ Multi-Format Content Engine Execution Complete!`);
   console.log(`Page: ${page.name} (https://facebook.com/${page.id})`);
   console.log(`✓ Format: ${isAchievement ? '🏆 Earned Achievement Milestone Edition' : 'Standard Value-Dense Edition'}`);
-  console.log(`✓ Photo Post ID: ${fbPostId}`);
-  console.log(`✓ Facebook Reel Video ID: ${reelId || 'Created & Saved'}`);
-  console.log(`✓ Story ID: ${storyId || 'Published'}`);
-  console.log(`✓ Group Distribution: 4 Groups Assigned`);
-  console.log('======================================================\n');
+console.log(`✓ Photo Post ID: ${fbPostId}`);
+console.log(`✓ Facebook Reel Video ID: ${reelId || 'Created & Saved'}`);
+console.log(`✓ Story ID: ${storyId || 'Published'}`);
+console.log(`✓ Threads Post ID: ${threadsPostId || 'Skipped (no token)'}`);
+console.log(`✓ Group Distribution: 4 Groups Assigned`);
+console.log('======================================================\n');
 
-  return { page, postData, fbPostId, reelId, storyId, groupPack };
+return { page, postData, fbPostId, reelId, storyId, threadsPostId, groupPack };
 }
 
 // Check arguments: node run-content-machine.mjs [pageIndex] [--achievement]

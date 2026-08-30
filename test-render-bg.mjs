@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 
-const HF_TOKEN = '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';
+const envStr = (() => { try { return fs.readFileSync('.env', 'utf8'); } catch (e) { return ''; } })();
+const HF_TOKEN = process.env.HF_TOKEN || (envStr.match(/^HF_TOKEN=(.+)$/m) || [])[1]?.trim() || '';
 
 async function generateWithHF(prompt) {
   console.log('Generating base image with Hugging Face FLUX...');
