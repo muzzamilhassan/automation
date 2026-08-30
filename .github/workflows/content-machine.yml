@@ -56,8 +56,13 @@ jobs:
       - name: 📦 Install Node Dependencies
         run: npm install
 
-      - name: 🔊 Verify FFmpeg & Fonts
+      - name: 🔊 Install & Verify FFmpeg
         run: |
+          if ! command -v ffmpeg > /dev/null 2>&1; then
+            echo "ffmpeg not on runner — installing via apt..."
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
           ffmpeg -version | head -n 1
           echo "FFmpeg ready."
 
