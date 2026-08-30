@@ -4,6 +4,7 @@ import { Readable } from 'node:stream';
 import { google } from 'googleapis';
 import { publishToThreads, hostImagePublicly } from './threads-publisher.mjs';
 import { publishToTikTok } from './tiktok-publisher.mjs';
+import { publishToPinterest } from './pinterest-publisher.mjs';
 
 // Read local .env if available, or fall back to system process.env (GitHub Actions secrets)
 let envStr = '';
@@ -749,6 +750,17 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
     igPostId = await publishToInstagram(imgBuffer, fullCaption);
   }
 
+  // 6d. [STEP 3.7/5] Cross-post to Pinterest (traffic engine — pins keep
+  // surfacing in search/feed for months) — gated to Reliq North, ~3 pins/day
+  let pinterestPinId = null;
+  if (page.id === RELIQ_NORTH_PAGE_ID) {
+    pinterestPinId = await publishToPinterest({
+      imageBuffer: imgBuffer,
+      title: postData.headline,
+      description: `${postData.insight_body}\n\n${postData.takeaway}\n\n${page.brandTag}`
+    });
+  }
+
   // 7. [STEP 4/4] Generate Assigned Group Share Pack
   const groupPack = getGroupSharePack(postPermalink, postData.headline, fullCaption, targetPageIndex);
   console.log(`\n[Group Share Automation] Assigned ${groupPack.assignedGroups.length} Groups for This Post:`);
@@ -774,6 +786,7 @@ console.log(`✓ Story ID: ${storyId || 'Published'}`);
 console.log(`✓ Threads Post ID: ${threadsPostId || (page.id === RELIQ_NORTH_PAGE_ID ? 'Skipped/Failed' : 'N/A (non-linked page)')}`);
 console.log(`✓ Instagram Post ID: ${igPostId || (page.id === RELIQ_NORTH_PAGE_ID ? 'Failed' : 'N/A (non-linked page)')}`);
 console.log(`✓ TikTok Post ID: ${tiktokId || (page.id === RELIQ_NORTH_PAGE_ID ? 'Skipped (no token)' : 'N/A')}`);
+console.log(`✓ Pinterest Pin ID: ${pinterestPinId || (page.id === RELIQ_NORTH_PAGE_ID ? 'Skipped (no token)' : 'N/A')}`);
 console.log(`✓ Group Distribution: 4 Groups Assigned`);
 console.log('======================================================\n');
 

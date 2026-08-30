@@ -6,6 +6,7 @@
 youtube-oauth-tokens.json
 threads-oauth-tokens.json
 tiktok-oauth-tokens.json
+pinterest-oauth-tokens.json
 
 # Dependencies
 node_modules/
