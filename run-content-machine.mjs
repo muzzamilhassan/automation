@@ -524,6 +524,24 @@ async function publishToInstagram(imageBuffer, caption) {
       return null;
     }
 
+    // IG processes the container asynchronously — publishing before it reports
+    // FINISHED fails with error 9007 ("Media ID is not available")
+    let ready = false;
+    for (let i = 0; i < 12; i++) {
+      await new Promise(r => setTimeout(r, 2500));
+      const stRes = await fetch(`https://graph.facebook.com/v21.0/${createData.id}?fields=status_code&access_token=${pageAccessToken}`);
+      const st = await stRes.json();
+      if (st.status_code === 'FINISHED') { ready = true; break; }
+      if (st.status_code === 'ERROR' || st.error) {
+        console.warn('      [Instagram] Container processing error:', JSON.stringify(st));
+        return null;
+      }
+    }
+    if (!ready) {
+      console.warn('      [Instagram] Container never finished processing.');
+      return null;
+    }
+
     const pubRes = await fetch(`https://graph.facebook.com/v21.0/${IG_USER_ID}/media_publish?creation_id=${createData.id}&access_token=${pageAccessToken}`, { method: 'POST' });
     const pubData = await pubRes.json();
     if (pubData.id) {
