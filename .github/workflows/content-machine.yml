@@ -1,11 +1,11 @@
 name: 🚀 Autonomous Multi-Brand Content Engine
 
 on:
-  # 1. Automatic Schedule (Runs 3 times daily at 06:00, 12:00, 18:00 UTC)
+  push:
+    branches:
+      - main
   schedule:
     - cron: '0 6,12,18 * * *'
-
-  # 2. Manual One-Click Trigger from GitHub UI
   workflow_dispatch:
     inputs:
       brand:
