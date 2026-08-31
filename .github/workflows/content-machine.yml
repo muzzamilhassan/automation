@@ -66,11 +66,14 @@ jobs:
           ffmpeg -version | head -n 1
           echo "FFmpeg ready."
 
-      - name: 🔤 Install Fonts (SVG code-card rendering)
+      - name: 🔤 Install Fonts (SVG vector typography rendering)
         run: |
           sudo apt-get install -y -qq fonts-liberation fonts-dejavu-core fontconfig >/dev/null 2>&1 || sudo apt-get install -y -qq fonts-liberation fonts-dejavu-core
-          mkdir -p ~/.fonts && cp image-tools/fonts/*.ttf ~/.fonts/ && fc-cache -f
-          fc-list | grep -i -c "Playfair\|Inter\|Cinzel\|Archivo\|Cormorant\|Space Mono" || true
+          mkdir -p ~/.local/share/fonts ~/.fonts
+          cp image-tools/fonts/* ~/.local/share/fonts/ 2>/dev/null || true
+          cp image-tools/fonts/* ~/.fonts/ 2>/dev/null || true
+          fc-cache -fv
+          fc-list | grep -i -c "Playfair\|Anton\|Oswald\|Inter\|Cinzel\|Archivo\|Cormorant\|Space Mono" || true
           echo "Fonts ready."
 
       - name: 🎨 Start Image & Video Engine (Background Service)
