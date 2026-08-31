@@ -112,7 +112,7 @@ jobs:
           if [ "${{ github.event.inputs.mode }}" = "text_posts_only" ]; then
             echo "Publishing Text Posts to All Pages..."
             node post-text-engine.mjs
-          elif [ "${{ github.event.inputs.brand }}" = "all" ] || [ "${{ github.event_name }}" = "schedule" ]; then
+          elif [ "${{ github.event.inputs.brand }}" = "all" ] || [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event_name }}" = "push" ] || [ -z "${{ github.event.inputs.brand }}" ]; then
             echo "Publishing Full Multi-Format Content across ALL 5 Brands..."
             for i in 0 1 2 3 4; do
               echo ">>> Running Brand index $i $ACHIEVEMENT_FLAG..."
@@ -131,6 +131,7 @@ jobs:
           name: published-media-${{ github.run_id }}
           path: |
             post-*.jpg
+            post-*.png
             reel-*.mp4
           if-no-files-found: ignore
           retention-days: 7

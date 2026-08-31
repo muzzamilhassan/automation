@@ -2,9 +2,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { google } from 'googleapis';
+import sharp from 'sharp';
 import { publishToThreads, hostImagePublicly } from './threads-publisher.mjs';
 import { publishToTikTok } from './tiktok-publisher.mjs';
 import { publishToPinterest } from './pinterest-publisher.mjs';
+import {
+  EMBEDDED_FONTS_CSS,
+  PALETTES,
+  renderGraphicAccent,
+  validateSvg
+} from './typography-poster-engine.mjs';
 
 // Read local .env if available, or fall back to system process.env (GitHub Actions secrets)
 let envStr = '';
@@ -135,16 +142,16 @@ The insight should share a profound lesson learned from hitting this milestone.
 The takeaway/closing must contain a viral comment trigger (e.g. "Drop '100' below if you're building silently" or "Comment 'FOCUS' to claim this energy").`
     : '';
 
-  const prompt = `You are the chief editorial strategist for "${page.name}" (Niche: ${page.niche}).
-Create a VIRAL, VALUE-DENSE social media post where the IMAGE ITSELF contains a complete, self-contained, high-value lesson so that a viewer reading ONLY the image text gets immediate clarity and hits like/save.${achievementPrompt}
+  const prompt = `You are the chief graphic designer and copywriter for "${page.name}" (Niche: ${page.niche}).
+Create a VIRAL, VALUE-DENSE social media typography poster in EASY, CLEAR ENGLISH (simple, powerful, everyday words, universally understandable, high impact).${achievementPrompt}
 
 REQUIREMENTS:
-1. "headline": 2-5 words, ALL CAPS, striking concept hook (e.g. ${isAchievementEdition ? '"🏆 LEVEL UNLOCKED: THE 1% RULE" or "⭐ EARNED MILESTONE: SILENT ASSETS"' : '"THE LAW OF SILENT ASSETS" or "THE COST OF EXPLAINING YOURSELF"'}).
-2. "insight_body": 2-3 COMPLETE, PROFOUND, HIGH-VALUE SENTENCES explaining the core wisdom directly on the image. It must be clear, actionable, and intellectually deep.
-3. "takeaway": 1 punchy concluding rule or viral call-to-action (e.g. ${isAchievementEdition ? '"Drop a 🔥 if you are building silently today."' : '"Rule: Value privacy over applause."'}).
-4. "caption": 80-140 words expanding on the lesson with real-world nuance, a reflective question at the end, and relevant hashtags including #FacebookCreator #EarnedAchievement.
-5. "visual_concept": Description of a clean, minimalist, high-end symbolic object or scene matching this brand's style (${page.style}).
-6. "image_prompt": A comprehensive prompt for image generation (1024x1024 vertical poster) describing the scene, lighting, texture, and the EXACT typography layout: headline in bold uppercase, full insight_body paragraph, and takeaway rule.
+1. "headline": 2-5 simple words, ALL CAPS, striking hook (e.g. "DO NOT TELL PEOPLE YOUR PLANS.", "SMALL HABITS MAKE BIG CHANGES.", "STOP COMPLAINING. START WORKING.", "DON'T WAIT FOR THE RIGHT TIME.", "TIME IS MORE VALUABLE THAN MONEY.").
+2. "insight_body": 1-2 SHORT, POWERFUL, SIMPLE SENTENCES in plain easy English explaining the idea with clarity.
+3. "takeaway": 1 punchy short concluding rule in simple words (e.g. "Rule: Show results, not words.").
+4. "caption": 60-100 words in clear easy English expanding on the lesson with a concluding question and relevant hashtags.
+5. "visual_concept": Description of clean typography layout for this brand (${page.style}).
+6. "image_prompt": Brief description of the clean poster typography.
 
 Return ONLY valid JSON:
 {
@@ -690,44 +697,237 @@ function getGroupSharePack(postPermalink, headline, caption, pageIndex = 3) {
   };
 }
 
-// --- Code-card image engine (user-approved SVG variant styles) -------------
-const CARD_STYLES = [
-  'gold-lux', 'midnight-copper', 'paper-shadow', 'ink-minimal', 'purple-mystic',
-  'teal-tech', 'pink-soft', 'electric-blue', 'wax-stamp', 'noir-frame', 'label-serif'
-];
+// --- Brand-specific Typography Poster Configuration (Master Prompt Pack) ---
+const BRAND_POSTER_CONFIGS = {
+  '114550268199751': {
+    // Reliq North: P1 CREAM EDITORIAL + Playfair Display + E2 Highlighter + Large Circle
+    palette: PALETTES.P1,
+    headlineFont: `'Playfair Display', 'Bodoni MT', 'Didot', 'Georgia', serif`,
+    bodyFont: `'Playfair Display', 'Georgia', serif`,
+    headlineWeight: '900',
+    bodyWeight: '400',
+    eyebrow: 'DAILY LESSON // RELIQ NORTH',
+    footer: 'reliqnorth.com',
+    layout: 'L1',
+    accentType: 'large-circle',
+    emphasisType: 'E2_HIGHLIGHT'
+  },
+  '108044922375174': {
+    // Strategic Silence: P3 PAPER ELECTRIC + Anton 120 + E1 Colour Swap + Jagged Crack
+    palette: PALETTES.P3,
+    headlineFont: `'Anton', 'Impact', 'Arial Black', sans-serif`,
+    bodyFont: `'Oswald', 'Arial Narrow', 'Franklin Gothic Medium', sans-serif`,
+    headlineWeight: '400',
+    bodyWeight: '500',
+    eyebrow: 'CORE RULE // STRATEGIC SILENCE',
+    footer: 'strategicsilence.com',
+    layout: 'L1',
+    accentType: 'crack',
+    emphasisType: 'E1_SWAP'
+  },
+  '106473735839651': {
+    // The Boundaries Club: P2 MIDNIGHT + Oswald Condensed 700 + E3 Underline + Dots
+    palette: PALETTES.P2,
+    headlineFont: `'Oswald', 'Arial Narrow', 'Impact', sans-serif`,
+    bodyFont: `'Oswald', 'Arial Narrow', 'Segoe UI', sans-serif`,
+    headlineWeight: '700',
+    bodyWeight: '200',
+    eyebrow: 'MINDSET TIP // THE BOUNDARIES CLUB',
+    footer: 'boundariesclub.com',
+    layout: 'L4',
+    accentType: 'dots',
+    emphasisType: 'E3_UNDERLINE'
+  },
+  '1077306835630491': {
+    // Eon Ventures: P4 SIGNAL ORANGE + Archivo Black + Inter + Split Weight + Thick Rule
+    palette: PALETTES.P4,
+    headlineFont: `'Archivo Black', 'Arial Black', 'Impact', sans-serif`,
+    bodyFont: `'Inter', 'Segoe UI', -apple-system, Arial, sans-serif`,
+    headlineWeight: '400',
+    bodyWeight: '400',
+    eyebrow: 'TAKE ACTION // EON VENTURES',
+    footer: 'eonventures.co',
+    layout: 'L3_SPLIT',
+    accentType: 'thick-rule',
+    emphasisType: 'E1_SWAP'
+  },
+  '116157974886564': {
+    // Silent Wealth: P5 CARBON YELLOW + Anton Centred + E1 Colour Swap + Chevrons
+    palette: PALETTES.P5,
+    headlineFont: `'Anton', 'Impact', 'Arial Black', sans-serif`,
+    bodyFont: `'Oswald', 'Arial Narrow', 'Franklin Gothic Medium', sans-serif`,
+    headlineWeight: '400',
+    bodyWeight: '500',
+    eyebrow: 'SIMPLE TRUTH // SILENT WEALTH',
+    footer: 'silentwealth.co',
+    layout: 'L2_CENTER',
+    accentType: 'chevrons',
+    emphasisType: 'E1_SWAP'
+  }
+};
 
-async function renderCodeCardImage(pageInfo, postData, outFilename) {
-  // Deterministic rotation: style changes every post & differs per page;
-  // theme (background palette) changes every post too.
-  const now = new Date();
-  const dayIdx = Math.floor(now.getTime() / 86400000);
-  const runIdx = now.getUTCHours() >= 17 ? 2 : (now.getUTCHours() >= 11 ? 1 : 0);
-  const pageIdx = PAGES.findIndex(p => p.id === pageInfo?.id);
-  const style = CARD_STYLES[(dayIdx * 3 + runIdx + Math.max(0, pageIdx) * 2) % CARD_STYLES.length];
-  const theme = (dayIdx * 3 + runIdx * 2 + Math.max(0, pageIdx)) % 6;
-  console.log(`[Code Card] style="${style}" theme=${theme} (day ${dayIdx % 1000}, run ${runIdx}, page ${pageIdx})`);
+function wrapTextToLines(text, maxChars = 14) {
+  const words = String(text || '').trim().split(/\s+/).filter(Boolean);
+  const lines = [];
+  let current = '';
+  for (const w of words) {
+    if ((current ? current + ' ' + w : w).length <= maxChars) {
+      current = current ? current + ' ' + w : w;
+    } else {
+      if (current) lines.push(current);
+      current = w;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
 
-  const boundary = '----cc' + Math.random().toString(36).substring(2);
-  const field = (name, val) => Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${String(val || '')}\r\n`);
-  const res = await fetch('http://localhost:3210/code-card', {
-    method: 'POST',
-    headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
-    body: Buffer.concat([
-      field('headline', postData?.headline || ''),
-      field('takeaway', postData?.takeaway || ''),
-      field('tag', pageInfo?.name || ''),
-      field('style', style),
-      field('theme', theme),
-      Buffer.from(`--${boundary}--\r\n`)
-    ]),
-    signal: AbortSignal.timeout(20000)
-  });
-  if (!res.ok) throw new Error('code-card HTTP ' + res.status + ': ' + (await res.text()).substring(0, 200));
-  const buf = Buffer.from(await res.arrayBuffer());
-  if (buf.length < 5000) throw new Error('code-card returned suspiciously small buffer');
-  fs.writeFileSync(outFilename, buf);
-  console.log(`      ✓ Saved Code Card (${style}): ${outFilename} (${Math.round(buf.length / 1024)} KB)`);
-  return buf;
+function escapeXml(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function renderBrandMasterTypographyPoster(pageInfo, postData, outFilename) {
+  console.log(`[Typography Poster Engine] Generating Master Poster for: ${pageInfo.name}...`);
+  const cfg = BRAND_POSTER_CONFIGS[pageInfo?.id] || BRAND_POSTER_CONFIGS['116157974886564'];
+  const palette = cfg.palette;
+
+  // Clean headline and body copy
+  const headline = (postData?.headline || 'STAY SILENT AND BUILD').toUpperCase();
+  const headlineLines = wrapTextToLines(headline, 14).slice(0, 4);
+
+  const insight = postData?.insight_body || postData?.takeaway || 'Show them your results instead. Let your success speak for you.';
+  const bodyLines = wrapTextToLines(insight, 32).slice(0, 4);
+
+  const headlineFontSize = headlineLines.some(l => l.length > 13) ? 104 : 120;
+  const headlineStep = Math.round(headlineFontSize * 0.98);
+
+  const bodyFontSize = bodyLines.some(l => l.length > 26) ? 50 : 54;
+  const bodyStep = Math.round(bodyFontSize * 1.42);
+
+  let headlineElements = '';
+  let bodyElements = '';
+  let accentElements = renderGraphicAccent(cfg.accentType, palette, { dotX: 840, dotY: 200, ruleY: 620 });
+  let highlighterElement = '';
+  let underlineElement = '';
+
+  if (cfg.layout === 'L2_CENTER') {
+    // Centred Block (Silent Wealth)
+    const startY = 440;
+    headlineElements = headlineLines.map((line, i) => {
+      const y = startY + i * headlineStep;
+      const fill = (i === 1 || (headlineLines.length === 1 && i === 0)) ? palette.accent : palette.ink;
+      return `<text text-anchor="middle" x="540" y="${y}" font-family="${cfg.headlineFont}" font-size="${headlineFontSize}" font-weight="${cfg.headlineWeight}" fill="${fill}">${escapeXml(line)}</text>`;
+    }).join('\n  ');
+
+    const bodyStartY = startY + headlineLines.length * headlineStep + 80;
+    bodyElements = bodyLines.map((line, i) => {
+      const y = bodyStartY + i * bodyStep;
+      return `<text text-anchor="middle" x="540" y="${y}" font-family="${cfg.bodyFont}" font-size="${bodyFontSize}" font-weight="${cfg.bodyWeight}" fill="${palette.ink}">${escapeXml(line)}</text>`;
+    }).join('\n  ');
+  } else if (cfg.layout === 'L3_SPLIT') {
+    // Split Weight (Eon Ventures)
+    const startY = 380;
+    headlineElements = headlineLines.map((line, i) => {
+      const y = startY + i * headlineStep;
+      const fill = (i === 0) ? palette.accent : palette.ink;
+      return `<text x="100" y="${y}" font-family="${cfg.headlineFont}" font-size="${headlineFontSize}" font-weight="${cfg.headlineWeight}" fill="${fill}">${escapeXml(line)}</text>`;
+    }).join('\n  ');
+
+    const bodyStartY = 980;
+    bodyElements = bodyLines.map((line, i) => {
+      const y = bodyStartY + i * bodyStep;
+      return `<text x="100" y="${y}" font-family="${cfg.bodyFont}" font-size="${bodyFontSize}" font-weight="${cfg.bodyWeight}" fill="${palette.ink}">${escapeXml(line)}</text>`;
+    }).join('\n  ');
+  } else if (cfg.layout === 'L4') {
+    // Eyebrow Lead (The Boundaries Club)
+    const startY = 380;
+    headlineElements = headlineLines.map((line, i) => {
+      const y = startY + i * headlineStep;
+      return `<text x="100" y="${y}" font-family="${cfg.headlineFont}" font-size="${headlineFontSize}" font-weight="${cfg.headlineWeight}" letter-spacing="2" fill="${palette.ink}">${escapeXml(line)}</text>`;
+    }).join('\n  ');
+
+    const lastY = startY + (headlineLines.length - 1) * headlineStep;
+    underlineElement = `<line x1="100" y1="${lastY + 18}" x2="620" y2="${lastY + 18}" stroke="${palette.accent}" stroke-width="5" stroke-linecap="round"/>`;
+
+    const bodyStartY = lastY + 120;
+    bodyElements = bodyLines.map((line, i) => {
+      const y = bodyStartY + i * bodyStep;
+      return `<text x="100" y="${y}" font-family="${cfg.bodyFont}" font-size="${bodyFontSize}" font-weight="${cfg.bodyWeight}" fill="${palette.ink}">${escapeXml(line)}</text>`;
+    }).join('\n  ');
+  } else {
+    // L1 Stacked Left (Reliq North, Strategic Silence)
+    const startY = 440;
+
+    if (cfg.emphasisType === 'E2_HIGHLIGHT') {
+      const lastLineIdx = headlineLines.length - 1;
+      const lastLineY = startY + lastLineIdx * headlineStep;
+      const highlightWidth = Math.min(840, Math.max(300, (headlineLines[lastLineIdx] || '').length * headlineFontSize * 0.58 + 40));
+      highlighterElement = `<rect x="86" y="${lastLineY - headlineFontSize * 0.78}" width="${highlightWidth}" height="${headlineFontSize * 1.16}" fill="${palette.highlight}"/>`;
+    }
+
+    headlineElements = headlineLines.map((line, i) => {
+      const y = startY + i * headlineStep;
+      let fill = palette.ink;
+      if (cfg.emphasisType === 'E1_SWAP' && (i === 1 || (headlineLines.length === 1 && i === 0))) {
+        fill = palette.accent;
+      }
+      return `<text x="100" y="${y}" font-family="${cfg.headlineFont}" font-size="${headlineFontSize}" font-weight="${cfg.headlineWeight}" fill="${fill}">${escapeXml(line)}</text>`;
+    }).join('\n  ');
+
+    const bodyStartY = startY + headlineLines.length * headlineStep + 80;
+    bodyElements = bodyLines.map((line, i) => {
+      const y = bodyStartY + i * bodyStep;
+      return `<text x="100" y="${y}" font-family="${cfg.bodyFont}" font-size="${bodyFontSize}" font-weight="${cfg.bodyWeight}" fill="${palette.ink}">${escapeXml(line)}</text>`;
+    }).join('\n  ');
+  }
+
+  const eyebrowY = cfg.layout === 'L4' ? 200 : (cfg.layout === 'L2_CENTER' ? 280 : 240);
+  const eyebrowX = cfg.layout === 'L2_CENTER' ? '540' : '100';
+  const eyebrowAnchor = cfg.layout === 'L2_CENTER' ? 'text-anchor="middle"' : '';
+
+  const footerY = 1260;
+  const footerX = cfg.layout === 'L2_CENTER' ? '540' : '100';
+  const footerAnchor = cfg.layout === 'L2_CENTER' ? 'text-anchor="middle"' : '';
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+  <defs>
+    <style>
+      ${EMBEDDED_FONTS_CSS}
+    </style>
+  </defs>
+  <rect width="1080" height="1350" fill="${palette.bg}"/>
+  ${accentElements}
+  
+  <!-- Eyebrow -->
+  <text ${eyebrowAnchor} x="${eyebrowX}" y="${eyebrowY}" font-family="${cfg.bodyFont}" font-weight="700" font-size="30" letter-spacing="6" fill="${palette.accent || palette.muted}">${escapeXml(cfg.eyebrow)}</text>
+
+  <!-- Highlighter if any -->
+  ${highlighterElement}
+
+  <!-- Headline Block -->
+  ${headlineElements}
+
+  <!-- Underline if any -->
+  ${underlineElement}
+
+  <!-- Body Block -->
+  ${bodyElements}
+
+  <!-- Footer -->
+  <text ${footerAnchor} x="${footerX}" y="${footerY}" font-family="${cfg.bodyFont}" font-size="26" letter-spacing="3" fill="${palette.muted}">${escapeXml(cfg.footer)}</text>
+</svg>`;
+
+  validateSvg(svg);
+
+  const svgBuf = Buffer.from(svg);
+  const jpgBuffer = await sharp(svgBuf, { density: 150 })
+    .resize(1080, 1350)
+    .jpeg({ quality: 95 })
+    .toBuffer();
+
+  fs.writeFileSync(outFilename, jpgBuffer);
+  console.log(`      ✓ Generated Master Vector Typography Poster: ${outFilename} (${Math.round(jpgBuffer.length / 1024)} KB)`);
+  return jpgBuffer;
 }
 
 async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
@@ -742,15 +942,9 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
   console.log(`Insight: "${postData.insight_body}"`);
   console.log(`Takeaway: "${postData.takeaway}"\n`);
 
-  // 2. Render image — code cards (user-approved variant styles) primary, AI image fallback
+  // 2. Render image using the new Master Typography Poster Engine
   const imgFilename = `post-${page.id}-${Date.now()}.jpg`;
-  let imgBuffer;
-  try {
-    imgBuffer = await renderCodeCardImage(page, postData, imgFilename);
-  } catch (e) {
-    console.log(`[Notice] Code card failed (${e.message}). Falling back to AI image engine...`);
-    imgBuffer = await renderImage(postData.image_prompt, imgFilename, page, postData);
-  }
+  const imgBuffer = await renderBrandMasterTypographyPoster(page, postData, imgFilename);
 
   // 3. Format full caption
   const achievementTags = isAchievement ? ' #FacebookCreator #EarnedAchievement #MilestoneUnlocked #WeeklyStreak' : '';
@@ -836,11 +1030,14 @@ console.log(`✓ Pinterest Pin ID: ${pinterestPinId || (page.id === RELIQ_NORTH_
 console.log(`✓ Group Distribution: 4 Groups Assigned`);
 console.log('======================================================\n');
 
-return { page, postData, fbPostId, reelId, storyId, threadsPostId, igPostId, groupPack };
+  return { page, postData, fbPostId, reelId, storyId, threadsPostId, igPostId, groupPack };
 }
 
+export { renderBrandMasterTypographyPoster, BRAND_POSTER_CONFIGS, runSinglePageBatch };
+
 // Check arguments: node run-content-machine.mjs [pageIndex] [--achievement]
-// Default specifically to Reliq North (index 3)
-const pageArg = process.argv[2] && !isNaN(parseInt(process.argv[2], 10)) ? parseInt(process.argv[2], 10) : 3;
-const isAchievementArg = process.argv.includes('--achievement');
-runSinglePageBatch(pageArg, isAchievementArg).catch(console.error);
+if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('run-content-machine.mjs')) {
+  const pageArg = process.argv[2] && !isNaN(parseInt(process.argv[2], 10)) ? parseInt(process.argv[2], 10) : 3;
+  const isAchievementArg = process.argv.includes('--achievement');
+  runSinglePageBatch(pageArg, isAchievementArg).catch(console.error);
+}
