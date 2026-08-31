@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+  <!-- Full-bleed background -->
+  <rect width="1080" height="1350" fill="#0A0A0A"/>
+  
+        <circle cx="840" cy="200" r="6" fill="#FF8A1E"/>
+        <circle cx="864" cy="200" r="6" fill="#FF8A1E"/>
+        <circle cx="888" cy="200" r="6" fill="#FF8A1E"/>
+        <circle cx="912" cy="200" r="6" fill="#FF8A1E"/>
+      
+
+  <!-- Eyebrow -->
+  <text x="100" y="200" font-family="'Oswald', 'Arial Narrow', 'Impact', sans-serif" font-weight="500" font-size="30" letter-spacing="6" fill="#7A7A7A">MINDSET TIP // THE BOUNDARIES CLUB</text>
+
+  <!-- Headline Block (C. CONDENSED MINIMAL + E3 Underline) -->
+  <text x="100" y="380" font-family="'Oswald', 'Arial Narrow', 'Impact', sans-serif" font-weight="700" letter-spacing="2" font-size="104" fill="#FFFFFF">STOP COMPLAINING.</text>
+  <text x="100" y="482" font-family="'Oswald', 'Arial Narrow', 'Impact', sans-serif" font-weight="700" letter-spacing="2" font-size="104" fill="#FFFFFF">START</text>
+  <text x="100" y="584" font-family="'Oswald', 'Arial Narrow', 'Impact', sans-serif" font-weight="700" letter-spacing="2" font-size="104" fill="#FFFFFF">WORKING.</text>
+
+  <!-- Underline under WORKING -->
+  <line x1="100" y1="602" x2="540" y2="602" stroke="#FF8A1E" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- Body Block -->
+  <text x="100" y="780" font-family="'Oswald', 'Arial Narrow', 'Segoe UI', sans-serif" font-size="56" fill="#FFFFFF">Complaining changes nothing.</text>
+  <text x="100" y="860" font-family="'Oswald', 'Arial Narrow', 'Segoe UI', sans-serif" font-size="56" fill="#FFFFFF">Working hard changes everything.</text>
+
+  <!-- Footer -->
+  <text x="100" y="1260" font-family="'Oswald', 'Arial Narrow', 'Segoe UI', sans-serif" font-size="26" letter-spacing="3" fill="#7A7A7A">boundariesclub.com</text>
+</svg>

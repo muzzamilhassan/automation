@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+  <!-- Full-bleed background -->
+  <rect width="1080" height="1350" fill="#F7F3EC"/>
+  <polyline points="840,160 808,380 870,590 818,830 892,1050 850,1210" fill="none" stroke="#1A56E8" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>
+
+  <!-- Eyebrow -->
+  <text x="100" y="240" font-family="'Oswald', 'Arial Narrow', 'Franklin Gothic Medium', sans-serif" font-weight="500" font-size="30" letter-spacing="6" fill="#6B6B6B">CORE RULE // STRATEGIC SILENCE</text>
+
+  <!-- Headline Block (B. BOLD IMPACT + E1 Colour Swap on BIG) -->
+  <text x="100" y="420" font-family="'Anton', 'Impact', 'Arial Black', sans-serif" font-size="120" fill="#111111">SMALL HABITS</text>
+  <text x="100" y="538" font-family="'Anton', 'Impact', 'Arial Black', sans-serif" font-size="120" fill="#111111">MAKE</text>
+  <text x="100" y="656" font-family="'Anton', 'Impact', 'Arial Black', sans-serif" font-size="120" fill="#1A56E8">BIG</text>
+  <text x="100" y="774" font-family="'Anton', 'Impact', 'Arial Black', sans-serif" font-size="120" fill="#111111">CHANGES.</text>
+
+  <!-- Body Block -->
+  <text x="100" y="940" font-family="'Oswald', 'Arial Narrow', 'Franklin Gothic Medium', sans-serif" font-weight="500" font-size="52" fill="#111111">What you do every day matters</text>
+  <text x="100" y="1014" font-family="'Oswald', 'Arial Narrow', 'Franklin Gothic Medium', sans-serif" font-weight="500" font-size="52" fill="#111111">more than what you do once in a while.</text>
+
+  <!-- Footer -->
+  <text x="100" y="1260" font-family="'Oswald', 'Arial Narrow', 'Franklin Gothic Medium', sans-serif" font-size="26" letter-spacing="3" fill="#6B6B6B">strategicsilence.com</text>
+</svg>
