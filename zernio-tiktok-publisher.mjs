@@ -87,7 +87,7 @@ export async function listAccounts() {
 
 // Zernio has no GET /posts/:id — watch the list endpoint for our post's
 // platform status. Delivery verdict arrives within seconds of creation.
-async function waitForPostStatus(postId, { timeoutMs = 75000, intervalMs = 6000 } = {}) {
+async function waitForPostStatus(postId, targetAccountId, { timeoutMs = 75000, intervalMs = 6000 } = {}) {
   const apiKey = envOf('ZERNIO_API_KEY') || API_KEY;
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -97,7 +97,7 @@ async function waitForPostStatus(postId, { timeoutMs = 75000, intervalMs = 6000 
       const data = await res.json();
       const post = (data.posts || []).find(p => p._id === postId);
       if (!post) continue;
-      const pl = (post.platforms || []).find(p => (p.accountId?._id || p.accountId) === ACCOUNT_ID) || (post.platforms || [])[0] || {};
+      const pl = (post.platforms || []).find(p => (p.accountId?._id || p.accountId) === targetAccountId) || (post.platforms || [])[0] || {};
       if (pl.status === 'published') return { ok: true, status: pl.status };
       if (pl.status === 'failed') return { ok: false, status: pl.status, error: pl.errorMessage || '', category: pl.errorCategory || '' };
     } catch (e) { }
@@ -105,15 +105,37 @@ async function waitForPostStatus(postId, { timeoutMs = 75000, intervalMs = 6000 
   return { ok: false, status: 'TIMEOUT', error: 'no delivery verdict in time (check Zernio dashboard)' };
 }
 
-async function createPost({ content, mediaUrl, scheduledFor } = {}) {
+// Which TikTok accounts to post to. Priority: explicit comma-separated
+// ZERNIO_TIKTOK_ACCOUNT_IDS > every active TikTok account linked to the
+// Zernio profile (auto-discovery — new accounts are picked up with zero
+// config) > legacy single ZERNIO_TIKTOK_ACCOUNT_ID if discovery fails.
+async function resolveTargetAccounts() {
   const apiKey = envOf('ZERNIO_API_KEY') || API_KEY;
-  const accountId = envOf('ZERNIO_TIKTOK_ACCOUNT_ID') || ACCOUNT_ID;
+  const explicit = (envOf('ZERNIO_TIKTOK_ACCOUNT_IDS') || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (explicit.length) return explicit;
+
+  try {
+    const res = await fetch(`${ZERNIO_API}/accounts`, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+    const data = await res.json();
+    const accounts = (data.accounts || [])
+      .filter(a => (a.platform || '').toLowerCase() === 'tiktok' && a.platformStatus !== 'inactive')
+      .map(a => a._id);
+    if (accounts.length) return accounts;
+  } catch (e) { }
+
+  const legacy = envOf('ZERNIO_TIKTOK_ACCOUNT_ID') || ACCOUNT_ID;
+  return legacy ? [legacy] : [];
+}
+
+async function createPost({ content, mediaUrl, scheduledFor, accountId } = {}) {
+  const apiKey = envOf('ZERNIO_API_KEY') || API_KEY;
+  const targetAccount = accountId || envOf('ZERNIO_TIKTOK_ACCOUNT_ID') || ACCOUNT_ID;
   const payload = {
     publishNow: !scheduledFor,
     platforms: [
       {
         platform: 'tiktok',
-        accountId: accountId,
+        accountId: targetAccount,
         platformSpecificData: {
           tiktokSettings: {
             draft: DRAFT_MODE,
@@ -156,10 +178,15 @@ async function createPost({ content, mediaUrl, scheduledFor } = {}) {
  */
 export async function publishToTikTok({ videoBuffer, videoUrl, title } = {}) {
   const apiKey = envOf('ZERNIO_API_KEY') || API_KEY;
-  const accountId = envOf('ZERNIO_TIKTOK_ACCOUNT_ID') || ACCOUNT_ID;
 
-  if (!apiKey || !accountId) {
-    console.warn('[Zernio TikTok] Skipped: ZERNIO_API_KEY or ZERNIO_TIKTOK_ACCOUNT_ID missing in .env');
+  if (!apiKey) {
+    console.warn('[Zernio TikTok] Skipped: ZERNIO_API_KEY missing in .env');
+    return null;
+  }
+
+  const targetAccounts = await resolveTargetAccounts();
+  if (!targetAccounts.length) {
+    console.warn('[Zernio TikTok] Skipped: no TikTok accounts found (connect one in the Zernio dashboard).');
     return null;
   }
 
@@ -168,7 +195,7 @@ export async function publishToTikTok({ videoBuffer, videoUrl, title } = {}) {
     let finalMediaUrl = videoUrl;
 
     if (!finalMediaUrl && videoBuffer) {
-      console.log(`      [TikTok] Uploading video to Zernio storage (${mode})...`);
+      console.log(`      [TikTok] Uploading video to Zernio storage (${mode}, ${targetAccounts.length} account${targetAccounts.length > 1 ? 's' : ''})...`);
       const presign = await getPresignedUrl('reel.mp4', 'video/mp4');
       await uploadVideoBuffer(presign.uploadUrl, videoBuffer, 'video/mp4');
       finalMediaUrl = presign.publicUrl;
@@ -181,55 +208,66 @@ export async function publishToTikTok({ videoBuffer, videoUrl, title } = {}) {
     }
 
     const content = clip(title || '');
-    let lastError = '';
+    const postedIds = [];
 
-    for (let attempt = 0; attempt <= RETRY_ATTEMPTS; attempt++) {
-      if (attempt > 0) {
-        console.log(`      [TikTok] Retry ${attempt}/${RETRY_ATTEMPTS} in ${Math.round(RETRY_WAIT_MS / 1000)}s...`);
-        await sleep(RETRY_WAIT_MS);
+    for (const accountId of targetAccounts) {
+      let lastError = '';
+
+      for (let attempt = 0; attempt <= RETRY_ATTEMPTS; attempt++) {
+        if (attempt > 0) {
+          console.log(`      [TikTok] Retry ${attempt}/${RETRY_ATTEMPTS} in ${Math.round(RETRY_WAIT_MS / 1000)}s...`);
+          await sleep(RETRY_WAIT_MS);
+        }
+
+        console.log(`      [TikTok] Submitting post via Zernio (${mode})...`);
+        let postId;
+        try {
+          postId = await createPost({ content, mediaUrl: finalMediaUrl, accountId });
+        } catch (e) {
+          console.warn('      [TikTok] Zernio post creation failed:', e.message);
+          lastError = e.message;
+          continue;
+        }
+
+        const verdict = await waitForPostStatus(postId, accountId);
+        if (verdict.ok) {
+          console.log(`      ✓ TikTok auto-published! ID: ${postId}`);
+          postedIds.push(postId);
+          break;
+        }
+        if (verdict.status === 'TIMEOUT') {
+          // Undetermined — treat as accepted so the caller doesn't double-post
+          console.log(`      ✓ TikTok post accepted (ID: ${postId}); delivery verdict pending on Zernio's side.`);
+          postedIds.push(postId);
+          break;
+        }
+        lastError = `${verdict.category} — ${verdict.error}`;
+        console.warn(`      [TikTok] Attempt ${attempt + 1} failed: ${lastError}`);
       }
 
-      console.log(`      [TikTok] Submitting post via Zernio (${mode})...`);
-      let postId;
-      try {
-        postId = await createPost({ content, mediaUrl: finalMediaUrl });
-      } catch (e) {
-        console.warn('      [TikTok] Zernio post creation failed:', e.message);
-        lastError = e.message;
-        continue;
+      if (postedIds.includes(accountId)) continue;
+
+      // Direct-post capacity is full (TikTok throttles third-party apps by time
+      // of day). Auto-publish the same post a few hours ahead via Zernio's
+      // scheduler instead of dropping it — still zero manual work, still public.
+      if (!DRAFT_MODE && RESCHEDULE_HOURS > 0) {
+        const when = new Date(Date.now() + RESCHEDULE_HOURS * 3600 * 1000);
+        console.log(`      [TikTok] Capacity full — rescheduling auto-publish for ${when.toISOString()}...`);
+        try {
+          const scheduledId = await createPost({ content, mediaUrl: finalMediaUrl, scheduledFor: when.toISOString(), accountId });
+          console.log(`      ✓ TikTok post scheduled for auto-publish at ${when.toISOString()} (ID: ${scheduledId})`);
+          postedIds.push(scheduledId);
+          continue;
+        } catch (e) {
+          console.warn('      [TikTok] Reschedule failed:', e.message);
+        }
       }
 
-      const verdict = await waitForPostStatus(postId);
-      if (verdict.ok) {
-        console.log(`      ✓ TikTok auto-published! ID: ${postId}`);
-        return postId;
-      }
-      if (verdict.status === 'TIMEOUT') {
-        // Undetermined — treat as accepted so the caller doesn't double-post
-        console.log(`      ✓ TikTok post accepted (ID: ${postId}); delivery verdict pending on Zernio's side.`);
-        return postId;
-      }
-      lastError = `${verdict.category} — ${verdict.error}`;
-      console.warn(`      [TikTok] Attempt ${attempt + 1} failed: ${lastError}`);
+      console.warn('      [TikTok] All attempts failed for this account:', lastError);
     }
 
-    // Direct-post capacity is full (TikTok throttles third-party apps by time of
-    // day). Auto-publish the same post a few hours ahead via Zernio's scheduler
-    // instead of dropping it — still zero manual work, still public.
-    if (!DRAFT_MODE && RESCHEDULE_HOURS > 0) {
-      const when = new Date(Date.now() + RESCHEDULE_HOURS * 3600 * 1000);
-      console.log(`      [TikTok] Capacity full — rescheduling auto-publish for ${when.toISOString()}...`);
-      try {
-        const scheduledId = await createPost({ content, mediaUrl: finalMediaUrl, scheduledFor: when.toISOString() });
-        console.log(`      ✓ TikTok post scheduled for auto-publish at ${when.toISOString()} (ID: ${scheduledId})`);
-        return scheduledId;
-      } catch (e) {
-        console.warn('      [TikTok] Reschedule failed:', e.message);
-      }
-    }
-
-    console.warn('      [TikTok] All attempts failed:', lastError);
-    return null;
+    if (!postedIds.length) return null;
+    return postedIds.join(',');
   } catch (e) {
     console.warn('      [TikTok] Error publishing via Zernio:', e.message);
     return null;

@@ -165,8 +165,7 @@ async function pollPublishStatus(publishId, token) {
 export async function publishToTikTok({ videoBuffer, title } = {}) {
   // Prefer Zernio Unified API if configured in .env (avoids OAuth expiration & audit issues)
   const zernioApiKey = envOf('ZERNIO_API_KEY');
-  const zernioAccountId = envOf('ZERNIO_TIKTOK_ACCOUNT_ID');
-  if (zernioApiKey && zernioAccountId) {
+  if (zernioApiKey) {
     const { publishToTikTok: publishZernio } = await import('./zernio-tiktok-publisher.mjs');
     return await publishZernio({ videoBuffer, title });
   }
