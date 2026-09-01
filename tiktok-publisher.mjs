@@ -163,9 +163,17 @@ async function pollPublishStatus(publishId, token) {
 }
 
 export async function publishToTikTok({ videoBuffer, title } = {}) {
+  // Prefer Zernio Unified API if configured in .env (avoids OAuth expiration & audit issues)
+  const zernioApiKey = envOf('ZERNIO_API_KEY');
+  const zernioAccountId = envOf('ZERNIO_TIKTOK_ACCOUNT_ID');
+  if (zernioApiKey && zernioAccountId) {
+    const { publishToTikTok: publishZernio } = await import('./zernio-tiktok-publisher.mjs');
+    return await publishZernio({ videoBuffer, title });
+  }
+
   const cfg = await getTikTokToken();
   if (!cfg) {
-    console.log('[TikTok] Skipped: no token (run: node tiktok-publisher.mjs auth)');
+    console.log('[TikTok] Skipped: no token (set ZERNIO_API_KEY in .env or run: node tiktok-publisher.mjs auth)');
     return null;
   }
   try {
