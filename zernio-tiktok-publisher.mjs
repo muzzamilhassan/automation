@@ -1,7 +1,12 @@
 // Zernio TikTok Publisher — Automated TikTok posting via Zernio Unified API
+// Mode: DIRECT POST (auto-publishes to the profile). Zernio's TikTok app has a
+// shared direct-post capacity that occasionally reports "at capacity" — that
+// frees up over time, so failed attempts are retried with a delay. Set
+// ZERNIO_TIKTOK_DRAFT=true to fall back to Creator-Inbox drafts instead.
 import fs from 'node:fs';
 
 const ZERNIO_API = 'https://api.zernio.com/v1';
+const CAPTION_LIMIT = 2200; // TikTok caption cap incl. hashtags
 
 let envStr = '';
 try {
@@ -16,8 +21,20 @@ const envOf = (key) => process.env[key] || (envStr.match(new RegExp(`^${key}=(.+
 
 const API_KEY = envOf('ZERNIO_API_KEY');
 const ACCOUNT_ID = envOf('ZERNIO_TIKTOK_ACCOUNT_ID');
+// Auto-publish unless explicitly opted into drafts (ZERNIO_TIKTOK_DRAFT=true)
+const DRAFT_MODE = ['1', 'true', 'yes'].includes((envOf('ZERNIO_TIKTOK_DRAFT') || '').toLowerCase());
+const RETRY_ATTEMPTS = parseInt(envOf('ZERNIO_TIKTOK_RETRIES') || '1', 10); // extra attempts after the first
+const RETRY_WAIT_MS = parseInt(envOf('ZERNIO_TIKTOK_RETRY_WAIT_MS') || '30000', 10);
+// When TikTok's direct-post capacity is full, the post is rescheduled this many
+// hours ahead (Zernio auto-publishes it then) instead of dropping it.
+const RESCHEDULE_HOURS = parseFloat(envOf('ZERNIO_TIKTOK_RESCHEDULE_HOURS') || '3');
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+function clip(text, limit = CAPTION_LIMIT) {
+  const s = String(text || '').trim();
+  return s.length <= limit ? s : s.substring(0, limit - 1).trimEnd() + '…';
+}
 
 /**
  * Request presigned upload URL for media
@@ -68,6 +85,71 @@ export async function listAccounts() {
   return await res.json();
 }
 
+// Zernio has no GET /posts/:id — watch the list endpoint for our post's
+// platform status. Delivery verdict arrives within seconds of creation.
+async function waitForPostStatus(postId, { timeoutMs = 75000, intervalMs = 6000 } = {}) {
+  const apiKey = envOf('ZERNIO_API_KEY') || API_KEY;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    await sleep(intervalMs);
+    try {
+      const res = await fetch(`${ZERNIO_API}/posts`, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+      const data = await res.json();
+      const post = (data.posts || []).find(p => p._id === postId);
+      if (!post) continue;
+      const pl = (post.platforms || []).find(p => (p.accountId?._id || p.accountId) === ACCOUNT_ID) || (post.platforms || [])[0] || {};
+      if (pl.status === 'published') return { ok: true, status: pl.status };
+      if (pl.status === 'failed') return { ok: false, status: pl.status, error: pl.errorMessage || '', category: pl.errorCategory || '' };
+    } catch (e) { }
+  }
+  return { ok: false, status: 'TIMEOUT', error: 'no delivery verdict in time (check Zernio dashboard)' };
+}
+
+async function createPost({ content, mediaUrl, scheduledFor } = {}) {
+  const apiKey = envOf('ZERNIO_API_KEY') || API_KEY;
+  const accountId = envOf('ZERNIO_TIKTOK_ACCOUNT_ID') || ACCOUNT_ID;
+  const payload = {
+    publishNow: !scheduledFor,
+    platforms: [
+      {
+        platform: 'tiktok',
+        accountId: accountId,
+        platformSpecificData: {
+          tiktokSettings: {
+            draft: DRAFT_MODE,
+            privacy_level: 'PUBLIC_TO_EVERYONE',
+            allow_comment: true,
+            allow_duet: true,
+            allow_stitch: true
+          }
+        }
+      }
+    ],
+    content,
+    mediaItems: [
+      {
+        type: 'video',
+        url: mediaUrl
+      }
+    ]
+  };
+
+  const res = await fetch(`${ZERNIO_API}/posts`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(scheduledFor ? { ...payload, scheduledFor } : payload)
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(`post creation failed (${res.status}): ${JSON.stringify(data)}`);
+  const postId = data?.post?._id || data?.id || data?._id;
+  if (!postId) throw new Error(`no post id in response: ${JSON.stringify(data)}`);
+  return postId;
+}
+
 /**
  * Main publisher function for TikTok via Zernio
  * Compatible with run-content-machine.mjs interface: publishToTikTok({ videoBuffer, title })
@@ -81,11 +163,12 @@ export async function publishToTikTok({ videoBuffer, videoUrl, title } = {}) {
     return null;
   }
 
+  const mode = DRAFT_MODE ? 'Creator Inbox draft' : 'DIRECT POST (auto-publish)';
   try {
     let finalMediaUrl = videoUrl;
 
     if (!finalMediaUrl && videoBuffer) {
-      console.log('      [TikTok] Uploading video to Zernio storage...');
+      console.log(`      [TikTok] Uploading video to Zernio storage (${mode})...`);
       const presign = await getPresignedUrl('reel.mp4', 'video/mp4');
       await uploadVideoBuffer(presign.uploadUrl, videoBuffer, 'video/mp4');
       finalMediaUrl = presign.publicUrl;
@@ -97,55 +180,56 @@ export async function publishToTikTok({ videoBuffer, videoUrl, title } = {}) {
       return null;
     }
 
-    console.log('      [TikTok] Submitting post to TikTok via Zernio API...');
-    const payload = {
-      publishNow: true,
-      platforms: [
-        {
-          platform: 'tiktok',
-          accountId: accountId,
-          platformSpecificData: {
-            tiktokSettings: {
-              // TikTok caps third-party direct posts ("at capacity" errors);
-              // draft:true delivers via Creator Inbox instead. Flip by setting
-              // ZERNIO_TIKTOK_DRAFT=false (secret/env) once direct posting frees up.
-              draft: (envOf('ZERNIO_TIKTOK_DRAFT') || 'true').toLowerCase() !== 'false',
-              privacy_level: 'PUBLIC_TO_EVERYONE',
-              allow_comment: true,
-              allow_duet: true,
-              allow_stitch: true
-            }
-          }
-        }
-      ],
-      content: title || '',
-      mediaItems: [
-        {
-          type: 'video',
-          url: finalMediaUrl
-        }
-      ]
-    };
+    const content = clip(title || '');
+    let lastError = '';
 
-    const res = await fetch(`${ZERNIO_API}/posts`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
+    for (let attempt = 0; attempt <= RETRY_ATTEMPTS; attempt++) {
+      if (attempt > 0) {
+        console.log(`      [TikTok] Retry ${attempt}/${RETRY_ATTEMPTS} in ${Math.round(RETRY_WAIT_MS / 1000)}s...`);
+        await sleep(RETRY_WAIT_MS);
+      }
 
-    const data = await res.json();
-    if (!res.ok) {
-      console.warn('      [TikTok] Zernio post creation failed:', JSON.stringify(data));
-      return null;
+      console.log(`      [TikTok] Submitting post via Zernio (${mode})...`);
+      let postId;
+      try {
+        postId = await createPost({ content, mediaUrl: finalMediaUrl });
+      } catch (e) {
+        console.warn('      [TikTok] Zernio post creation failed:', e.message);
+        lastError = e.message;
+        continue;
+      }
+
+      const verdict = await waitForPostStatus(postId);
+      if (verdict.ok) {
+        console.log(`      ✓ TikTok auto-published! ID: ${postId}`);
+        return postId;
+      }
+      if (verdict.status === 'TIMEOUT') {
+        // Undetermined — treat as accepted so the caller doesn't double-post
+        console.log(`      ✓ TikTok post accepted (ID: ${postId}); delivery verdict pending on Zernio's side.`);
+        return postId;
+      }
+      lastError = `${verdict.category} — ${verdict.error}`;
+      console.warn(`      [TikTok] Attempt ${attempt + 1} failed: ${lastError}`);
     }
 
-    const postId = data?.post?._id || data?.id || data?._id;
-    console.log(`      ✓ TikTok Post successfully published to Creator Inbox! ID: ${postId || 'OK'}`);
-    return postId || 'OK';
+    // Direct-post capacity is full (TikTok throttles third-party apps by time of
+    // day). Auto-publish the same post a few hours ahead via Zernio's scheduler
+    // instead of dropping it — still zero manual work, still public.
+    if (!DRAFT_MODE && RESCHEDULE_HOURS > 0) {
+      const when = new Date(Date.now() + RESCHEDULE_HOURS * 3600 * 1000);
+      console.log(`      [TikTok] Capacity full — rescheduling auto-publish for ${when.toISOString()}...`);
+      try {
+        const scheduledId = await createPost({ content, mediaUrl: finalMediaUrl, scheduledFor: when.toISOString() });
+        console.log(`      ✓ TikTok post scheduled for auto-publish at ${when.toISOString()} (ID: ${scheduledId})`);
+        return scheduledId;
+      } catch (e) {
+        console.warn('      [TikTok] Reschedule failed:', e.message);
+      }
+    }
 
+    console.warn('      [TikTok] All attempts failed:', lastError);
+    return null;
   } catch (e) {
     console.warn('      [TikTok] Error publishing via Zernio:', e.message);
     return null;
@@ -157,9 +241,9 @@ export async function publishToTikTok({ videoBuffer, videoUrl, title } = {}) {
 // ---------------------------------------------------------------------------
 if (process.argv[1] && process.argv[1].endsWith('zernio-tiktok-publisher.mjs')) {
   const cmd = process.argv[2] || 'test';
-  
+
   if (cmd === 'accounts' || cmd === 'test') {
-    console.log('Fetching connected accounts from Zernio...');
+    console.log(`Fetching connected accounts from Zernio (mode: ${DRAFT_MODE ? 'DRAFT' : 'DIRECT POST'})...`);
     listAccounts().then(data => {
       console.log('\n--- Connected Accounts ---');
       if (data.accounts && data.accounts.length) {
@@ -180,6 +264,7 @@ if (process.argv[1] && process.argv[1].endsWith('zernio-tiktok-publisher.mjs')) 
     const buf = fs.readFileSync(videoFile);
     publishToTikTok({ videoBuffer: buf, title: caption }).then(res => {
       console.log('Result:', res);
+      process.exit(res ? 0 : 1);
     });
   }
 }

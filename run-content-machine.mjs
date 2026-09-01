@@ -968,7 +968,9 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
     youtubeShortId = await publishToYouTubeShorts(reelBuffer, postData.headline, `${postData.insight_body}\n\n${postData.takeaway}\n\n${postData.caption}`, page.brandTag);
     // TikTok cross-post gated to the Reliq North batch (single account, ~3/day)
     if (page.id === RELIQ_NORTH_PAGE_ID) {
-      tiktokId = await publishToTikTok({ videoBuffer: reelBuffer, title: `${postData.headline}\n${page.brandTag}` });
+      const tiktokTags = `${page.brandTag} #fyp #foryou #foryoupage #quotes #motivation #mindset #dailywisdom #viral #shorts`;
+      const tiktokCaption = `${postData.headline}\n\n${postData.insight_body}\n\n${postData.takeaway}\n\n${tiktokTags}${achievementTags}`;
+      tiktokId = await publishToTikTok({ videoBuffer: reelBuffer, title: tiktokCaption });
     }
   }
 
