@@ -6,6 +6,7 @@ import sharp from 'sharp';
 import { publishToThreads, hostImagePublicly } from './threads-publisher.mjs';
 import { publishToTikTok } from './tiktok-publisher.mjs';
 import { publishToPinterest } from './pinterest-publisher.mjs';
+import { renderCinematicPoster, renderCinematicReel } from './cinematic-engine.mjs';
 import {
   EMBEDDED_FONTS_CSS,
   PALETTES,
@@ -942,9 +943,15 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
   console.log(`Insight: "${postData.insight_body}"`);
   console.log(`Takeaway: "${postData.takeaway}"\n`);
 
-  // 2. Render image using the new Master Typography Poster Engine
+  // 2. Render image — cinematic 4K-photo style first, legacy flat design as fallback
   const imgFilename = `post-${page.id}-${Date.now()}.jpg`;
-  const imgBuffer = await renderBrandMasterTypographyPoster(page, postData, imgFilename);
+  let imgBuffer = null;
+  try {
+    imgBuffer = await renderCinematicPoster(page, postData, imgFilename);
+  } catch (e) {
+    console.warn('      Cinematic poster unavailable (' + e.message + ') — using legacy design.');
+    imgBuffer = await renderBrandMasterTypographyPoster(page, postData, imgFilename);
+  }
 
   // 3. Format full caption
   const achievementTags = isAchievement ? ' #FacebookCreator #EarnedAchievement #MilestoneUnlocked #WeeklyStreak' : '';
@@ -956,7 +963,13 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
 
   // 5. [STEP 2/5] Generate & Publish Dynamic Video Reel (FB + YouTube Shorts + TikTok)
   const chosenMood = MUSIC_PRESETS[(targetPageIndex * 3 + Math.floor(Math.random() * 3)) % MUSIC_PRESETS.length];
-  const reelBuffer = await createReelVideo(imgBuffer, chosenMood, 13);
+  let reelBuffer = null;
+  try {
+    reelBuffer = await renderCinematicReel(page, postData, chosenMood);
+  } catch (e) {
+    console.warn('      Cinematic reel unavailable (' + e.message + ') — using legacy reel.');
+    reelBuffer = await createReelVideo(imgBuffer, chosenMood, 13);
+  }
   let reelId = null;
   let youtubeShortId = null;
   let tiktokId = null;

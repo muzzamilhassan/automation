@@ -40,3 +40,9 @@ ffmpeg-bin/
 pixabay-*.mp4
 pixabay-*.jpg
 pixabay-bg*.mp4
+
+# Cinematic engine local artifacts
+pixabay-pool/
+flow-test-*.jpg
+flow-test-*.mp4
+qa-*.jpg

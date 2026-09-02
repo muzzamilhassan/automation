@@ -42,11 +42,17 @@ jobs:
   publish:
     name: 🎬 Generate & Publish Content
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
 
     steps:
       - name: 📥 Checkout Repository
         uses: actions/checkout@v4
+
+      - name: 💾 Restore Pixabay 4K clip pool
+        uses: actions/cache@v4
+        with:
+          path: pixabay-pool
+          key: pixabay-pool-v1
 
       - name: ⚙️ Setup Node.js 20
         uses: actions/setup-node@v4
@@ -101,6 +107,7 @@ jobs:
           ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
           ZERNIO_TIKTOK_ACCOUNT_ID: ${{ secrets.ZERNIO_TIKTOK_ACCOUNT_ID }}
           ZERNIO_TIKTOK_DRAFT: ${{ secrets.ZERNIO_TIKTOK_DRAFT }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           SECRET_WRITER_PAT: ${{ secrets.SECRET_WRITER_PAT }}
           PINTEREST_APP_ID: ${{ secrets.PINTEREST_APP_ID }}
           PINTEREST_APP_SECRET: ${{ secrets.PINTEREST_APP_SECRET }}
