@@ -34,3 +34,9 @@ reel-*.mp4
 # OS junk
 .DS_Store
 Thumbs.db
+
+# Local ffmpeg (portable) & Pixabay demo artifacts
+ffmpeg-bin/
+pixabay-*.mp4
+pixabay-*.jpg
+pixabay-bg*.mp4
