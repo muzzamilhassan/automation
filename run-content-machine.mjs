@@ -7,6 +7,7 @@ import { publishToThreads, hostImagePublicly } from './threads-publisher.mjs';
 import { publishToTikTok } from './tiktok-publisher.mjs';
 import { publishToPinterest } from './pinterest-publisher.mjs';
 import { renderCinematicPoster, renderCinematicReel } from './cinematic-engine.mjs';
+import { renderYouTubeShort, nextYouTubeSlotISO } from './youtube-engine.mjs';
 import { pickMusicTrack } from './music-engine.mjs';
 import {
   EMBEDDED_FONTS_CSS,
@@ -669,11 +670,17 @@ async function publishToPostizTikTok(videoBuffer, title, caption) {  const posti
   return null;
 }
 
-async function publishToYouTubeShorts(videoBuffer, title, description, brandTag) {
+// YouTube gets its OWN dedicated Short (hook-first narrated format) and its
+// own release strategy: uploads go out as private with publishAt set to the
+// next 05:45 / 13:30 / 18:45 PKT Shorts slot instead of posting instantly.
+// No #Shorts hashtag (format-based classification, 2026) and a minimal tags
+// field (officially near-zero for discovery).
+async function publishToYouTubeShorts(videoBuffer, meta, musicLabel = '') {
   if (!YOUTUBE_CLIENT_ID || !YOUTUBE_CLIENT_SECRET || !YOUTUBE_REFRESH_TOKEN) {
     return null;
   }
-  console.log(`[YouTube Shorts] Uploading Vertical Short: "${title}"...`);
+  const publishAt = nextYouTubeSlotISO();
+  console.log(`[YouTube Shorts] Uploading (scheduled for ${publishAt}): "${meta.title}"...`);
   try {
     const oauth2Client = new google.auth.OAuth2(
       YOUTUBE_CLIENT_ID,
@@ -688,22 +695,22 @@ async function publishToYouTubeShorts(videoBuffer, title, description, brandTag)
     readable.push(videoBuffer);
     readable.push(null);
 
-    const shortsTitle = `${title.replace(/#Shorts/gi, '').trim().substring(0, 80)} #Shorts`;
-    const shortsDesc = `${description}\n\n#Shorts #YouTubeShorts ${brandTag}`;
+    const shortsDesc = `${meta.description}${musicLabel ? `\n\n🎵 ${musicLabel}` : ''}`;
 
     const res = await youtube.videos.insert({
       part: ['snippet', 'status'],
       requestBody: {
         snippet: {
-          title: shortsTitle,
+          title: meta.title,
           description: shortsDesc,
-          tags: ['Shorts', 'YouTubeShorts', 'Mindset', 'Discipline', 'Motivation'],
+          tags: meta.tags || ['Motivation', 'Quotes'],
           categoryId: '27',
           defaultLanguage: 'en',
           defaultAudioLanguage: 'en'
         },
         status: {
-          privacyStatus: 'public',
+          privacyStatus: 'private',
+          publishAt,
           selfDeclaredMadeForKids: false
         }
       },
@@ -712,7 +719,7 @@ async function publishToYouTubeShorts(videoBuffer, title, description, brandTag)
 
     const videoId = res.data.id;
     if (videoId) {
-      console.log(`      ✓ YouTube Short Live! 👉 https://youtube.com/shorts/${videoId}`);
+      console.log(`      ✓ YouTube Short queued (goes public ${publishAt}) 👉 https://youtube.com/shorts/${videoId}`);
       return videoId;
     }
   } catch (e) {
@@ -1024,7 +1031,24 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
       : `${chosenMood}${MUSIC_CREDITS[chosenMood] ? ' — ' + MUSIC_CREDITS[chosenMood] : ''}`;
     const reelCaption = `${postData.headline}\n\n${postData.insight_body}\n\n${postData.takeaway}\n\n🎵 Music Track: ${musicLabel}${achievementTags}\n\n${brandHashtags}`;
     reelId = await publishReelToFacebook(page.id, reelBuffer, postData.headline, reelCaption);
-    youtubeShortId = await publishToYouTubeShorts(reelBuffer, postData.headline, `${postData.insight_body}\n\n${postData.takeaway}\n\n${postData.caption}`, page.brandTag);
+    // YouTube: dedicated hook-first narrated Short (different format from the
+    // FB/IG reel) + SEO metadata, scheduled at the next PKT Shorts slot.
+    // Falls back to the FB reel if the YT renderer is unavailable.
+    let ytShort = null;
+    try {
+      ytShort = await renderYouTubeShort(page, postData, musicOverride);
+      fs.writeFileSync(`yt-short-${page.id}-${Date.now()}.mp4`, ytShort.buffer);
+    } catch (e) {
+      console.warn('      YouTube Short render failed (' + e.message + ') — falling back to FB reel for YouTube.');
+    }
+    const ytVideo = ytShort?.buffer || reelBuffer;
+    const ytMeta = ytShort?.meta || {
+      title: postData.headline.replace(/\.$/, ''),
+      description: `${postData.insight_body}\n\n${postData.takeaway}\n\nFollow Quote Quarry for daily motivation.\n\n#motivation #mindset #quotes`,
+      tags: ['motivational quotes', 'mindset', 'discipline', 'quotes']
+    };
+    const ytMusicLabel = musicOverride ? `${musicOverride.title} — ${musicOverride.credit}` : '';
+    youtubeShortId = await publishToYouTubeShorts(ytVideo, ytMeta, ytMusicLabel);
     // TikTok cross-post gated to the Reliq North batch (single account, ~3/day)
     if (page.id === RELIQ_NORTH_PAGE_ID) {
       const tiktokTags = `${page.brandTag} #fyp #foryou #foryoupage #quotes #motivation #mindset #dailywisdom #viral #shorts`;

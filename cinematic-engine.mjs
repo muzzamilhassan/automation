@@ -95,7 +95,7 @@ const spaced = (s) => String(s || '').split('').join(' ');
 // ---------------------------------------------------------------------------
 // Clip pool management (downloads once, cached by CI actions/cache)
 // ---------------------------------------------------------------------------
-async function ensurePoolClip(pageId) {
+export async function ensurePoolClip(pageId) {
   const entries = POOL[pageId] || Object.values(POOL)[0];
   const [clipId, start] = entries[Math.floor(Math.random() * entries.length)];
   const file = `${POOL_DIR}/${clipId}.mp4`;

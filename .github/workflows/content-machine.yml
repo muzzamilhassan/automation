@@ -88,6 +88,11 @@ jobs:
           fc-list | grep -i -c "Playfair\|Anton\|Oswald\|Inter\|Cinzel\|Archivo\|Cormorant\|Space Mono" || true
           echo "Fonts ready."
 
+      - name: 🗣️ Install Edge-TTS (YouTube Short narration)
+        run: |
+          python3 -m pip install --quiet --user edge-tts || pip install --quiet edge-tts || true
+          python3 -c "import edge_tts; print('Edge-TTS ready.')" || echo "Edge-TTS unavailable — YouTube Shorts fall back to text-only."
+
       - name: 🎨 Start Image & Video Engine (Background Service)
         run: |
           node image-tools/server.js &
@@ -149,5 +154,6 @@ jobs:
             post-*.jpg
             post-*.png
             reel-*.mp4
+            yt-short-*.mp4
           if-no-files-found: ignore
           retention-days: 7
