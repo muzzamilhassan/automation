@@ -7,7 +7,7 @@ import { publishToThreads, hostImagePublicly } from './threads-publisher.mjs';
 import { publishToTikTok } from './tiktok-publisher.mjs';
 import { publishToPinterest } from './pinterest-publisher.mjs';
 import { renderCinematicPoster, renderCinematicReel } from './cinematic-engine.mjs';
-import { renderYouTubeShort, nextYouTubeSlotISO } from './youtube-engine.mjs';
+import { renderYouTubeShort, nextYouTubeSlotISO, nextYouTubeSlotCandidatesISO } from './youtube-engine.mjs';
 import { pickMusicTrack } from './music-engine.mjs';
 import {
   EMBEDDED_FONTS_CSS,
@@ -675,12 +675,32 @@ async function publishToPostizTikTok(videoBuffer, title, caption) {  const posti
 // next 05:45 / 13:30 / 18:45 PKT Shorts slot instead of posting instantly.
 // No #Shorts hashtag (format-based classification, 2026) and a minimal tags
 // field (officially near-zero for discovery).
+// Pick a publish slot that isn't already crowded: max 5 scheduled Shorts per
+// slot (5 brands = one full cycle), else move to the next slot.
+async function pickYouTubePublishAt(youtube) {
+  const candidates = nextYouTubeSlotCandidatesISO(8);
+  let busy = [];
+  try {
+    const s = await youtube.search.list({ part: 'id', forMine: true, type: 'video', order: 'date', maxResults: 50 });
+    const ids = (s.data.items || []).map((i) => i.id.videoId).filter(Boolean);
+    if (ids.length) {
+      const v = await youtube.videos.list({ part: 'status', id: ids.join(',') });
+      busy = (v.data.items || []).map((x) => x.status?.publishAt).filter(Boolean);
+    }
+  } catch (e) {
+    console.log(`      [YouTube Shorts] Slot check unavailable (${e.message?.slice(0, 80)}) — using next slot.`);
+    return candidates[0];
+  }
+  for (const c of candidates) {
+    if (busy.filter((b) => b === c).length < 5) return c;
+  }
+  return candidates[candidates.length - 1];
+}
+
 async function publishToYouTubeShorts(videoBuffer, meta, musicLabel = '') {
   if (!YOUTUBE_CLIENT_ID || !YOUTUBE_CLIENT_SECRET || !YOUTUBE_REFRESH_TOKEN) {
     return null;
   }
-  const publishAt = nextYouTubeSlotISO();
-  console.log(`[YouTube Shorts] Uploading (scheduled for ${publishAt}): "${meta.title}"...`);
   try {
     const oauth2Client = new google.auth.OAuth2(
       YOUTUBE_CLIENT_ID,
@@ -689,6 +709,8 @@ async function publishToYouTubeShorts(videoBuffer, meta, musicLabel = '') {
     );
     oauth2Client.setCredentials({ refresh_token: YOUTUBE_REFRESH_TOKEN });
     const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
+    const publishAt = await pickYouTubePublishAt(youtube);
+    console.log(`[YouTube Shorts] Uploading (scheduled for ${publishAt}): "${meta.title}"...`);
 
     const readable = new Readable();
     readable._read = () => {};

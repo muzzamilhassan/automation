@@ -268,16 +268,26 @@ export function buildYouTubeMeta(page, postData, seed = 0, musicLabel = '') {
 }
 
 // ---------------------------------------------------------------------------
-// Scheduling — next 05:45 / 13:30 / 18:45 PKT slot (UTC+5, no DST)
+// Scheduling — 05:45 / 13:30 / 18:45 PKT slots (UTC+5, no DST).
+// nextYouTubeSlotCandidatesISO returns the next N slot timestamps so the
+// uploader can skip slots that already have a full batch scheduled.
 // ---------------------------------------------------------------------------
-export function nextYouTubeSlotISO(now = new Date()) {
+export function nextYouTubeSlotCandidatesISO(n = 6, now = new Date()) {
   const slotsSec = [45 * 60, 8 * 3600 + 30 * 60, 13 * 3600 + 45 * 60];
   const t = now.getTime() / 1000 + 15 * 60;
   const dayStart = Math.floor(t / 86400) * 86400;
-  for (const s of slotsSec) {
-    if (dayStart + s > t) return new Date((dayStart + s) * 1000).toISOString();
+  const out = [];
+  for (let d = 0; d <= Math.ceil(n / 3); d++) {
+    for (const s of slotsSec) {
+      const ts = dayStart + d * 86400 + s;
+      if (ts > t) out.push(new Date(ts * 1000).toISOString());
+    }
   }
-  return new Date((dayStart + 86400 + slotsSec[0]) * 1000).toISOString();
+  return out.slice(0, n);
+}
+
+export function nextYouTubeSlotISO(now = new Date()) {
+  return nextYouTubeSlotCandidatesISO(1, now)[0];
 }
 
 // ---------------------------------------------------------------------------
