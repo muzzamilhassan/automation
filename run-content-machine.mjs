@@ -7,6 +7,7 @@ import { publishToThreads, hostImagePublicly } from './threads-publisher.mjs';
 import { publishToTikTok } from './tiktok-publisher.mjs';
 import { publishToPinterest } from './pinterest-publisher.mjs';
 import { renderCinematicPoster, renderCinematicReel } from './cinematic-engine.mjs';
+import { pickMusicTrack } from './music-engine.mjs';
 import {
   EMBEDDED_FONTS_CSS,
   PALETTES,
@@ -996,9 +997,12 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
 
   // 5. [STEP 2/5] Generate & Publish Dynamic Video Reel (FB + YouTube Shorts + TikTok)
   const chosenMood = MUSIC_PRESETS[(targetPageIndex * 3 + Math.floor(Math.random() * 3)) % MUSIC_PRESETS.length];
+  // rotating no-copyright catalog: a different track every reel (1,442-track incompetech pool)
+  const musicOverride = await pickMusicTrack(targetPageIndex);
+  if (musicOverride) console.log(`      🎵 [music] "${musicOverride.title}" (${musicOverride.feel})`);
   let reelBuffer = null;
   try {
-    reelBuffer = await renderCinematicReel(page, postData, chosenMood);
+      reelBuffer = await renderCinematicReel(page, postData, chosenMood, musicOverride);
   } catch (e) {
     console.warn('      Cinematic reel unavailable (' + e.message + ') — using legacy reel.');
     reelBuffer = await createReelVideo(imgBuffer, chosenMood, 13);
@@ -1009,7 +1013,10 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
   if (reelBuffer) {
     const reelFilename = `reel-${page.id}-${Date.now()}.mp4`;
     fs.writeFileSync(reelFilename, reelBuffer);
-    const reelCaption = `${postData.headline}\n\n${postData.insight_body}\n\n${postData.takeaway}\n\n🎵 Music Track: ${chosenMood}${MUSIC_CREDITS[chosenMood] ? ' — ' + MUSIC_CREDITS[chosenMood] : ''}${achievementTags}\n\n${page.brandTag}`;
+    const musicLabel = musicOverride
+      ? `${musicOverride.title} — ${musicOverride.credit}`
+      : `${chosenMood}${MUSIC_CREDITS[chosenMood] ? ' — ' + MUSIC_CREDITS[chosenMood] : ''}`;
+    const reelCaption = `${postData.headline}\n\n${postData.insight_body}\n\n${postData.takeaway}\n\n🎵 Music Track: ${musicLabel}${achievementTags}\n\n${page.brandTag}`;
     reelId = await publishReelToFacebook(page.id, reelBuffer, postData.headline, reelCaption);
     youtubeShortId = await publishToYouTubeShorts(reelBuffer, postData.headline, `${postData.insight_body}\n\n${postData.takeaway}\n\n${postData.caption}`, page.brandTag);
     // TikTok cross-post gated to the Reliq North batch (single account, ~3/day)

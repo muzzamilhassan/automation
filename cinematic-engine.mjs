@@ -214,7 +214,7 @@ export async function renderCinematicPoster(page, postData, outFilename) {
 // ---------------------------------------------------------------------------
 // Cinematic REEL (1080x1920, ~13s) — moving 4K clip + brand drawtext + music
 // ---------------------------------------------------------------------------
-export async function renderCinematicReel(page, postData, mood = 'awakening-dew') {
+export async function renderCinematicReel(page, postData, mood = 'awakening-dew', musicOverride = null) {
   const brand = BRANDS[page?.id];
   if (!brand) throw new Error('no cinematic config for page ' + page?.id);
   console.log(`[Cinematic Reel] ${brand.label} ...`);
@@ -285,7 +285,9 @@ export async function renderCinematicReel(page, postData, mood = 'awakening-dew'
   const overlayFile = `${POOL_DIR}/text-${page.id}.png`;
   await sharp(Buffer.from(overlaySvg)).png().toFile(overlayFile);
 
-  const musicFile = fs.existsSync(`image-tools/audio/${mood}.mp3`) ? `image-tools/audio/${mood}.mp3` : 'image-tools/audio/awakening-dew.mp3';
+  const musicFile = musicOverride?.file
+    ? musicOverride.file
+    : (fs.existsSync(`image-tools/audio/${mood}.mp3`) ? `image-tools/audio/${mood}.mp3` : 'image-tools/audio/awakening-dew.mp3');
   const dur = Math.min(13, clip.maxDur);
   const chain = [
     `[0:v]crop=ih*9/16:ih,scale=1080:1920,eq=saturation=1.06:contrast=1.04,fade=t=in:st=0:d=0.7,fade=t=out:st=${(dur - 0.9).toFixed(1)}:d=0.9[bv]`,

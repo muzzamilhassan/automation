@@ -46,3 +46,6 @@ pixabay-pool/
 flow-test-*.jpg
 flow-test-*.mp4
 qa-*.jpg
+
+# rotating music cache
+.music-cache/
