@@ -64,7 +64,7 @@ const stripPunct = (s) => String(s || '').replace(/[.,!?;:"'’"“”—–-]/g
 // pause marker before the takeaway (the "human twist" lives here as much as
 // in the TTS instructions).
 // ---------------------------------------------------------------------------
-function spokenScript(postData) {
+export function spokenScript(postData) {
   const headline = titleCase((postData?.headline || '').replace(/\.$/, ''));
   const insight = String(postData?.insight_body || '').trim();
   const takeaway = String(postData?.takeaway || '')
@@ -128,7 +128,12 @@ function assTime(sec) {
 }
 const escAss = (s) => String(s || '').replace(/[{}\\]/g, '');
 
-function buildAssCaptions(words) {
+export function buildAssCaptions(words, opts = {}) {
+  const W = opts.w || 1080;
+  const H = opts.h || 1920;
+  const CX = opts.x || Math.round(W / 2);
+  const CY = opts.y || 1260;
+  const SIZE = opts.size || 110;
   const clean = words.map((w) => ({ ...w, t: stripPunct(w.w).toUpperCase() })).filter((w) => w.t);
   // group into cues of <=3 words; break on sentence punctuation or a >0.45s gap
   const cues = [];
@@ -149,19 +154,19 @@ function buildAssCaptions(words) {
       ? `{\\c${ASS_YELLOW}}${escAss(w.t)}{\\c${ASS_WHITE}}`
       : escAss(w.t))).join(' ');
     const pop = `\\fad(30,30)\\t(0,90,\\fscx114\\fscy114)\\t(90,240,\\fscx100\\fscy100)`;
-    return `Dialogue: 0,${assTime(c.start)},${assTime(Math.max(c.end, c.start + 0.35))},Hormozi,,0,0,0,,{\\an5\\pos(540,1260)${pop}}${body}`;
+    return `Dialogue: 0,${assTime(c.start)},${assTime(Math.max(c.end, c.start + 0.35))},Hormozi,,0,0,0,,{\\an5\\pos(${CX},${CY})${pop}}${body}`;
   });
 
   return `[Script Info]
 ScriptType: v4.00+
-PlayResX: 1080
-PlayResY: 1920
+PlayResX: ${W}
+PlayResY: ${H}
 WrapStyle: 2
 ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Hormozi,Anton,110,${ASS_WHITE},&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,9,0,5,60,60,640,1
+Style: Hormozi,Anton,${SIZE},${ASS_WHITE},&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,${Math.max(4, Math.round(SIZE / 14))},0,5,60,60,640,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
