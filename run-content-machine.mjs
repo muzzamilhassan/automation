@@ -742,12 +742,41 @@ async function publishToYouTubeShorts(videoBuffer, meta, musicLabel = '') {
     const videoId = res.data.id;
     if (videoId) {
       console.log(`      ✓ YouTube Short queued (goes public ${publishAt}) 👉 https://youtube.com/shorts/${videoId}`);
+      await commentOnYouTubeShort(youtube, videoId, Math.floor(Date.now() / 86400000) + videoId.length);
       return videoId;
     }
   } catch (e) {
     console.error(`      ✗ YouTube Shorts Error:`, e.message);
   }
   return null;
+}
+
+// Rotating CTA comments — auto-posted on every new Short right after upload
+// (owner comment; pinning is manual in Studio — 1 click, big engagement lift).
+const YT_CTA_COMMENTS = [
+  'Which line hit hardest? 👇 Subscribe for daily quotes.',
+  'Save this for your hardest day. 🔖 New quotes every day — subscribe.',
+  'Type "DAY 1" if you\'re rebuilding yourself. 👇'
+];
+
+async function commentOnYouTubeShort(youtube, videoId, seed) {
+  try {
+    const ch = await youtube.channels.list({ part: 'id', mine: true });
+    const channelId = ch.data.items?.[0]?.id;
+    if (!channelId) return;
+    await youtube.commentThreads.insert({
+      part: 'snippet',
+      requestBody: {
+        snippet: {
+          channelId,
+          topLevelComment: { snippet: { channelId, textOriginal: YT_CTA_COMMENTS[seed % YT_CTA_COMMENTS.length] } }
+        }
+      }
+    });
+    console.log('      ✓ CTA comment posted on the Short (pin it in Studio for the full effect)');
+  } catch (e) {
+    console.log(`      [YouTube] CTA comment skipped (${String(e.message).slice(0, 80)})`);
+  }
 }
 
 function getGroupSharePack(postPermalink, headline, caption, pageIndex = 3) {
