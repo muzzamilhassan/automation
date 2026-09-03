@@ -220,16 +220,25 @@ export async function renderCinematicReel(page, postData, mood = 'awakening-dew'
   console.log(`[Cinematic Reel] ${brand.label} ...`);
   const clip = await ensurePoolClip(page.id);
 
+  // ---- IDENTICAL typography to renderCinematicPoster (same engine, same
+  // shrink rule, same 4 body lines, letter-spacing) laid out for 1080x1920,
+  // rendered once as a transparent PNG and overlaid on the moving clip. ----
   const headline = (postData?.headline || 'STAY SILENT AND BUILD').toUpperCase();
   const hlLines = wrapTextToLines(headline, brand.hlWrap).slice(0, 4);
   const insight = postData?.insight_body || postData?.takeaway || '';
-  const bodyLines = wrapTextToLines(insight, brand.bodyWrap).slice(0, 3);
+  const bodyLines = wrapTextToLines(insight, brand.bodyWrap).slice(0, 4);
 
-  const shrink = hlLines.some(l => l.length > 13) ? 0.85 : 1;
-  const hSize = Math.round(brand.hlFont.size * shrink);
+  const hSize = hlLines.some(l => l.length > 13) ? Math.round(brand.hlFont.size * 0.87) : brand.hlFont.size;
   const hSp = Math.round(hSize * (brand.hlFont.lineSp / brand.hlFont.size));
   const bSize = bodyLines.some(l => l.length > 26) ? Math.round(brand.bodyFont.size * 0.9) : brand.bodyFont.size;
   const bSp = Math.round(bSize * 1.42);
+
+  const useStart = brand.align === 'center' ? 440 : 380;
+  const anchor = brand.align === 'center' ? 'text-anchor="middle" x="540"' : 'x="100"';
+  const hlTop = 530;
+  const bodyTop = Math.min(1290, hlTop + hlLines.length * hSp + 190);
+  const eyebrowY = 330;
+  const footTop = 1700;
 
   // scrim gradient png
   const [c0, c1, c2] = brand.scrim;
@@ -239,51 +248,56 @@ export async function renderCinematicReel(page, postData, mood = 'awakening-dew'
   const scrimFile = `${POOL_DIR}/scrim-${page.id}.png`;
   await sharp(Buffer.from(scrimSvg)).png().toFile(scrimFile);
 
-  // text positions
-  const hlTop = 530;
-  const bodyTop = Math.min(1290, hlTop + hlLines.length * hSp + 190);
-  const footTop = 1700;
-  const X = brand.align === 'center' ? 'x=(w-text_w)/2' : 'x=100';
+  // ---- text overlay (SVG, same markup as the poster) ----
+  let hlEls = hlLines.map((line, i) => {
+    let fill = brand.ink;
+    if (page.id === '1077306835630491') fill = i === 0 ? '#141414' : '#FFFFFF';
+    else if (page.id === '116157974886564') fill = (i === 1 || hlLines.length === 1) ? brand.scrimAccent || '#F5E31C' : brand.ink;
+    else if (page.id === '108044922375174') fill = (i === 2 || (hlLines.length === 1 && i === 0)) ? '#1A56E8' : brand.ink;
+    return `<text ${anchor} y="${hlTop + i * hSp}" font-family="${brand.hlFont.css}" font-size="${hSize}" font-weight="${page.id === '106473735839651' ? 700 : page.id === '114550268199751' ? 900 : 400}"${page.id === '106473735839651' ? ' letter-spacing="2"' : ''} fill="${fill}">${escapeXml(line)}</text>`;
+  }).join('\n  ');
 
-  const tfFiles = [];
-  const tf = (name, text) => { fs.writeFileSync(name, text); tfFiles.push(name); return `textfile=${name}`; };
-  const dt = (font, size, color, y, name, text) =>
-    `drawtext=fontfile=image-tools/fonts/${font}:${tf(name, text)}:fontcolor=${color}:fontsize=${size}:${X}:y=${y}:shadowcolor=black@0.4:shadowx=0:shadowy=4`;
+  let extrasUnder = '';
+  let extrasOver = '';
+  if (brand.underline) {
+    const lastY = hlTop + (hlLines.length - 1) * hSp;
+    extrasOver += `<line x1="100" y1="${lastY + 18}" x2="560" y2="${lastY + 18}" stroke="#FF8A1E" stroke-width="5" stroke-linecap="round"/>`;
+  }
+  if (brand.highlighter) {
+    const lastY = hlTop + (hlLines.length - 1) * hSp;
+    const w = Math.min(700, Math.max(300, (hlLines[hlLines.length - 1] || '').length * hSize * 0.58 + 40));
+    extrasUnder += `<rect x="86" y="${lastY - hSize * 0.74}" width="${w}" height="${hSize * 1.12}" fill="#F2E24B" opacity="0.95"/>`;
+  }
 
-  const bits = [];
-  const EYEFONT = { '116157974886564': 'Oswald-500.ttf', '108044922375174': 'Oswald-500.ttf', '106473735839651': 'Oswald-500.ttf', '1077306835630491': 'Inter-ExtraBold.ttf', '114550268199751': 'PlayfairDisplay-Bold.ttf' };
-  bits.push(dt(EYEFONT[page.id], 30, brand.eyeColor, 330, 'eye.txt', spaced(eyebrowFor(page.id))));
-  hlLines.forEach((line, i) => {
-    let color = brand.ink;
-    if (page.id === '1077306835630491') color = i === 0 ? '#141414' : '#FFFFFF';
-    else if (page.id === '116157974886564') color = (i === 1 || hlLines.length === 1) ? '#F5E31C' : brand.ink;
-    else if (page.id === '108044922375174') color = (i === 2 || (hlLines.length === 1 && i === 0)) ? '#1A56E8' : brand.ink;
-    bits.push(dt(brand.hlFont.ttf, hSize, color, hlTop + i * hSp, `hl${i}.txt`, line));
-  });
-  bodyLines.forEach((line, i) => {
-    bits.push(dt(brand.bodyFont.ttf, bSize, brand.ink, bodyTop + i * bSp, `bd${i}.txt`, line));
-  });
-  bits.push(dt(brand.bodyFont.ttf, 26, brand.footColor, footTop, 'ft.txt', spaced(footerFor(page.id))));
+  const bodyEls = bodyLines.map((line, i) =>
+    `<text ${anchor} y="${bodyTop + i * bSp}" font-family="${brand.bodyFont.css}" font-size="${bSize}" font-weight="400" fill="${brand.ink}">${escapeXml(line)}</text>`).join('\n  ');
 
-  const boxes = [];
-  if (brand.underline) boxes.push(`drawbox=x=100:y=${hlTop + (hlLines.length - 1) * hSp + 16}:w=430:h=5:color=0xFF8A1E@0.95:t=fill`);
-  if (brand.highlighter) boxes.push(`drawbox=x=86:y=${hlTop + (hlLines.length - 1) * hSp - 10}:w=600:h=${Math.round(hSize * 1.04)}:color=0xF2E24B@0.8:t=fill`);
-  if (brand.accentRule && !brand.accentRule.h) boxes.push(`drawbox=x=${brand.accentRule.x}:y=${bodyTop - 62}:w=${brand.accentRule.w}:h=4:color=${brand.accentRule.color}:t=fill`);
-  if (brand.accentRule?.h) boxes.push(`drawbox=x=${brand.accentRule.x}:y=${brand.accentRule.y}:w=${brand.accentRule.w}:h=${brand.accentRule.h}:color=${brand.accentRule.color}:t=fill`);
+  const accentColor = page.id === '116157974886564' ? '#F5E31C' : page.id === '114550268199751' ? '#C8202D' : brand.eyeColor;
+  const overlaySvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
+  <defs><style>${EMBEDDED_FONTS_CSS}</style></defs>
+  <text ${anchor} y="${eyebrowY}" font-family="${brand.bodyFont.css}" font-weight="700" font-size="30" letter-spacing="6" fill="${accentColor}">${escapeXml(eyebrowFor(page.id))}</text>
+  ${extrasUnder}
+  ${hlEls}
+  ${extrasOver}
+  ${bodyEls}
+  <text ${anchor} y="${footTop}" font-family="${brand.bodyFont.css}" font-size="26" letter-spacing="3" fill="${brand.footColor}">${escapeXml(footerFor(page.id))}</text>
+</svg>`;
+  const overlayFile = `${POOL_DIR}/text-${page.id}.png`;
+  await sharp(Buffer.from(overlaySvg)).png().toFile(overlayFile);
 
   const musicFile = fs.existsSync(`image-tools/audio/${mood}.mp3`) ? `image-tools/audio/${mood}.mp3` : 'image-tools/audio/awakening-dew.mp3';
   const dur = Math.min(13, clip.maxDur);
-  const visualTail = [`[bv][sc]overlay=0:0`, ...boxes, ...bits].join(',') + `[v]`;
   const chain = [
     `[0:v]crop=ih*9/16:ih,scale=1080:1920,eq=saturation=1.06:contrast=1.04,fade=t=in:st=0:d=0.7,fade=t=out:st=${(dur - 0.9).toFixed(1)}:d=0.9[bv]`,
     `[1:v]scale=1080:1920[sc]`,
-    visualTail
+    `[bv][sc]overlay=0:0[base]`,
+    `[base][3:v]overlay=0:0[v]`
   ].join(';') + `;[2:a]volume=0.85,afade=t=in:st=0:d=1,afade=t=out:st=${(dur - 1.5).toFixed(1)}:d=1.5[a]`;
 
   const outFile = `${POOL_DIR}/reel-${page.id}.tmp.mp4`;
   try {
     execFileSync(FF, [
-      '-y', '-ss', String(clip.start), '-i', clip.file, '-i', scrimFile, '-stream_loop', '-1', '-i', musicFile,
+      '-y', '-ss', String(clip.start), '-i', clip.file, '-i', scrimFile, '-stream_loop', '-1', '-i', musicFile, '-i', overlayFile,
       '-filter_complex', chain, '-map', '[v]', '-map', '[a]',
       '-t', String(dur), '-r', '30',
       '-c:v', 'libx264', '-preset', 'medium', '-crf', '19', '-pix_fmt', 'yuv420p',
@@ -291,11 +305,11 @@ export async function renderCinematicReel(page, postData, mood = 'awakening-dew'
     ], { stdio: ['ignore', 'ignore', 'pipe'] });
     const buf = fs.readFileSync(outFile);
     fs.unlinkSync(outFile);
-    tfFiles.forEach(f => fs.existsSync(f) && fs.unlinkSync(f));
+    fs.rmSync(overlayFile, { force: true });
     console.log(`      ✓ Cinematic reel rendered (${Math.round(buf.length / 1024)} KB)`);
     return buf;
   } catch (e) {
-    tfFiles.forEach(f => fs.existsSync(f) && fs.unlinkSync(f));
+    fs.rmSync(overlayFile, { force: true });
     const msg = e.stderr ? e.stderr.toString().split('\n').filter(l => /Error|Invalid|No such|Unable/i.test(l)).join(' | ') : e.message;
     throw new Error('cinematic reel failed: ' + msg.slice(0, 300));
   }
