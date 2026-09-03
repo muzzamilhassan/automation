@@ -1,31 +1,26 @@
-// YouTube Shorts Engine — a DEDICATED YouTube format, deliberately different
+// YouTube Shorts Engine v2 — a DEDICATED YouTube format, deliberately different
 // from the FB/IG cinematic reels but driven by the same content batch.
 //
-// Differences from the FB/IG reel (per research/youtube-growth-playbook-2026-09.md):
-//   • Quote Quarry identity: uniform dark scrim + Anton hook, accent per brand
-//   • Hook in frame 1 (<=7 words on screen instantly), inside UI safe zones
-//   • Edge-TTS narration + burned karaoke subtitles (MoneyPrinterTurbo pattern)
-//   • Loopable: hook text stays on screen the whole video, audio fades clean
-//   • Duration follows the narration (~12-25s), never 3-minute territory
-//   • SEO metadata: keyword front-loaded titles, unique <300 char descriptions,
-//     exactly 3 visible hashtags, skip the tags field
-//   • Uploads are scheduled (private + publishAt) at the 05:45/13:30/18:45 PKT
-//     Shorts slots instead of posting instantly
+//   • Topic-matched 4K Pixabay footage per quote (Gemini picks the search query)
+//   • Human-feel narration: OpenAI gpt-4o-mini-tts "documentary narrator"
+//     instructions (Edge-TTS fallback) + whisper word-level alignment
+//   • Trending "Hormozi" captions: ALL-CAPS Anton, thick black outline,
+//     1-3 words per cue, yellow keyword, pop-in scale, burned via libass ASS
+//   • Hook in frame 1 (<=7 words), loopable, ~12-30s, safe-zone layout
+//   • SEO metadata + scheduled uploads at the 05:45/13:30/18:45 PKT slots
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import sharp from 'sharp';
 import { EMBEDDED_FONTS_CSS } from './typography-poster-engine.mjs';
 import { ensurePoolClip } from './cinematic-engine.mjs';
+import { getTopicClip } from './youtube-clips.mjs';
 
 const FF = process.env.FFMPEG_PATH || (fs.existsSync('ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe')
   ? 'ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' : 'ffmpeg');
 const POOL_DIR = 'pixabay-pool';
-const SUB_STYLE = 'FontName=Oswald,FontSize=14,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H80000000,BorderStyle=1,Outline=2,Shadow=0,Alignment=2,MarginV=52,WrapStyle=2';
 
 // ---------------------------------------------------------------------------
 // YouTube brand configs — separate identity from the FB/IG BRANDS table.
-// One recognizable Quote Quarry look (dark scrim, Anton caps, white ink) with
-// a per-brand accent color + SEO keyword set.
 // ---------------------------------------------------------------------------
 const YT_BRANDS = {
   '116157974886564': { label: 'SILENT WEALTH', accent: '#F5E31C', keyword: 'money mindset quotes', kwShort: 'wealth wisdom', theme: 'Wealth', niches: ['wealth building', 'financial freedom', 'millionaire mindset'] },
@@ -35,9 +30,11 @@ const YT_BRANDS = {
   '106473735839651': { label: 'THE BOUNDARIES CLUB', accent: '#FF8A1E', keyword: 'self respect quotes', kwShort: 'self respect', theme: 'Boundaries', niches: ['boundaries', 'emotional intelligence', 'protect your peace'] }
 };
 
-// Hook style rotation (playbook Part 4: format rotation beats one template)
 const HOOK_STYLES = ['direct', 'emphasis', 'curiosity', 'negative'];
 const CURIOSITY_PREFIX = ['NOBODY TELLS YOU THIS:', 'READ THIS TWICE:', 'THIS CHANGES EVERYTHING:'];
+// ASS colour is &HAABBGGRR — #FFD93D yellow (BGR 3DD9FF)
+const ASS_YELLOW = '&H3DD9FF&';
+const ASS_WHITE = '&HFFFFFF&';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -60,38 +57,144 @@ function wrapTextToLines(text, maxChars) {
 
 const escapeXml = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const titleCase = (s) => String(s || '').toLowerCase().replace(/(?<!['’])\b([a-z])/g, (m, p) => p.toUpperCase());
+const stripPunct = (s) => String(s || '').replace(/[.,!?;:"'’"“”—–-]/g, '').trim();
 
 // ---------------------------------------------------------------------------
-// Hook builder — style rotation over the same content (robust, no AI needed)
+// Spoken script — written FOR the voice: contractions, short sentences, a
+// pause marker before the takeaway (the "human twist" lives here as much as
+// in the TTS instructions).
+// ---------------------------------------------------------------------------
+function spokenScript(postData) {
+  const headline = titleCase((postData?.headline || '').replace(/\.$/, ''));
+  const insight = String(postData?.insight_body || '').trim();
+  const takeaway = String(postData?.takeaway || '')
+    .replace(/^Rule:\s*/i, '')
+    .replace(/\.$/, '')
+    .trim();
+  const parts = [`Listen — ${headline}.`, insight];
+  if (takeaway) parts.push(`Here's the rule... ${takeaway}.`);
+  return parts.filter(Boolean).join(' ').split(/\s+/).slice(0, 55).join(' ');
+}
+
+// ---------------------------------------------------------------------------
+// Narration — youtube-flow/narrate.py returns exact word timestamps
+// ---------------------------------------------------------------------------
+let cachedPython = null;
+function resolvePython() {
+  if (cachedPython !== null) return cachedPython;
+  for (const cmd of ['python', 'python3']) {
+    try {
+      execFileSync(cmd, ['--version'], { stdio: 'ignore' });
+      cachedPython = cmd;
+      return cmd;
+    } catch (e) { /* try next */ }
+  }
+  cachedPython = '';
+  return '';
+}
+
+function narrate(scriptText, tag) {
+  const py = resolvePython();
+  if (!py) return null;
+  const base = `${POOL_DIR}/yt-tts-${tag}`;
+  fs.mkdirSync(POOL_DIR, { recursive: true });
+  fs.writeFileSync(`${base}.txt`, scriptText, 'utf8');
+  try {
+    execFileSync(py, ['youtube-flow/narrate.py', `${base}.txt`, `${base}.mp3`, `${base}.words.json`],
+      { stdio: ['ignore', 'ignore', 'pipe'], timeout: 180000 });
+    const words = JSON.parse(fs.readFileSync(`${base}.words.json`, 'utf8'));
+    if (!words?.length || !fs.existsSync(`${base}.mp3`)) return null;
+    return { mp3: `${base}.mp3`, words };
+  } catch (e) {
+    console.log(`      [YT Short] Narration unavailable (${String(e.message).slice(0, 120)}) — rendering text-only.`);
+    return null;
+  } finally {
+    fs.rmSync(`${base}.txt`, { force: true });
+    fs.rmSync(`${base}.words.json`, { force: true });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Trending caption template — "Hormozi" style ASS (research: ascynd.io 2025,
+// EchoWave, libass docs). ALL-CAPS Anton 110, 9px black outline, 1-3 words
+// per cue, yellow keyword, pop-in scale, centered at y=1260 (safe zone).
+// ---------------------------------------------------------------------------
+function assTime(sec) {
+  const s = Math.max(0, sec);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const rest = s % 60;
+  return `${h}:${String(m).padStart(2, '0')}:${rest.toFixed(2).padStart(5, '0')}`;
+}
+const escAss = (s) => String(s || '').replace(/[{}\\]/g, '');
+
+function buildAssCaptions(words) {
+  const clean = words.map((w) => ({ ...w, t: stripPunct(w.w).toUpperCase() })).filter((w) => w.t);
+  // group into cues of <=3 words; break on sentence punctuation or a >0.45s gap
+  const cues = [];
+  let cur = [];
+  for (let i = 0; i < clean.length; i++) {
+    cur.push(clean[i]);
+    const punct = /[.!?…]$/.test(clean[i].w);
+    const gap = i + 1 < clean.length ? clean[i + 1].s - (clean[i].s + clean[i].d) : 0;
+    if (cur.length >= 3 || punct || gap > 0.45 || i === clean.length - 1) {
+      cues.push({ start: cur[0].s, end: cur[cur.length - 1].s + cur[cur.length - 1].d, words: cur });
+      cur = [];
+    }
+  }
+
+  const lines = cues.map((c) => {
+    const keyword = c.words.map((w) => w.t).reduce((a, b) => (b.length > a.length ? b : a), '');
+    const body = c.words.map((w) => (w.t === keyword && w.t.length > 2
+      ? `{\\c${ASS_YELLOW}}${escAss(w.t)}{\\c${ASS_WHITE}}`
+      : escAss(w.t))).join(' ');
+    const pop = `\\fad(30,30)\\t(0,90,\\fscx114\\fscy114)\\t(90,240,\\fscx100\\fscy100)`;
+    return `Dialogue: 0,${assTime(c.start)},${assTime(Math.max(c.end, c.start + 0.35))},Hormozi,,0,0,0,,{\\an5\\pos(540,1260)${pop}}${body}`;
+  });
+
+  return `[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+WrapStyle: 2
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Hormozi,Anton,110,${ASS_WHITE},&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,9,0,5,60,60,640,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+${lines.join('\n')}
+`;
+}
+
+// ---------------------------------------------------------------------------
+// Hook builder — style rotation (playbook Part 4: rotation beats one template)
 // ---------------------------------------------------------------------------
 function buildHook(postData, styleIndex) {
   const headline = (postData?.headline || 'STAY SILENT AND BUILD').toUpperCase();
   const style = HOOK_STYLES[styleIndex % HOOK_STYLES.length];
-  let hook = headline;
   let prefix = null;
   if (style === 'curiosity') prefix = CURIOSITY_PREFIX[styleIndex % CURIOSITY_PREFIX.length];
   if (style === 'negative' && !/^(STOP|NEVER|DON'T|DO NOT|QUIT)/.test(headline)) prefix = 'STOP.';
-  // 'emphasis' / 'direct' keep the raw headline; 'emphasis' recolors a keyword below
-
-  // accent the longest word for the 'emphasis' style
   let accentWord = null;
   if (style === 'emphasis') {
-    accentWord = hook.split(/\s+/).filter((w) => w.length > 3).sort((a, b) => b.length - a.length)[0] || null;
+    accentWord = headline.split(/\s+/).filter((w) => w.length > 3).sort((a, b) => b.length - a.length)[0] || null;
   }
-  const hookLines = wrapTextToLines(hook, 11).slice(0, 3);
+  const hookLines = wrapTextToLines(headline, 11).slice(0, 3);
   return { style, prefix, hookLines, accentWord };
 }
 
 // ---------------------------------------------------------------------------
-// Overlay PNG — Quote Quarry dark identity. With narration only the hook card
-// shows (subtitles carry the words); without narration the insight + takeaway
-// are added so the Short still works silent.
+// Overlay PNG — Quote Quarry identity: eyebrow + huge hook + footer.
+// (The spoken words live in the ASS captions, so no body text needed when
+// narration is present.)
 // ---------------------------------------------------------------------------
 async function renderOverlay(pageId, brand, hook, bodyLines, takeaway, withNarration) {
   const hlLines = hook.hookLines;
   const hSize = hlLines.some((l) => l.length > 9) ? 100 : 122;
   const hSp = Math.round(hSize * 1.04);
-
   const prefixY = 430;
   const hookTop = hook.prefix ? 540 : 470;
   const anchor = 'text-anchor="middle" x="540"';
@@ -107,7 +210,6 @@ async function renderOverlay(pageId, brand, hook, bodyLines, takeaway, withNarra
     return `<text ${anchor} y="${hookTop + i * hSp}" font-family="'Anton', 'Impact', 'Arial Black', sans-serif" font-size="${hSize}" fill="#FFFFFF">${inner}</text>`;
   }).join('\n  ');
 
-  // fallback (silent) body: insight lines + accent takeaway
   let bodyEls = '';
   let takeawayEl = '';
   if (!withNarration) {
@@ -136,53 +238,10 @@ async function renderOverlay(pageId, brand, hook, bodyLines, takeaway, withNarra
 }
 
 // ---------------------------------------------------------------------------
-// Narration — Edge TTS via youtube-flow/tts_subs.py (MoneyPrinterTurbo pattern)
+// SEO metadata (playbook Part 3)
 // ---------------------------------------------------------------------------
-let cachedPython = null;
-function resolvePython() {
-  if (cachedPython !== null) return cachedPython;
-  for (const cmd of ['python', 'python3']) {
-    try {
-      execFileSync(cmd, ['--version'], { stdio: 'ignore' });
-      cachedPython = cmd;
-      return cmd;
-    } catch (e) { /* try next */ }
-  }
-  cachedPython = '';
-  return '';
-}
+const capitalized = (s) => titleCase(s);
 
-function spokenScript(postData) {
-  const headline = titleCase(postData?.headline || '').replace(/\.$/, '');
-  const takeaway = String(postData?.takeaway || '').replace(/^Rule:\s*/i, 'The rule is this: ');
-  const insight = String(postData?.insight_body || '');
-  const words = [headline ? `${headline}.` : '', insight, takeaway].filter(Boolean).join(' ').split(/\s+/);
-  return words.slice(0, 52).join(' ');
-}
-
-function narrate(scriptText, tag) {
-  const py = resolvePython();
-  if (!py) return null;
-  const base = `${POOL_DIR}/yt-tts-${tag}`;
-  fs.writeFileSync(`${base}.txt`, scriptText, 'utf8');
-  try {
-    execFileSync(py, ['youtube-flow/tts_subs.py', `${base}.txt`, `${base}.mp3`, `${base}.srt`, `${base}.json`],
-      { stdio: ['ignore', 'ignore', 'pipe'], timeout: 120000 });
-    const meta = JSON.parse(fs.readFileSync(`${base}.json`, 'utf8'));
-    if (!fs.existsSync(`${base}.mp3`) || !fs.existsSync(`${base}.srt`)) return null;
-    return { mp3: `${base}.mp3`, srt: `${base}.srt`, duration: meta.duration || 12 };
-  } catch (e) {
-    console.log(`      [YT Short] Narration unavailable (${String(e.message).slice(0, 120)}) — rendering text-only.`);
-    return null;
-  } finally {
-    fs.rmSync(`${base}.txt`, { force: true });
-  }
-}
-
-// ---------------------------------------------------------------------------
-// SEO metadata (playbook Part 3) — keyword front-loaded title, unique short
-// description, exactly 3 visible hashtags. Tags field intentionally minimal.
-// ---------------------------------------------------------------------------
 export function buildYouTubeMeta(page, postData, seed = 0, musicLabel = '') {
   const brand = YT_BRANDS[page?.id] || Object.values(YT_BRANDS)[0];
   const headlineTC = titleCase((postData?.headline || 'Stay Silent and Build').replace(/\.$/, ''));
@@ -208,11 +267,8 @@ export function buildYouTubeMeta(page, postData, seed = 0, musicLabel = '') {
   return { title, description, tags, format: HOOK_STYLES[seed % HOOK_STYLES.length], keyword: brand.keyword };
 }
 
-const capitalized = (s) => titleCase(s);
-
 // ---------------------------------------------------------------------------
 // Scheduling — next 05:45 / 13:30 / 18:45 PKT slot (UTC+5, no DST)
-// Slots in UTC: 00:45, 08:30, 13:45. Requires ~15 min lead time.
 // ---------------------------------------------------------------------------
 export function nextYouTubeSlotISO(now = new Date()) {
   const slotsSec = [45 * 60, 8 * 3600 + 30 * 60, 13 * 3600 + 45 * 60];
@@ -230,8 +286,9 @@ export function nextYouTubeSlotISO(now = new Date()) {
 export async function renderYouTubeShort(page, postData, musicOverride = null) {
   const brand = YT_BRANDS[page?.id];
   if (!brand) throw new Error('no YouTube config for page ' + page?.id);
-  console.log(`[YouTube Short] ${brand.label} (dedicated YT format)...`);
-  const clip = await ensurePoolClip(page.id);
+  console.log(`[YouTube Short] ${brand.label} (4K topic clip + human narration + Hormozi captions)...`);
+
+  const clip = (await getTopicClip(page, postData)) || await ensurePoolClip(page.id);
 
   const seed = Math.floor(Date.now() / 86400000) + Number(page.id % 7);
   const hook = buildHook(postData, seed);
@@ -240,14 +297,22 @@ export async function renderYouTubeShort(page, postData, musicOverride = null) {
   const overlayFile = await renderOverlay(page.id, brand, hook, bodyLines, narration ? null : postData?.takeaway, !!narration);
 
   const scrimSvg = `<svg width="1080" height="1920" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0" stop-color="rgba(8,8,10,0.55)"/><stop offset="0.45" stop-color="rgba(8,8,10,0.72)"/><stop offset="1" stop-color="rgba(8,8,10,0.88)"/>
+    <stop offset="0" stop-color="rgba(8,8,10,0.42)"/><stop offset="0.45" stop-color="rgba(8,8,10,0.60)"/><stop offset="1" stop-color="rgba(8,8,10,0.82)"/>
   </linearGradient></defs><rect width="1080" height="1920" fill="url(#g)"/></svg>`;
   const scrimFile = `${POOL_DIR}/yt-scrim-${page.id}.png`;
   await sharp(Buffer.from(scrimSvg)).png().toFile(scrimFile);
 
+  const lastWordEnd = narration ? narration.words[narration.words.length - 1].s + narration.words[narration.words.length - 1].d : 12;
   const dur = narration
-    ? Math.max(11, Math.min(30, Math.round((narration.duration + 1.2) * 10) / 10))
+    ? Math.max(11, Math.min(30, Math.round((lastWordEnd + 1.2) * 10) / 10))
     : 13;
+
+  // ASS captions from exact word timestamps
+  let assFile = null;
+  if (narration) {
+    assFile = `${POOL_DIR}/yt-caps-${page.id}.ass`;
+    fs.writeFileSync(assFile, buildAssCaptions(narration.words), 'utf8');
+  }
 
   const chain = [
     `[0:v]crop=ih*9/16:ih,scale=1080:1920,eq=saturation=1.04:contrast=1.06,fade=t=in:st=0:d=0.5,fade=t=out:st=${(dur - 0.8).toFixed(1)}:d=0.8[bv]`,
@@ -257,8 +322,8 @@ export async function renderYouTubeShort(page, postData, musicOverride = null) {
   ];
   let audioChain;
   if (narration) {
-    chain.push(`[ov]subtitles=filename=${narration.srt}:fontsdir=image-tools/fonts:force_style='${SUB_STYLE}'[v]`);
-    audioChain = `[4:a]adelay=350|350,apad=pad_dur=2[nar];[2:a]volume=0.16,apad=pad_dur=2[mus];[nar][mus]amix=inputs=2:duration=longest:normalize=0,atrim=0:${dur},afade=t=out:st=${(dur - 1.0).toFixed(1)}:d=1.0[a]`;
+    chain.push(`[ov]ass=${assFile}:fontsdir=image-tools/fonts[v]`);
+    audioChain = `[4:a]adelay=350|350,apad=pad_dur=2[nar];[2:a]volume=0.14,apad=pad_dur=2[mus];[nar][mus]amix=inputs=2:duration=longest:normalize=0,atrim=0:${dur},afade=t=out:st=${(dur - 1.0).toFixed(1)}:d=1.0[a]`;
   } else {
     chain.push(`[ov]null[v]`);
     audioChain = `[2:a]volume=0.7,afade=t=in:st=0:d=1,afade=t=out:st=${(dur - 1.5).toFixed(1)}:d=1.5[a]`;
@@ -276,10 +341,12 @@ export async function renderYouTubeShort(page, postData, musicOverride = null) {
     const buf = fs.readFileSync(`${POOL_DIR}/yt-short-${page.id}.tmp.mp4`);
     fs.rmSync(`${POOL_DIR}/yt-short-${page.id}.tmp.mp4`, { force: true });
     fs.rmSync(overlayFile, { force: true });
-    console.log(`      ✓ YouTube Short rendered (${Math.round(buf.length / 1024)} KB, ${dur}s, ${narration ? 'narrated' : 'silent fallback'}, hook: ${hook.style})`);
+    fs.rmSync(assFile, { force: true });
+    console.log(`      ✓ YouTube Short rendered (${Math.round(buf.length / 1024)} KB, ${dur}s, ${narration ? 'narrated' : 'silent fallback'}, hook: ${hook.style}, clip: ${clip.query || 'pool'})`);
     return { buffer: buf, meta: buildYouTubeMeta(page, postData, seed, musicOverride ? `${musicOverride.title} — ${musicOverride.credit}` : ''), duration: dur };
   } catch (e) {
     fs.rmSync(overlayFile, { force: true });
+    fs.rmSync(assFile, { force: true });
     const msg = e.stderr ? e.stderr.toString().split('\n').filter((l) => /Error|Invalid|No such|Unable/i.test(l)).join(' | ') : e.message;
     throw new Error('YouTube Short render failed: ' + msg.slice(0, 300));
   }
