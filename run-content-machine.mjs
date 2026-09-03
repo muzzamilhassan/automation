@@ -363,12 +363,13 @@ async function getPageAccessToken(pageId) {
   return pageTokensCache[pageId] || FB_PAGE_TOKEN;
 }
 
-async function publishToFacebook(pageId, imageBuffer, caption) {
+async function publishToFacebook(pageId, imageBuffer, caption, altText = null) {
   console.log(`[Facebook] Publishing Photo Post to Page ID: ${pageId}...`);
   const pageAccessToken = await getPageAccessToken(pageId);
   const form = new FormData();
   form.append('source', new Blob([imageBuffer], { type: 'image/jpeg' }), 'post.jpg');
   form.append('caption', caption);
+  if (altText) form.append('alt_text', String(altText).substring(0, 450));
 
   const res = await fetch(`https://graph.facebook.com/v20.0/${pageId}/photos?access_token=${encodeURIComponent(pageAccessToken)}`, {
     method: 'POST',
@@ -561,7 +562,7 @@ async function publishToInstagram(imageBuffer, caption) {
       return null;
     }
 
-    const createRes = await fetch(`https://graph.facebook.com/v21.0/${IG_USER_ID}/media?image_url=${encodeURIComponent(imageUrl)}&caption=${encodeURIComponent(String(caption).substring(0, 2200))}&access_token=${pageAccessToken}`, { method: 'POST' });
+    const createRes = await fetch(`https://graph.facebook.com/v21.0/${IG_USER_ID}/media?image_url=${encodeURIComponent(imageUrl)}&caption=${encodeURIComponent(String(caption).substring(0, 2200))}&alt_text=${encodeURIComponent(String(caption).split('\n')[0].substring(0, 90))}&access_token=${pageAccessToken}`, { method: 'POST' });
     const createData = await createRes.json();
     if (!createData.id) {
       console.warn('      [Instagram] Container failed:', JSON.stringify(createData));
@@ -989,10 +990,15 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
 
   // 3. Format full caption
   const achievementTags = isAchievement ? ' #FacebookCreator #EarnedAchievement #MilestoneUnlocked #WeeklyStreak' : '';
-  const fullCaption = `${postData.headline}\n\n${postData.insight_body}\n\n${postData.takeaway}\n\n${postData.caption}\n\n${page.brandTag}${achievementTags}`;
+  // Facebook SEO 2026: keywords in the first 100 chars, alt text on every
+  // image, max 3 hashtags (more reduces reach). Alt text doubles as the
+  // accessible description.
+  const brandHashtags = page.brandTag.split('#').map(s => s.trim()).filter(Boolean).slice(0, 3).map(s => '#' + s.replace(/\s+/g, '')).join(' ');
+  const altText = `${postData.headline} — motivational quote poster by ${page.name}. ${postData.takeaway}`.replace(/[#]/g, '');
+  const fullCaption = `${postData.headline}\n\n${postData.insight_body}\n\n${postData.takeaway}\n\n${postData.caption}\n\n${brandHashtags}${achievementTags}`;
 
   // 4. [STEP 1/5] Publish Feed Photo Post to Facebook Page
-  const fbPostId = await publishToFacebook(page.id, imgBuffer, fullCaption);
+  const fbPostId = await publishToFacebook(page.id, imgBuffer, fullCaption, altText);
   const postPermalink = `https://www.facebook.com/${page.id}/posts/${String(fbPostId || '').split('_').pop()}`;
 
   // 5. [STEP 2/5] Generate & Publish Dynamic Video Reel (FB + YouTube Shorts + TikTok)
@@ -1016,7 +1022,7 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
     const musicLabel = musicOverride
       ? `${musicOverride.title} — ${musicOverride.credit}`
       : `${chosenMood}${MUSIC_CREDITS[chosenMood] ? ' — ' + MUSIC_CREDITS[chosenMood] : ''}`;
-    const reelCaption = `${postData.headline}\n\n${postData.insight_body}\n\n${postData.takeaway}\n\n🎵 Music Track: ${musicLabel}${achievementTags}\n\n${page.brandTag}`;
+    const reelCaption = `${postData.headline}\n\n${postData.insight_body}\n\n${postData.takeaway}\n\n🎵 Music Track: ${musicLabel}${achievementTags}\n\n${brandHashtags}`;
     reelId = await publishReelToFacebook(page.id, reelBuffer, postData.headline, reelCaption);
     youtubeShortId = await publishToYouTubeShorts(reelBuffer, postData.headline, `${postData.insight_body}\n\n${postData.takeaway}\n\n${postData.caption}`, page.brandTag);
     // TikTok cross-post gated to the Reliq North batch (single account, ~3/day)
@@ -1031,7 +1037,7 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
   const storyId = await publishStoryToFacebook(page.id, imgBuffer);
 
   // 6b. [STEP 3.5/5] Cross-post to Threads (@quotequarry8) — skips silently if no token
-  const threadsText = `${postData.headline}\n\n${postData.insight_body}\n\n${postData.takeaway}\n\n${page.brandTag}`;
+  const threadsText = `${postData.headline}\n\n${postData.insight_body}\n\n${postData.takeaway}\n\n${brandHashtags}`;
   let threadsPostId = null;
   if (page.id === RELIQ_NORTH_PAGE_ID) {
     threadsPostId = await publishToThreads({ imageBuffer: imgBuffer, text: threadsText });

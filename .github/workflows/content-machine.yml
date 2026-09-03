@@ -5,7 +5,13 @@ on:
     branches:
       - main
   schedule:
-    - cron: '0 6,12,18 * * *'
+    # High-CPM audience windows (US/UK/CA/AU/UAE): 08:30 UTC = UK morning +
+    # AU evening + UAE noon; 16:30 UTC = US lunch + UK afternoon + UAE evening;
+    # 23:00 UTC = US evening prime + AU morning. Mon-Sat (Sunday skipped:
+    # worst engagement day per 2025-26 studies).
+    - cron: '30 8 * * 1-6'
+    - cron: '30 16 * * 1-6'
+    - cron: '0 23 * * 1-6'
   workflow_dispatch:
     inputs:
       brand:
