@@ -385,6 +385,14 @@ async function publishToFacebook(pageId, imageBuffer, caption) {
 }
 
 const MUSIC_PRESETS = [
+  // ── Epic / motivational set (Kevin MacLeod, incompetech.com, CC BY 4.0) ──
+  'epic-second-coming',       // Second Coming — Epic, Uplifting
+  'epic-heroic-age',          // Heroic Age — Action, Bright, Driving, Epic
+  'epic-skye-cuillin',        // Skye Cuillin — Calming, Epic, Uplifting
+  'epic-hiding-your-reality', // Hiding Your Reality — Action, Driving, Epic
+  'epic-americana',           // Americana — Epic, Uplifting
+  'epic-thaxted',             // Thaxted (Holst) — Uplifting, Epic
+  // ── Classic calm set (free-stock-music.com, CC BY) ──
   'white-petals',       // Keys of Moon (Emotive Piano & Strings)
   'sunset-drive',       // Tokyo Music Walker (Trending Chillhop / Lofi)
   'illusions',          // Keys of Moon (Cinematic Orchestral)
@@ -401,6 +409,31 @@ const MUSIC_PRESETS = [
   'warm-pad',           // Keys of Moon (Warm Analog Pad)
   'low-drone'           // BatchBug (Deep Cinematic Resonance)
 ];
+
+// CC BY 4.0 requires attribution — appended to reel captions automatically.
+const MUSIC_CREDITS = {
+  'epic-second-coming': 'Kevin MacLeod — Second Coming (incompetech.com), CC BY 4.0',
+  'epic-heroic-age': 'Kevin MacLeod — Heroic Age (incompetech.com), CC BY 4.0',
+  'epic-skye-cuillin': 'Kevin MacLeod — Skye Cuillin (incompetech.com), CC BY 4.0',
+  'epic-hiding-your-reality': 'Kevin MacLeod — Hiding Your Reality (incompetech.com), CC BY 4.0',
+  'epic-americana': 'Kevin MacLeod — Americana (incompetech.com), CC BY 4.0',
+  'epic-thaxted': 'Kevin MacLeod — Thaxted (incompetech.com), CC BY 4.0',
+  'white-petals': 'Keys of Moon (free-stock-music.com), CC BY 4.0',
+  'sunset-drive': 'Tokyo Music Walker (free-stock-music.com), CC BY 4.0',
+  'illusions': 'Keys of Moon (free-stock-music.com), CC BY 4.0',
+  'cozy-place': 'ESCP (free-stock-music.com), CC BY 4.0',
+  'quiet-night': 'Tokyo Music Walker (free-stock-music.com), CC BY 4.0',
+  'awakening-dew': 'Alex-Productions (free-stock-music.com), CC BY 4.0',
+  'slowly': 'Tokyo Music Walker (free-stock-music.com), CC BY 4.0',
+  'le-calme': 'Ashutosh (free-stock-music.com), CC BY 4.0',
+  'hope-for-tomorrow': 'Tokyo Music Walker (free-stock-music.com), CC BY 4.0',
+  'after-the-rain': 'Flowers (free-stock-music.com), CC BY 4.0',
+  'your-little-wings': 'Tokyo Music Walker (free-stock-music.com), CC BY 4.0',
+  'sweet-dreams': 'BatchBug (free-stock-music.com), CC BY 4.0',
+  'airy': 'Tokyo Music Walker (free-stock-music.com), CC BY 4.0',
+  'warm-pad': 'Keys of Moon (free-stock-music.com), CC BY 4.0',
+  'low-drone': 'BatchBug (free-stock-music.com), CC BY 4.0',
+};
 
 const GROUP_POOL = [
   { id: '557093121330339', name: 'Group 01', url: 'https://www.facebook.com/groups/557093121330339/' },
@@ -976,7 +1009,7 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
   if (reelBuffer) {
     const reelFilename = `reel-${page.id}-${Date.now()}.mp4`;
     fs.writeFileSync(reelFilename, reelBuffer);
-    const reelCaption = `${postData.headline}\n\n${postData.insight_body}\n\n${postData.takeaway}\n\n🎵 Music Track: ${chosenMood}${achievementTags}\n\n${page.brandTag}`;
+    const reelCaption = `${postData.headline}\n\n${postData.insight_body}\n\n${postData.takeaway}\n\n🎵 Music Track: ${chosenMood}${MUSIC_CREDITS[chosenMood] ? ' — ' + MUSIC_CREDITS[chosenMood] : ''}${achievementTags}\n\n${page.brandTag}`;
     reelId = await publishReelToFacebook(page.id, reelBuffer, postData.headline, reelCaption);
     youtubeShortId = await publishToYouTubeShorts(reelBuffer, postData.headline, `${postData.insight_body}\n\n${postData.takeaway}\n\n${postData.caption}`, page.brandTag);
     // TikTok cross-post gated to the Reliq North batch (single account, ~3/day)
