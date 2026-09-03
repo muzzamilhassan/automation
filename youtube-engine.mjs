@@ -59,7 +59,7 @@ function wrapTextToLines(text, maxChars) {
 }
 
 const escapeXml = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const titleCase = (s) => String(s || '').toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase());
+const titleCase = (s) => String(s || '').toLowerCase().replace(/(?<!['’])\b([a-z])/g, (m, p) => p.toUpperCase());
 
 // ---------------------------------------------------------------------------
 // Hook builder — style rotation over the same content (robust, no AI needed)
