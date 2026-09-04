@@ -7,6 +7,8 @@ youtube-oauth-tokens.json
 threads-oauth-tokens.json
 tiktok-oauth-tokens.json
 pinterest-oauth-tokens.json
+yt-mcp/channels/
+yt-mcp/client_secret.json
 
 # Dependencies
 node_modules/
