@@ -697,7 +697,7 @@ async function pickYouTubePublishAt(youtube) {
   return candidates[candidates.length - 1];
 }
 
-async function publishToYouTubeShorts(videoBuffer, meta, musicLabel = '') {
+async function publishToYouTubeShorts(videoBuffer, meta, musicLabel = '', thumbBuffer = null) {
   if (!YOUTUBE_CLIENT_ID || !YOUTUBE_CLIENT_SECRET || !YOUTUBE_REFRESH_TOKEN) {
     return null;
   }
@@ -743,6 +743,18 @@ async function publishToYouTubeShorts(videoBuffer, meta, musicLabel = '') {
     if (videoId) {
       console.log(`      ✓ YouTube Short queued (goes public ${publishAt}) 👉 https://youtube.com/shorts/${videoId}`);
       await commentOnYouTubeShort(youtube, videoId, Math.floor(Date.now() / 86400000) + videoId.length);
+      if (thumbBuffer) {
+        try {
+          const thumbStream = new Readable();
+          thumbStream._read = () => { };
+          thumbStream.push(thumbBuffer);
+          thumbStream.push(null);
+          await youtube.thumbnails.set({ videoId, media: { body: thumbStream } });
+          console.log('      ✓ Custom premium thumbnail set');
+        } catch (e) {
+          console.log(`      [YouTube] Thumbnail skipped (${String(e.message).slice(0, 80)})`);
+        }
+      }
       return videoId;
     }
   } catch (e) {
@@ -1099,7 +1111,7 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
       tags: ['motivational quotes', 'mindset', 'discipline', 'quotes']
     };
     const ytMusicLabel = musicOverride ? `${musicOverride.title} — ${musicOverride.credit}` : '';
-    youtubeShortId = await publishToYouTubeShorts(ytVideo, ytMeta, ytMusicLabel);
+    youtubeShortId = await publishToYouTubeShorts(ytVideo, ytMeta, ytMusicLabel, ytShort?.thumb || null);
     // TikTok cross-post gated to the Reliq North batch (single account, ~3/day)
     if (page.id === RELIQ_NORTH_PAGE_ID) {
       const tiktokTags = `${page.brandTag} #fyp #foryou #foryoupage #quotes #motivation #mindset #dailywisdom #viral #shorts`;

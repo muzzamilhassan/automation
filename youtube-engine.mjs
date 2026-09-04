@@ -296,6 +296,51 @@ export function nextYouTubeSlotISO(now = new Date()) {
 }
 
 // ---------------------------------------------------------------------------
+// Thumbnail — 1280x720 CTR design: CLEAN background frame (no on-screen text!),
+// huge Anton headline with the key word in the brand accent, thick black
+// stroke, Quote Quarry eyebrow.
+// ---------------------------------------------------------------------------
+export async function renderYouTubeThumbnail(headline, cleanFrameFile, opts = {}) {
+  const accent = opts.accent || '#F5E31C';
+  const eyebrow = opts.eyebrow || 'QUOTE QUARRY';
+  const b64 = await sharp(cleanFrameFile).resize(1280, 720, { fit: 'cover', position: 'attention' }).jpeg({ quality: 88 }).toBuffer();
+
+  const raw = String(headline || 'DAILY MOTIVATION')
+    .replace(/#[\w]+/g, '').replace(/[—|].*$/, '').trim().toUpperCase();
+  let lines = wrapTextToLines(raw, 13).slice(0, 3);
+  let size = lines.some((l) => l.length > 10) ? 128 : 150;
+  if (lines.length === 1 && lines[0].length <= 8) size = 180;
+  const accentWord = lines.join(' ').split(/\s+/).filter((w) => w.length > 3).sort((a, b) => b.length - a.length)[0] || null;
+
+  const esc = accentWord ? accentWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : null;
+  const lineEls = lines.map((line, i) => {
+    let inner = escapeXml(line);
+    if (esc && line.includes(accentWord)) {
+      inner = line.split(new RegExp(`(${esc})`)).map((p) => (p === accentWord
+        ? `<tspan fill="${accent}">${escapeXml(p)}</tspan>`
+        : escapeXml(p))).join('');
+    }
+    const y = 330 + i * (size + 18);
+    return `<text text-anchor="middle" x="640" y="${y}" font-family="'Anton', 'Impact', 'Arial Black', sans-serif" font-size="${size}" fill="#FFFFFF" stroke="#000000" stroke-width="14" stroke-linejoin="round" paint-order="stroke">${inner}</text>
+  <text text-anchor="middle" x="640" y="${y}" font-family="'Anton', 'Impact', 'Arial Black', sans-serif" font-size="${size}" fill="#FFFFFF">${inner}</text>`;
+  }).join('\n  ');
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs><style>${EMBEDDED_FONTS_CSS}</style>
+    <linearGradient id="vg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="rgba(0,0,0,0.42)"/><stop offset="0.55" stop-color="rgba(0,0,0,0.62)"/><stop offset="1" stop-color="rgba(0,0,0,0.85)"/>
+    </linearGradient>
+  </defs>
+  <image href="data:image/jpeg;base64,${b64.toString('base64')}" x="0" y="0" width="1280" height="720" preserveAspectRatio="xMidYMid slice"/>
+  <rect width="1280" height="720" fill="url(#vg)"/>
+  <text text-anchor="middle" x="640" y="120" font-family="'Oswald', 'Arial Narrow', sans-serif" font-weight="600" font-size="34" letter-spacing="10" fill="${accent}">${escapeXml(eyebrow)}</text>
+  <rect x="560" y="150" width="160" height="7" rx="3.5" fill="${accent}"/>
+  ${lineEls}
+</svg>`;
+  return sharp(Buffer.from(svg), { density: 150 }).resize(1280, 720).jpeg({ quality: 92 }).toBuffer();
+}
+
+// ---------------------------------------------------------------------------
 // Main renderer — returns { buffer, meta } for the YouTube Short
 // ---------------------------------------------------------------------------
 export async function renderYouTubeShort(page, postData, musicOverride = null) {
@@ -304,6 +349,18 @@ export async function renderYouTubeShort(page, postData, musicOverride = null) {
   console.log(`[YouTube Short] ${brand.label} (4K topic clip + human narration + Hormozi captions)...`);
 
   const clip = (await getTopicClip(page, postData)) || await ensurePoolClip(page.id);
+
+  // premium thumbnail from a CLEAN frame of the raw clip (no on-screen text)
+  let thumb = null;
+  try {
+    const frameFile = `${POOL_DIR}/yt-thumb-frame-${page.id}.jpg`;
+    execFileSync(FF, ['-y', '-v', 'error', '-ss', String(clip.start + 3), '-i', clip.file, '-frames:v', '1', frameFile]);
+    thumb = await renderYouTubeThumbnail(postData?.headline || 'DAILY MOTIVATION', frameFile,
+      { accent: brand.accent, eyebrow: `QUOTE QUARRY // ${brand.label}` });
+    fs.rmSync(frameFile, { force: true });
+  } catch (e) {
+    console.log(`      [YT Short] Thumbnail skipped (${String(e.message).slice(0, 80)})`);
+  }
 
   const seed = Math.floor(Date.now() / 86400000) + Number(page.id % 7);
   const hook = buildHook(postData, seed);
@@ -358,7 +415,7 @@ export async function renderYouTubeShort(page, postData, musicOverride = null) {
     fs.rmSync(overlayFile, { force: true });
     fs.rmSync(assFile, { force: true });
     console.log(`      ✓ YouTube Short rendered (${Math.round(buf.length / 1024)} KB, ${dur}s, ${narration ? 'narrated' : 'silent fallback'}, hook: ${hook.style}, clip: ${clip.query || 'pool'})`);
-    return { buffer: buf, meta: buildYouTubeMeta(page, postData, seed, musicOverride ? `${musicOverride.title} — ${musicOverride.credit}` : ''), duration: dur };
+    return { buffer: buf, thumb, meta: buildYouTubeMeta(page, postData, seed, musicOverride ? `${musicOverride.title} — ${musicOverride.credit}` : ''), duration: dur };
   } catch (e) {
     fs.rmSync(overlayFile, { force: true });
     fs.rmSync(assFile, { force: true });

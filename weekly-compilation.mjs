@@ -14,7 +14,7 @@ import { google } from 'googleapis';
 import sharp from 'sharp';
 import { EMBEDDED_FONTS_CSS } from './typography-poster-engine.mjs';
 import { ensurePoolClip } from './cinematic-engine.mjs';
-import { spokenScript, buildAssCaptions } from './youtube-engine.mjs';
+import { spokenScript, buildAssCaptions, renderYouTubeThumbnail } from './youtube-engine.mjs';
 import { pickMusicTrack } from './music-engine.mjs';
 
 const FF = process.env.FFMPEG_PATH || (fs.existsSync('ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe')
@@ -267,6 +267,18 @@ const description = [
   music ? `🎵 ${music.title} — ${music.credit}` : ''
 ].filter(Boolean).join('\n').slice(0, 4900);
 
+// premium thumbnail from a CLEAN pool-clip frame (no on-screen text)
+let thumbBuffer = null;
+try {
+  const thumbClip = await ensurePoolClip('114550268199751');
+  const tFrame = `${POOL_DIR}/comp-thumb-frame.jpg`;
+  execFileSync(FF, ['-y', '-v', 'error', '-ss', String(thumbClip.start + 3), '-i', thumbClip.file, '-frames:v', '1', tFrame]);
+  thumbBuffer = await renderYouTubeThumbnail(`${quotes.length} QUOTES TO CHANGE YOUR WEEK`, tFrame, {});
+  fs.writeFileSync('qa-comp-thumb.jpg', thumbBuffer);
+  fs.rmSync(tFrame, { force: true });
+  console.log('✓ Thumbnail rendered');
+} catch (e) { console.log(`Thumbnail skipped (${String(e.message).slice(0, 100)})`); }
+
 const readable = new Readable();
 readable._read = () => { };
 readable.push(fs.readFileSync(outFile));
@@ -285,6 +297,16 @@ const res = await youtube.videos.insert({
   media: { body: readable }
 });
 console.log(`✓ Compilation LIVE 👉 https://youtube.com/watch?v=${res.data.id}`);
+if (thumbBuffer) {
+  try {
+    const tStream = new Readable();
+    tStream._read = () => { };
+    tStream.push(thumbBuffer);
+    tStream.push(null);
+    await youtube.thumbnails.set({ videoId: res.data.id, media: { body: tStream } });
+    console.log('✓ Custom premium thumbnail set');
+  } catch (e) { console.log(`Thumbnail upload skipped (${String(e.message).slice(0, 80)})`); }
+}
 fs.rmSync(outDir, { recursive: true, force: true });
 
 function fmtTime(sec) {
