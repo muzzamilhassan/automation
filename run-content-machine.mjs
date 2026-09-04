@@ -768,8 +768,8 @@ async function commentOnYouTubeShort(youtube, videoId, seed) {
       part: 'snippet',
       requestBody: {
         snippet: {
-          channelId,
-          topLevelComment: { snippet: { channelId, textOriginal: YT_CTA_COMMENTS[seed % YT_CTA_COMMENTS.length] } }
+          videoId,
+          topLevelComment: { snippet: { channelId, videoId, textOriginal: YT_CTA_COMMENTS[seed % YT_CTA_COMMENTS.length] } }
         }
       }
     });
