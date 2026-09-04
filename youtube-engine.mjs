@@ -24,11 +24,11 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY || (fs.existsSync('.env') ? (f
 // YouTube brand configs — separate identity from the FB/IG BRANDS table.
 // ---------------------------------------------------------------------------
 const YT_BRANDS = {
-  '116157974886564': { label: 'SILENT WEALTH', accent: '#F5E31C', keyword: 'money mindset quotes', kwShort: 'wealth wisdom', theme: 'Wealth', niches: ['wealth building', 'financial freedom', 'millionaire mindset'] },
-  '108044922375174': { label: 'STRATEGIC SILENCE', accent: '#4D8DFF', keyword: 'stoic quotes', kwShort: 'stoic wisdom', theme: 'Power', niches: ['dark psychology', 'self mastery', 'power moves'] },
-  '1077306835630491': { label: 'EON VENTURES', accent: '#FF7A1A', keyword: 'discipline quotes', kwShort: 'discipline', theme: 'Discipline', niches: ['success habits', 'entrepreneur mindset', 'hard work'] },
-  '114550268199751': { label: 'RELIQ NORTH', accent: '#C8202D', keyword: 'stoic wisdom', kwShort: 'stoic wisdom', theme: 'Calm', niches: ['inner peace', 'digital minimalism', 'calm mind'] },
-  '106473735839651': { label: 'THE BOUNDARIES CLUB', accent: '#FF8A1E', keyword: 'self respect quotes', kwShort: 'self respect', theme: 'Boundaries', niches: ['boundaries', 'emotional intelligence', 'protect your peace'] }
+  '116157974886564': { label: 'SILENT WEALTH', accent: '#F5E31C', keyword: 'money mindset quotes', kwShort: 'wealth wisdom', theme: 'Wealth', niches: ['wealth building', 'financial freedom', 'millionaire mindset'], authority: 'Money Psychology', tags: ['money mindset', 'wealth psychology', 'success mindset', 'self improvement', 'psychology', 'stoicism'] },
+  '108044922375174': { label: 'STRATEGIC SILENCE', accent: '#4D8DFF', keyword: 'stoic quotes', kwShort: 'stoic wisdom', theme: 'Power', niches: ['dark psychology', 'self mastery', 'power moves'], authority: 'Stoicism Philosophy', tags: ['stoicism', 'dark psychology', 'machiavelli', 'psychology', 'stoic wisdom', 'self improvement', 'mental strength'] },
+  '1077306835630491': { label: 'EON VENTURES', accent: '#FF7A1A', keyword: 'discipline quotes', kwShort: 'discipline', theme: 'Discipline', niches: ['success habits', 'entrepreneur mindset', 'hard work'], authority: 'Discipline', tags: ['discipline', 'self improvement', 'mental strength', 'success mindset', 'personal growth', 'stoicism'] },
+  '114550268199751': { label: 'RELIQ NORTH', accent: '#C8202D', keyword: 'stoic wisdom', kwShort: 'stoic wisdom', theme: 'Calm', niches: ['inner peace', 'digital minimalism', 'calm mind'], authority: 'Stoicism Philosophy', tags: ['stoicism', 'stoic wisdom', 'stoic philosophy', 'inner peace', 'emotional resilience', 'personal growth'] },
+  '106473735839651': { label: 'THE BOUNDARIES CLUB', accent: '#FF8A1E', keyword: 'self respect quotes', kwShort: 'self respect', theme: 'Boundaries', niches: ['boundaries', 'emotional intelligence', 'protect your peace'], authority: 'Psychology', tags: ['self respect', 'boundaries', 'emotional intelligence', 'psychology', 'self improvement', 'dark psychology'] }
 };
 
 const HOOK_STYLES = ['direct', 'emphasis', 'curiosity', 'negative'];
@@ -498,11 +498,12 @@ const FALLBACK_SCRIPTS = {
 export async function generateYouTubeScript(page) {
   const fallback = FALLBACK_SCRIPTS[page?.id] || FALLBACK_SCRIPTS['114550268199751'];
   if (!GEMINI_API_KEY) return { ...fallback, source: 'fallback' };
-  const prompt = `You write viral self-improvement YouTube Shorts scripts (like top stoicism channels) for "${page.name}" (Niche: ${page.niche}).
-Write in EASY, CLEAR, punchy English. Structure: a curiosity-gap hook, 5 numbered points, a memorable closing line.
+  const prompt = `You write viral self-improvement YouTube Shorts scripts (like top stoicism channels: Stoic Legend, Psygena, Legacy Mindset) for "${page.name}" (Niche: ${page.niche}).
+Write in EASY, CLEAR, punchy English. The points must be about HUMAN PSYCHOLOGY, respect and social dynamics (this is what performs best), not abstract quotes.
+Pick ONE theme from this PROVEN list (rotate, never repeat yesterday's): silent behaviors that make people respect you / things to cut out of your life quietly / signs someone is secretly testing you / things you must do alone to become stronger / rules that protect you from toxic people / phrases fake friends use / things you should never apologize for / stop caring about these things / habits of mentally unbreakable people / ways to beat manipulators without fighting.
+Structure: a curiosity-gap hook, 5 numbered points, a memorable closing line.
 Return ONLY valid JSON:
-{"hook":"<=12 words","thumb_headline":"<=6 word ALL CAPS thumbnail headline","points":[{"title":"2-5 word ALL CAPS title","line":"1-2 short sentences, 14-18 words"},{"title":"...","line":"..."},{"title":"...","line":"..."},{"title":"...","line":"..."},{"title":"...","line":"..."}],"closing":"<=12 words"}
-Vary the theme each run: respect, discipline, money psychology, boundaries, calm, dark psychology — whatever fits the niche.`;
+{"hook":"<=12 words","thumb_headline":"<=6 word ALL CAPS thumbnail headline","points":[{"title":"2-5 word ALL CAPS title","line":"1-2 short sentences, 14-18 words"},{"title":"...","line":"..."},{"title":"...","line":"..."},{"title":"...","line":"..."},{"title":"...","line":"..."}],"closing":"<=12 words"}`;
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`;
     const res = await fetch(url, {
@@ -642,18 +643,21 @@ export async function renderYouTubeScriptShort(page, script, musicOverride = nul
 
 export function buildScriptMeta(page, script, musicLabel = '') {
   const brand = YT_BRANDS[page?.id] || Object.values(YT_BRANDS)[0];
-  const kw = titleCase(brand.keyword);
-  const title = `${titleCase(script.thumbHeadline)} — ${kw}`.replace(/\s+/g, ' ').slice(0, 95);
+  // competitor-proven patterns: numbered listicle title + "| <authority>" suffix
+  // (every Stoic Legend title ends "| Stoicism Philosophy"; Psygena5 uses "| Machiavelli")
+  const title = `${titleCase(script.thumbHeadline)} | ${brand.authority}`.replace(/\s+/g, ' ').slice(0, 95);
+  const visibleTags = (brand.tags || ['stoicism', 'psychology', 'self improvement']).slice(0, 3).map((t) => '#' + t.replace(/\s+/g, ''));
   const descCore = [
-    `${capitalized(brand.keyword)}: ${titleCase(script.hook)}`,
+    `${titleCase(script.hook)}.`,
     '',
     ...script.points.map((p, i) => `${i + 1}. ${titleCase(p.title)} — ${p.line}`),
     '',
     String(script.closing || ''),
     `Follow Quote Quarry for daily ${brand.kwShort}.`,
-    `#motivation #mindset #${brand.keyword.split(' ')[0].replace(/[^a-z]/g, '')}`
+    visibleTags.join(' ')
   ].join('\n').slice(0, 480);
   const description = musicLabel ? `${descCore}\n🎵 ${musicLabel}`.slice(0, 4900) : descCore;
-  const tags = [brand.keyword, ...brand.niches, 'motivation', 'quotes'].slice(0, 6);
+  // the ranking tag sets these channels actually use (from competitor-scan)
+  const tags = [...(brand.tags || []), 'life lessons', 'mindset'].slice(0, 10);
   return { title, description, tags, format: 'script', keyword: brand.keyword };
 }
