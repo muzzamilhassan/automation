@@ -196,7 +196,7 @@ fs.mkdirSync(outDir, { recursive: true });
 
 // intro + chapters + outro
 const weekNo = isoWeek();
-const weekLabel = `${quotes.length * 10} QUOTES THAT WILL CHANGE YOUR WEEK`;
+const weekLabel = `${quotes.length} QUOTES THAT WILL CHANGE YOUR WEEK`;
 const introPng = await introCard(weekLabel);
 execFileSync(FF, ['-y', '-loop', '1', '-i', introPng, '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo',
   '-map', '0:v', '-map', '1:a', '-shortest', '-t', '5', '-r', '30', '-pix_fmt', 'yuv420p',
@@ -249,9 +249,9 @@ if (TEST) {
 // ---------------------------------------------------------------------------
 // 4. Upload PUBLIC with chaptered description
 // ---------------------------------------------------------------------------
-const title = `${quotes.length * 10} Quotes That Will Change Your Week — Motivational Quotes Compilation`;
+const title = `${quotes.length} Quotes That Will Change Your Week — Motivational Quotes Compilation`;
 const description = [
-  `The ${quotes.length * 10} most powerful motivational quotes of the week — the Short versions you loved, expanded with narration and cinematic visuals.`,
+  `The ${quotes.length} most powerful motivational quotes of the week — the Short versions you loved, expanded with narration and cinematic visuals.`,
   '',
   '⏱ CHAPTERS:',
   ...chapters.map((c) => `${c.t} ${c.title}`),
