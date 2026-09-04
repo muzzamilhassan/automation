@@ -18,6 +18,7 @@ import { getTopicClip } from './youtube-clips.mjs';
 const FF = process.env.FFMPEG_PATH || (fs.existsSync('ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe')
   ? 'ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' : 'ffmpeg');
 const POOL_DIR = 'pixabay-pool';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || (fs.existsSync('.env') ? (fs.readFileSync('.env', 'utf8').match(/^GEMINI_API_KEY=(.+)$/m) || [])[1]?.trim() : '') || '';
 
 // ---------------------------------------------------------------------------
 // YouTube brand configs — separate identity from the FB/IG BRANDS table.
@@ -422,4 +423,237 @@ export async function renderYouTubeShort(page, postData, musicOverride = null) {
     const msg = e.stderr ? e.stderr.toString().split('\n').filter((l) => /Error|Invalid|No such|Unable/i.test(l)).join(' | ') : e.message;
     throw new Error('YouTube Short render failed: ' + msg.slice(0, 300));
   }
+}
+
+// ===========================================================================
+// SCRIPTED SHORTS — the "5 Cold Behaviours" listicle format (hook → 5 points
+// → closing), narrated section-by-section. PRIMARY YouTube format; single
+// quotes remain the fallback.
+// ===========================================================================
+import path from 'node:path';
+
+const FALLBACK_SCRIPTS = {
+  '116157974886564': { // Silent Wealth
+    hook: '5 quiet money habits that make you rich while others stay broke.',
+    points: [
+      { title: 'PAY YOURSELF FIRST', line: 'Move money to savings before you touch your salary. Wealth is what you keep, not what you earn.' },
+      { title: 'BUY TIME, NOT THINGS', line: 'Rich people spend money to buy hours. Broke people spend hours to save pennies.' },
+      { title: 'STAY SILENT ABOUT MONEY', line: 'Announce less, accumulate more. Every plan you broadcast becomes a target.' },
+      { title: 'OWN ASSETS, NOT BRANDS', line: 'A logo on your chest empties your pocket. Let assets pay for your lifestyle.' },
+      { title: 'MASTER BORING DISCIPLINE', line: 'Boring consistency beats exciting bets. Compounding rewards the patient, not the loud.' }
+    ],
+    closing: 'Stay quiet. Keep building. Let the numbers speak.',
+    thumbHeadline: '5 QUIET HABITS THAT MAKE YOU RICH'
+  },
+  '108044922375174': { // Strategic Silence
+    hook: '5 cold behaviors that make people respect you instantly.',
+    points: [
+      { title: 'SPEAK LESS', line: 'Every extra word gives away power. Say it once, say it calm, then stop.' },
+      { title: 'SLOW DOWN EVERYTHING', line: 'Rushed people look weak. Slow movements, slow replies, slow decisions signal control.' },
+      { title: 'STOP EXPLAINING', line: 'You owe no one a reason for your choices. Explanations invite negotiations.' },
+      { title: 'HOLD EYE CONTACT', line: 'Look until they look away. Silence plus steady eyes wins every room.' },
+      { title: 'KEEP YOUR PLANS HIDDEN', line: 'Move in silence. Surprise is the weapon of the strategic mind.' }
+    ],
+    closing: 'Respect is never demanded. It is engineered.',
+    thumbHeadline: '5 COLD BEHAVIORS THAT COMMAND RESPECT'
+  },
+  '1077306835630491': { // Eon Ventures
+    hook: '5 brutal rules of discipline that build unstoppable people.',
+    points: [
+      { title: 'NO ZERO DAYS', line: 'Do something every single day. One percent daily compounds into an empire.' },
+      { title: 'SCHEDULE OR SUFFER', line: 'Motivation is a mood. A calendar is a decision. Winners decide.' },
+      { title: 'EMBRACE THE BORING', line: 'The work nobody sees is the work that changes everything.' },
+      { title: 'KILL DISTRACTIONS', line: 'Your phone is a slot machine. Every scroll is a bet against your future.' },
+      { title: 'FINISH WHAT YOU START', line: 'Half-done dreams build nothing. Completion is the rarest skill on earth.' }
+    ],
+    closing: 'Discipline is choosing what you want most over what you want now.',
+    thumbHeadline: '5 BRUTAL RULES OF DISCIPLINE'
+  },
+  '114550268199751': { // Reliq North
+    hook: '5 stoic rules that calm an anxious mind instantly.',
+    points: [
+      { title: 'CONTROL THE CONTROLLABLE', line: 'Divide every problem in two. Act on yours. Release the rest to the world.' },
+      { title: 'LOSE THE AUDIENCE', line: 'You rehearse your pain for imaginary judges. Nobody is watching that closely.' },
+      { title: 'PREPARE FOR LOSS', line: 'Expect the worst calmly, and peace follows you into every storm.' },
+      { title: 'GUARD YOUR INPUTS', line: 'An anxious mind is often just an overfed mind. Consume less. Think deeper.' },
+      { title: "ACT, DON'T RUMINATE", line: 'Action kills anxiety faster than thought. Move your body, quiet your mind.' }
+    ],
+    closing: 'Calm is not a gift. It is a daily practice.',
+    thumbHeadline: '5 STOIC RULES TO CALM YOUR MIND'
+  },
+  '106473735839651': { // The Boundaries Club
+    hook: '5 boundaries that protect your peace from toxic people.',
+    points: [
+      { title: 'SAY NO WITHOUT ESSAYS', line: 'A real no needs no explanation. Over-explaining invites over-negotiating.' },
+      { title: 'LIMIT ACCESS', line: 'Availability is a currency. Stop giving discounts to people who drain you.' },
+      { title: 'LEAVE LOUD ROOMS', line: 'You cannot heal in the same environment that made you sick. Walk out early.' },
+      { title: 'STOP OVER-FUNCTIONING', line: 'Doing their work teaches them you always will. Let people carry their own weight.' },
+      { title: "ENFORCE, DON'T ANNOUNCE", line: 'Boundaries whispered and never enforced are just wishes. Follow through quietly.' }
+    ],
+    closing: 'Protect your peace like your life depends on it. It does.',
+    thumbHeadline: '5 BOUNDARIES THAT PROTECT YOUR PEACE'
+  }
+};
+
+export async function generateYouTubeScript(page) {
+  const fallback = FALLBACK_SCRIPTS[page?.id] || FALLBACK_SCRIPTS['114550268199751'];
+  if (!GEMINI_API_KEY) return { ...fallback, source: 'fallback' };
+  const prompt = `You write viral self-improvement YouTube Shorts scripts (like top stoicism channels) for "${page.name}" (Niche: ${page.niche}).
+Write in EASY, CLEAR, punchy English. Structure: a curiosity-gap hook, 5 numbered points, a memorable closing line.
+Return ONLY valid JSON:
+{"hook":"<=12 words","thumb_headline":"<=6 word ALL CAPS thumbnail headline","points":[{"title":"2-5 word ALL CAPS title","line":"1-2 short sentences, 14-18 words"},{"title":"...","line":"..."},{"title":"...","line":"..."},{"title":"...","line":"..."},{"title":"...","line":"..."}],"closing":"<=12 words"}
+Vary the theme each run: respect, discipline, money psychology, boundaries, calm, dark psychology — whatever fits the niche.`;
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    const res = await fetch(url, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.9, responseMimeType: 'application/json' } })
+    });
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const parsed = text ? JSON.parse(text.replace(/^```json\s*/, '').replace(/```$/, '').trim()) : null;
+    if (!parsed?.hook || !Array.isArray(parsed.points) || parsed.points.length < 4) throw new Error('bad script shape');
+    return { ...parsed, points: parsed.points.slice(0, 5), closing: parsed.closing || '', thumbHeadline: parsed.thumb_headline || `${parsed.points.length} RULES`, source: 'gemini' };
+  } catch (e) {
+    console.log(`      [YT Script] Gemini failed (${String(e.message).slice(0, 80)}) — using fallback script.`);
+    return { ...fallback, source: 'fallback' };
+  }
+}
+
+async function renderSectionCard(pageId, accent, section) {
+  const anchor = 'text-anchor="middle" x="540"';
+  const els = [];
+  if (section.kicker) {
+    els.push(`<text ${anchor} y="330" font-family="'Oswald', 'Arial Narrow', sans-serif" font-weight="600" font-size="38" letter-spacing="6" fill="${accent}">${escapeXml(section.kicker)}</text>`);
+  }
+  let y = section.kicker ? 560 : 480;
+  if (section.num) {
+    els.push(`<text ${anchor} y="430" font-family="'Anton', 'Impact', 'Arial Black', sans-serif" font-size="200" fill="${accent}">${section.num}</text>`);
+    y = 640;
+  }
+  const bigLines = wrapTextToLines((section.big || '').toUpperCase(), 14).slice(0, 4);
+  const bSize = bigLines.some((l) => l.length > 11) ? 76 : 96;
+  bigLines.forEach((l, i) => els.push(
+    `<text ${anchor} y="${y + i * (bSize + 12)}" font-family="'Anton', 'Impact', 'Arial Black', sans-serif" font-size="${bSize}" fill="#FFFFFF" stroke="#000000" stroke-width="8" stroke-linejoin="round" paint-order="stroke">${escapeXml(l)}</text>`));
+  y += bigLines.length * (bSize + 12) + (bigLines.length ? 70 : 0);
+  if (section.sub) {
+    const subLines = wrapTextToLines(section.sub, 30).slice(0, 4);
+    subLines.forEach((l, i) => els.push(
+      `<text ${anchor} y="${y + i * 64}" font-family="'Oswald', 'Arial Narrow', sans-serif" font-size="46" fill="#E8E8E8">${escapeXml(l)}</text>`));
+  }
+  els.push(`<text ${anchor} y="1798" font-family="'Oswald', 'Arial Narrow', sans-serif" font-weight="500" font-size="30" letter-spacing="4" fill="#9A9A9A">@quotequarry302 • DAILY ${escapeXml((YT_BRANDS[pageId]?.kwShort || 'WISDOM').toUpperCase())}</text>`);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
+  <defs><style>${EMBEDDED_FONTS_CSS}</style></defs>
+  ${els.join('\n  ')}
+</svg>`;
+  const file = `${POOL_DIR}/yt-script-card-${Math.random().toString(36).slice(2, 7)}.png`;
+  await sharp(Buffer.from(svg)).png().toFile(file);
+  return file;
+}
+
+export async function renderYouTubeScriptShort(page, script, musicOverride = null) {
+  const brand = YT_BRANDS[page?.id];
+  if (!brand) throw new Error('no YouTube config for page ' + page?.id);
+  console.log(`[YouTube Script Short] ${brand.label} ("${script.thumbHeadline}", ${script.source})...`);
+  const clip = (await getTopicClip(page, { headline: script.thumbHeadline, insight_body: script.hook })) || await ensurePoolClip(page.id);
+
+  const sections = [
+    { text: script.hook, kicker: 'WATCH TILL THE END', big: script.hook },
+    ...script.points.map((p, i) => ({ text: `${i + 1}. ${p.title}. ${p.line}`, num: String(i + 1), big: p.title, sub: p.line })),
+    { text: script.closing, kicker: 'REMEMBER THIS', big: script.closing }
+  ].filter((s) => s.text);
+
+  const scrimSvg = `<svg width="1080" height="1920" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="rgba(8,8,10,0.45)"/><stop offset="0.45" stop-color="rgba(8,8,10,0.64)"/><stop offset="1" stop-color="rgba(8,8,10,0.84)"/>
+  </linearGradient></defs><rect width="1080" height="1920" fill="url(#g)"/></svg>`;
+  const scrimFile = `${POOL_DIR}/yt-script-scrim-${page.id}.png`;
+  await sharp(Buffer.from(scrimSvg)).png().toFile(scrimFile);
+
+  const buildDir = `${POOL_DIR}/yt-script-build`;
+  fs.rmSync(buildDir, { recursive: true, force: true });
+  fs.mkdirSync(buildDir, { recursive: true });
+
+  let cum = 0;
+  const segFiles = [];
+  for (let i = 0; i < sections.length; i++) {
+    const sec = sections[i];
+    const narration = narrate(sec.text, `${page.id}-s${i}`);
+    const lastW = narration ? narration.words[narration.words.length - 1] : null;
+    const dur = lastW
+      ? Math.max(3.5, Math.min(20, Math.round((lastW.s + lastW.d + 0.8) * 10) / 10))
+      : 4.5;
+    const card = await renderSectionCard(page.id, brand.accent, sec);
+    const segFile = path.resolve(`${buildDir}/seg-${String(i).padStart(2, '0')}.mp4`);
+    const chain = `[0:v]crop=ih*9/16:ih,scale=1080:1920,eq=saturation=1.04:contrast=1.06` +
+      (i === 0 ? `,fade=t=in:st=0:d=0.4` : ``) + `,fade=t=out:st=${Math.max(0, dur - 0.35).toFixed(1)}:d=0.35[bv];` +
+      `[1:v]scale=1080:1920[sc];[bv][sc]overlay=0:0[base];[base][3:v]overlay=0:0[ov]`;
+    let filter, inputs;
+    if (narration) {
+      // relative path only — a Windows drive colon breaks the filtergraph parser
+      const assFile = `${buildDir}/cap-${i}.ass`;
+      fs.writeFileSync(assFile, buildAssCaptions(narration.words), 'utf8');
+      filter = chain + `;[ov]ass=${assFile}:fontsdir=image-tools/fonts[v];[2:a]apad=pad_dur=1,atrim=0:${dur}[a]`;
+      inputs = ['-i', narration.mp3];
+    } else {
+      filter = chain + `;[ov]null[v];anullsrc=r=44100:cl=stereo,atrim=0:${dur}[a]`;
+      inputs = ['-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo'];
+    }
+    execFileSync(FF, ['-y', '-stream_loop', '-1', '-ss', String(clip.start), '-i', clip.file, '-i', scrimFile,
+      ...inputs, '-i', card, '-filter_complex', filter, '-map', '[v]', '-map', '[a]',
+      '-t', String(dur), '-r', '30', '-pix_fmt', 'yuv420p',
+      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
+      '-c:a', 'aac', '-b:a', '160k', '-video_track_timescale', '15360', segFile],
+      { stdio: ['ignore', 'ignore', 'pipe'] });
+    fs.rmSync(card, { force: true });
+    if (narration) fs.rmSync(narration.mp3, { force: true });
+    segFiles.push(segFile);
+    cum += dur;
+  }
+
+  const total = Math.min(60, Math.round(cum * 10) / 10);
+  const musicArgs = musicOverride?.file ? ['-stream_loop', '-1', '-i', musicOverride.file] : ['-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo'];
+  const musicIdx = segFiles.length;
+  const filter = `${segFiles.map((_, i) => `[${i}:v][${i}:a]`).join('')}concat=n=${segFiles.length}:v=1:a=1[vc][ac];` +
+    `[vc]format=yuv420p[v];[${musicIdx}:a]volume=0.13,atrim=0:${total},afade=t=out:st=${Math.max(0, total - 1.2).toFixed(1)}:d=1.2[am];` +
+    `[ac][am]amix=inputs=2:duration=first:normalize=0[aout]`;
+  const outFile = `${POOL_DIR}/yt-script-short-${page.id}.tmp.mp4`;
+  execFileSync(FF, ['-y', ...segFiles.map((f) => ['-i', f]).flat(), ...musicArgs,
+    '-filter_complex', filter, '-map', '[v]', '-map', '[aout]',
+    '-t', String(total), '-r', '30', '-pix_fmt', 'yuv420p',
+    '-c:v', 'libx264', '-preset', 'medium', '-crf', '20',
+    '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', outFile],
+    { stdio: ['ignore', 'ignore', 'pipe'], timeout: 15 * 60 * 1000 });
+  const buf = fs.readFileSync(outFile);
+  fs.rmSync(outFile, { force: true });
+  fs.rmSync(buildDir, { recursive: true, force: true });
+
+  let thumb = null;
+  try {
+    const frameFile = `${POOL_DIR}/yt-thumb-frame-${page.id}.jpg`;
+    execFileSync(FF, ['-y', '-v', 'error', '-ss', String(clip.start + 3), '-i', clip.file, '-frames:v', '1', frameFile]);
+    thumb = await renderYouTubeThumbnail(script.thumbHeadline || script.hook, frameFile, { accent: brand.accent, eyebrow: `QUOTE QUARRY // ${brand.label}` });
+    fs.rmSync(frameFile, { force: true });
+  } catch (e) { console.log(`      [YT Script] Thumbnail skipped (${String(e.message).slice(0, 80)})`); }
+
+  const meta = buildScriptMeta(page, script, musicOverride ? `${musicOverride.title} — ${musicOverride.credit}` : '');
+  console.log(`      ✓ Script Short rendered (${Math.round(buf.length / 1024)} KB, ${total}s, ${sections.length} sections)`);
+  return { buffer: buf, thumb, meta, duration: total };
+}
+
+export function buildScriptMeta(page, script, musicLabel = '') {
+  const brand = YT_BRANDS[page?.id] || Object.values(YT_BRANDS)[0];
+  const kw = titleCase(brand.keyword);
+  const title = `${titleCase(script.thumbHeadline)} — ${kw}`.replace(/\s+/g, ' ').slice(0, 95);
+  const descCore = [
+    `${capitalized(brand.keyword)}: ${titleCase(script.hook)}`,
+    '',
+    ...script.points.map((p, i) => `${i + 1}. ${titleCase(p.title)} — ${p.line}`),
+    '',
+    String(script.closing || ''),
+    `Follow Quote Quarry for daily ${brand.kwShort}.`,
+    `#motivation #mindset #${brand.keyword.split(' ')[0].replace(/[^a-z]/g, '')}`
+  ].join('\n').slice(0, 480);
+  const description = musicLabel ? `${descCore}\n🎵 ${musicLabel}`.slice(0, 4900) : descCore;
+  const tags = [brand.keyword, ...brand.niches, 'motivation', 'quotes'].slice(0, 6);
+  return { title, description, tags, format: 'script', keyword: brand.keyword };
 }

@@ -7,7 +7,7 @@ import { publishToThreads, hostImagePublicly } from './threads-publisher.mjs';
 import { publishToTikTok } from './tiktok-publisher.mjs';
 import { publishToPinterest } from './pinterest-publisher.mjs';
 import { renderCinematicPoster, renderCinematicReel } from './cinematic-engine.mjs';
-import { renderYouTubeShort, nextYouTubeSlotISO, nextYouTubeSlotCandidatesISO } from './youtube-engine.mjs';
+import { renderYouTubeShort, renderYouTubeScriptShort, generateYouTubeScript, nextYouTubeSlotISO, nextYouTubeSlotCandidatesISO } from './youtube-engine.mjs';
 import { pickMusicTrack } from './music-engine.mjs';
 import {
   EMBEDDED_FONTS_CSS,
@@ -1094,16 +1094,21 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
       : `${chosenMood}${MUSIC_CREDITS[chosenMood] ? ' — ' + MUSIC_CREDITS[chosenMood] : ''}`;
     const reelCaption = `${postData.headline}\n\n${postData.insight_body}\n\n${postData.takeaway}\n\n🎵 Music Track: ${musicLabel}${achievementTags}\n\n${brandHashtags}`;
     reelId = await publishReelToFacebook(page.id, reelBuffer, postData.headline, reelCaption);
-    // YouTube: dedicated hook-first narrated Short (different format from the
-    // FB/IG reel) + SEO metadata, scheduled at the next PKT Shorts slot.
-    // Falls back to the FB reel if the YT renderer is unavailable.
+    // YouTube PRIMARY: scripted listicle Short (hook → 5 points → closing).
+    // Falls back to the narrated quote Short, then the FB reel.
     let ytShort = null;
     try {
-      ytShort = await renderYouTubeShort(page, postData, musicOverride);
-      fs.writeFileSync(`yt-short-${page.id}-${Date.now()}.mp4`, ytShort.buffer);
+      const script = await generateYouTubeScript(page);
+      ytShort = await renderYouTubeScriptShort(page, script, musicOverride);
     } catch (e) {
-      console.warn('      YouTube Short render failed (' + e.message + ') — falling back to FB reel for YouTube.');
+      console.warn('      Script Short failed (' + e.message + ') — trying narrated quote Short.');
+      try {
+        ytShort = await renderYouTubeShort(page, postData, musicOverride);
+      } catch (e2) {
+        console.warn('      YouTube Short render failed (' + e2.message + ') — falling back to FB reel for YouTube.');
+      }
     }
+    fs.writeFileSync(`yt-short-${page.id}-${Date.now()}.mp4`, ytShort?.buffer || reelBuffer);
     const ytVideo = ytShort?.buffer || reelBuffer;
     const ytMeta = ytShort?.meta || {
       title: postData.headline.replace(/\.$/, ''),
