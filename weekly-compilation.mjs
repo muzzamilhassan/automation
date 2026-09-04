@@ -145,7 +145,8 @@ async function renderSegment(quote, index, outDir) {
     { stdio: ['ignore', 'ignore', 'pipe'], timeout: 180000 });
   const words = JSON.parse(fs.readFileSync(`${outDir}/${tag}.words.json`, 'utf8'));
   const last = words[words.length - 1];
-  const dur = Math.max(22, Math.min(75, Math.round((last.s + last.d + 5) * 10) / 10)); // pad for reading time
+  // tight pacing: only ~1.5s after narration ends — dead air kills retention
+  const dur = Math.max(15, Math.min(75, Math.round((last.s + last.d + 1.5) * 10) / 10));
 
   const overlay = await quoteCard(postData);
   const scrimSvg = `<svg width="1920" height="1080" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
@@ -187,8 +188,13 @@ const youtube = ytClient();
 const shorts = await fetchTopShorts(youtube);
 console.log(`Found ${shorts.length} top Shorts this week: ${shorts.map((s) => s.views).join(', ')} views`);
 
-const quotes = shorts.map((s) => ({ ...parseQuote(s.description), headline: s.headline, views: s.views }))
+// prefer Shorts that carry a real quote (v2 descriptions) over thin ones,
+// most-viewed first within each group
+const parsed = shorts.map((s) => ({ ...parseQuote(s.description), headline: s.headline, views: s.views }))
   .filter((q) => q.headline);
+const rich = parsed.filter((q) => q.insight || q.takeaway);
+const thin = parsed.filter((q) => !q.insight && !q.takeaway);
+const quotes = [...rich, ...thin].slice(0, MAX_QUOTES);
 
 const outDir = 'compilation-build';
 fs.rmSync(outDir, { recursive: true, force: true });
