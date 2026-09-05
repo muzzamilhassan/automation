@@ -25,7 +25,7 @@ export const BRANDS = [
     authority: 'Investing Psychology',
     tags: ['investing', 'stock market', 'warren buffett', 'financial education', 'money mindset', 'compounding', 'value investing', 'market psychology', 'wealth building', 'finance', 'investment strategy', 'stock market for beginners'],
     voice: 'en-US-ChristopherNeural',
-    slots: ['12:05'],
+    slots: ['12:05', '16:05', '23:35'], // IC ×3/day: 8a/12p/7:35p ET
     description: 'Investing wisdom and stock market psychology in 60 seconds. Timeless principles from Buffett, Munger and Bogle — patience, compounding, and buying fear instead of selling it. New Shorts daily. Build conviction, not panic. Subscribe for daily investing wisdom.',
     themeBank: ['investor mistakes that cost fortunes', 'rules Warren Buffett never breaks', 'signs you are panic selling', 'habits of patient investors', 'things to never do in a market crash', 'compounding explained through small habits', 'contrarian moves that paid off', 'questions to ask before buying any stock', 'signs a stock is hype not value', 'what rich investors do during a downturn', 'beginner investing rules that never change', 'psychology traps every trader falls into']
   },
@@ -43,7 +43,7 @@ export const BRANDS = [
     authority: 'Personal Finance',
     tags: ['personal finance', 'money tips', 'saving money', 'financial freedom', 'budgeting', 'wealth habits', 'money management', 'financial literacy', 'pay yourself first', 'money mindset', 'financial planning', 'build wealth'],
     voice: 'en-US-GuyNeural',
-    slots: ['12:35'],
+    slots: ['12:35', '16:35', '00:05'], // MR ×3/day: 8:35a/12:35p/8:05p ET
     description: 'Money rules that quietly build wealth — one principle per Short. Pay yourself first, automate savings, kill lifestyle creep. Personal finance in 60 seconds, new rule every day. Subscribe and let the rules compound.',
     themeBank: ['money rules rich people never break', 'salary habits that change your life', 'silent ways you leak money', 'pay yourself first explained', 'lifestyle creep warning signs', 'rules for your first $10,000', 'things broke people buy first', 'automation habits that build wealth', 'money rules by age 30', 'signs you are budgeting wrong', 'financial red flags in your 20s', 'wealth killers hiding in plain sight']
   },
@@ -61,7 +61,7 @@ export const BRANDS = [
     authority: 'Debt Freedom',
     tags: ['debt free', 'pay off debt', 'credit score', 'credit cards', 'debt payoff journey', 'financial freedom', 'loan tips', 'debt snowball', 'money tips', 'financial literacy', 'interest rates', 'no more debt'],
     voice: 'en-US-EricNeural',
-    slots: ['22:05'],
+    slots: ['13:05', '17:05', '00:35'], // DFD ×3/day: 9:05a/1:05p/8:35p ET
     description: 'Debt freedom starts with the right rules, not more hustle. Credit scores, loan traps, and payoff order — explained in 60 seconds. New Shorts daily until debt is a word you forget. Subscribe and start owing nothing.',
     themeBank: ['debt payoff mistakes that cost thousands', 'credit score moves banks hate', 'loan traps disguised as help', 'rules for your first credit card', 'signs a loan is predatory', 'snowball vs avalanche made simple', 'things to never finance', 'habits that quietly raise your credit score', 'what collectors hope you never learn', 'debt-free people never do these', 'interest math banks hide', 'how to negotiate debt like a pro']
   },
