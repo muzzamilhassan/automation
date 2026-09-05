@@ -50,7 +50,7 @@ export const BRANDS = [
   {
     slug: 'debt-free-doctrine',
     label: 'DEBT-FREE DOCTRINE',
-    handle: '@debtfreedoctrine', active: false, // renamed + clean handle 2026-09-06 — first in line for the next batch
+    handle: '@debtfreedoctrine', active: true, // renamed + clean handle + verified 2026-09-06
     niche: 'Debt payoff & credit smarts',
     cpmTier: '$20-40 (credit/loans advertisers)',
     accent: '#FF5A4E', bg: '#14100E', ink: '#F6EDEA',
