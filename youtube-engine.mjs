@@ -19,6 +19,20 @@ const FF = process.env.FFMPEG_PATH || (fs.existsSync('ffmpeg-bin/ffmpeg-master-l
   ? 'ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' : 'ffmpeg');
 const POOL_DIR = 'pixabay-pool';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || (fs.existsSync('.env') ? (fs.readFileSync('.env', 'utf8').match(/^GEMINI_API_KEY=(.+)$/m) || [])[1]?.trim() : '') || '';
+import { BRANDS as YT_BRAND_KITS } from './yt-brands/brands.mjs';
+
+// Resolve the brand for a page. New multi-channel kits (yt-brands/brands.mjs)
+// are selected via page.ytSlug; legacy FB-page brands keep working unchanged.
+function resolveBrand(page) {
+  if (page?.ytSlug) {
+    const kit = YT_BRAND_KITS.find((b) => b.slug === page.ytSlug);
+    if (kit) {
+      const followName = kit.label.split(' ').map((w) => w[0] + w.slice(1).toLowerCase()).join(' ');
+      return { ...kit, followName };
+    }
+  }
+  return YT_BRANDS[page?.id] || Object.values(YT_BRANDS)[0];
+}
 
 // ---------------------------------------------------------------------------
 // YouTube brand configs — separate identity from the FB/IG BRANDS table.
@@ -94,7 +108,7 @@ function resolvePython() {
   return '';
 }
 
-function narrate(scriptText, tag) {
+function narrate(scriptText, tag, voice = '') {
   const py = resolvePython();
   if (!py) return null;
   const base = `${POOL_DIR}/yt-tts-${tag}`;
@@ -231,12 +245,12 @@ async function renderOverlay(pageId, brand, hook, bodyLines, takeaway, withNarra
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
   <defs><style>${EMBEDDED_FONTS_CSS}</style></defs>
-  <text ${anchor} y="300" font-family="'Oswald', 'Arial Narrow', sans-serif" font-weight="500" font-size="28" letter-spacing="7" fill="${brand.accent}">${escapeXml(`QUOTE QUARRY // ${brand.label}`)}</text>
+  <text ${anchor} y="300" font-family="'Oswald', 'Arial Narrow', sans-serif" font-weight="500" font-size="28" letter-spacing="7" fill="${brand.accent}">${escapeXml(brand.eyebrow || `QUOTE QUARRY // ${brand.label}`)}</text>
   ${hook.prefix ? `<text ${anchor} y="${prefixY}" font-family="'Oswald', 'Arial Narrow', sans-serif" font-weight="600" font-size="40" letter-spacing="5" fill="${brand.accent}">${escapeXml(hook.prefix)}</text>` : ''}
   ${hlEls}
   ${bodyEls}
   ${takeawayEl}
-  <text ${anchor} y="1798" font-family="'Oswald', 'Arial Narrow', sans-serif" font-weight="500" font-size="30" letter-spacing="4" fill="#9A9A9A">@quotequarry302 • DAILY ${escapeXml(brand.kwShort.toUpperCase())}</text>
+  <text ${anchor} y="1798" font-family="'Oswald', 'Arial Narrow', sans-serif" font-weight="500" font-size="30" letter-spacing="4" fill="#9A9A9A">${escapeXml(brand.handle || '@quotequarry302')} • DAILY ${escapeXml(brand.kwShort.toUpperCase())}</text>
 </svg>`;
   const file = `${POOL_DIR}/yt-overlay-${pageId}.png`;
   await sharp(Buffer.from(svg)).png().toFile(file);
@@ -249,7 +263,7 @@ async function renderOverlay(pageId, brand, hook, bodyLines, takeaway, withNarra
 const capitalized = (s) => titleCase(s);
 
 export function buildYouTubeMeta(page, postData, seed = 0, musicLabel = '') {
-  const brand = YT_BRANDS[page?.id] || Object.values(YT_BRANDS)[0];
+  const brand = resolveBrand(page);
   const headlineTC = titleCase((postData?.headline || 'Stay Silent and Build').replace(/\.$/, ''));
   const kw = titleCase(brand.keyword);
   const formulas = [
@@ -264,7 +278,7 @@ export function buildYouTubeMeta(page, postData, seed = 0, musicLabel = '') {
     `${capitalized(brand.keyword)} for anyone building ${brand.niches[0]}.`,
     `"${String(postData?.insight_body || '').trim()}"`,
     String(postData?.takeaway || '').trim(),
-    `Follow Quote Quarry for daily ${brand.kwShort}.`,
+    `Follow ${brand.followName || 'Quote Quarry'} for daily ${brand.kwShort}.`,
     `#motivation #mindset #${brand.keyword.split(' ')[0].replace(/[^a-z]/g, '')}`
   ].join('\n').slice(0, 300);
   const description = musicLabel ? `${descCore}\n🎵 ${musicLabel}`.slice(0, 480) : descCore;
@@ -345,7 +359,7 @@ export async function renderYouTubeThumbnail(headline, cleanFrameFile, opts = {}
 // Main renderer — returns { buffer, meta } for the YouTube Short
 // ---------------------------------------------------------------------------
 export async function renderYouTubeShort(page, postData, musicOverride = null) {
-  const brand = YT_BRANDS[page?.id];
+  const brand = resolveBrand(page);
   if (!brand) throw new Error('no YouTube config for page ' + page?.id);
   console.log(`[YouTube Short] ${brand.label} (4K topic clip + human narration + Hormozi captions)...`);
 
@@ -357,7 +371,7 @@ export async function renderYouTubeShort(page, postData, musicOverride = null) {
     const frameFile = `${POOL_DIR}/yt-thumb-frame-${page.id}.jpg`;
     execFileSync(FF, ['-y', '-v', 'error', '-ss', String(clip.start + 3), '-i', clip.file, '-frames:v', '1', frameFile]);
     thumb = await renderYouTubeThumbnail(postData?.headline || 'DAILY MOTIVATION', frameFile,
-      { accent: brand.accent, eyebrow: `QUOTE QUARRY // ${brand.label}` });
+      { accent: brand.accent, eyebrow: brand.eyebrow || `QUOTE QUARRY // ${brand.label}` });
     fs.rmSync(frameFile, { force: true });
   } catch (e) {
     console.log(`      [YT Short] Thumbnail skipped (${String(e.message).slice(0, 80)})`);
@@ -365,7 +379,7 @@ export async function renderYouTubeShort(page, postData, musicOverride = null) {
 
   const seed = Math.floor(Date.now() / 86400000) + Number(page.id % 7);
   const hook = buildHook(postData, seed);
-  const narration = narrate(spokenScript(postData), page.id);
+  const narration = narrate(spokenScript(postData), page.id, brand.voice);
   const bodyLines = narration ? null : wrapTextToLines(postData?.insight_body || '', 24).slice(0, 4);
   const overlayFile = await renderOverlay(page.id, brand, hook, bodyLines, narration ? null : postData?.takeaway, !!narration);
 
@@ -496,11 +510,17 @@ const FALLBACK_SCRIPTS = {
 };
 
 export async function generateYouTubeScript(page) {
+  const brand = resolveBrand(page);
   const fallback = FALLBACK_SCRIPTS[page?.id] || FALLBACK_SCRIPTS['114550268199751'];
   if (!GEMINI_API_KEY) return { ...fallback, source: 'fallback' };
-  const prompt = `You write viral self-improvement YouTube Shorts scripts (like top stoicism channels: Stoic Legend, Psygena, Legacy Mindset) for "${page.name}" (Niche: ${page.niche}).
-Write in EASY, CLEAR, punchy English. The points must be about HUMAN PSYCHOLOGY, respect and social dynamics (this is what performs best), not abstract quotes.
-Pick ONE theme from this PROVEN list (rotate, never repeat yesterday's): silent behaviors that make people respect you / things to cut out of your life quietly / signs someone is secretly testing you / things you must do alone to become stronger / rules that protect you from toxic people / phrases fake friends use / things you should never apologize for / stop caring about these things / habits of mentally unbreakable people / ways to beat manipulators without fighting.
+  const legacyThemes = ['silent behaviors that make people respect you', 'things to cut out of your life quietly', 'signs someone is secretly testing you', 'things you must do alone to become stronger', 'rules that protect you from toxic people', 'phrases fake friends use', 'things you should never apologize for', 'stop caring about these things', 'habits of mentally unbreakable people', 'ways to beat manipulators without fighting'];
+  const themeList = (brand.themeBank?.length ? brand.themeBank : legacyThemes).join(' / ');
+  const styleLine = brand.themeBank?.length
+    ? `Write like the top ${brand.authority} YouTube channels for "${page.name}" (Niche: ${page.niche}). The points must be concrete, specific ${brand.niches[0]} insights that feel like insider knowledge, not vague motivation.\nCRITICAL: every point MUST be strictly about ${brand.niches.join(' / ')}. Do NOT write generic stoicism, generic self-improvement, or mindset fluff.`
+    : `You write viral self-improvement YouTube Shorts scripts (like top stoicism channels: Stoic Legend, Psygena, Legacy Mindset) for "${page.name}" (Niche: ${page.niche}).\nWrite in EASY, CLEAR, punchy English. The points must be about HUMAN PSYCHOLOGY, respect and social dynamics (this is what performs best), not abstract quotes.`;
+  const prompt = `${styleLine}
+Write in EASY, CLEAR, punchy English.
+Pick ONE theme from this PROVEN list (rotate, never repeat yesterday's): ${themeList}.
 Structure: a curiosity-gap hook, 5 numbered points, a memorable closing line.
 Return ONLY valid JSON:
 {"hook":"<=12 words","thumb_headline":"<=6 word ALL CAPS thumbnail headline","points":[{"title":"2-5 word ALL CAPS title","line":"1-2 short sentences, 14-18 words"},{"title":"...","line":"..."},{"title":"...","line":"..."},{"title":"...","line":"..."},{"title":"...","line":"..."}],"closing":"<=12 words"}`;
@@ -521,7 +541,7 @@ Return ONLY valid JSON:
   }
 }
 
-async function renderSectionCard(pageId, accent, section) {
+async function renderSectionCard(pageId, accent, section, handle, kwShort) {
   const anchor = 'text-anchor="middle" x="540"';
   const els = [];
   if (section.kicker) {
@@ -542,7 +562,7 @@ async function renderSectionCard(pageId, accent, section) {
     subLines.forEach((l, i) => els.push(
       `<text ${anchor} y="${y + i * 64}" font-family="'Oswald', 'Arial Narrow', sans-serif" font-size="46" fill="#E8E8E8">${escapeXml(l)}</text>`));
   }
-  els.push(`<text ${anchor} y="1798" font-family="'Oswald', 'Arial Narrow', sans-serif" font-weight="500" font-size="30" letter-spacing="4" fill="#9A9A9A">@quotequarry302 • DAILY ${escapeXml((YT_BRANDS[pageId]?.kwShort || 'WISDOM').toUpperCase())}</text>`);
+  els.push(`<text ${anchor} y="1798" font-family="'Oswald', 'Arial Narrow', sans-serif" font-weight="500" font-size="30" letter-spacing="4" fill="#9A9A9A">${escapeXml(handle || '@quotequarry302')} • DAILY ${escapeXml((kwShort || 'WISDOM').toUpperCase())}</text>`);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
   <defs><style>${EMBEDDED_FONTS_CSS}</style></defs>
   ${els.join('\n  ')}
@@ -553,7 +573,7 @@ async function renderSectionCard(pageId, accent, section) {
 }
 
 export async function renderYouTubeScriptShort(page, script, musicOverride = null) {
-  const brand = YT_BRANDS[page?.id];
+  const brand = resolveBrand(page);
   if (!brand) throw new Error('no YouTube config for page ' + page?.id);
   console.log(`[YouTube Script Short] ${brand.label} ("${script.thumbHeadline}", ${script.source})...`);
   const clip = (await getTopicClip(page, { headline: script.thumbHeadline, insight_body: script.hook })) || await ensurePoolClip(page.id);
@@ -578,12 +598,12 @@ export async function renderYouTubeScriptShort(page, script, musicOverride = nul
   const segFiles = [];
   for (let i = 0; i < sections.length; i++) {
     const sec = sections[i];
-    const narration = narrate(sec.text, `${page.id}-s${i}`);
+    const narration = narrate(sec.text, `${page.id}-s${i}`, brand.voice);
     const lastW = narration ? narration.words[narration.words.length - 1] : null;
     const dur = lastW
       ? Math.max(3.5, Math.min(20, Math.round((lastW.s + lastW.d + 0.8) * 10) / 10))
       : 4.5;
-    const card = await renderSectionCard(page.id, brand.accent, sec);
+    const card = await renderSectionCard(page.id, brand.accent, sec, brand.handle, brand.kwShort);
     const segFile = path.resolve(`${buildDir}/seg-${String(i).padStart(2, '0')}.mp4`);
     const chain = `[0:v]crop=ih*9/16:ih,scale=1080:1920,eq=saturation=1.04:contrast=1.06` +
       (i === 0 ? `,fade=t=in:st=0:d=0.4` : ``) + `,fade=t=out:st=${Math.max(0, dur - 0.35).toFixed(1)}:d=0.35[bv];` +
@@ -632,7 +652,7 @@ export async function renderYouTubeScriptShort(page, script, musicOverride = nul
   try {
     const frameFile = `${POOL_DIR}/yt-thumb-frame-${page.id}.jpg`;
     execFileSync(FF, ['-y', '-v', 'error', '-ss', String(clip.start + 3), '-i', clip.file, '-frames:v', '1', frameFile]);
-    thumb = await renderYouTubeThumbnail(script.thumbHeadline || script.hook, frameFile, { accent: brand.accent, eyebrow: `QUOTE QUARRY // ${brand.label}` });
+    thumb = await renderYouTubeThumbnail(script.thumbHeadline || script.hook, frameFile, { accent: brand.accent, eyebrow: brand.eyebrow || `QUOTE QUARRY // ${brand.label}` });
     fs.rmSync(frameFile, { force: true });
   } catch (e) { console.log(`      [YT Script] Thumbnail skipped (${String(e.message).slice(0, 80)})`); }
 
@@ -642,7 +662,7 @@ export async function renderYouTubeScriptShort(page, script, musicOverride = nul
 }
 
 export function buildScriptMeta(page, script, musicLabel = '') {
-  const brand = YT_BRANDS[page?.id] || Object.values(YT_BRANDS)[0];
+  const brand = resolveBrand(page);
   // competitor-proven patterns: numbered listicle title + "| <authority>" suffix
   // (every Stoic Legend title ends "| Stoicism Philosophy"; Psygena5 uses "| Machiavelli")
   const title = `${titleCase(script.thumbHeadline)} | ${brand.authority}`.replace(/\s+/g, ' ').slice(0, 95);
@@ -653,7 +673,7 @@ export function buildScriptMeta(page, script, musicLabel = '') {
     ...script.points.map((p, i) => `${i + 1}. ${titleCase(p.title)} — ${p.line}`),
     '',
     String(script.closing || ''),
-    `Follow Quote Quarry for daily ${brand.kwShort}.`,
+    `Follow ${brand.followName || 'Quote Quarry'} for daily ${brand.kwShort}.`,
     visibleTags.join(' ')
   ].join('\n').slice(0, 480);
   const description = musicLabel ? `${descCore}\n🎵 ${musicLabel}`.slice(0, 4900) : descCore;

@@ -68,7 +68,7 @@ async def _edge(text, mp3_path, words_path):
     import edge_tts
 
     words = []
-    communicate = edge_tts.Communicate(text, "en-US-ChristopherNeural",
+    communicate = edge_tts.Communicate(text, os.environ.get("YT_TTS_EDGE_VOICE", "en-US-ChristopherNeural"),
                                        rate="+2%", boundary="WordBoundary")
     with open(mp3_path, "wb") as f:
         async for chunk in communicate.stream():
