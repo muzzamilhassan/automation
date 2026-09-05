@@ -336,12 +336,13 @@ export async function renderYouTubeThumbnail(headline, cleanFrameFile, opts = {}
         : escapeXml(p))).join('');
     }
     const y = 330 + i * (size + 18);
-    return `<text text-anchor="middle" x="640" y="${y}" font-family="'Anton', 'Impact', 'Arial Black', sans-serif" font-size="${size}" fill="#FFFFFF" stroke="#000000" stroke-width="14" stroke-linejoin="round" paint-order="stroke">${inner}</text>
+    return `<text text-anchor="middle" x="640" y="${y}" font-family="'Anton', 'Impact', 'Arial Black', sans-serif" font-size="${size}" fill="#000000" opacity="0.65" filter="url(#soft)" transform="translate(0,10)">${inner}</text>
   <text text-anchor="middle" x="640" y="${y}" font-family="'Anton', 'Impact', 'Arial Black', sans-serif" font-size="${size}" fill="#FFFFFF">${inner}</text>`;
   }).join('\n  ');
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
   <defs><style>${EMBEDDED_FONTS_CSS}</style>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="12"/></filter>
     <linearGradient id="vg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="rgba(0,0,0,0.42)"/><stop offset="0.55" stop-color="rgba(0,0,0,0.62)"/><stop offset="1" stop-color="rgba(0,0,0,0.85)"/>
     </linearGradient>

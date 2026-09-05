@@ -19,7 +19,14 @@ if (!b || !fs.existsSync(`yt-mcp/channels/${slug}/token.json`)) {
 const page = { id: 'yt-' + slug, ytSlug: slug, name: b.label, niche: b.niche };
 console.log(`[launch] ${b.label} (${b.handle}) — niche: ${b.niche}`);
 
-const script = await generateYouTubeScript(page);
+// Drift guard: brand-kit channels must never get generic stoicism/mindset
+// scripts — regenerate up to 2× if Gemini drifts off-niche.
+const OFF_NICHE = /\bstoic\w*|manipulat\w*|toxic|calm your mind|dark psychology\b/i;
+let script = await generateYouTubeScript(page);
+for (let tries = 0; tries < 2 && OFF_NICHE.test(JSON.stringify(script.points)) && !/quotequarry/.test(slug); tries++) {
+  console.log(`[launch] off-niche script detected — regenerating (${tries + 1})`);
+  script = await generateYouTubeScript(page);
+}
 console.log(`[launch] script: "${script.thumbHeadline}" (${script.source}) — ${script.points?.length} points`);
 
 let music = null;
