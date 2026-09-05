@@ -31,14 +31,23 @@ channels distinct under YouTube's inauthentic-content policy).
 
 ## Step 1 — Authorize each channel (one consent click per channel, ~15 min total)
 
+**One command does everything** (consents → branding → MCP entries → CI
+secrets → smoke tests):
+
+```
+node onboard-all.mjs
+```
+
+or double-click **onboard-all.bat**. For each brand, the browser opens the
+Google consent page — **pick the dummy channel you want for that brand**, click
+Allow, press Enter for the next. Re-run anytime; authorized channels are
+skipped. Picked the wrong channel? `node add-yt-channel.mjs <slug>` fixes it,
+then `node brand-channels.mjs --apply --only <slug>`.
+
+(Manual equivalent of step 1 only:)
 ```
 for s in investors-compass money-rulebook old-money-code ai-observer founders-margin debt-free-doctrine closing-table escrow-estate corner-office tax-shield deep-work-os longevity-code sleep-architect iron-discipline policy-brief; do node add-yt-channel.mjs $s; done
 ```
-
-Browser opens each time → **pick the dummy channel you want for this slug** on
-the account/channel chooser → approve. Token lands in
-`yt-mcp/channels/<slug>/token.json`. Paste the printed JSON block into
-`.mcp.json` (or ask me to add all 15 once tokens exist).
 
 ## Step 2 — Push branding to all channels automatically
 
