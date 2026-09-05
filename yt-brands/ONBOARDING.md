@@ -70,18 +70,24 @@ node yt-mcp/smoke-test.mjs yt-mcp/channels/<slug>/token.json   # verify each
 
 Restart ZCode → every channel appears as `yt-<slug>` MCP server (74 tools each).
 
-## Quota plan (critical before scaling uploads)
+## Quota plan (updated 2026-09-05 — GOOD NEWS)
 
-- Quota: 10,000 units/day **shared by ALL channels on this GCP project**; one
-  upload = 1,600 units. QuoteQuarry (3/day + weekly compilation) already uses
-  ~6,400. That leaves room for only ~2 more uploads/day right now.
-- Rollout: activate 3-4 new channels per week at 1 Short/day (fits quota),
-  request the quota increase via the YouTube API quota form
-  (support.google.com/youtube/contact/yt_api_form — reasons: multi-channel
-  scheduled publishing, legitimate business, existing compliant project) to
-  unlock the full 15 × 1-2/day schedule.
-- Do NOT create extra GCP projects to dodge quota — post-2020 projects have
-  uploads locked to private until a YouTube API audit.
+- **Google restructured quota on Dec 4, 2025:** uploads now have their OWN
+  free bucket of **~100 uploads/day per project** (search 100/day own bucket;
+  10,000 units/day general pool for everything else). Resets midnight PT.
+  Full research: research/youtube-upload-quota-research-2026-09.md
+- Our plan: 15 channels × 1-3 Shorts/day = 15-45 uploads/day → fits with 2×+
+  headroom. QuoteQuarry + branding + comment tools fit in the general pool.
+- Keep the 3-4 channels/week activation ramp anyway — it protects against
+  per-channel trust/spam limits and the inauthentic-content policy, which are
+  the real gates now, not API quota.
+- Phone-verify each new channel right after branding (raises per-channel
+  daily upload caps + trust).
+- File the free audit/quota-increase form
+  (support.google.com/youtube/contact/yt_api_form) only if ever approaching
+  ~100 uploads/day (≈ 25+ channels at 3/day).
+- Do NOT create extra GCP projects — post-Jul-2020 projects have uploads
+  locked to PRIVATE until audited.
 
 ## Phase 2 (ask when ready)
 
