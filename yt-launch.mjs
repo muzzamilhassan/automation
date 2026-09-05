@@ -24,7 +24,7 @@ console.log(`[launch] script: "${script.thumbHeadline}" (${script.source}) — $
 
 let music = null;
 try {
-  music = await pickMusicTrack(Math.floor(Math.random() * 100));
+  music = await pickMusicTrack(Math.floor(Math.random() * 100), { feels: b.musicFeels });
   if (music) console.log(`[launch] music: "${music.title}" (${music.feel})`);
 } catch (e) { console.log('[launch] music skipped:', e.message.slice(0, 80)); }
 

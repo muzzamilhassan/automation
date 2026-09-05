@@ -70,14 +70,22 @@ function slugify(title) {
 }
 
 /**
- * Picks a random whitelisted track (never the same as the last one used)
- * and downloads it into the cache if needed.
+ * Picks a whitelisted track (never the same as the last one used) and
+ * downloads it into the cache if needed.
+ * @param {number} pageIndex legacy rotating index
+ * @param {{feels?: string[]}} opts preferred feel substrings — when any tracks
+ *        match, one is chosen from that subset only (brand vibe matching)
  * @returns {null|{file:string, title:string, credit:string, feel:string}}
  */
-export async function pickMusicTrack(pageIndex = 0) {
+export async function pickMusicTrack(pageIndex = 0, opts = {}) {
   try {
-    const pool = await getCatalog();
+    let pool = await getCatalog();
     if (!pool.length) return null;
+    const feels = (opts.feels || []).map((f) => f.toLowerCase());
+    if (feels.length) {
+      const matched = pool.filter((t) => feels.some((f) => (t.feel || '').toLowerCase().includes(f)));
+      if (matched.length) pool = matched;
+    }
 
     // seeded by time so every reel gets a different track
     let idx = Math.floor(Math.random() * pool.length);
