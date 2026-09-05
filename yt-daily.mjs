@@ -94,6 +94,11 @@ for (let i = 0; i < b.slots.length; i++) {
   try { music = await pickMusicTrack(i, { feels: b.musicFeels }); } catch { }
   const out = await renderYouTubeScriptShort(page, script, music);
   const meta = buildScriptMeta(page, script, music ? `${music.title} — ${music.credit}` : '');
+  // FB outbox — fb-crosspost.mjs picks these up and posts as FB Reels
+  const stamp = `${Date.now()}-s${i}`;
+  fs.mkdirSync(`fb-outbox/${slug}`, { recursive: true });
+  fs.writeFileSync(`fb-outbox/${slug}/${stamp}.mp4`, out.buffer);
+  fs.writeFileSync(`fb-outbox/${slug}/${stamp}.json`, JSON.stringify({ videoFile: `fb-outbox/${slug}/${stamp}.mp4`, publishAt, title: meta.title, description: meta.description, tags: meta.tags, slug }, null, 2));
 
   const readable = Readable.from(out.buffer);
   const res = await yt.videos.insert({
