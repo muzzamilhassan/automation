@@ -1,0 +1,120 @@
+// Daily producer + scheduler for one multi-channel brand.
+// Usage: node yt-daily.mjs <slug> [--force]
+// Produces the day's Shorts (theme-rotated), uploads each as PRIVATE with
+// publishAt at the brand's slot times (next occurrence), sets thumbnails,
+// pins a brand comment, records state so re-runs never duplicate.
+// Token: env YT_TOKEN_<SLUG> (CI) or yt-mcp/channels/<slug>/token.json (local).
+import fs from 'node:fs';
+import path from 'node:path';
+import { Readable } from 'node:stream';
+import { google } from 'googleapis';
+
+// Load .env BEFORE importing the engine (the engine snapshots GEMINI_API_KEY
+// at module load; background sandboxes don't always inherit it or the cwd).
+const ENV_PATH = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '.env');
+for (const m of fs.readFileSync(ENV_PATH, 'utf8').matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) {
+  process.env[m[1]] ??= m[2].trim();
+}
+const { generateYouTubeScript, renderYouTubeScriptShort, buildScriptMeta } = await import('./youtube-engine.mjs');
+const { pickMusicTrack } = await import('./music-engine.mjs');
+const { bySlug } = await import('./yt-brands/brands.mjs');
+
+const slug = process.argv[2];
+const FORCE = process.argv.includes('--force');
+const b = bySlug[slug];
+if (!b) { console.error('unknown slug', slug); process.exit(1); }
+
+const envStr = fs.readFileSync('.env', 'utf8');
+const CLIENT_ID = envStr.match(/^YOUTUBE_CLIENT_ID=(.+)$/m)[1].trim();
+const CLIENT_SECRET = envStr.match(/^YOUTUBE_CLIENT_SECRET=(.+)$/m)[1].trim();
+
+function channelAuth() {
+  const envName = `YT_TOKEN_${slug.toUpperCase().replace(/-/g, '_')}`;
+  const raw = process.env[envName] || fs.readFileSync(`yt-mcp/channels/${slug}/token.json`, 'utf8');
+  const t = JSON.parse(raw);
+  const auth = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET);
+  auth.setCredentials({ refresh_token: t.refresh_token });
+  return auth;
+}
+
+const STATE_FILE = 'yt-mcp/schedule-state.json';
+function loadState() { try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { return {}; } }
+function saveState(s) { fs.writeFileSync(STATE_FILE, JSON.stringify(s, null, 2)); }
+
+function nextSlotISO(hhmm, now = new Date()) {
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h, m, 0));
+  if (d <= new Date(now.getTime() + 35 * 60 * 1000)) d.setUTCDate(d.getUTCDate() + 1); // need >=35min lead
+  return d.toISOString().replace(/\.\d+Z$/, 'Z');
+}
+
+function themesForToday(state) {
+  const used = state[slug]?.usedThemes || [];
+  const dayIdx = Math.floor(Date.now() / 86400000);
+  const picks = [];
+  for (let k = 0; k < b.slots.length; k++) {
+    const t = b.themeBank[(dayIdx * b.slots.length + k) % b.themeBank.length];
+    picks.push(used.includes(t) ? b.themeBank[(dayIdx * b.slots.length + k + 3) % b.themeBank.length] : t);
+  }
+  return picks;
+}
+
+const state = loadState();
+if (state[slug]?.lastRunDate === new Date().toISOString().slice(0, 10) && !FORCE) {
+  console.log(`[${slug}] already produced today — skipping (use --force to override)`);
+  process.exit(0);
+}
+
+const auth = channelAuth();
+const yt = google.youtube({ version: 'v3', auth });
+const themes = themesForToday(state);
+const page = { id: 'yt-' + slug, ytSlug: slug, name: b.label, niche: b.niche };
+const OFF_NICHE = /\bstoic\w*|manipulat\w*|toxic|calm your mind|dark psychology\b/i;
+const results = [];
+
+for (let i = 0; i < b.slots.length; i++) {
+  const publishAt = nextSlotISO(b.slots[i]);
+  console.log(`\n[${slug}] short ${i + 1}/${b.slots.length} → goes public ${publishAt}`);
+  let script = await generateYouTubeScript(page, themes[i]);
+  for (let t = 0; t < 2 && OFF_NICHE.test(JSON.stringify(script.points)); t++) {
+    console.log('  off-niche drift — regenerating');
+    script = await generateYouTubeScript(page, themes[i]);
+  }
+  if (script.source === 'fallback') {
+    console.log(`  ✗ SKIP — no Gemini key, fallback script is off-niche for ${b.label} (never publish wrong-niche content)`);
+    continue;
+  }
+  let music = null;
+  try { music = await pickMusicTrack(i, { feels: b.musicFeels }); } catch { }
+  const out = await renderYouTubeScriptShort(page, script, music);
+  const meta = buildScriptMeta(page, script, music ? `${music.title} — ${music.credit}` : '');
+
+  const readable = Readable.from(out.buffer);
+  const res = await yt.videos.insert({
+    part: ['snippet', 'status'],
+    requestBody: {
+      snippet: { title: meta.title, description: `${meta.description}\n\n${b.hashtags || ''}`.trim(), tags: meta.tags, categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
+      status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false }
+    },
+    media: { body: readable }
+  });
+  const videoId = res.data.id;
+  console.log(`  ✓ queued ${videoId} → https://youtube.com/shorts/${videoId}`);
+  if (out.thumb) {
+    try { await yt.thumbnails.set({ videoId, media: { body: Readable.from(out.thumb) } }); console.log('  ✓ thumbnail set'); } catch (e) { console.log('  [thumb skipped]', String(e.message).slice(0, 60)); }
+  }
+  try {
+    await yt.commentThreads.insert({
+      part: 'snippet',
+      requestBody: { snippet: { videoId, topLevelComment: { snippet: { textOriginal: `Which one hit hardest? 👇 Subscribe for daily ${b.kwShort}.` } } } }
+    });
+  } catch (e) { console.log('  [comment skipped]', String(e.message).slice(0, 60)); }
+  results.push({ videoId, publishAt, title: meta.title });
+}
+
+state[slug] = { lastRunDate: new Date().toISOString().slice(0, 10), usedThemes: themes, lastVideos: results };
+saveState(state);
+console.log(`\n[${slug}] DONE — ${results.length} Shorts scheduled:`);
+results.forEach(r => console.log(`  ${r.publishAt}  ${r.title}`));
+
+function outDir() { return 'demos'; }

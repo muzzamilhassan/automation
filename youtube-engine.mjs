@@ -510,18 +510,21 @@ const FALLBACK_SCRIPTS = {
   }
 };
 
-export async function generateYouTubeScript(page) {
+export async function generateYouTubeScript(page, forcedTheme = null) {
   const brand = resolveBrand(page);
   const fallback = FALLBACK_SCRIPTS[page?.id] || FALLBACK_SCRIPTS['114550268199751'];
   if (!GEMINI_API_KEY) return { ...fallback, source: 'fallback' };
   const legacyThemes = ['silent behaviors that make people respect you', 'things to cut out of your life quietly', 'signs someone is secretly testing you', 'things you must do alone to become stronger', 'rules that protect you from toxic people', 'phrases fake friends use', 'things you should never apologize for', 'stop caring about these things', 'habits of mentally unbreakable people', 'ways to beat manipulators without fighting'];
-  const themeList = (brand.themeBank?.length ? brand.themeBank : legacyThemes).join(' / ');
+  const themeList = forcedTheme ? forcedTheme : (brand.themeBank?.length ? brand.themeBank : legacyThemes).join(' / ');
+  const themeLine = forcedTheme
+    ? `Theme for this script (MUST be about exactly this): ${forcedTheme}.`
+    : `Pick ONE theme from this PROVEN list (rotate, never repeat yesterday's): ${themeList}.`;
   const styleLine = brand.themeBank?.length
     ? `Write like the top ${brand.authority} YouTube channels for "${page.name}" (Niche: ${page.niche}). The points must be concrete, specific ${brand.niches[0]} insights that feel like insider knowledge, not vague motivation.\nCRITICAL: every point MUST be strictly about ${brand.niches.join(' / ')}. Do NOT write generic stoicism, generic self-improvement, or mindset fluff.`
     : `You write viral self-improvement YouTube Shorts scripts (like top stoicism channels: Stoic Legend, Psygena, Legacy Mindset) for "${page.name}" (Niche: ${page.niche}).\nWrite in EASY, CLEAR, punchy English. The points must be about HUMAN PSYCHOLOGY, respect and social dynamics (this is what performs best), not abstract quotes.`;
   const prompt = `${styleLine}
 Write in EASY, CLEAR, punchy English.
-Pick ONE theme from this PROVEN list (rotate, never repeat yesterday's): ${themeList}.
+${themeLine}
 Structure: a curiosity-gap hook, 5 numbered points, a memorable closing line.
 Return ONLY valid JSON:
 {"hook":"<=12 words","thumb_headline":"<=6 word ALL CAPS thumbnail headline","points":[{"title":"2-5 word ALL CAPS title","line":"1-2 short sentences, 14-18 words"},{"title":"...","line":"..."},{"title":"...","line":"..."},{"title":"...","line":"..."},{"title":"...","line":"..."}],"closing":"<=12 words"}`;
@@ -537,8 +540,32 @@ Return ONLY valid JSON:
     if (!parsed?.hook || !Array.isArray(parsed.points) || parsed.points.length < 4) throw new Error('bad script shape');
     return { ...parsed, points: parsed.points.slice(0, 5), closing: parsed.closing || '', thumbHeadline: parsed.thumb_headline || `${parsed.points.length} RULES`, source: 'gemini' };
   } catch (e) {
-    console.log(`      [YT Script] Gemini failed (${String(e.message).slice(0, 80)}) — using fallback script.`);
-    return { ...fallback, source: 'fallback' };
+    console.log(`      [YT Script] Gemini failed (${String(e.message).slice(0, 80)}) — trying Pollinations...`);
+  }
+  // Fallback brain: HuggingFace Inference (free tier, existing HF_TOKEN)
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const hf = process.env.HF_TOKEN || (fs.existsSync('.env') ? (fs.readFileSync('.env', 'utf8').match(/^HF_TOKEN=(.+)$/m) || [])[1]?.trim() : '');
+      if (!hf) throw new Error('no HF token');
+      const res = await fetch('https://router.huggingface.co/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${hf}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'meta-llama/Llama-3.1-8B-Instruct', messages: [{ role: 'user', content: prompt + (attempt > 1 ? '\nIMPORTANT: reply with the raw JSON object ONLY, no other text.' : '') }], temperature: 0.9, max_tokens: 800 })
+      });
+      if (!res.ok) throw new Error('HF HTTP ' + res.status);
+      const data = await res.json();
+      const raw = data.choices?.[0]?.message?.content || '';
+      const text = raw.replace(/^```json\s*/, '').replace(/```$/, '').trim();
+      const start = text.indexOf('{'), end = text.lastIndexOf('}');
+      if (start === -1 || end === -1) throw new Error('no JSON in HF reply');
+      const parsed = JSON.parse(text.slice(start, end + 1));
+      if (!parsed?.hook || !Array.isArray(parsed.points) || parsed.points.length < 4) throw new Error('bad script shape');
+      console.log(`      [YT Script] HF Llama script OK (attempt ${attempt})`);
+      return { ...parsed, points: parsed.points.slice(0, 5), closing: parsed.closing || '', thumbHeadline: parsed.thumb_headline || `${parsed.points.length} RULES`, source: 'hf' };
+    } catch (e) {
+      console.log(`      [YT Script] HF attempt ${attempt} failed (${String(e.message).slice(0, 80)})`);
+      if (attempt === 2) return { ...fallback, source: 'fallback' };
+    }
   }
 }
 
