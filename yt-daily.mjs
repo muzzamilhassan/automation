@@ -18,6 +18,7 @@ for (const m of fs.readFileSync(ENV_PATH, 'utf8').matchAll(/^([A-Z_0-9]+)=(.*)$/
 const { generateYouTubeScript, renderYouTubeScriptShort, buildScriptMeta } = await import('./youtube-engine.mjs');
 const { pickMusicTrack } = await import('./music-engine.mjs');
 const { bySlug } = await import('./yt-brands/brands.mjs');
+const { researchTrend } = await import('./trend-research.mjs');
 
 const slug = process.argv[2];
 const FORCE = process.argv.includes('--force');
@@ -69,6 +70,11 @@ const auth = channelAuth();
 const yt = google.youtube({ version: 'v3', auth });
 const themes = themesForToday(state);
 const page = { id: 'yt-' + slug, ytSlug: slug, name: b.label, niche: b.niche };
+try {
+  page.trend = await researchTrend(slug, auth, [...b.niches, ...b.tags.slice(0, 2)]);
+  console.log(`[trend] 🔥 hot keywords: ${page.trend.hotKeywords.slice(0, 6).join(', ')}`);
+  console.log(`[trend] viral now: ${page.trend.videos.slice(0, 3).map(v => `"${v.title}" — ${v.channel} (${Math.round(v.views / 1000)}k views)`).join(' | ')}`);
+} catch (e) { console.log('[trend] research skipped:', String(e.message).slice(0, 70)); }
 const OFF_NICHE = /\bstoic\w*|manipulat\w*|toxic|calm your mind|dark psychology\b/i;
 const results = [];
 

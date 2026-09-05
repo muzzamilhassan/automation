@@ -522,9 +522,10 @@ export async function generateYouTubeScript(page, forcedTheme = null) {
   const styleLine = brand.themeBank?.length
     ? `Write like the top ${brand.authority} YouTube channels for "${page.name}" (Niche: ${page.niche}). The points must be concrete, specific ${brand.niches[0]} insights that feel like insider knowledge, not vague motivation.\nCRITICAL: every point MUST be strictly about ${brand.niches.join(' / ')}. Do NOT write generic stoicism, generic self-improvement, or mindset fluff.`
     : `You write viral self-improvement YouTube Shorts scripts (like top stoicism channels: Stoic Legend, Psygena, Legacy Mindset) for "${page.name}" (Niche: ${page.niche}).\nWrite in EASY, CLEAR, punchy English. The points must be about HUMAN PSYCHOLOGY, respect and social dynamics (this is what performs best), not abstract quotes.`;
+  const trendBlock = page.trend ? `\nGOING VIRAL RIGHT NOW in this exact niche (ride this wave — align your angle and wording with what is working): ${page.trend.videos.slice(0, 5).map(v => `"${v.title}"`).join(' | ')}\nHot search keywords to weave in naturally: ${page.trend.hotKeywords.join(', ')}.` : '';
   const prompt = `${styleLine}
 Write in EASY, CLEAR, punchy English.
-${themeLine}
+${themeLine}${trendBlock}
 Structure: a curiosity-gap hook, 5 numbered points, a memorable closing line.
 Return ONLY valid JSON:
 {"hook":"<=12 words","thumb_headline":"<=6 word ALL CAPS thumbnail headline","points":[{"title":"2-5 word ALL CAPS title","line":"1-2 short sentences, 14-18 words"},{"title":"...","line":"..."},{"title":"...","line":"..."},{"title":"...","line":"..."},{"title":"...","line":"..."}],"closing":"<=12 words"}`;
@@ -706,6 +707,6 @@ export function buildScriptMeta(page, script, musicLabel = '') {
   ].join('\n').slice(0, 480);
   const description = musicLabel ? `${descCore}\n🎵 ${musicLabel}`.slice(0, 4900) : descCore;
   // the ranking tag sets these channels actually use (from competitor-scan)
-  const tags = [...(brand.tags || []), 'life lessons', 'mindset'].slice(0, 10);
+  const tags = [...(page.trend?.hotKeywords || []), ...(brand.tags || []), 'life lessons'].filter((t, i, a) => a.indexOf(t) === i).slice(0, 12);
   return { title, description, tags, format: 'script', keyword: brand.keyword };
 }
