@@ -68,7 +68,7 @@ export const BRANDS = [
   {
     slug: 'escrow-estate',
     label: 'ESCROW & ESTATE',
-    handle: '@escrowestate-p3x', active: true,
+    handle: '@escrowestate-p3x', active: false, // fully ready (renamed+verified) — parked 09-06, add anytime
     niche: 'Real estate wisdom & property',
     cpmTier: '$20-35 (real estate)',
     accent: '#D98E4A', bg: '#171210', ink: '#F5EFE7',
@@ -86,7 +86,7 @@ export const BRANDS = [
   {
     slug: 'policy-brief',
     label: 'THE POLICY BRIEF',
-    handle: '@thepolicybrief-t9u', active: true,
+    handle: '@thepolicybrief-t9u', active: false, // fully ready (renamed+verified) — parked 09-06, add anytime
     niche: 'Insurance explained simply',
     cpmTier: '~$38 (insurance sleeper CPM)',
     accent: '#58A6C9', bg: '#0E1418', ink: '#EAF2F6',
@@ -104,7 +104,7 @@ export const BRANDS = [
   {
     slug: 'old-money-code',
     label: 'OLD MONEY CODE',
-    handle: '@oldmoneycode-g2x', active: true,
+    handle: '@oldmoneycode-g2x', active: false, // fully ready (renamed+verified) — parked 09-06, add anytime
     niche: 'Old money habits & quiet wealth',
     cpmTier: '$15-30 (finance-adjacent, huge reach)',
     accent: '#D9C7A7', bg: '#12100C', ink: '#F3EDE2',
