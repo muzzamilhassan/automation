@@ -17,10 +17,10 @@ for (const slug of wanted) {
   if (!dirs.includes(slug)) { console.log(`⚠ ${slug}: no token yet, skipping`); continue; }
   const secretName = `YT_TOKEN_${slug.toUpperCase().replace(/-/g, '_')}`;
   const body = fs.readFileSync(path.join('yt-mcp/channels', slug, 'token.json'), 'utf8');
-  execSync(`gh secret set ${secretName} --repo ${REPO} --body-file -`, {
+  execSync(`gh secret set ${secretName} --repo ${REPO}`, {
     input: body,
     env: { ...process.env, GH_TOKEN },
-    stdio: 'inherit'
+    stdio: ['pipe', 'inherit', 'inherit']
   });
   console.log(`✓ ${secretName} set on ${REPO}`);
 }
