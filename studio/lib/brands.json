@@ -1,0 +1,230 @@
+{
+  "investors-compass": {
+    "label": "INVESTOR'S COMPASS",
+    "handle": "@InvestorsCompass-c7h",
+    "niche": "Investing psychology & market wisdom",
+    "accent": "#E8C15A",
+    "bg": "#0A1128",
+    "voice": "en-US-ChristopherNeural",
+    "slots": [
+      "12:05",
+      "16:05",
+      "23:35"
+    ],
+    "longSlot": "21:30",
+    "musicFeels": [
+      "calming",
+      "inspir",
+      "mystical"
+    ],
+    "active": true
+  },
+  "money-rulebook": {
+    "label": "THE MONEY RULEBOOK",
+    "handle": "@themoneyrulebook-p4y",
+    "niche": "Personal finance rules & money habits",
+    "accent": "#3DDC97",
+    "bg": "#101314",
+    "voice": "en-US-GuyNeural",
+    "slots": [
+      "12:35",
+      "16:35",
+      "00:05"
+    ],
+    "longSlot": "22:30",
+    "musicFeels": [
+      "bright",
+      "uplifting",
+      "grooving"
+    ],
+    "active": true
+  },
+  "debt-free-doctrine": {
+    "label": "DEBT-FREE DOCTRINE",
+    "handle": "@debtfreedoctrine",
+    "niche": "Debt payoff & credit smarts",
+    "accent": "#FF5A4E",
+    "bg": "#14100E",
+    "voice": "en-US-EricNeural",
+    "slots": [
+      "13:05",
+      "17:05",
+      "00:35"
+    ],
+    "longSlot": "01:30",
+    "musicFeels": [
+      "driving",
+      "action",
+      "heroic"
+    ],
+    "active": true
+  },
+  "escrow-estate": {
+    "label": "ESCROW & ESTATE",
+    "handle": "@escrowestate-p3x",
+    "niche": "Real estate wisdom & property",
+    "accent": "#D98E4A",
+    "bg": "#171210",
+    "voice": "en-GB-RyanNeural",
+    "slots": [
+      "23:05"
+    ],
+    "longSlot": null,
+    "musicFeels": [],
+    "active": false
+  },
+  "policy-brief": {
+    "label": "THE POLICY BRIEF",
+    "handle": "@thepolicybrief-t9u",
+    "niche": "Insurance explained simply",
+    "accent": "#58A6C9",
+    "bg": "#0E1418",
+    "voice": "en-US-RogerNeural",
+    "slots": [
+      "02:35"
+    ],
+    "longSlot": null,
+    "musicFeels": [],
+    "active": false
+  },
+  "old-money-code": {
+    "label": "OLD MONEY CODE",
+    "handle": "@oldmoneycode-g2x",
+    "niche": "Old money habits & quiet wealth",
+    "accent": "#D9C7A7",
+    "bg": "#12100C",
+    "voice": "en-GB-ThomasNeural",
+    "slots": [
+      "13:05"
+    ],
+    "longSlot": null,
+    "musicFeels": [],
+    "active": false
+  },
+  "founders-margin": {
+    "label": "FOUNDERS MARGIN",
+    "handle": "@FoundersMargin",
+    "niche": "Entrepreneurship & lean business",
+    "accent": "#9EE04F",
+    "bg": "#0C1210",
+    "voice": "en-US-BrianNeural",
+    "slots": [
+      "21:35"
+    ],
+    "longSlot": null,
+    "musicFeels": [],
+    "active": false
+  },
+  "closing-table": {
+    "label": "THE CLOSING TABLE",
+    "handle": "@TheClosingTable",
+    "niche": "Sales & negotiation psychology",
+    "accent": "#E14D6B",
+    "bg": "#120C10",
+    "voice": "en-US-SteffanNeural",
+    "slots": [
+      "22:35"
+    ],
+    "longSlot": null,
+    "musicFeels": [],
+    "active": false
+  },
+  "corner-office": {
+    "label": "CORNER OFFICE MIND",
+    "handle": "@CornerOfficeMind",
+    "niche": "Leadership & management wisdom",
+    "accent": "#C0C6D0",
+    "bg": "#0D1017",
+    "voice": "en-US-AndrewNeural",
+    "slots": [
+      "23:35"
+    ],
+    "longSlot": null,
+    "musicFeels": [],
+    "active": false
+  },
+  "tax-shield": {
+    "label": "TAX SHIELD",
+    "handle": "@TaxShield",
+    "niche": "Small-business tax & legal principles",
+    "accent": "#4ECDC4",
+    "bg": "#0B1210",
+    "voice": "en-GB-SoniaNeural",
+    "slots": [
+      "00:05"
+    ],
+    "longSlot": null,
+    "musicFeels": [],
+    "active": false
+  },
+  "ai-observer": {
+    "label": "THE AI OBSERVER",
+    "handle": "@TheAIObserver",
+    "niche": "AI & future tech",
+    "accent": "#39D5FF",
+    "bg": "#05090F",
+    "voice": "en-US-AriaNeural",
+    "slots": [
+      "21:05"
+    ],
+    "longSlot": null,
+    "musicFeels": [],
+    "active": false
+  },
+  "deep-work-os": {
+    "label": "DEEP WORK OS",
+    "handle": "@DeepWorkOS",
+    "niche": "Focus & productivity systems",
+    "accent": "#C8B6FF",
+    "bg": "#0E0B14",
+    "voice": "en-US-MichelleNeural",
+    "slots": [
+      "00:35"
+    ],
+    "longSlot": null,
+    "musicFeels": [],
+    "active": false
+  },
+  "longevity-code": {
+    "label": "THE LONGEVITY CODE",
+    "handle": "@TheLongevityCode",
+    "niche": "Healthspan & longevity habits",
+    "accent": "#7ED957",
+    "bg": "#0A100C",
+    "voice": "en-US-JennyNeural",
+    "slots": [
+      "01:05"
+    ],
+    "longSlot": null,
+    "musicFeels": [],
+    "active": false
+  },
+  "iron-discipline": {
+    "label": "IRON DISCIPLINE",
+    "handle": "@IronDiscipline",
+    "niche": "Gym & training motivation",
+    "accent": "#CCFF00",
+    "bg": "#050505",
+    "voice": "en-AU-WilliamNeural",
+    "slots": [
+      "02:05"
+    ],
+    "longSlot": null,
+    "musicFeels": [],
+    "active": false
+  },
+  "sleep-architect": {
+    "label": "THE SLEEP ARCHITECT",
+    "handle": "@TheSleepArchitect",
+    "niche": "Sleep & recovery science",
+    "accent": "#8C9EFF",
+    "bg": "#080A14",
+    "voice": "en-AU-NatashaNeural",
+    "slots": [
+      "01:35"
+    ],
+    "longSlot": null,
+    "musicFeels": [],
+    "active": false
+  }
+}
