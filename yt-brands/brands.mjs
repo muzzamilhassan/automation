@@ -14,7 +14,7 @@ export const BRANDS = [
   {
     slug: 'investors-compass',
     label: "INVESTOR'S COMPASS",
-    handle: '@InvestorsCompass',
+    handle: '@InvestorsCompass-c7h', active: true,
     niche: 'Investing psychology & market wisdom',
     cpmTier: '$30-50 (finance #1 niche)',
     accent: '#E8C15A', bg: '#0A1128', ink: '#F2EEE3',
@@ -32,7 +32,7 @@ export const BRANDS = [
   {
     slug: 'money-rulebook',
     label: 'THE MONEY RULEBOOK',
-    handle: '@TheMoneyRulebook',
+    handle: '@themoneyrulebook-p4y', active: true,
     niche: 'Personal finance rules & money habits',
     cpmTier: '$25-45 (personal finance)',
     accent: '#3DDC97', bg: '#101314', ink: '#EAF6EF',
@@ -50,7 +50,7 @@ export const BRANDS = [
   {
     slug: 'debt-free-doctrine',
     label: 'DEBT-FREE DOCTRINE',
-    handle: '@DebtFreeDoctrine',
+    handle: '@debtfreedoctrine', active: false, // renamed + clean handle 2026-09-06 — first in line for the next batch
     niche: 'Debt payoff & credit smarts',
     cpmTier: '$20-40 (credit/loans advertisers)',
     accent: '#FF5A4E', bg: '#14100E', ink: '#F6EDEA',
@@ -68,7 +68,7 @@ export const BRANDS = [
   {
     slug: 'escrow-estate',
     label: 'ESCROW & ESTATE',
-    handle: '@EscrowEstate',
+    handle: '@escrowestate-p3x', active: true,
     niche: 'Real estate wisdom & property',
     cpmTier: '$20-35 (real estate)',
     accent: '#D98E4A', bg: '#171210', ink: '#F5EFE7',
@@ -86,7 +86,7 @@ export const BRANDS = [
   {
     slug: 'policy-brief',
     label: 'THE POLICY BRIEF',
-    handle: '@ThePolicyBrief',
+    handle: '@thepolicybrief-t9u', active: true,
     niche: 'Insurance explained simply',
     cpmTier: '~$38 (insurance sleeper CPM)',
     accent: '#58A6C9', bg: '#0E1418', ink: '#EAF2F6',
@@ -104,7 +104,7 @@ export const BRANDS = [
   {
     slug: 'old-money-code',
     label: 'OLD MONEY CODE',
-    handle: '@OldMoneyCode',
+    handle: '@oldmoneycode-g2x', active: true,
     niche: 'Old money habits & quiet wealth',
     cpmTier: '$15-30 (finance-adjacent, huge reach)',
     accent: '#D9C7A7', bg: '#12100C', ink: '#F3EDE2',
