@@ -114,7 +114,7 @@ for (const metaFile of jobs) {
   const videoPath = path.resolve(meta.videoFile);
   if (!fs.existsSync(videoPath)) { console.log(`[fb] missing ${videoPath} — skipped`); continue; }
   const id = await postReel(meta.slug, fs.readFileSync(videoPath), meta, meta.publishAt);
-  if (id) fs.renameSync(metaFile, metaFile + '.done');
+  if (id) fs.renameSync(metaFile, metaFile + '.fb-done');
   await new Promise(r => setTimeout(r, 3000)); // space out page posts
 }
 console.log('[fb] cross-post pass complete');
