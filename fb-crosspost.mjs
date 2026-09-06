@@ -113,7 +113,15 @@ for (const metaFile of jobs) {
   const meta = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
   const videoPath = path.resolve(meta.videoFile);
   if (!fs.existsSync(videoPath)) { console.log(`[fb] missing ${videoPath} — skipped`); continue; }
-  const id = await postReel(meta.slug, fs.readFileSync(videoPath), meta, meta.publishAt);
+  let id = null;
+  for (let a = 1; a <= 2 && !id; a++) {
+    try {
+      id = await postReel(meta.slug, fs.readFileSync(videoPath), meta, meta.publishAt);
+    } catch (e) {
+      console.log(`  ✗ attempt ${a} network error: ${e.message}`);
+      if (a < 2) await new Promise(r => setTimeout(r, 5000));
+    }
+  }
   if (id) fs.renameSync(metaFile, metaFile + '.fb-done');
   await new Promise(r => setTimeout(r, 3000)); // space out page posts
 }
