@@ -128,4 +128,9 @@ saveState(state);
 console.log(`\n[${slug}] DONE — ${results.length} Shorts scheduled:`);
 results.forEach(r => console.log(`  ${r.publishAt}  ${r.title}`));
 
+// Daily long-form episode — runs right after the Shorts (once per day)
+console.log(`\n[${slug}] producing today's deep-dive episode...`);
+const dd = spawnSync('node', ['yt-deepdive.mjs', slug, ...(FORCE ? ['--force'] : [])], { stdio: 'inherit' });
+console.log(`[${slug}] deep-dive exit: ${dd.status}`);
+
 function outDir() { return 'demos'; }

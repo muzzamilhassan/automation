@@ -114,7 +114,7 @@ const theme = b.themeBank[Math.floor(Date.now() / 86400000) % b.themeBank.length
 const script = await llm(`You write long-form YouTube episodes for "${b.label}" (Niche: ${b.niche}), in the style of top ${b.authority} channels.
 Theme: ${theme}. Write for a US audience: concrete, specific, insider-feeling ${b.niches[0]} insights. No vague motivation, no stoicism clichés unless the niche is stoicism.
 Structure: an eye-catching episode title (<=60 chars), a 2-sentence intro, then EXACTLY 8 chapters. Each chapter: {"title":"<=40 chars","text":"110-140 words of punchy, spoken-style insight"} — EVERY chapter text MUST be at least 110 words; chapters under 90 words will be rejected.
-Return ONLY valid JSON: {"title":"...","intro":"...","chapters":[{"title":"...","text":"..."}],"outro":"2 sentences with a subscribe push"}`);
+Return ONLY valid JSON: {"title":"...","intro":"...","chapters":[{"title":"...","text":"..."}],"outro":"2 sentences with a subscribe push"}`).catch(e => { console.error(`[deepdive] ${e.message}`); process.exit(1); });
 
 fs.mkdirSync(`demos/deepdive-${slug}`, { recursive: true });
 const segs = [];

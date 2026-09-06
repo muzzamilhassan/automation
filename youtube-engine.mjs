@@ -609,7 +609,12 @@ export async function renderYouTubeScriptShort(page, script, musicOverride = nul
 
   const sections = [
     { text: script.hook, kicker: 'WATCH TILL THE END', big: script.hook },
-    ...script.points.map((p, i) => ({ text: `${i + 1}. ${p.title}. ${p.line}`, num: String(i + 1), big: p.title, sub: p.line })),
+    ...script.points.map((p, i) => {
+      // strip AI-included numbering ("1." / "Point 2:") — we add our own number,
+      // otherwise the narration says the number twice ("1, 1, …")
+      const clean = String(p.title || '').replace(/^\s*(?:\d+\s*[.)]|point\s*\d+\s*[.:)]?)\s*/i, '').trim();
+      return { text: `${i + 1}. ${clean}. ${p.line}`, num: String(i + 1), big: clean, sub: p.line };
+    }),
     { text: script.closing, kicker: 'REMEMBER THIS', big: script.closing }
   ].filter((s) => s.text);
 
