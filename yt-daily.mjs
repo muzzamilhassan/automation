@@ -22,6 +22,7 @@ const { researchTrend } = await import('./trend-research.mjs');
 
 const slug = process.argv[2];
 const FORCE = process.argv.includes('--force');
+const NO_EPISODE = process.argv.includes('--no-episode');
 const b = bySlug[slug];
 if (!b) { console.error('unknown slug', slug); process.exit(1); }
 
@@ -129,8 +130,12 @@ console.log(`\n[${slug}] DONE — ${results.length} Shorts scheduled:`);
 results.forEach(r => console.log(`  ${r.publishAt}  ${r.title}`));
 
 // Daily long-form episode — runs right after the Shorts (once per day)
-console.log(`\n[${slug}] producing today's deep-dive episode...`);
-const dd = spawnSync('node', ['yt-deepdive.mjs', slug, ...(FORCE ? ['--force'] : [])], { stdio: 'inherit' });
-console.log(`[${slug}] deep-dive exit: ${dd.status}`);
+if (NO_EPISODE) {
+  console.log(`[${slug}] episode step skipped (--no-episode)`);
+} else {
+  console.log(`\n[${slug}] producing today's deep-dive episode...`);
+  const dd = spawnSync('node', ['yt-deepdive.mjs', slug], { stdio: 'inherit' });
+  console.log(`[${slug}] deep-dive exit: ${dd.status}`);
+}
 
 function outDir() { return 'demos'; }

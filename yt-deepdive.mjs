@@ -192,6 +192,17 @@ st[slug] = st[slug] || {};
 st[slug].deepdiveDate = new Date().toISOString().slice(0, 10);
 st[slug].deepdiveVideo = { videoId: res.data.id, publishAt, title: `${script.title} | ${b.authority}` };
 saveState(st);
+
+// Drop the episode into the FB/IG outbox — cross-posters pick it up
+// (same publishAt: the channel's long-form slot, US-primetime)
+const stamp = `ep-${Date.now()}`;
+fs.mkdirSync(`fb-outbox/${slug}`, { recursive: true });
+fs.copyFileSync(final, `fb-outbox/${slug}/${stamp}.mp4`);
+fs.writeFileSync(`fb-outbox/${slug}/${stamp}.json`, JSON.stringify({
+  videoFile: `fb-outbox/${slug}/${stamp}.mp4`, publishAt,
+  title: `${script.title} | ${b.authority}`, description: desc, slug, kind: 'episode'
+}, null, 2));
+
 fs.rmSync(`demos/deepdive-${slug}/joined.mp4`, { force: true });
 segfCleanup();
 console.log(`\n✅ ${b.label} EPISODE LIVE-SCHEDULED: https://youtube.com/watch?v=${res.data.id} → goes public ${publishAt} (${totalMin} min)`);

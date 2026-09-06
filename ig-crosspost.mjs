@@ -49,7 +49,7 @@ async function postIgReel(slug, videoBuffer, meta) {
 
   const createRes = await fetch(`https://graph.facebook.com/v21.0/${igId}/media?access_token=${encodeURIComponent(pageToken)}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ media_type: 'REELS', video_url: hosted, caption: seoCaption(meta), share_to_feed: true })
+    body: JSON.stringify({ media_type: meta.kind === 'episode' ? 'VIDEO' : 'REELS', video_url: hosted, caption: seoCaption(meta), share_to_feed: true })
   });
   const createData = await createRes.json();
   if (!createData.id) { console.log('  ✗ IG container failed:', JSON.stringify(createData).slice(0, 140)); return null; }
