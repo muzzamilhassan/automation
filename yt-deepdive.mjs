@@ -162,7 +162,7 @@ const totalMin = Math.round(total / 60 * 10) / 10;
 console.log(`[deepdive] ✅ episode rendered: ${final} (${totalMin} min)`);
 
 // ---------- upload scheduled ----------
-const envStr = fs.readFileSync('.env', 'utf8');
+const envStr = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
 const auth = new google.auth.OAuth2(envStr.match(/^YOUTUBE_CLIENT_ID=(.+)$/m)[1].trim(), envStr.match(/^YOUTUBE_CLIENT_SECRET=(.+)$/m)[1].trim());
 const t = JSON.parse(fs.readFileSync(`yt-mcp/channels/${slug}/token.json`, 'utf8'));
 auth.setCredentials({ refresh_token: t.refresh_token });

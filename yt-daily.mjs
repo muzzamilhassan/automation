@@ -26,7 +26,7 @@ const NO_EPISODE = process.argv.includes('--no-episode');
 const b = bySlug[slug];
 if (!b) { console.error('unknown slug', slug); process.exit(1); }
 
-const envStr = fs.readFileSync('.env', 'utf8');
+const envStr = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
 const CLIENT_ID = envStr.match(/^YOUTUBE_CLIENT_ID=(.+)$/m)[1].trim();
 const CLIENT_SECRET = envStr.match(/^YOUTUBE_CLIENT_SECRET=(.+)$/m)[1].trim();
 
