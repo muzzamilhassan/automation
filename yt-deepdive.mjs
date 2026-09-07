@@ -54,11 +54,11 @@ function llm(prompt) {
     }
     const hf = process.env.HF_TOKEN;
     if (!hf) throw new Error('no HF token');
-    for (let a = 1; a <= 2; a++) {
+    for (let a = 1; a <= 3; a++) {
       try {
         const res = await fetch('https://router.huggingface.co/v1/chat/completions', {
           method: 'POST', headers: { Authorization: `Bearer ${hf}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: 'meta-llama/Llama-3.1-8B-Instruct', messages: [{ role: 'user', content: prompt + (a > 1 ? '\nReply with the raw JSON object ONLY.' : '') }], temperature: 0.85, max_tokens: 2000 })
+          body: JSON.stringify({ model: 'meta-llama/Llama-3.1-8B-Instruct', messages: [{ role: 'user', content: prompt + (a > 1 ? '\nReply with the raw JSON object ONLY.' : '') }], temperature: 0.85, max_tokens: 4000 })
         });
         if (!res.ok) throw new Error('HF HTTP ' + res.status);
         const data = await res.json();
