@@ -8,7 +8,7 @@ import { google } from 'googleapis';
 import { renderCinematicPoster } from './cinematic-engine.mjs';
 
 const ENV_PATH = path.resolve(new URL('.', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'), '.env');
-for (const m of fs.readFileSync(ENV_PATH, 'utf8').matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
+for (const m of fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : ''.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
 
 const DRY = process.argv.includes('--dry');
 const args = process.argv.slice(2);

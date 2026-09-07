@@ -12,7 +12,7 @@ import { google } from 'googleapis';
 // Load .env BEFORE importing the engine (the engine snapshots GEMINI_API_KEY
 // at module load; background sandboxes don't always inherit it or the cwd).
 const ENV_PATH = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '.env');
-for (const m of fs.readFileSync(ENV_PATH, 'utf8').matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) {
+for (const m of fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : ''.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) {
   process.env[m[1]] ??= m[2].trim();
 }
 const { generateYouTubeScript, renderYouTubeScriptShort, buildScriptMeta } = await import('./youtube-engine.mjs');

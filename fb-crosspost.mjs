@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import https from 'node:https';
 import path from 'node:path';
 
-const envStr = fs.readFileSync(path.resolve(new URL('.', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'), '.env'), 'utf8');
+const envStr = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
 const FB_PAGE_TOKEN = process.env.FB_PAGE_TOKEN || (envStr.match(/^FB_PAGE_TOKEN=(.+)$/m) || [])[1]?.trim() || '';
 
 // YT slug -> FB page (audience-matched)
