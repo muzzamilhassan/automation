@@ -12,6 +12,26 @@ export const COUNTRY = 'US';
 
 export const BRANDS = [
   {
+    slug: 'quotequarry',
+    label: 'QUOTE QUARRY',
+    handle: '@quotequarry302',
+    niche: 'Stoicism & daily motivation',
+    cpmTier: 'main channel',
+    accent: '#F5E31C', bg: '#0A0A0A', ink: '#FFFFFF',
+    eyebrow: 'DAILY WISDOM // QUOTE QUARRY',
+    tagline: 'Quarry your best self.',
+    keyword: 'stoic quotes', kwShort: 'stoic wisdom', theme: 'Stoicism',
+    niches: ['stoicism', 'self mastery', 'mental strength'],
+    authority: 'Stoicism Philosophy',
+    tags: ['stoicism', 'stoic wisdom', 'motivation', 'discipline', 'mindset', 'self improvement', 'mental strength', 'philosophy', 'success mindset', 'inner peace'],
+    musicFeels: ['epic', 'inspir', 'heroic'],
+    voice: 'en-US-ChristopherNeural',
+    slots: [],
+    longSlot: '14:30',
+    active: true,
+    themeBank: ['silent behaviors that make people respect you', 'things to cut out of your life quietly', 'signs someone is secretly testing you', 'things you must do alone to become stronger', 'rules that protect you from toxic people', 'phrases fake friends use', 'things you should never apologize for', 'stop caring about these things', 'habits of mentally unbreakable people', 'ways to beat manipulators without fighting', 'habits that separate winners from dreamers', 'signs you are becoming mentally stronger']
+  },
+  {
     slug: 'investors-compass',
     label: "INVESTOR'S COMPASS",
     handle: '@InvestorsCompass-c7h', active: true,

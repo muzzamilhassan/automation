@@ -1,4 +1,20 @@
 {
+  "quotequarry": {
+    "label": "QUOTE QUARRY",
+    "handle": "@quotequarry302",
+    "niche": "Stoicism & daily motivation",
+    "accent": "#F5E31C",
+    "bg": "#0A0A0A",
+    "voice": "en-US-ChristopherNeural",
+    "slots": [],
+    "longSlot": "14:30",
+    "musicFeels": [
+      "epic",
+      "inspir",
+      "heroic"
+    ],
+    "active": true
+  },
   "investors-compass": {
     "label": "INVESTOR'S COMPASS",
     "handle": "@InvestorsCompass-c7h",
