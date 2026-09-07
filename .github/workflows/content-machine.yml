@@ -1,9 +1,6 @@
 name: 🚀 Autonomous Multi-Brand Content Engine
 
 on:
-  push:
-    branches:
-      - main
   schedule:
     # High-CPM audience windows (US/UK/CA/AU/UAE): 08:30 UTC = UK morning +
     # AU evening + UAE noon; 16:30 UTC = US lunch + UK afternoon + UAE evening;
