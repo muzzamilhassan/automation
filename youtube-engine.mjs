@@ -543,6 +543,25 @@ Return ONLY valid JSON:
   } catch (e) {
     console.log(`      [YT Script] Gemini failed (${String(e.message).slice(0, 80)}) — trying Pollinations...`);
   }
+  // Fallback brain 1: Groq gpt-oss-120b (free tier ~14,400 req/day)
+  try {
+    const gk = process.env.GROQ_API_KEY || (fs.existsSync('.env') ? (fs.readFileSync('.env', 'utf8').match(/^GROQ_API_KEY=(.+)$/m) || [])[1]?.trim() : '');
+    if (!gk) throw new Error('no Groq key');
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST', headers: { Authorization: `Bearer ${gk}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'openai/gpt-oss-120b', messages: [{ role: 'user', content: prompt }], temperature: 0.9, max_tokens: 1500 })
+    });
+    if (!res.ok) throw new Error('Groq HTTP ' + res.status);
+    const data = await res.json();
+    const text = (data.choices?.[0]?.message?.content || '').trim();
+    const start = text.indexOf('{'), end = text.lastIndexOf('}');
+    const parsed = JSON.parse(text.slice(start, end + 1));
+    if (!parsed?.hook || !Array.isArray(parsed.points) || parsed.points.length < 4) throw new Error('bad script shape');
+    console.log('      [YT Script] Groq script OK');
+    return { ...parsed, points: parsed.points.slice(0, 5), closing: parsed.closing || '', thumbHeadline: parsed.thumb_headline || `${parsed.points.length} RULES`, source: 'groq' };
+  } catch (e) {
+    console.log(`      [YT Script] Groq failed (${String(e.message).slice(0, 80)}) — trying HF...`);
+  }
   // Fallback brain: HuggingFace Inference (free tier, existing HF_TOKEN)
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {

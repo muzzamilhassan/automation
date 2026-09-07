@@ -52,6 +52,25 @@ function llm(prompt) {
         throw new Error('bad shape');
       } catch (e) { console.log(`[deepdive] Gemini failed: ${String(e.message).slice(0, 70)} — trying HF...`); }
     }
+    // Fallback brain 1: Groq gpt-oss-120b
+    try {
+      const gk = process.env.GROQ_API_KEY;
+      if (!gk) throw new Error('no Groq key');
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST', headers: { Authorization: `Bearer ${gk}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'openai/gpt-oss-120b', messages: [{ role: 'user', content: prompt }], temperature: 0.85, max_tokens: 6000 })
+      });
+      if (!res.ok) throw new Error('Groq HTTP ' + res.status);
+      const data = await res.json();
+      const text = (data.choices?.[0]?.message?.content || '').trim();
+      const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+      if (parsed?.title && Array.isArray(parsed.chapters) && parsed.chapters.length >= 5
+          && parsed.chapters.every(c => (c.text || '').split(/s+/).length >= 70)) {
+        console.log(`[deepdive] Groq long script OK (${parsed.chapters.length} chapters)`);
+        return parsed;
+      }
+      throw new Error('bad shape');
+    } catch (e) { console.log(`[deepdive] Groq failed: ${String(e.message).slice(0, 70)} — trying HF...`); }
     const hf = process.env.HF_TOKEN;
     if (!hf) throw new Error('no HF token');
     for (let a = 1; a <= 3; a++) {
