@@ -140,6 +140,31 @@ export async function hostFile(path, filename = 'report.pdf') {
   return null;
 }
 
+
+// ntfy — open-source push notifications, zero accounts (topic = the secret)
+export async function sendNtfy(text, title = 'Quote Quarry Report', pdfPath = null) {
+  const topic = envOf('NTFY_TOPIC');
+  if (!topic) { console.log('[send] ntfy not configured — skipped.'); return false; }
+  try {
+    const res = await fetch('https://ntfy.sh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic, title, message: text.slice(0, 3500), priority: 3, tags: ['bar_chart'] })
+    });
+    console.log(`[send] ntfy text: ${res.ok ? 'sent' : 'HTTP ' + res.status}`);
+    if (pdfPath && fs.existsSync(pdfPath)) {
+      const fname = pdfPath.split('/').pop();
+      const r2 = await fetch(`https://ntfy.sh/${topic}?file=${encodeURIComponent(fname)}`, {
+        method: 'PUT',
+        headers: { 'Filename': fname, 'Title': 'Quote Quarry report PDF' },
+        body: fs.readFileSync(pdfPath)
+      });
+      console.log(`[send] ntfy PDF: ${r2.ok ? 'sent' : 'HTTP ' + r2.status}`);
+    }
+    return res.ok;
+  } catch (e) { console.log('[send] ntfy failed:', e.message); return false; }
+}
+
 // ---------------------------------------------------------------------------
 // Senders — CallMeBot (free WhatsApp text), Telegram (free PDF), Meta Cloud API (optional)
 // ---------------------------------------------------------------------------

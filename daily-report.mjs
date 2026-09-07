@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import { computeDeltas, collectYouTube, expectedPerDay, failedRunsToday, pktDate,
   postsBetween, readSnapshot, snapshotFile, sumRange } from './reporting/collect.mjs';
-import { buildPdf, hostFile, sendTelegramDocument, sendWhatsAppDocument, sendWhatsAppText } from './reporting/send.mjs';
+import { buildPdf, hostFile, sendNtfy, sendTelegramDocument, sendWhatsAppDocument, sendWhatsAppText } from './reporting/send.mjs';
 
 const MODE = (process.argv[2] || 'daily').toLowerCase();
 const fmt = (n) => Number(n || 0).toLocaleString('en-US');
@@ -113,7 +113,11 @@ console.log(`PDF saved: ${pdfName} (${Math.round(fs.statSync(pdfName).size / 102
 // ---------------------------------------------------------------------------
 if (process.env.REPORT_SEND !== 'false') {
   let sent = false;
-  if (await sendTelegramDocument(pdfName, textSummary.replace(/\*/g, ''))) sent = true;
+  if (await sendNtfy(textSummary, `Quote Quarry ${MODE} report`, pdfName)) sent = true;
+  if (!sent && await sendTelegramDocument(pdfName, textSummary.replace(/\*/g, ''))) sent = true;
+  else if (await sendNtfy(`${textSummary}
+
+📄 PDF: ${await hostFile(pdfName, `quarry-${MODE}-${today}.pdf`)}`, `Quote Quarry ${MODE} report`, 4)) sent = true;
   else {
     const url = await hostFile(pdfName, `quarry-${MODE}-${today}.pdf`);
     if (url) {

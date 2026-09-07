@@ -45,6 +45,7 @@ jobs:
           CALLMEBOT_KEY: ${{ secrets.CALLMEBOT_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
           node daily-report.mjs daily
           # PKT weekday: 0=Sunday → also weekly; 1st of month → also monthly

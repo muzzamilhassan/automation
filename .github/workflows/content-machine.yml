@@ -125,6 +125,7 @@ jobs:
           PINTEREST_APP_SECRET: ${{ secrets.PINTEREST_APP_SECRET }}
           PINTEREST_ACCESS_TOKEN: ${{ secrets.PINTEREST_ACCESS_TOKEN }}
           PINTEREST_PIN_LINK: ${{ secrets.PINTEREST_PIN_LINK }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
           ACHIEVEMENT_FLAG=""
           if [ "${{ github.event.inputs.achievement }}" = "true" ]; then
