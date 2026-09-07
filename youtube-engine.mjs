@@ -117,15 +117,16 @@ function narrate(scriptText, tag, voice = '') {
   try {
     execFileSync(py, ['youtube-flow/narrate.py', `${base}.txt`, `${base}.mp3`, `${base}.words.json`],
       { stdio: ['ignore', 'ignore', 'pipe'], timeout: 180000 });
-    const words = JSON.parse(fs.readFileSync(`${base}.words.json`, 'utf8'));
-    if (!words?.length || !fs.existsSync(`${base}.mp3`)) return null;
-    return { mp3: `${base}.mp3`, words };
+    // narrate.py writes a meta file — audio may be .mp3 (openai/edge) or .wav (kokoro)
+    const meta = JSON.parse(fs.readFileSync(`${base}.mp3.meta.json`, 'utf8'));
+    if (!meta.words?.length || !fs.existsSync(meta.audio)) return null;
+    return { file: meta.audio, words: meta.words, engine: meta.engine };
   } catch (e) {
     console.log(`      [YT Short] Narration unavailable (${String(e.message).slice(0, 120)}) — rendering text-only.`);
     return null;
   } finally {
     fs.rmSync(`${base}.txt`, { force: true });
-    fs.rmSync(`${base}.words.json`, { force: true });
+    fs.rmSync(`${base}.mp3.meta.json`, { force: true });
   }
 }
 
@@ -418,7 +419,7 @@ export async function renderYouTubeShort(page, postData, musicOverride = null) {
   }
 
   const args = ['-y', '-ss', String(clip.start), '-i', clip.file, '-i', scrimFile, '-stream_loop', '-1', '-i', (musicOverride?.file || 'image-tools/audio/awakening-dew.mp3'), '-i', overlayFile];
-  if (narration) args.push('-i', narration.mp3);
+  if (narration) args.push('-i', narration.file);
   args.push('-filter_complex', chain.join(';') + ';' + audioChain, '-map', '[v]', '-map', '[a]',
     '-t', String(dur), '-r', '30',
     '-c:v', 'libx264', '-preset', 'medium', '-crf', '19', '-pix_fmt', 'yuv420p',
@@ -667,7 +668,7 @@ export async function renderYouTubeScriptShort(page, script, musicOverride = nul
       const assFile = `${buildDir}/cap-${i}.ass`;
       fs.writeFileSync(assFile, buildAssCaptions(narration.words), 'utf8');
       filter = chain + `;[ov]ass=${assFile}:fontsdir=image-tools/fonts[v];[2:a]apad=pad_dur=1,atrim=0:${dur}[a]`;
-      inputs = ['-i', narration.mp3];
+      inputs = ['-i', narration.file];
     } else {
       filter = chain + `;[ov]null[v];anullsrc=r=44100:cl=stereo,atrim=0:${dur}[a]`;
       inputs = ['-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo'];
@@ -679,7 +680,7 @@ export async function renderYouTubeScriptShort(page, script, musicOverride = nul
       '-c:a', 'aac', '-b:a', '160k', '-video_track_timescale', '15360', segFile],
       { stdio: ['ignore', 'ignore', 'pipe'] });
     fs.rmSync(card, { force: true });
-    if (narration) fs.rmSync(narration.mp3, { force: true });
+    if (narration) fs.rmSync(narration.file, { force: true });
     segFiles.push(segFile);
     cum += dur;
   }

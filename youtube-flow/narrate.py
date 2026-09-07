@@ -1,21 +1,23 @@
-# YouTube Short narration with a HUMAN feel + exact word timestamps.
+# YouTube Short narration with a HUMAN feel + word timestamps.
 #
-# Engine chain:
-#   1. OpenAI gpt-4o-mini-tts (voice "onyx" + narrator instructions) — human-
-#      sounding delivery; word timings recovered by whisper-1 word-level
-#      alignment (both cost ~$0.02/min of audio).
-#   2. Fallback: Edge TTS (free) with native WordBoundary events.
+# Engine chain (first that works wins):
+#   1. OpenAI gpt-4o-mini-tts (voice "onyx" + narrator instructions) — human
+#      delivery; word timings via whisper-1 alignment.
+#   2. Kokoro-82M (Apache 2.0, $0, #1 open model on TTS Arena) — human-ranked
+#      fixed narrator voices; word timings estimated by word length (fine for
+#      1-3-word caption cues). Voice via YT_KOKORO_VOICE (default am_michael).
+#   3. Edge TTS (free fallback) with native WordBoundary events.
 #
 # Usage: python narrate.py <script.txt> <out.mp3> <out.words.json>
-# Output JSON: [{"w": "word", "s": 0.42, "d": 0.31}, ...]
+# Also writes <out.mp3>.meta.json: {"engine","audio","duration","words":[{w,s,d}]}
 import asyncio
 import json
 import os
-import re
 import subprocess
 import sys
 
 VOICE = os.environ.get("YT_TTS_VOICE", "onyx")
+KOKORO_VOICE = os.environ.get("YT_KOKORO_VOICE", "am_michael")
 NARRATOR_INSTRUCTIONS = (
     "You are a calm, confident documentary narrator with quiet intensity. "
     "Speak slightly slower than normal with deliberate short pauses between "
@@ -42,7 +44,7 @@ def openai_tts(text, mp3_path, key):
     ])
 
 
-def openai_align(mp3_path, words_path, key):
+def openai_align(mp3_path, key):
     r = run_curl([
         "https://api.openai.com/v1/audio/transcriptions",
         "-H", f"Authorization: Bearer {key}",
@@ -52,23 +54,58 @@ def openai_align(mp3_path, words_path, key):
         "-F", "timestamp_granularities[]=word",
     ])
     data = json.loads(r.stdout)
-    words = [{"w": w["word"].strip(), "s": round(float(w["start"]), 3),
-              "d": round(float(w["end"]) - float(w["start"]), 3)}
-             for w in data.get("words", []) if w.get("word", "").strip()]
-    with open(words_path, "w", encoding="utf-8") as f:
-        json.dump(words, f)
-    return words
+    return [{"w": w["word"].strip(), "s": round(float(w["start"]), 3),
+             "d": round(float(w["end"]) - float(w["start"]), 3)}
+            for w in data.get("words", []) if w.get("word", "").strip()]
 
 
-def edge_tts(text, mp3_path, words_path):
-    asyncio.run(_edge(text, mp3_path, words_path))
+def kokoro_tts(text, base_path):
+    """Kokoro-82M ONNX — $0, human-ranked #1 open voice. Returns (audio_path, words, duration)."""
+    import array
+    import wave
+
+    from kokoro_onnx import Kokoro
+
+    pool = os.environ.get("KOKORO_DIR", "pixabay-pool")
+    model = os.path.join(pool, "kokoro-v1.0.onnx")
+    voices = os.path.join(pool, "voices-v1.0.bin")
+    if not (os.path.exists(model) and os.path.exists(voices)):
+        raise RuntimeError("kokoro model files missing in " + pool)
+    k = Kokoro(model, voices)
+    audio, sr = k.create(text, voice=KOKORO_VOICE, speed=1.0, lang="en-us")
+    wav_path = base_path.rsplit(".", 1)[0] + ".kokoro.wav"
+    try:
+        import soundfile as sf
+        sf.write(wav_path, audio, sr)
+    except ImportError:
+        import array as _array
+        import wave
+        with wave.open(wav_path, "wb") as f:
+            f.setnchannels(1)
+            f.setsampwidth(2)
+            f.setframerate(sr)
+            f.writeframes(_array.array("h", (audio * 32767).astype("int16")).tobytes())
+    duration = len(audio) / sr
+    # word timings estimated by word length (kokoro-onnx has no alignment API)
+    words = text.split()
+    total = sum(len(w) + 1 for w in words)
+    t, out = 0.0, []
+    for w in words:
+        d = duration * (len(w) + 1) / total
+        out.append({"w": w.strip(".,!?;:\"'’"), "s": round(t, 3), "d": round(d, 3)})
+        t += d
+    return wav_path, out, duration
 
 
-async def _edge(text, mp3_path, words_path):
+def edge_tts(text, mp3_path):
+    asyncio.run(_edge(text, mp3_path))
+
+
+async def _edge(text, mp3_path):
     import edge_tts
 
     words = []
-    communicate = edge_tts.Communicate(text, os.environ.get("YT_TTS_EDGE_VOICE", "en-US-ChristopherNeural"),
+    communicate = edge_tts.Communicate(text, "en-US-ChristopherNeural",
                                        rate="+2%", boundary="WordBoundary")
     with open(mp3_path, "wb") as f:
         async for chunk in communicate.stream():
@@ -77,7 +114,7 @@ async def _edge(text, mp3_path, words_path):
             elif chunk["type"] == "WordBoundary":
                 words.append({"w": chunk["text"], "s": round(chunk["offset"] / 1e7, 3),
                               "d": round(chunk["duration"] / 1e7, 3)})
-    with open(words_path, "w", encoding="utf-8") as f:
+    with open(mp3_path.rsplit(".", 1)[0] + ".words.json", "w", encoding="utf-8") as f:
         json.dump(words, f)
 
 
@@ -86,18 +123,34 @@ def main():
     with open(txt_path, encoding="utf-8") as f:
         text = " ".join(f.read().split())
 
+    meta = {"engine": "edge", "audio": mp3_path, "words": []}
     key = os.environ.get("OPENAI_API_KEY", "").strip()
     if key:
         try:
             openai_tts(text, mp3_path, key)
-            words = openai_align(mp3_path, words_path, key)
+            words = openai_align(mp3_path, key)
             if words:
-                print("engine:openai")
-                return
+                meta = {"engine": "openai", "audio": mp3_path, "words": words}
         except (subprocess.CalledProcessError, json.JSONDecodeError, KeyError) as e:
-            print(f"openai failed ({e}); falling back to edge-tts", file=sys.stderr)
-    edge_tts(text, mp3_path, words_path)
-    print("engine:edge")
+            print(f"openai failed ({e}); trying kokoro", file=sys.stderr)
+    if meta["engine"] == "edge":
+        try:
+            audio, words, duration = kokoro_tts(text, mp3_path)
+            meta = {"engine": "kokoro", "audio": audio, "words": words,
+                    "duration": round(duration, 3), "voice": KOKORO_VOICE}
+        except Exception as e:
+            print(f"kokoro failed ({e}); falling back to edge-tts", file=sys.stderr)
+            edge_tts(text, mp3_path)
+
+    if meta["engine"] == "edge":
+        wp = mp3_path.rsplit(".", 1)[0] + ".words.json"
+        with open(wp, encoding="utf-8") as f:
+            meta["words"] = json.load(f)
+        os.remove(wp)
+
+    with open(mp3_path + ".meta.json", "w", encoding="utf-8") as f:
+        json.dump(meta, f)
+    print("engine:" + meta["engine"])
 
 
 if __name__ == "__main__":

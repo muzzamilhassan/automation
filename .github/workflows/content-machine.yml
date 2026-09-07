@@ -85,10 +85,14 @@ jobs:
           fc-list | grep -i -c "Playfair\|Anton\|Oswald\|Inter\|Cinzel\|Archivo\|Cormorant\|Space Mono" || true
           echo "Fonts ready."
 
-      - name: 🗣️ Install Edge-TTS (YouTube Short narration)
+      - name: 🗣️ Install TTS engines (Kokoro → Edge fallback chain)
         run: |
-          python3 -m pip install --quiet --user edge-tts || pip install --quiet edge-tts || true
-          python3 -c "import edge_tts; print('Edge-TTS ready.')" || echo "Edge-TTS unavailable — YouTube Shorts fall back to text-only."
+          python3 -m pip install --quiet --user edge-tts kokoro-onnx || pip install --quiet edge-tts kokoro-onnx || true
+          python3 -c "import edge_tts, kokoro_onnx; print('TTS engines ready.')" || echo "TTS partial — fallbacks handle it."
+          # Kokoro-82M ONNX model (~350MB) into the CACHED pixabay-pool dir
+          curl -sL --retry 3 -o pixabay-pool/kokoro-v1.0.onnx "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx" || true
+          curl -sL --retry 3 -o pixabay-pool/voices-v1.0.bin "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin" || true
+          ls -la pixabay-pool/kokoro-v1.0.onnx pixabay-pool/voices-v1.0.bin 2>/dev/null || echo "Kokoro model missing — Edge fallback."
 
       - name: 🎨 Start Image & Video Engine (Background Service)
         run: |
