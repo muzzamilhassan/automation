@@ -27,8 +27,9 @@ const b = bySlug[slug];
 if (!b) { console.error('unknown slug', slug); process.exit(1); }
 
 const envStr = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
-const CLIENT_ID = envStr.match(/^YOUTUBE_CLIENT_ID=(.+)$/m)[1].trim();
-const CLIENT_SECRET = envStr.match(/^YOUTUBE_CLIENT_SECRET=(.+)$/m)[1].trim();
+const CLIENT_ID = process.env.YOUTUBE_CLIENT_ID || envStr.match(/^YOUTUBE_CLIENT_ID=(.+)$/m)?.[1]?.trim() || '';
+const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET || envStr.match(/^YOUTUBE_CLIENT_SECRET=(.+)$/m)?.[1]?.trim() || '';
+if (!CLIENT_ID || !CLIENT_SECRET) { console.error('YouTube OAuth client credentials missing (env or .env)'); process.exit(1); }
 
 function channelAuth() {
   const envName = `YT_TOKEN_${slug.toUpperCase().replace(/-/g, '_')}`;
