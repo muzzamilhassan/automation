@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { google } from 'googleapis';
+import { spawnSync } from 'node:child_process';
 
 // Load .env BEFORE importing the engine (the engine snapshots GEMINI_API_KEY
 // at module load; background sandboxes don't always inherit it or the cwd).
@@ -23,6 +24,7 @@ const { researchTrend } = await import('./trend-research.mjs');
 const slug = process.argv[2];
 const FORCE = process.argv.includes('--force');
 const NO_EPISODE = process.argv.includes('--no-episode');
+const EPISODE_ONLY = process.argv.includes('--episode-only');
 const b = bySlug[slug];
 if (!b) { console.error('unknown slug', slug); process.exit(1); }
 
@@ -63,7 +65,7 @@ function themesForToday(state) {
 }
 
 const state = loadState();
-if (state[slug]?.lastRunDate === new Date().toISOString().slice(0, 10) && !FORCE) {
+if (state[slug]?.lastRunDate === new Date().toISOString().slice(0, 10) && !FORCE && !EPISODE_ONLY) {
   console.log(`[${slug}] already produced today — skipping (use --force to override)`);
   process.exit(0);
 }
@@ -80,7 +82,7 @@ try {
 const OFF_NICHE = /\bstoic\w*|manipulat\w*|toxic|calm your mind|dark psychology\b/i;
 const results = [];
 
-for (let i = 0; i < b.slots.length; i++) {
+for (let i = 0; i < (EPISODE_ONLY ? 0 : b.slots.length); i++) {
   const publishAt = nextSlotISO(b.slots[i]);
   console.log(`\n[${slug}] short ${i + 1}/${b.slots.length} → goes public ${publishAt}`);
   let script = await generateYouTubeScript(page, themes[i]);
@@ -125,7 +127,7 @@ for (let i = 0; i < b.slots.length; i++) {
   results.push({ videoId, publishAt, title: meta.title });
 }
 
-state[slug] = { lastRunDate: new Date().toISOString().slice(0, 10), usedThemes: themes, lastVideos: results };
+if (!EPISODE_ONLY) state[slug] = { lastRunDate: new Date().toISOString().slice(0, 10), usedThemes: themes, lastVideos: results };
 saveState(state);
 console.log(`\n[${slug}] DONE — ${results.length} Shorts scheduled:`);
 results.forEach(r => console.log(`  ${r.publishAt}  ${r.title}`));
