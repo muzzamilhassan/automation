@@ -26,8 +26,8 @@ const b = bySlug[slug];
 if (!b) { console.error('unknown slug', slug); process.exit(1); }
 
 // env before anything that snapshots it
-for (const m of fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : ''.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
-
+const envRaw = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';
+for (const m of envRaw.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
 const STATE_FILE = 'yt-mcp/schedule-state.json';
 const loadState = () => { try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { return {}; } };
 const saveState = (s) => fs.writeFileSync(STATE_FILE, JSON.stringify(s, null, 2));
