@@ -38,11 +38,11 @@ function resolveBrand(page) {
 // YouTube brand configs — separate identity from the FB/IG BRANDS table.
 // ---------------------------------------------------------------------------
 const YT_BRANDS = {
-  '116157974886564': { label: 'SILENT WEALTH', accent: '#F5E31C', keyword: 'money mindset quotes', kwShort: 'wealth wisdom', theme: 'Wealth', niches: ['wealth building', 'financial freedom', 'millionaire mindset'], authority: 'Money Psychology', tags: ['money mindset', 'wealth psychology', 'success mindset', 'self improvement', 'psychology', 'stoicism'] },
-  '108044922375174': { label: 'STRATEGIC SILENCE', accent: '#4D8DFF', keyword: 'stoic quotes', kwShort: 'stoic wisdom', theme: 'Power', niches: ['dark psychology', 'self mastery', 'power moves'], authority: 'Stoicism Philosophy', tags: ['stoicism', 'dark psychology', 'machiavelli', 'psychology', 'stoic wisdom', 'self improvement', 'mental strength'] },
-  '1077306835630491': { label: 'EON VENTURES', accent: '#FF7A1A', keyword: 'discipline quotes', kwShort: 'discipline', theme: 'Discipline', niches: ['success habits', 'entrepreneur mindset', 'hard work'], authority: 'Discipline', tags: ['discipline', 'self improvement', 'mental strength', 'success mindset', 'personal growth', 'stoicism'] },
-  '114550268199751': { label: 'RELIQ NORTH', accent: '#C8202D', keyword: 'stoic wisdom', kwShort: 'stoic wisdom', theme: 'Calm', niches: ['inner peace', 'digital minimalism', 'calm mind'], authority: 'Stoicism Philosophy', tags: ['stoicism', 'stoic wisdom', 'stoic philosophy', 'inner peace', 'emotional resilience', 'personal growth'] },
-  '106473735839651': { label: 'THE BOUNDARIES CLUB', accent: '#FF8A1E', keyword: 'self respect quotes', kwShort: 'self respect', theme: 'Boundaries', niches: ['boundaries', 'emotional intelligence', 'protect your peace'], authority: 'Psychology', tags: ['self respect', 'boundaries', 'emotional intelligence', 'psychology', 'self improvement', 'dark psychology'] }
+  '116157974886564': { label: 'SILENT WEALTH', accent: '#F5E31C', keyword: 'money mindset quotes', kwShort: 'wealth wisdom', theme: 'Wealth', niches: ['wealth building', 'financial freedom', 'millionaire mindset'], authority: 'Money Psychology', voice: 'bm_george', tags: ['money mindset', 'wealth psychology', 'success mindset', 'self improvement', 'psychology', 'stoicism'] },
+  '108044922375174': { label: 'STRATEGIC SILENCE', accent: '#4D8DFF', keyword: 'stoic quotes', kwShort: 'stoic wisdom', theme: 'Power', niches: ['dark psychology', 'self mastery', 'power moves'], authority: 'Stoicism Philosophy', voice: 'am_michael', tags: ['stoicism', 'dark psychology', 'machiavelli', 'psychology', 'stoic wisdom', 'self improvement', 'mental strength'] },
+  '1077306835630491': { label: 'EON VENTURES', accent: '#FF7A1A', keyword: 'discipline quotes', kwShort: 'discipline', theme: 'Discipline', niches: ['success habits', 'entrepreneur mindset', 'hard work'], authority: 'Discipline', voice: 'am_fenrir', tags: ['discipline', 'self improvement', 'mental strength', 'success mindset', 'personal growth', 'stoicism'] },
+  '114550268199751': { label: 'RELIQ NORTH', accent: '#C8202D', keyword: 'stoic wisdom', kwShort: 'stoic wisdom', theme: 'Calm', niches: ['inner peace', 'digital minimalism', 'calm mind'], authority: 'Stoicism Philosophy', voice: 'am_michael', tags: ['stoicism', 'stoic wisdom', 'stoic philosophy', 'inner peace', 'emotional resilience', 'personal growth'] },
+  '106473735839651': { label: 'THE BOUNDARIES CLUB', accent: '#FF8A1E', keyword: 'self respect quotes', kwShort: 'self respect', theme: 'Boundaries', niches: ['boundaries', 'emotional intelligence', 'protect your peace'], authority: 'Psychology', voice: 'am_onyx', tags: ['self respect', 'boundaries', 'emotional intelligence', 'psychology', 'self improvement', 'dark psychology'] }
 };
 
 const HOOK_STYLES = ['direct', 'emphasis', 'curiosity', 'negative'];
@@ -115,8 +115,10 @@ function narrate(scriptText, tag, voice = '') {
   fs.mkdirSync(POOL_DIR, { recursive: true });
   fs.writeFileSync(`${base}.txt`, scriptText, 'utf8');
   try {
+    const env = { ...process.env };
+    if (voice) env.YT_KOKORO_VOICE = voice;
     execFileSync(py, ['youtube-flow/narrate.py', `${base}.txt`, `${base}.mp3`, `${base}.words.json`],
-      { stdio: ['ignore', 'ignore', 'pipe'], timeout: 180000 });
+      { stdio: ['ignore', 'ignore', 'pipe'], timeout: 180000, env });
     // narrate.py writes a meta file — audio may be .mp3 (openai/edge) or .wav (kokoro)
     const meta = JSON.parse(fs.readFileSync(`${base}.mp3.meta.json`, 'utf8'));
     if (!meta.words?.length || !fs.existsSync(meta.audio)) return null;
