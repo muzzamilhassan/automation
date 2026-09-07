@@ -8,6 +8,7 @@ import { publishToTikTok } from './tiktok-publisher.mjs';
 import { publishToPinterest } from './pinterest-publisher.mjs';
 import { renderCinematicPoster, renderCinematicReel } from './cinematic-engine.mjs';
 import { renderYouTubeShort, renderYouTubeScriptShort, generateYouTubeScript, nextYouTubeSlotISO, nextYouTubeSlotCandidatesISO } from './youtube-engine.mjs';
+import { logPost } from './reporting/collect.mjs';
 import { pickMusicTrack } from './music-engine.mjs';
 import {
   EMBEDDED_FONTS_CSS,
@@ -1069,6 +1070,7 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
 
   // 4. [STEP 1/5] Publish Feed Photo Post to Facebook Page
   const fbPostId = await publishToFacebook(page.id, imgBuffer, fullCaption, altText);
+  logPost({ platform: 'Facebook', brand: page.name, kind: 'feed image', id: fbPostId, title: postData.headline, status: fbPostId ? 'published' : 'failed' });
   const postPermalink = `https://www.facebook.com/${page.id}/posts/${String(fbPostId || '').split('_').pop()}`;
 
   // 5. [STEP 2/5] Generate & Publish Dynamic Video Reel (FB + YouTube Shorts + TikTok)
@@ -1094,6 +1096,7 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
       : `${chosenMood}${MUSIC_CREDITS[chosenMood] ? ' — ' + MUSIC_CREDITS[chosenMood] : ''}`;
     const reelCaption = `${postData.headline}\n\n${postData.insight_body}\n\n${postData.takeaway}\n\n🎵 Music Track: ${musicLabel}${achievementTags}\n\n${brandHashtags}`;
     reelId = await publishReelToFacebook(page.id, reelBuffer, postData.headline, reelCaption);
+    logPost({ platform: 'Facebook', brand: page.name, kind: 'reel', id: reelId, title: postData.headline, status: reelId ? 'published' : 'failed' });
     // YouTube PRIMARY: scripted listicle Short (hook → 5 points → closing).
     // Falls back to the narrated quote Short, then the FB reel.
     let ytShort = null;
@@ -1117,11 +1120,13 @@ async function runSinglePageBatch(targetPageIndex = 3, isAchievement = false) {
     };
     const ytMusicLabel = musicOverride ? `${musicOverride.title} — ${musicOverride.credit}` : '';
     youtubeShortId = await publishToYouTubeShorts(ytVideo, ytMeta, ytMusicLabel, ytShort?.thumb || null);
+    logPost({ platform: 'YouTube', brand: page.name, kind: 'short', id: youtubeShortId, title: ytMeta.title, status: youtubeShortId ? 'published' : 'failed' });
     // TikTok cross-post gated to the Reliq North batch (single account, ~3/day)
     if (page.id === RELIQ_NORTH_PAGE_ID) {
       const tiktokTags = `${page.brandTag} #fyp #foryou #foryoupage #quotes #motivation #mindset #dailywisdom #viral #shorts`;
       const tiktokCaption = `${postData.headline}\n\n${postData.insight_body}\n\n${postData.takeaway}\n\n${tiktokTags}${achievementTags}`;
       tiktokId = await publishToTikTok({ videoBuffer: reelBuffer, title: tiktokCaption });
+      logPost({ platform: 'TikTok', brand: page.name, kind: 'reel', id: tiktokId, title: postData.headline, status: tiktokId ? 'published' : 'failed' });
     }
   }
 

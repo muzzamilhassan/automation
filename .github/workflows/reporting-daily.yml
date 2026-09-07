@@ -1,0 +1,71 @@
+name: 📊 Daily/Weekly/Monthly Reports (WhatsApp + PDF)
+
+on:
+  schedule:
+    # 16:45 UTC = 21:45 PKT — after all three posting slots have run
+    - cron: '45 16 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Report mode'
+        default: 'daily'
+        type: choice
+        options: ['daily', 'weekly', 'monthly']
+
+concurrency:
+  group: reporting
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 📥 Checkout (push-capable)
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_PAT || secrets.SECRET_WRITER_PAT }}
+
+      - name: ⚙️ Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 📦 Install Dependencies
+        run: npm install
+
+      - name: 📊 Build & Send Reports
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_PAT || secrets.SECRET_WRITER_PAT }}
+          GITHUB_PAT: ${{ secrets.GITHUB_PAT || secrets.SECRET_WRITER_PAT }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          CALLMEBOT_PHONE: ${{ secrets.CALLMEBOT_PHONE }}
+          CALLMEBOT_KEY: ${{ secrets.CALLMEBOT_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          node daily-report.mjs daily
+          # PKT weekday: 0=Sunday → also weekly; 1st of month → also monthly
+          PKTDOW=$(date -u -d "+5 hours" +%w)
+          PKTDATE=$(date -u -d "+5 hours" +%d)
+          if [ "$PKTDOW" = "0" ]; then node daily-report.mjs weekly; fi
+          if [ "$PKTDATE" = "01" ]; then node daily-report.mjs monthly; fi
+
+      - name: 💾 Commit stats history back to repo
+        run: |
+          git config user.name "quarry-bot"
+          git config user.email "bot@quotequarry.local"
+          git add state/ logs/ || true
+          git diff --cached --quiet || git commit -m "report state: $(date -u -d '+5 hours' +%F)"
+          git push || true
+
+      - name: 🖼️ Upload PDF artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-${{ github.run_id }}
+          path: reports/*.pdf
+          if-no-files-found: ignore
+          retention-days: 30

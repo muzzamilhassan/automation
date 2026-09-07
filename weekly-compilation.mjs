@@ -16,6 +16,7 @@ import { EMBEDDED_FONTS_CSS } from './typography-poster-engine.mjs';
 import { ensurePoolClip } from './cinematic-engine.mjs';
 import { spokenScript, buildAssCaptions, renderYouTubeThumbnail } from './youtube-engine.mjs';
 import { pickMusicTrack } from './music-engine.mjs';
+import { logPost } from './reporting/collect.mjs';
 
 const FF = process.env.FFMPEG_PATH || (fs.existsSync('ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe')
   ? 'ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' : 'ffmpeg');
@@ -297,6 +298,7 @@ const res = await youtube.videos.insert({
   media: { body: readable }
 });
 console.log(`✓ Compilation LIVE 👉 https://youtube.com/watch?v=${res.data.id}`);
+logPost({ platform: 'YouTube', brand: 'Compilation', kind: 'long-form', id: res.data.id, title, status: 'published' });
 if (thumbBuffer) {
   try {
     const tStream = new Readable();

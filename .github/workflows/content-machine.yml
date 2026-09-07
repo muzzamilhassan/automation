@@ -146,6 +146,14 @@ jobs:
             node run-content-machine.mjs $SELECTED_INDEX $ACHIEVEMENT_FLAG
           fi
 
+      - name: 💾 Commit post logs back to repo
+        run: |
+          git config user.name "quarry-bot"
+          git config user.email "bot@quotequarry.local"
+          git add logs/posts-log.json || true
+          git diff --cached --quiet || git commit -m "post log: $(date -u -d '+5 hours' +%F-%H%M)"
+          git push || true
+
       - name: 🖼️ Upload Generated Media Artifacts
         if: always()
         uses: actions/upload-artifact@v4
