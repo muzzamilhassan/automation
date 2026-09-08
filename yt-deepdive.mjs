@@ -95,7 +95,15 @@ function llm(prompt) {
   })();
 }
 
-function sh(args, timeout = 600000) { execFileSync(FF, args, { stdio: ['ignore', 'ignore', 'pipe'], timeout }); }
+function sh(args, timeout = 600000) {
+  try {
+    execFileSync(FF, args, { stdio: ['ignore', 'ignore', 'pipe'], timeout });
+  } catch (e) {
+    console.error('[deepdive] FFMPEG FAILED: ' + FF + ' ' + args.filter(a => !a.includes('://')).join(' ').slice(0, 400));
+    console.error('[deepdive] stderr: ' + String(e.stderr || e.message).slice(0, 300));
+    throw e;
+  }
+}
 function probeDur(f) { return parseFloat(execFileSync(FP, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f], { encoding: 'utf8' }).trim()); }
 
 async function chapterCard(num, title) {
