@@ -20,8 +20,8 @@ const FF = process.env.FFMPEG_PATH || (fs.existsSync('ffmpeg-bin/ffmpeg-master-l
 const FP = FF.replace('ffmpeg.exe', 'ffprobe.exe');
 const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
 const ENV_PATH = path.resolve(HERE, '.env');
-for (const m of fs.readFileSync(ENV_PATH, 'utf8').matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
-
+const envRaw = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';
+for (const m of envRaw.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
 const slug = process.argv[2];
 const FORCE = process.argv.includes('--force');
 const b = bySlug[slug];
@@ -256,7 +256,7 @@ const thumb = await renderYouTubeThumbnail(script.title, `${work}/frame.jpg`, { 
 console.log(`[long] ✅ episode rendered: ${final} (${(total / 60).toFixed(1)} min)`);
 
 // ---------- upload scheduled ----------
-const envStr = fs.readFileSync(ENV_PATH, 'utf8');
+const envStr = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';
 const auth = new google.auth.OAuth2(envStr.match(/^YOUTUBE_CLIENT_ID=(.+)$/m)[1].trim(), envStr.match(/^YOUTUBE_CLIENT_SECRET=(.+)$/m)[1].trim());
 const tok = JSON.parse(fs.readFileSync(`yt-mcp/channels/${slug}/token.json`, 'utf8'));
 auth.setCredentials({ refresh_token: tok.refresh_token });
