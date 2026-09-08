@@ -16,13 +16,14 @@ import { EMBEDDED_FONTS_CSS } from './typography-poster-engine.mjs';
 import { ensurePoolClip } from './cinematic-engine.mjs';
 import { spokenScript, buildAssCaptions, renderYouTubeThumbnail } from './youtube-engine.mjs';
 import { pickMusicTrack } from './music-engine.mjs';
-import { logPost } from './reporting/collect.mjs';
+import { logPost, pktDate } from './reporting/collect.mjs';
 
 const FF = process.env.FFMPEG_PATH || (fs.existsSync('ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe')
   ? 'ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' : 'ffmpeg');
 const POOL_DIR = 'pixabay-pool';
 const ACCENT = '#F5E31C';
 const TEST = process.argv.includes('--test');
+const DAILY = process.argv.includes('daily') || process.env.LONGFORM_MODE === 'daily';
 const MAX_QUOTES = TEST ? 3 : 10;
 
 const envStr = (() => { try { return fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : ''; } catch (e) { return ''; } })();
@@ -39,7 +40,8 @@ function ytClient() {
 // 1. Top-viewed Shorts of the last 7 days
 // ---------------------------------------------------------------------------
 async function fetchTopShorts(youtube) {
-  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+  const windowH = DAILY ? 48 : 168;
+  const weekAgo = new Date(Date.now() - windowH * 3600000).toISOString();
   // Walk the channel's uploads playlist (search.list has parameter
   // combinations that 400 with forMine; playlistItems is reliable).
   const ch = await youtube.channels.list({ part: 'contentDetails', mine: true });
@@ -144,7 +146,9 @@ async function renderSegment(quote, index, outDir) {
   fs.writeFileSync(`${outDir}/${tag}.txt`, spokenScript(postData), 'utf8');
   execFileSync(resolvePython(), ['youtube-flow/narrate.py', `${outDir}/${tag}.txt`, `${outDir}/${tag}.mp3`, `${outDir}/${tag}.words.json`],
     { stdio: ['ignore', 'ignore', 'pipe'], timeout: 180000 });
-  const words = JSON.parse(fs.readFileSync(`${outDir}/${tag}.words.json`, 'utf8'));
+  const meta = JSON.parse(fs.readFileSync(`${outDir}/${tag}.mp3.meta.json`, 'utf8'));
+  const words = meta.words;
+  const narrationFile = meta.audio;
   const last = words[words.length - 1];
   // tight pacing: only ~1.5s after narration ends — dead air kills retention
   const dur = Math.max(15, Math.min(75, Math.round((last.s + last.d + 1.5) * 10) / 10));
@@ -163,12 +167,12 @@ async function renderSegment(quote, index, outDir) {
     `[ov]ass=${assFile}:fontsdir=image-tools/fonts,fade=t=in:st=0:d=0.6:alpha=1,fade=t=out:st=${(dur - 0.8).toFixed(1)}:d=0.8:alpha=1[v]`;
   const audio = `[2:a]apad=pad_dur=3,atrim=0:${dur}[a]`;
 
-  execFileSync(FF, ['-y', '-stream_loop', '-1', '-ss', String(clip.start), '-i', clip.file, '-i', scrimFile, '-i', `${outDir}/${tag}.mp3`, '-i', overlay,
+  execFileSync(FF, ['-y', '-stream_loop', '-1', '-ss', String(clip.start), '-i', clip.file, '-i', scrimFile, '-i', narrationFile, '-i', overlay,
     '-filter_complex', chain + ';' + audio, '-map', '[v]', '-map', '[a]',
     '-t', String(dur), '-r', '30', '-pix_fmt', 'yuv420p',
     '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
     '-c:a', 'aac', '-b:a', '160k', '-video_track_timescale', '15360', out]);
-  for (const f of [overlay, `${outDir}/${tag}.txt`, `${outDir}/${tag}.mp3`, `${outDir}/${tag}.words.json`, assFile]) fs.rmSync(f, { force: true });
+  for (const f of [overlay, `${outDir}/${tag}.txt`, narrationFile, `${outDir}/${tag}.mp3.meta.json`, assFile]) fs.rmSync(f, { force: true });
   return dur;
 }
 
@@ -187,6 +191,13 @@ function resolvePython() {
 console.log(`[Weekly Compilation] ${TEST ? '(TEST MODE — no upload)' : ''}`);
 const youtube = ytClient();
 const shorts = await fetchTopShorts(youtube);
+// dedupe: if today's daily compilation is already on the channel, stop
+if (DAILY && !TEST) {
+  const today = pktDate();
+  const dup = shorts.find((v) => v.snippet?.title?.includes('Daily Compilation') && v.snippet?.publishedAt?.startsWith(today));
+  if (dup) { console.log(`Daily compilation for ${today} already live (${dup.snippet.title}) — nothing to do.`); process.exit(0); }
+}
+
 console.log(`Found ${shorts.length} top Shorts this week: ${shorts.map((s) => s.views).join(', ')} views`);
 
 // prefer Shorts that carry a real quote (v2 descriptions) over thin ones,
@@ -256,7 +267,7 @@ if (TEST) {
 // ---------------------------------------------------------------------------
 // 4. Upload PUBLIC with chaptered description
 // ---------------------------------------------------------------------------
-const title = `${quotes.length} Quotes That Will Change Your Week — Motivational Quotes Compilation`;
+const title = DAILY ? `Today's Best Motivational Quotes — Daily Compilation (${pktDate()})`.replace('( Daily)', '') : `${quotes.length} Quotes That Will Change Your Week — Motivational Quotes Compilation`;
 const description = [
   `The ${quotes.length} most powerful motivational quotes of the week — the Short versions you loved, expanded with narration and cinematic visuals.`,
   '',
@@ -298,6 +309,49 @@ const res = await youtube.videos.insert({
   media: { body: readable }
 });
 console.log(`✓ Compilation LIVE 👉 https://youtube.com/watch?v=${res.data.id}`);
+
+// ---------------------------------------------------------------------------
+// DAILY MODE: distribute the same long video to all 5 Facebook pages as a
+// native page video (IG can't take >3min content — IG gets its 3 Shorts/day).
+// ---------------------------------------------------------------------------
+if (DAILY) {
+  const PAGES = ['116157974886564', '108044922375174', '1077306835630491', '114550268199751', '106473735839651'];
+  const PAGE_NAMES = { '116157974886564': 'Silent Wealth', '108044922375174': 'Strategic Silence', '1077306835630491': 'Eon Ventures', '114550268199751': 'Reliq North', '106473735839651': 'The Boundaries Club' };
+  const envOf2 = (k) => process.env[k] || '';
+  const FB_TOKEN = envOf2('FB_PAGE_TOKEN');
+  for (const pageId of PAGES) {
+    try {
+      const tr = await fetch(`https://graph.facebook.com/v21.0/me/accounts?fields=id,access_token&access_token=${FB_TOKEN}`);
+      const page = ((await tr.json()).data || []).find((x) => x.id === pageId);
+      if (!page) throw new Error('no page token');
+      const chunk = 4 * 1024 * 1024;
+      const buf = fs.readFileSync(outFile);
+      const start = await (await fetch(`https://graph.facebook.com/v21.0/${pageId}/videos?upload_phase=start&access_token=${page.access_token}`, { method: 'POST' })).json();
+      if (!start.upload_session_id) throw new Error('start phase failed');
+      for (let o = 0; o < buf.length; o += chunk) {
+        const fd = new FormData();
+        fd.append('upload_phase', 'transfer');
+        fd.append('upload_session_id', start.upload_session_id);
+        fd.append('start_offset', String(o));
+        fd.append('end_offset', String(Math.min(o + chunk, buf.length)));
+        fd.append('video_file_chunk', new Blob([buf.subarray(o, Math.min(o + chunk, buf.length))]));
+        const tr2 = await fetch(`https://graph.facebook.com/v21.0/${pageId}/videos?access_token=${page.access_token}`, { method: 'POST', body: fd });
+        const j2 = await tr2.json();
+        if (j2.error) throw new Error('transfer: ' + String(j2.error.message).slice(0, 60));
+      }
+      const fin = await (await fetch(`https://graph.facebook.com/v21.0/${pageId}/videos?access_token=${page.access_token}`, {
+        method: 'POST',
+        body: (() => { const fd = new FormData(); fd.append('upload_phase', 'finish'); fd.append('upload_session_id', start.upload_session_id); fd.append('description', description.slice(0, 4000)); return fd; })()
+      })).json();
+      if (fin.error) throw new Error('finish: ' + String(fin.error.message).slice(0, 60));
+      logPost({ platform: 'Facebook', brand: PAGE_NAMES[pageId], kind: 'long video', id: fin.id || fin.video_id, title, status: 'published' });
+      console.log(`✓ FB long video posted: ${PAGE_NAMES[pageId]}`);
+    } catch (e) {
+      console.log(`✗ FB long video failed for ${PAGE_NAMES[pageId]}: ${String(e.message).slice(0, 100)}`);
+      logPost({ platform: 'Facebook', brand: PAGE_NAMES[pageId], kind: 'long video', id: null, title, status: 'failed' });
+    }
+  }
+}
 logPost({ platform: 'YouTube', brand: 'Compilation', kind: 'long-form', id: res.data.id, title, status: 'published' });
 if (thumbBuffer) {
   try {
