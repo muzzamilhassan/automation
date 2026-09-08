@@ -115,7 +115,7 @@ function narrateChapter(text, num) {
   const base = `pixabay-pool/dd-narr-${slug}-${num}`;
   fs.writeFileSync(`${base}.txt`, text, 'utf8');
   execFileSync('python', ['youtube-flow/narrate.py', `${base}.txt`, `${base}.mp3`, `${base}.words.json`],
-    { stdio: ['ignore', 'ignore', 'pipe'], timeout: 240000, env: { ...process.env, YT_TTS_EDGE_VOICE: b.voice || 'en-US-ChristopherNeural' } });
+    { stdio: ['ignore', 'ignore', 'pipe'], timeout: 240000, env: { ...process.env, YT_TTS_EDGE_VOICE: b.voice || 'en-US-ChristopherNeural', YT_KOKORO_VOICE: b.voice || 'en-US-ChristopherNeural', YT_KOKORO_SPEED: '0.92' } });
   fs.rmSync(`${base}.txt`, { force: true });
   fs.rmSync(`${base}.words.json`, { force: true });
   return `${base}.mp3`;

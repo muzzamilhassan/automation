@@ -25,7 +25,7 @@ export const BRANDS = [
     authority: 'Stoicism Philosophy',
     tags: ['stoicism', 'stoic wisdom', 'motivation', 'discipline', 'mindset', 'self improvement', 'mental strength', 'philosophy', 'success mindset', 'inner peace'],
     musicFeels: ['epic', 'inspir', 'heroic'],
-    voice: 'en-US-ChristopherNeural',
+    voice: 'am_michael',
     slots: [],
     longSlot: '14:30',
     active: true,
@@ -44,7 +44,7 @@ export const BRANDS = [
     niches: ['investing psychology', 'stock market wisdom', 'long term wealth'],
     authority: 'Investing Psychology',
     tags: ['investing', 'stock market', 'warren buffett', 'financial education', 'money mindset', 'compounding', 'value investing', 'market psychology', 'wealth building', 'finance', 'investment strategy', 'stock market for beginners'],
-    voice: 'en-US-ChristopherNeural',
+    voice: 'bm_george',
     musicFeels: ['calming', 'inspir', 'mystical'], // premium, calm-confident market wisdom
     slots: ['12:05', '16:05', '23:35'], longSlot: '21:30', // long: 5:30p ET
     description: 'Investing wisdom and stock market psychology in 60 seconds. Timeless principles from Buffett, Munger and Bogle — patience, compounding, and buying fear instead of selling it. New Shorts daily. Build conviction, not panic. Subscribe for daily investing wisdom.',
@@ -63,7 +63,7 @@ export const BRANDS = [
     niches: ['personal finance', 'money habits', 'saving systems'],
     authority: 'Personal Finance',
     tags: ['personal finance', 'money tips', 'saving money', 'financial freedom', 'budgeting', 'wealth habits', 'money management', 'financial literacy', 'pay yourself first', 'money mindset', 'financial planning', 'build wealth'],
-    voice: 'en-US-GuyNeural',
+    voice: 'bm_daniel',
     musicFeels: ['bright', 'uplifting', 'grooving'], // clean, confident money-rules energy
     slots: ['12:35', '16:35', '00:05'], longSlot: '22:30', // long: 6:30p ET
     description: 'Money rules that quietly build wealth — one principle per Short. Pay yourself first, automate savings, kill lifestyle creep. Personal finance in 60 seconds, new rule every day. Subscribe and let the rules compound.',
@@ -82,7 +82,7 @@ export const BRANDS = [
     niches: ['debt payoff', 'credit score', 'loan traps'],
     authority: 'Debt Freedom',
     tags: ['debt free', 'pay off debt', 'credit score', 'credit cards', 'debt payoff journey', 'financial freedom', 'loan tips', 'debt snowball', 'money tips', 'financial literacy', 'interest rates', 'no more debt'],
-    voice: 'en-US-EricNeural',
+    voice: 'am_fenrir',
     musicFeels: ['driving', 'action', 'heroic'], // determined, no-excuses debt payoff energy
     slots: ['13:05', '17:05', '00:35'], longSlot: '01:30', // long: 9:30p ET
     description: 'Debt freedom starts with the right rules, not more hustle. Credit scores, loan traps, and payoff order — explained in 60 seconds. New Shorts daily until debt is a word you forget. Subscribe and start owing nothing.',
@@ -101,7 +101,7 @@ export const BRANDS = [
     niches: ['real estate', 'first home buying', 'property investing'],
     authority: 'Real Estate',
     tags: ['real estate', 'buying a home', 'first time home buyer', 'mortgage tips', 'property investment', 'house hacking', 'real estate investing', 'renting vs buying', 'home loans', 'property market', 'real estate tips', 'wealth through property'],
-    voice: 'en-GB-RyanNeural',
+    voice: 'bm_george',
     slots: ['23:05'],
     description: 'Real estate wisdom in 60 seconds — mortgages, first homes, rental math, and the property rules banks hope you never question. New Shorts daily. Own land, sleep well. Subscribe for daily property wisdom.',
     themeBank: ['first home mistakes that cost six figures', 'mortgage truths banks soften', 'rent vs buy decided by one number', 'signs a property is a money pit', 'questions to ask before signing', 'house rules rich buyers follow', 'red flags at an open house', 'how location quietly sets your net worth', 'renting can make you rich if', 'closing costs nobody warns you about', 'property inspection secrets', 'what appraisers actually look for']
@@ -119,7 +119,7 @@ export const BRANDS = [
     niches: ['insurance explained', 'coverage gaps', 'claims wisdom'],
     authority: 'Insurance Education',
     tags: ['insurance explained', 'life insurance', 'health insurance', 'car insurance', 'home insurance', 'insurance tips', 'coverage', 'claims', 'financial protection', 'insurance policy', 'term life', 'financial planning'],
-    voice: 'en-US-RogerNeural',
+    voice: 'am_michael',
     slots: ['02:35'],
     description: 'Insurance explained in 60 seconds — coverage gaps, claim secrets, and the fine print that saves families. Life, health, auto and home, one policy rule at a time. New Shorts daily. Subscribe before you need it.',
     themeBank: ['insurance mistakes that void your claim', 'what life insurance really covers', 'claims adjusters hope you never ask', 'coverage gaps that bankrupt families', 'term vs whole life made simple', 'car insurance rules after a crash', 'health insurance terms decoded', 'when to increase your coverage', 'denied claim next moves', 'hidden perks already in your policy', 'renters insurance myths', 'disability insurance the quiet essential']
@@ -137,7 +137,7 @@ export const BRANDS = [
     niches: ['old money habits', 'quiet luxury', 'generational wealth'],
     authority: 'Old Money Philosophy',
     tags: ['old money', 'old money habits', 'quiet luxury', 'old money aesthetic', 'generational wealth', 'elegance', 'classy lifestyle', 'wealth habits', 'success habits', 'old money rules', 'style', 'self improvement'],
-    voice: 'en-GB-ThomasNeural',
+    voice: 'af_heart',
     slots: ['13:05'],
     description: 'Old money habits, quiet luxury, and the rules of understated wealth — in 60 seconds. How generational wealth thinks, spends, and stays silent. New Shorts daily. Subscribe and learn why wealth whispers.',
     themeBank: ['old money rules for spending', 'habits of generational wealth', 'why the rich buy boring things', 'quiet luxury is a behavior', 'things old money never flaunt', 'how heirs are raised differently', 'old money morning rituals', 'signs of new money vs old money', 'the asset first rule', 'elegance is restraint explained', 'old money rules for dressing', 'family rules that preserve fortunes']
@@ -155,7 +155,7 @@ export const BRANDS = [
     niches: ['entrepreneurship', 'startup lessons', 'lean business'],
     authority: 'Entrepreneurship',
     tags: ['entrepreneurship', 'startup tips', 'founder mistakes', 'business lessons', 'small business', 'bootstrap', 'business mindset', 'side hustle', 'first customer', 'profit margin', 'business growth', 'solopreneur'],
-    voice: 'en-US-BrianNeural',
+    voice: 'am_adam',
     slots: ['21:35'],
     description: 'Founder lessons in 60 seconds — pricing, first customers, cash flow, and the startup mistakes that kill good ideas. Business wisdom for people who build. New Shorts daily. Subscribe and protect your margin.',
     themeBank: ['founder mistakes that kill startups', 'rules for your first customer', 'pricing mistakes that bleed margin', 'bootstrap rules that force profit', 'signs your business model is broken', 'cash flow truths nobody teaches', 'why boring businesses win', 'when to quit your job numbers', 'marketing on a zero budget', 'lessons from failed founders', 'one product beats ten ideas', 'hire slow rules for founders']
@@ -173,7 +173,7 @@ export const BRANDS = [
     niches: ['negotiation', 'sales psychology', 'persuasion'],
     authority: 'Sales Psychology',
     tags: ['negotiation', 'sales tips', 'persuasion', 'sales psychology', 'closing techniques', 'business negotiation', 'influence', 'communication skills', 'deal making', 'salary negotiation', 'psychology of selling', 'dark psychology'],
-    voice: 'en-US-SteffanNeural',
+    voice: 'am_onyx',
     slots: ['22:35'],
     description: 'Negotiation psychology in 60 seconds — the moves, the silences, and the frames that close deals at work, in business, and in life. New Shorts daily. Subscribe and never accept the first number again.',
     themeBank: ['negotiation moves that flip leverage', 'silence as a weapon explained', 'phrases that kill a deal', 'salary negotiation scripts that work', 'anchors decide the outcome', 'how to read a buyer real intent', 'objection handling in three steps', 'power questions that close', 'signs you are being manipulated in a deal', 'the flinch and other classics', 'win-win is a trap sometimes', 'walk away like a professional']
@@ -191,7 +191,7 @@ export const BRANDS = [
     niches: ['leadership', 'management skills', 'office politics'],
     authority: 'Leadership',
     tags: ['leadership', 'management tips', 'leadership skills', 'boss tips', 'career advice', 'office politics', 'team management', 'executive presence', 'workplace wisdom', 'professional growth', 'people skills', 'promotion tips'],
-    voice: 'en-US-AndrewNeural',
+    voice: 'bm_daniel',
     slots: ['23:35'],
     description: 'Leadership wisdom in 60 seconds — managing up, running meetings, earning respect, and the quiet moves that get people promoted. New Shorts daily. Subscribe and lead without the noise.',
     themeBank: ['boss mistakes that lose the team', 'rules for managing your manager', 'meeting moves that show authority', 'how leaders say no gracefully', 'signs of a weak leader', 'promotion habits nobody notices', 'delegation without losing control', 'feedback that actually changes people', 'office politics without the games', 'first 90 days as a new manager', 'quiet authority is a skill', 'why great leaders hire people who argue']
@@ -209,7 +209,7 @@ export const BRANDS = [
     niches: ['tax education', 'small business taxes', 'deductions explained'],
     authority: 'Tax Education',
     tags: ['tax tips', 'small business taxes', 'deductions', 'tax deductions', 'llc tips', 'bookkeeping', 'tax season', 'self employment taxes', 'keep more money', 'tax planning', 'business finance', 'accounting basics'],
-    voice: 'en-GB-SoniaNeural',
+    voice: 'am_michael',
     slots: ['00:05'],
     description: 'Tax principles in 60 seconds — deductions, LLC basics, bookkeeping habits, and the rules that help earners keep more of what they make. Education, not advice. New Shorts daily. Subscribe and build your shield.',
     themeBank: ['deduction myths that trigger audits', 'LLC truths simplified', 'bookkeeping habits that save tax season', 'expenses people forget to track', 'self employed money rules', 'quarterly taxes explained simply', 'records the tax office loves', 'home office rules decoded', 'why the rich hire accountants early', 'receipts rule everything', 'entity choice in plain english', 'legal writes offs vs myths']
@@ -227,7 +227,7 @@ export const BRANDS = [
     niches: ['artificial intelligence', 'future tech', 'ai tools'],
     authority: 'AI & Tech',
     tags: ['artificial intelligence', 'ai', 'ai tools', 'future tech', 'technology', 'ai news', 'machine learning', 'ai jobs', 'chatgpt', 'automation', 'tech explained', 'future of work'],
-    voice: 'en-US-AriaNeural',
+    voice: 'af_heart',
     slots: ['21:05'],
     description: 'AI explained in 60 seconds — the tools, the shifts, and the jobs changing first. Understand the future before it replaces the unprepared. New Shorts daily. Subscribe and stay future proof.',
     themeBank: ['jobs ai changes first', 'ai tools that feel illegal to know', 'signs a task will be automated', 'how to future proof your career', 'ai myths everyone still believes', 'prompts that feel like cheating', 'what agentic ai really means', 'skills ai makes more valuable', 'the last jobs to be automated', 'ai red flags to spot fake content', 'small businesses winning with ai', 'questions to ask before trusting ai']
@@ -245,7 +245,7 @@ export const BRANDS = [
     niches: ['deep work', 'productivity systems', 'focus habits'],
     authority: 'Productivity',
     tags: ['deep work', 'productivity', 'focus', 'time management', 'study tips', 'productivity systems', 'attention span', 'work smarter', 'pomodoro', 'procrastination', 'digital minimalism', 'cal newport'],
-    voice: 'en-US-MichelleNeural',
+    voice: 'am_onyx',
     slots: ['00:35'],
     description: 'Deep work in 60 seconds — focus systems, anti-distraction rules, and the habits of people who produce more by doing less. New Shorts daily. Subscribe and install your focus operating system.',
     themeBank: ['focus rules that beat willpower', 'phone habits destroying your attention', 'morning systems of high performers', 'how to start when you overdistracted', 'deep work blocks explained', 'signs you are busy not productive', 'rules for your first deep work hour', 'distraction detox weekend', 'why multitasking is a scam', 'shutdown rituals that end the day', 'environment beats discipline', 'procrastination decoded in 60 seconds']
@@ -263,7 +263,7 @@ export const BRANDS = [
     niches: ['longevity', 'healthspan', 'daily health habits'],
     authority: 'Longevity',
     tags: ['longevity', 'health tips', 'healthspan', 'healthy habits', 'wellness', 'biohacking', 'exercise science', 'nutrition tips', 'aging well', 'sleep health', 'preventive health', 'energy'],
-    voice: 'en-US-JennyNeural',
+    voice: 'af_heart',
     slots: ['01:05'],
     description: 'Longevity habits in 60 seconds — sleep, movement, food, and the small daily choices that add decades. Science made simple, one habit at a time. New Shorts daily. Subscribe and play the long game.',
     themeBank: ['daily habits that add years', 'what blue zones actually do', 'strength training after 40 rules', 'sleep is the cheapest medicine', 'food rules longevity doctors follow', 'signs your body is asking for help', 'walking is underrated science', 'stress aging you faster', 'morning light and your body clock', 'metabolic health decoded', 'habits quietly stealing your energy', ' screenings worth doing yearly']
@@ -281,7 +281,7 @@ export const BRANDS = [
     niches: ['gym motivation', 'training discipline', 'no excuses fitness'],
     authority: 'Fitness',
     tags: ['gym motivation', 'fitness motivation', 'workout discipline', 'training hard', 'no excuses', 'gym life', 'self discipline', 'mindset', 'consistency', 'grind mode', 'mens fitness', 'transformation'],
-    voice: 'en-AU-WilliamNeural',
+    voice: 'am_fenrir',
     slots: ['02:05'],
     description: 'Gym motivation with a spine — discipline over motivation, consistency over hype, one rep at a time. New Shorts daily. The iron never lies. Subscribe and show up anyway.',
     themeBank: ['rules of showing up daily', 'excuses the gym deletes', 'training when nobody claps', 'discipline is a muscle too', 'what six months of consistency does', 'hard truths about transformation', 'the two day rule explained', 'training the mind first', 'why slow reps build strong men', 'rest is part of the program', 'motivation follows action', 'become the person who never skips']
@@ -299,7 +299,7 @@ export const BRANDS = [
     niches: ['sleep science', 'recovery', 'evening routines'],
     authority: 'Sleep Science',
     tags: ['sleep tips', 'sleep science', 'better sleep', 'insomnia help', 'recovery', 'evening routine', 'deep sleep', 'circadian rhythm', 'sleep hygiene', 'rest', 'wellness tips', 'night routine'],
-    voice: 'en-AU-NatashaNeural',
+    voice: 'af_heart',
     slots: ['01:35'],
     description: 'Sleep science in 60 seconds — evening rules, deep sleep triggers, and the recovery habits that rebuild your brain and body. New Shorts daily, right before bed. Subscribe and win tomorrow tonight.',
     themeBank: ['evening habits that wreck deep sleep', 'rules for falling asleep faster', 'caffeine math nobody does', 'your phone and your melatonin', 'the wind down hour protocol', 'why you wake at 3am', 'naps that help vs hurt', 'sleep debt is real science', 'bedroom design for deep sleep', 'what one bad night really does', 'temperature is the sleep switch', 'morning light sets your night']
