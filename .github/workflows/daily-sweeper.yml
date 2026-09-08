@@ -1,4 +1,4 @@
-name: 🛠️ Daily Sweeper (self-healing: re-runs anything missing)
+name: "🛠️ Daily Sweeper — self-healing, re-runs anything missing"
 
 on:
   schedule:
