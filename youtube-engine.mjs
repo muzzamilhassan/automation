@@ -539,9 +539,10 @@ Return ONLY valid JSON:
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.9, responseMimeType: 'application/json' } })
     });
     const data = await res.json();
+    if (!res.ok) throw new Error(`gemini HTTP ${res.status}: ${String(data?.error?.message || '').slice(0, 80)}`);
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     const parsed = text ? JSON.parse(text.replace(/^```json\s*/, '').replace(/```$/, '').trim()) : null;
-    if (!parsed?.hook || !Array.isArray(parsed.points) || parsed.points.length < 4) throw new Error('bad script shape');
+    if (!parsed?.hook || !Array.isArray(parsed.points) || parsed.points.length < 4) throw new Error(`bad script shape: ${String(text).slice(0, 100)}`);
     return { ...parsed, points: parsed.points.slice(0, 5), closing: parsed.closing || '', thumbHeadline: parsed.thumb_headline || `${parsed.points.length} RULES`, source: 'gemini' };
   } catch (e) {
     console.log(`      [YT Script] Gemini failed (${String(e.message).slice(0, 80)}) — trying Pollinations...`);

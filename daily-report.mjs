@@ -108,9 +108,55 @@ const pdfName = `reports/quarry-${MODE}-${today}.pdf`;
 await buildPdf(report, pdfName);
 console.log(`PDF saved: ${pdfName} (${Math.round(fs.statSync(pdfName).size / 1024)} KB)`);
 
+
+// ---------------------------------------------------------------------------
+// 4b. CTA comment backfill — the engine can't comment on PRIVATE (scheduled)
+// videos, so once per day we comment on everything that went public and has
+// no comment yet.
+// ---------------------------------------------------------------------------
+const CTA_TEXTS = [
+  'Which line hit hardest? 👇 Subscribe for daily quotes.',
+  'Save this for your hardest day. 🔖 New quotes every day — subscribe.',
+  'Type "DAY 1" if you are rebuilding yourself. 👇' 
+];
+
+async function backfillCtaComments(youtube, videos) {
+  const cutoff = Date.now() - 30 * 3600000; // went public in the last 30h
+  let done = 0;
+  for (const v of videos) {
+    if (new Date(v.publishedAt).getTime() < cutoff) continue;
+    try {
+      const t = await youtube.commentThreads.list({ part: 'snippet', videoId: v.id, maxResults: 1 });
+      if ((t.data.items || []).length > 0) continue; // already has a comment
+      const ch = await youtube.channels.list({ part: 'id', mine: true });
+      const channelId = ch.data.items?.[0]?.id;
+      if (!channelId) return;
+      const text = CTA_TEXTS[v.id.length % CTA_TEXTS.length];
+      await youtube.commentThreads.insert({ part: 'snippet', requestBody: { snippet: {
+        videoId: v.id,
+        topLevelComment: { snippet: { channelId, videoId: v.id, textOriginal: text } } } } });
+      console.log(`  ✓ CTA comment backfilled on: ${v.title.slice(0, 50)}`);
+      done++;
+    } catch (e) {
+      console.log(`  CTA backfill skip ${v.id}: ${String(e.message).slice(0, 80)}`);
+    }
+  }
+  if (!done) console.log('  All recent videos already have comments.');
+}
+
 // ---------------------------------------------------------------------------
 // 5. Deliver
 // ---------------------------------------------------------------------------
+// CTA backfill (needs the yt client — rebuild it here)
+try {
+  const { google } = await import('googleapis');
+  const envStr2 = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
+  const envOf2 = (k) => process.env[k] || (envStr2.match(new RegExp(`^${k}=(.+)$`, 'm')) || [])[1]?.trim() || '';
+  const oa = new google.auth.OAuth2(envOf2('YOUTUBE_CLIENT_ID'), envOf2('YOUTUBE_CLIENT_SECRET'), 'http://localhost:3000/oauth2callback');
+  oa.setCredentials({ refresh_token: envOf2('YOUTUBE_REFRESH_TOKEN') });
+  await backfillCtaComments(google.youtube({ version: 'v3', auth: oa }), cur.videos);
+} catch (e) { console.log('CTA backfill unavailable:', String(e.message).slice(0, 80)); }
+
 if (process.env.REPORT_SEND !== 'false') {
   let sent = false;
   if (await sendNtfy(textSummary, `Quote Quarry ${MODE} report`, pdfName)) sent = true;
