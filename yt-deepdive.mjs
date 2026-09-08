@@ -166,7 +166,13 @@ function narrate(text, num) {
     { stdio: ['ignore', 'ignore', 'pipe'], timeout: 240000, env: { ...process.env, YT_KOKORO_VOICE: b.voice || 'am_michael', YT_TTS_EDGE_VOICE: b.voice || 'en-US-ChristopherNeural', YT_KOKORO_SPEED: '0.92' } });
   fs.rmSync(`${base}.txt`, { force: true });
   fs.rmSync(`${base}.words.json`, { force: true });
-  return `${base}.mp3`;
+  const metaPath = `${base}.mp3.meta.json`;
+  let audio = `${base}.mp3`;
+  if (fs.existsSync(metaPath)) {
+    const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+    audio = meta.audio || audio;
+  }
+  return audio;
 }
 function segment(cardPng, clipFile, audioFile, outFile, dur, drift = false) {
   const pan = drift ? `crop=1920:1080:x='(in_w-1920)*min(t/${(dur / 2).toFixed(1)},1)':y=0,` : '';
