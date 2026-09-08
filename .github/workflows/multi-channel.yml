@@ -1,0 +1,94 @@
+name: 🎬 Quarry Daily — Multi-Channel Production
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  schedule:
+    # 09:35 UTC daily — after Gemini's midnight-PT quota reset (07:00 UTC),
+    # before Investor's Compass's 12:05 UTC slot.
+    - cron: '35 9 * * *'
+
+concurrency:
+  group: quarry-daily
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  daily:
+    name: 🏭 Produce & Publish — 3 channels × (3 Shorts + 1 Episode + FB/IG)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 💾 Restore Pixabay 4K clip pool
+        uses: actions/cache@v4
+        with:
+          path: pixabay-pool
+          key: pixabay-pool-v1
+
+      - name: ⚙️ Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 📦 Install Node Dependencies
+        run: npm install
+
+      - name: 🔊 Install & Verify FFmpeg
+        run: |
+          if ! command -v ffmpeg > /dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          ffmpeg -version | head -n 1
+
+      - name: 🔤 Install Fonts
+        run: |
+          sudo apt-get install -y -qq fonts-liberation fonts-dejavu-core fontconfig >/dev/null 2>&1 || true
+          mkdir -p ~/.local/share/fonts ~/.fonts
+          cp image-tools/fonts/* ~/.local/share/fonts/ 2>/dev/null || true
+          cp image-tools/fonts/* ~/.fonts/ 2>/dev/null || true
+          fc-cache -fv
+
+      - name: 🗣️ Install Edge-TTS
+        run: |
+          python3 -m pip install --quiet edge-tts || pip install --quiet edge-tts || true
+          python3 -c "import edge_tts; print('Edge-TTS ready.')"
+
+      - name: 🎨 Start Image & Video Engine
+        run: |
+          node image-tools/server.js &
+          sleep 3
+
+      - name: 🚀 Daily Production — YouTube Shorts + Episodes + FB/IG
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YT_TOKEN_INVESTORS_COMPASS: ${{ secrets.YT_TOKEN_INVESTORS_COMPASS }}
+          YT_TOKEN_MONEY_RULEBOOK: ${{ secrets.YT_TOKEN_MONEY_RULEBOOK }}
+          YT_TOKEN_DEBT_FREE_DOCTRINE: ${{ secrets.YT_TOKEN_DEBT_FREE_DOCTRINE }}
+          YT_TOKEN_QUOTEQUARRY: ${{ secrets.YT_TOKEN_QUOTEQUARRY }}
+        run: |
+          node yt-daily.mjs investors-compass
+          node yt-daily.mjs money-rulebook
+          node yt-daily.mjs debt-free-doctrine
+          node yt-deepdive.mjs quotequarry
+          node fb-crosspost.mjs
+          node ig-crosspost.mjs
+          node fb-images.mjs
+
+      - name: 💾 Commit publishing state back
+        run: |
+          git config user.name "quarry-bot"
+          git config user.email "bot@quarrystudio"
+          git add yt-mcp/schedule-state.json yt-mcp/trends-*.json || true
+          git commit -m "daily state [skip ci]" || echo "nothing to commit"
+          git push
