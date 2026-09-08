@@ -333,7 +333,7 @@ if (DAILY) {
       if (!page) throw new Error('no page token');
       const chunk = 4 * 1024 * 1024;
       const buf = fs.readFileSync(outFile);
-      const start = await (await fetch(`https://graph.facebook.com/v21.0/${pageId}/videos?upload_phase=start&access_token=${page.access_token}`, { method: 'POST' })).json();
+      const start = await (await fetch(`https://graph.facebook.com/v21.0/${pageId}/videos?upload_phase=start&file_size=${buf.length}&access_token=${page.access_token}`, { method: 'POST' })).json();
       if (!start.upload_session_id) throw new Error('start phase failed');
       for (let o = 0; o < buf.length; o += chunk) {
         const fd = new FormData();
