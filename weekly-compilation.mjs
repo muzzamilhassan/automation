@@ -293,12 +293,13 @@ try {
   console.log('✓ Thumbnail rendered');
 } catch (e) { console.log(`Thumbnail skipped (${String(e.message).slice(0, 100)})`); }
 
+let res = null;
 if (!FB_ONLY) {
 const readable = new Readable();
 readable._read = () => { };
 readable.push(fs.readFileSync(outFile));
 readable.push(null);
-const res = await youtube.videos.insert({
+res = await youtube.videos.insert({
   part: ['snippet', 'status'],
   requestBody: {
     snippet: {
@@ -359,14 +360,14 @@ if (DAILY) {
     }
   }
 }
-logPost({ platform: 'YouTube', brand: 'Compilation', kind: 'long-form', id: res.data.id, title, status: 'published' });
+logPost({ platform: 'YouTube', brand: 'Compilation', kind: 'long-form', id: res?.data?.id || null, title, status: 'published' });
 if (thumbBuffer) {
   try {
     const tStream = new Readable();
     tStream._read = () => { };
     tStream.push(thumbBuffer);
     tStream.push(null);
-    await youtube.thumbnails.set({ videoId: res.data.id, media: { body: tStream } });
+    if (res) await youtube.thumbnails.set({ videoId: res.data.id, media: { body: tStream } });
     console.log('✓ Custom premium thumbnail set');
   } catch (e) { console.log(`Thumbnail upload skipped (${String(e.message).slice(0, 80)})`); }
 }
