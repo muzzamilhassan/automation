@@ -30,6 +30,17 @@ const CLIENT_ID = process.env.YOUTUBE_CLIENT_ID || envRaw.match(/^YOUTUBE_CLIENT
 const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET || envRaw.match(/^YOUTUBE_CLIENT_SECRET=(.+)$/m)?.[1]?.trim() || '';
 if (!CLIENT_ID || !CLIENT_SECRET) { console.error('YouTube OAuth client credentials missing (env or .env)'); process.exit(1); }
 
+function channelAuth(forSlug) {
+  const envName = `YT_TOKEN_${forSlug.toUpperCase().replace(/-/g, '_')}`;
+  const tokenFile = path.join(path.dirname(ENV_PATH), `yt-mcp/channels/${forSlug}/token.json`);
+  const raw = process.env[envName] || (fs.existsSync(tokenFile) ? fs.readFileSync(tokenFile, 'utf8') : '');
+  if (!raw) throw new Error('no token for ' + forSlug);
+  const t = JSON.parse(raw);
+  const a = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET);
+  a.setCredentials({ refresh_token: t.refresh_token });
+  return a;
+}
+
 const STATE_FILE = path.join(path.dirname(ENV_PATH), 'yt-mcp/schedule-state.json');
 const loadState = () => { try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { return {}; } };
 const saveState = (s) => fs.writeFileSync(STATE_FILE, JSON.stringify(s, null, 2));
@@ -54,19 +65,11 @@ const page = { id: 'yt-' + slug, ytSlug: slug, name: b.label, niche: b.niche };
 
 if (RUN_SHORTS) {
   try {
-    const t = JSON.parse(fs.readFileSync(`yt-mcp/channels/${slug}/token.json`, 'utf8'));
-    const a = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET);
-    a.setCredentials({ refresh_token: t.refresh_token });
-    page.trend = await researchTrend(slug, a, [...b.niches, ...b.tags.slice(0, 2)]);
+    page.trend = await researchTrend(slug, channelAuth(slug), [...b.niches, ...b.tags.slice(0, 2)]);
     console.log(`[trend] 🔥 hot: ${page.trend.hotKeywords.slice(0, 6).join(', ')}`);
   } catch (e) { console.log('[trend] skipped:', String(e.message).slice(0, 60)); }
 
-  const yt = google.youtube({ version: 'v3', auth: (() => {
-    const t = JSON.parse(fs.readFileSync(`yt-mcp/channels/${slug}/token.json`, 'utf8'));
-    const a = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET);
-    a.setCredentials({ refresh_token: t.refresh_token });
-    return a;
-  })() });
+  const yt = google.youtube({ version: 'v3', auth: channelAuth(slug) });
   const used = state[slug]?.usedThemes || [];
   const dayIdx = Math.floor(Date.now() / 86400000);
   const themesToday = b.slots.map((_, k) => {
