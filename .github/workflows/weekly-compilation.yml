@@ -64,7 +64,8 @@ jobs:
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
-        run: node weekly-compilation.mjs daily
+          FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+        run: node weekly-compilation.mjs daily ${{ github.event.inputs.extra }}
 
       - name: 🖼️ Upload Compilation Artifact
         if: always()
@@ -72,7 +73,7 @@ jobs:
         with:
           name: weekly-compilation-${{ github.run_id }}
           path: |
-            compilation-week.mp4
+            pixabay-pool/compilation-week.mp4
             yt-compilation-test.mp4
           if-no-files-found: ignore
           retention-days: 7

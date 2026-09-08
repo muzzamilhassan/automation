@@ -24,6 +24,7 @@ const POOL_DIR = 'pixabay-pool';
 const ACCENT = '#F5E31C';
 const TEST = process.argv.includes('--test');
 const DAILY = process.argv.includes('daily') || process.env.LONGFORM_MODE === 'daily';
+const FB_ONLY = process.argv.includes('fb-only');
 const MAX_QUOTES = TEST ? 3 : 10;
 
 const envStr = (() => { try { return fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : ''; } catch (e) { return ''; } })();
@@ -195,7 +196,8 @@ const shorts = await fetchTopShorts(youtube);
 if (DAILY && !TEST) {
   const today = pktDate();
   const dup = shorts.find((v) => v.snippet?.title?.includes('Daily Compilation') && v.snippet?.publishedAt?.startsWith(today));
-  if (dup) { console.log(`Daily compilation for ${today} already live (${dup.snippet.title}) — nothing to do.`); process.exit(0); }
+  if (dup && !FB_ONLY) { console.log(`Daily compilation for ${today} already live (${dup.snippet.title}) — skipping YouTube upload.`); process.exit(0); }
+  if (dup && FB_ONLY) console.log('YT already live — fb-only: distributing to Facebook pages.');
 }
 
 console.log(`Found ${shorts.length} top Shorts this week: ${shorts.map((s) => s.views).join(', ')} views`);
@@ -291,6 +293,7 @@ try {
   console.log('✓ Thumbnail rendered');
 } catch (e) { console.log(`Thumbnail skipped (${String(e.message).slice(0, 100)})`); }
 
+if (!FB_ONLY) {
 const readable = new Readable();
 readable._read = () => { };
 readable.push(fs.readFileSync(outFile));
@@ -309,6 +312,10 @@ const res = await youtube.videos.insert({
   media: { body: readable }
 });
 console.log(`✓ Compilation LIVE 👉 https://youtube.com/watch?v=${res.data.id}`);
+
+} else {
+  console.log('fb-only: skipping YouTube upload, going straight to FB distribution.');
+}
 
 // ---------------------------------------------------------------------------
 // DAILY MODE: distribute the same long video to all 5 Facebook pages as a
