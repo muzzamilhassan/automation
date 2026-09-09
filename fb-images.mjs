@@ -58,7 +58,7 @@ const stateFile = 'yt-mcp/schedule-state.json';
 const loadState = () => { try { return JSON.parse(fs.readFileSync(stateFile, 'utf8')); } catch { return {}; } };
 
 const envStr = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';
-const auth = new google.auth.OAuth2(envStr.match(/^YOUTUBE_CLIENT_ID=(.+)$/m)[1].trim(), envStr.match(/^YOUTUBE_CLIENT_SECRET=(.+)$/m)[1].trim());
+const auth = new google.auth.OAuth2(process.env.YOUTUBE_CLIENT_ID || envStr.match(/^YOUTUBE_CLIENT_ID=(.+)$/m)?.[1]?.trim() || '', process.env.YOUTUBE_CLIENT_SECRET || envStr.match(/^YOUTUBE_CLIENT_SECRET=(.+)$/m)?.[1]?.trim() || '');
 
 for (const job of MAP) {
   if (ONLY && job.slug !== ONLY) continue;
