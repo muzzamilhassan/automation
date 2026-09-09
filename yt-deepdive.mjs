@@ -258,7 +258,7 @@ console.log(`[long] ✅ episode rendered: ${final} (${(total / 60).toFixed(1)} m
 
 // ---------- upload scheduled ----------
 const envStr = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';
-const auth = new google.auth.OAuth2(envStr.match(/^YOUTUBE_CLIENT_ID=(.+)$/m)[1].trim(), envStr.match(/^YOUTUBE_CLIENT_SECRET=(.+)$/m)[1].trim());
+const auth = new google.auth.OAuth2(process.env.YOUTUBE_CLIENT_ID || envStr.match(/^YOUTUBE_CLIENT_ID=(.+)$/m)?.[1]?.trim() || '', process.env.YOUTUBE_CLIENT_SECRET || envStr.match(/^YOUTUBE_CLIENT_SECRET=(.+)$/m)?.[1]?.trim() || '');
 const tok = JSON.parse(fs.readFileSync(`yt-mcp/channels/${slug}/token.json`, 'utf8'));
 auth.setCredentials({ refresh_token: tok.refresh_token });
 const yt = google.youtube({ version: 'v3', auth });
