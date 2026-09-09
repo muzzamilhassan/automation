@@ -44,3 +44,31 @@ of free tiers** + **local Ollama** as the unlimited floor.
 - GitHub Models: in retirement brownout (410) — dead.
 - Pollinations: 402 on authenticated-style calls — dead for us.
 - Final chain now live in code: Gemini flash-lite → Groq gpt-oss-120b → HF. Optional adds: Cerebras key, Mistral key.
+
+## DEEP RESEARCH 2026-09-09 — every free script source, all platforms
+
+### Cloud LLM APIs (API-usable, ranked by free capacity)
+| Provider | Free limit | Key needed | Notes |
+|---|---|---|---|
+| Groq | 14,400 req/day, 30/min | ✅ have | Fastest inference; gpt-oss-120b available |
+| Gemini Flash-Lite | ~1,000 req/day | ✅ have | SWITCHED — was the fix |
+| Gemini 3.5 Flash | ~20/day | ✅ have | Best quality; use first each day |
+| Cerebras | 1M tokens/day (GPT-OSS-120B) | user key (402 until billing tab visited) | Auth OK |
+| Mistral | ~1B tokens/month Experiment tier | user key (429 bursts) | Phone-verified |
+| HF Inference | monthly credits | ✅ have | Llama 8B truncates long JSON |
+| OpenRouter | 50/day free (1,000/day after one $10 top-up) | signup | 100+ free models |
+| Cloudflare Workers AI | 10,000 neurons/day | CF account (pending user) | Future option |
+| NVIDIA NIM | ~1,000 free credits, 40 RPM | signup | Alternative |
+| GitHub Models | RETIRED (410 brownout) | — | Dead |
+
+### Free web script tools (manual, no API)
+vidIQ AI Script Generator (free, no card) · VEED script generator (no signup) · Squibler (free unlimited) · Restream · QuillBot — all web-UI only, no API → usable manually, not pipeline-usable.
+
+### Self-hosted open source (excluded — user wants zero local)
+Ollama + Llama 3.1 8B / Qwen 2.5 7B with JSON-schema mode = unlimited, truncation-impossible. Needs ~8GB RAM + 5GB model. Only path if cloud tiers ever all fail.
+
+### Script-writing SaaS (script-specific products)
+Jasper, Copy.ai, Writesonic — paid after tiny trials; no free API; skip.
+
+### VERDICT for our 16 scripts/day
+Gemini Flash-Lite (1,000/day) alone covers it 60×. Chain Gemini-lite → Groq → Cerebras → Mistral → HF = ~17,000+ daily script capacity at $0. Failure requires ALL FIVE to fail simultaneously.
