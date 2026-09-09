@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 1920px; height: 1080px; background: #16161e; overflow: hidden;
+         font-family: 'Courier New', monospace; color: #e8e8e8; }
+  #stage { position: relative; width: 1920px; height: 1080px; }
+  .scene { position: absolute; inset: 0; display: flex; flex-direction: column;
+           align-items: center; justify-content: center; opacity: 0; }
+  .ruletag { color: #f5e31c; font-size: 30px; letter-spacing: 8px; margin-bottom: 22px; }
+  .ruletitle { font-family: Arial Black, Arial, sans-serif; font-size: 74px; font-weight: 900;
+               text-align: center; text-shadow: 6px 6px 0 #000; margin-bottom: 40px; }
+  .term { width: 1150px; background: #0d0d13; border: 2px solid #2a2a3a; border-radius: 14px;
+          box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+  .termbar { height: 44px; background: #1b1b26; border-radius: 12px 12px 0 0; display: flex;
+             align-items: center; padding: 0 18px; gap: 10px; }
+  .dot { width: 16px; height: 16px; border-radius: 50%; }
+  .termbody { padding: 28px 34px; font-size: 34px; line-height: 1.65; min-height: 300px; white-space: pre-wrap; }
+  .m-get { color: #7ee787; font-weight: bold; } .m-post { color: #d2a8ff; font-weight: bold; }
+  .path { color: #79c0ff; }
+  .ok { color: #7ee787; } .err { color: #ff7b72; } .warn { color: #e3b341; }
+  .bad { text-decoration: line-through; opacity: .55; }
+  .cursor { display: inline-block; width: 18px; height: 38px; background: #f5e31c;
+            vertical-align: -6px; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .diagram { display: flex; align-items: center; gap: 70px; margin-top: 30px; }
+  .box { width: 300px; height: 190px; border: 3px solid #79c0ff; border-radius: 16px;
+         display: flex; flex-direction: column; align-items: center; justify-content: center;
+         background: #101018; font-size: 34px; font-weight: bold; }
+  .box.srv { border-color: #f5e31c; }
+  .box small { color: #8b8b9e; font-size: 20px; margin-top: 8px; font-weight: normal; }
+  .lane { position: relative; width: 480px; height: 190px; }
+  .packet { position: absolute; top: 50%; left: 0; transform: translate(-50%,-50%);
+            background: #f5e31c; color: #111; font-size: 22px; font-weight: bold;
+            padding: 10px 18px; border-radius: 30px; white-space: nowrap; }
+  .packet.back { background: #7ee787; }
+  .json { width: 1150px; margin-top: 34px; background: #0d0d13; border: 2px solid #2a2a3a;
+          border-radius: 14px; padding: 26px 34px; font-size: 32px; line-height: 1.6; }
+  #bar { position: absolute; top: 0; left: 0; height: 8px; background: #f5e31c; width: 0; }
+  #wm { position: absolute; bottom: 26px; right: 40px; font-size: 24px; color: #9a9a9a;
+        font-family: Arial, sans-serif; letter-spacing: 2px; }
+  #title-main { font-family: Arial Black, Arial, sans-serif; font-size: 120px; font-weight: 900;
+                text-shadow: 8px 8px 0 #000; }
+  #title-sub { font-size: 40px; color: #9a9a9a; margin-top: 30px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bar"></div>
+  <div class="scene" id="s0">
+    <div class="ruletag">BACKEND DEVELOPER ESSENTIALS</div>
+    <div id="title-main">3 API RULES</div>
+    <div id="title-sub">that separate senior devs from the rest<span class="cursor"></span></div>
+  </div>
+  <div class="scene" id="s1">
+    <div class="ruletag">RULE 1 / 3</div>
+    <div class="ruletitle">USE NOUNS, NOT VERBS</div>
+    <div class="term"><div class="termbar">
+      <div class="dot" style="background:#ff5f57"></div><div class="dot" style="background:#febc2e"></div><div class="dot" style="background:#28c840"></div>
+    </div><div class="termbody" id="t1"></div></div>
+  </div>
+  <div class="scene" id="s2">
+    <div class="ruletag">RULE 2 / 3</div>
+    <div class="ruletitle">STATUS CODES TELL THE TRUTH</div>
+    <div class="diagram">
+      <div class="box">CLIENT<small>frontend app</small></div>
+      <div class="lane"><div class="packet" id="p1">GET /orders/999</div><div class="packet back" id="p2">404 Not Found</div></div>
+      <div class="box srv">SERVER<small>your API</small></div>
+    </div>
+    <div class="json" id="t2"></div>
+  </div>
+  <div class="scene" id="s3">
+    <div class="ruletag">RULE 3 / 3</div>
+    <div class="ruletitle">VERSION EVERYTHING</div>
+    <div class="term"><div class="termbar">
+      <div class="dot" style="background:#ff5f57"></div><div class="dot" style="background:#febc2e"></div><div class="dot" style="background:#28c840"></div>
+    </div><div class="termbody" id="t3"></div></div>
+  </div>
+  <div class="scene" id="s4">
+    <div id="title-main" style="font-size:96px">FOLLOW FOR MORE</div>
+    <div id="title-sub" style="font-size:44px;color:#f5e31c">@quotequarry302 • daily dev wisdom</div>
+  </div>
+  <div id="wm">QUOTE QUARRY // DEV</div>
+</div>
+<script>
+// SECTIONS = [{start, end}] in ms — injected from the ACTUAL narration audio,
+// so every scene appears exactly while its narration plays.
+const S = [ /*__SECTIONS__*/ ];
+const D = S[S.length - 1].end;
+function ease(x){ return x<0 ? 0 : x>1 ? 1 : x*x*(3-2*x); }
+function fade(id, a, b, t){ const el = document.getElementById(id);
+  el.style.opacity = ease((t-a)/700) * (1 - ease((t-(b-500))/500)); }
+function typeInto(el, lines, a, b, t){
+  const total = lines.reduce((s,l)=>s+l.text.length,0);
+  const prog = Math.floor(ease((t-a)/(b-a)) * total);
+  let used = 0, html = '';
+  for (const l of lines){
+    const take = Math.max(0, Math.min(l.text.length, prog - used));
+    used += l.text.length;
+    if (take > 0) html += `<span class="${l.cls||''}">${l.text.slice(0,take).replace(/</g,'&lt;')}</span>`;
+  }
+  el.innerHTML = html + (prog < total ? '<span class="cursor"></span>' : '');
+}
+window.seek = function(t){
+  document.getElementById('bar').style.width = (100*t/D) + '%';
+  for (let i = 0; i < S.length; i++) fade('s'+i, S[i].start, Math.min(S[i].end + 700, D + 5000), t);
+  const s1 = S[1], s2 = S[2], s3 = S[3];
+  typeInto(document.getElementById('t1'), [
+    { text: '# ❌ don\'t do this\n', cls: 'err' },
+    { text: 'POST /getOrders', cls: 'm-post bad' },
+    { text: '   → 200 OK 🤮\n\n', cls: 'ok' },
+    { text: '# ✅ do this\n', cls: 'ok' },
+    { text: 'GET ', cls: 'm-get' },
+    { text: '/orders/678', cls: 'path' },
+    { text: '   → 200 OK ✅', cls: 'ok' }
+  ], s1.start + 2000, s1.end - 800, t);
+  typeInto(document.getElementById('t2'), [
+    { text: '{ "error": "order not found" }', cls: 'err' },
+    { text: '   → never fake a 200 OK', cls: 'warn' }
+  ], s2.start + (s2.end - s2.start) * 0.55, s2.end - 600, t);
+  typeInto(document.getElementById('t3'), [
+    { text: 'GET ', cls: 'm-get' },
+    { text: '/v1/orders', cls: 'path' },
+    { text: '   → keep alive, stable\n', cls: 'warn' },
+    { text: 'GET ', cls: 'm-get' },
+    { text: '/v2/orders', cls: 'path' },
+    { text: '   → breaking changes here ✅', cls: 'ok' }
+  ], s3.start + 2000, s3.end - 800, t);
+  const laneW = 480;
+  const mid = (s2.start + s2.end) / 2;
+  const p1 = (t - (s2.start + 2000)) / 2200, p2 = (t - mid) / 2200;
+  const e1 = document.getElementById('p1'), e2 = document.getElementById('p2');
+  e1.style.opacity = (p1>=0&&p1<=1)?1:0; e1.style.left = (ease(p1)*laneW)+'px';
+  e2.style.opacity = (p2>=0&&p2<=1)?1:0; e2.style.left = (laneW - ease(p2)*laneW - 180)+'px';
+};
+</script>
+</body>
+</html>

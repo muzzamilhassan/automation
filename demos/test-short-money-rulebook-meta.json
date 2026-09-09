@@ -1,0 +1,50 @@
+{
+  "slug": "money-rulebook",
+  "handle": "@themoneyrulebook-p4y",
+  "title": "First $10,000 Blueprint | Personal Finance",
+  "description": "Hitting Your First $10k Requires Ignoring 99% Of Standard Financial Advice..\n\n1. The 50% Buffer — Keep your first three thousand dollars in a high-yield savings account purely as an emergency buffer.\n2. No Investment Risk — Avoid volatile stocks or crypto; your first ten thousand dollars must stay completely liquid and safe.\n3. The Sinking Fund — Create separate sub-accounts for annual expenses like insurance to prevent sudden monthly budget wipes.\n4. One In One Out — For eve\n🎵 Suave Standpipe — \"Suave Standpipe\" by Kevin MacLeod (incompetech.com), Licensed under CC BY 4.0",
+  "tags": [
+    "personal finance",
+    "money tips",
+    "saving money",
+    "financial freedom",
+    "budgeting",
+    "wealth habits",
+    "money management",
+    "financial literacy",
+    "pay yourself first",
+    "money mindset"
+  ],
+  "format": "script",
+  "keyword": "money rules",
+  "duration": 55.1,
+  "script": {
+    "hook": "Hitting your first $10k requires ignoring 99% of standard financial advice.",
+    "thumb_headline": "FIRST $10,000 BLUEPRINT",
+    "points": [
+      {
+        "title": "THE 50% BUFFER",
+        "line": "Keep your first three thousand dollars in a high-yield savings account purely as an emergency buffer."
+      },
+      {
+        "title": "NO INVESTMENT RISK",
+        "line": "Avoid volatile stocks or crypto; your first ten thousand dollars must stay completely liquid and safe."
+      },
+      {
+        "title": "THE SINKING FUND",
+        "line": "Create separate sub-accounts for annual expenses like insurance to prevent sudden monthly budget wipes."
+      },
+      {
+        "title": "ONE IN ONE OUT",
+        "line": "For every non-essential purchase over one hundred dollars, you must sell something you already own."
+      },
+      {
+        "title": "HYBRID BUDGETING",
+        "line": "Track only your three biggest expenses weekly instead of wasting time categorizing every single coffee."
+      }
+    ],
+    "closing": "Once you cross ten thousand, the money starts working for you.",
+    "thumbHeadline": "FIRST $10,000 BLUEPRINT",
+    "source": "gemini"
+  }
+}

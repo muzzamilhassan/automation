@@ -1,0 +1,7 @@
+file 'C:/Users/Revnix/Documents/youtube-automation/demos/deepdive-debt-free-doctrine/seg-1.mp4'
+file 'C:/Users/Revnix/Documents/youtube-automation/demos/deepdive-debt-free-doctrine/seg-2.mp4'
+file 'C:/Users/Revnix/Documents/youtube-automation/demos/deepdive-debt-free-doctrine/seg-3.mp4'
+file 'C:/Users/Revnix/Documents/youtube-automation/demos/deepdive-debt-free-doctrine/seg-4.mp4'
+file 'C:/Users/Revnix/Documents/youtube-automation/demos/deepdive-debt-free-doctrine/seg-5.mp4'
+file 'C:/Users/Revnix/Documents/youtube-automation/demos/deepdive-debt-free-doctrine/seg-6.mp4'
+file 'C:/Users/Revnix/Documents/youtube-automation/demos/deepdive-debt-free-doctrine/seg-7.mp4'

@@ -1,0 +1,92 @@
+{
+  "investors-compass": {
+    "lastRunDate": "2026-09-06",
+    "usedThemes": [
+      "contrarian moves that paid off",
+      "questions to ask before buying any stock",
+      "signs a stock is hype not value"
+    ],
+    "lastVideos": [
+      {
+        "videoId": "wMLX2_27UE0",
+        "publishAt": "2026-09-07T12:05:00Z",
+        "title": "Profit From Market Panic | Investing Psychology"
+      },
+      {
+        "videoId": "YV9vDHaDU1c",
+        "publishAt": "2026-09-07T16:05:00Z",
+        "title": "Ask This Before You Buy | Investing Psychology"
+      },
+      {
+        "videoId": "rOCjDbyoAiw",
+        "publishAt": "2026-09-06T23:35:00Z",
+        "title": "Is It Value Or Hype? | Investing Psychology"
+      }
+    ],
+    "imageDate": "2026-09-06",
+    "deepdiveDate": "2026-09-07",
+    "deepdiveVideo": {
+      "videoId": "dOJgBHpJgwQ",
+      "publishAt": "2026-09-07T21:30:00Z",
+      "title": "The Patient Investor's Edge: 8 Unconventional Habits | Investing Psychology"
+    }
+  },
+  "money-rulebook": {
+    "lastRunDate": "2026-09-06",
+    "usedThemes": [
+      "things broke people buy first",
+      "automation habits that build wealth",
+      "money rules by age 30"
+    ],
+    "lastVideos": [
+      {
+        "videoId": "JUcBghokNM4",
+        "publishAt": "2026-09-07T12:35:00Z",
+        "title": "Stop Buying This First | Personal Finance"
+      },
+      {
+        "videoId": "OihXfFUI-PY",
+        "publishAt": "2026-09-07T16:35:00Z",
+        "title": "Automate This To Get Rich | Personal Finance"
+      },
+      {
+        "videoId": "rXnoR73dtvg",
+        "publishAt": "2026-09-07T00:05:00Z",
+        "title": "Stop Being Poor By 30 | Personal Finance"
+      }
+    ],
+    "imageDate": "2026-09-06"
+  },
+  "debt-free-doctrine": {
+    "lastRunDate": "2026-09-06",
+    "usedThemes": [
+      "things to never finance",
+      "habits that quietly raise your credit score",
+      "what collectors hope you never learn"
+    ],
+    "lastVideos": [
+      {
+        "videoId": "8JcL3ba33pc",
+        "publishAt": "2026-09-07T13:05:00Z",
+        "title": "Don't Finance These 5 Things | Debt Freedom"
+      },
+      {
+        "videoId": "zF9zPVdxKgI",
+        "publishAt": "2026-09-07T17:05:00Z",
+        "title": "Boost Credit Score Today | Debt Freedom"
+      },
+      {
+        "videoId": "9bO0d9C1F6A",
+        "publishAt": "2026-09-07T00:35:00Z",
+        "title": "Beat Debt Collectors Today | Debt Freedom"
+      }
+    ],
+    "imageDate": "2026-09-06",
+    "deepdiveDate": "2026-09-07",
+    "deepdiveVideo": {
+      "videoId": "INCR7ceFCOA",
+      "publishAt": "2026-09-08T01:30:00Z",
+      "title": "7 Rules for Your First Credit Card | Debt Freedom"
+    }
+  }
+}
