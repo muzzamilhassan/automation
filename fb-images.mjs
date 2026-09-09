@@ -82,7 +82,6 @@ Return ONLY JSON: {"headline":"punchy <=5 word line in title case (MUST fit 3 sh
   console.log(`[fb-img] poster text: "${post.headline}"`);
 
   const out = `demos/fb-img-${job.slug}.jpg`;
-  await renderCinematicPoster({ id: job.pageId }, { headline: post.headline, insight_body: post.insight }, out);
   const caption = `${post.headline}\n\n${post.insight}\n\nFollow for daily ${brand.kwShort}. ${job.hashtags}`;
 
   if (DRY) { console.log(`[fb-img] DRY ${job.slug}: "${post.headline}" -> ${out}`); continue; }
