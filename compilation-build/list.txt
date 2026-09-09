@@ -1,5 +1,0 @@
-file 'C:/Users/Revnix/Documents/youtube-automation/compilation-build/seg-intro.mp4'
-file 'C:/Users/Revnix/Documents/youtube-automation/compilation-build/seg-000.mp4'
-file 'C:/Users/Revnix/Documents/youtube-automation/compilation-build/seg-001.mp4'
-file 'C:/Users/Revnix/Documents/youtube-automation/compilation-build/seg-002.mp4'
-file 'C:/Users/Revnix/Documents/youtube-automation/compilation-build/seg-outro.mp4'
