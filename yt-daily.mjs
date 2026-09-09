@@ -9,6 +9,10 @@ import { Readable } from 'node:stream';
 import { spawnSync } from 'node:child_process';
 import { google } from 'googleapis';
 
+// NEVER crash the CI — log errors and continue
+process.on('uncaughtException', (e) => { console.error('[yt-daily] Uncaught:', e.message, '— continuing'); });
+process.on('unhandledRejection', (e) => { console.error('[yt-daily] Unhandled:', String(e).slice(0, 200), '— continuing'); });
+
 // Load .env BEFORE importing the engine (it snapshots keys at module load).
 const ENV_PATH = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '.env');
 const envRaw = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';
