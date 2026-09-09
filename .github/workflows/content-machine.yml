@@ -232,9 +232,9 @@ jobs:
           YT_TOKEN_DEBT_FREE_DOCTRINE: ${{ secrets.YT_TOKEN_DEBT_FREE_DOCTRINE }}
           YT_TOKEN_QUOTEQUARRY: ${{ secrets.YT_TOKEN_QUOTEQUARRY }}
         run: |
-          node yt-daily.mjs investors-compass
-          node yt-daily.mjs money-rulebook
-          node yt-daily.mjs debt-free-doctrine
+          node yt-daily.mjs investors-compass --no-episode
+          node yt-daily.mjs money-rulebook --no-episode
+          node yt-daily.mjs debt-free-doctrine --no-episode
           node fb-crosspost.mjs
           node ig-crosspost.mjs
           node fb-images.mjs
