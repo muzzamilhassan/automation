@@ -87,6 +87,15 @@ Return ONLY JSON: {"headline":"punchy <=5 word line in title case (MUST fit 3 sh
 
   if (DRY) { console.log(`[fb-img] DRY ${job.slug}: "${post.headline}" -> ${out}`); continue; }
 
+  fs.mkdirSync('demos', { recursive: true });
+  try {
+    await renderCinematicPoster({ id: job.pageId }, { headline: post.headline, insight_body: post.insight }, out);
+    console.log(`[fb-img] poster rendered: ${out}`);
+  } catch (e) {
+    console.log(`[fb-img] ${job.slug}: poster render failed — skipping: ${String(e.message).slice(0, 80)}`);
+    continue;
+  }
+
   const pageTokenRes = await fetch(`https://graph.facebook.com/v20.0/me/accounts?fields=access_token&access_token=${process.env.FB_PAGE_TOKEN}`);
   const pages = (await pageTokenRes.json()).data || [];
   const pt = pages.find(p => p.id === job.pageId)?.access_token || process.env.FB_PAGE_TOKEN;
