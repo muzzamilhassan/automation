@@ -17,7 +17,8 @@ import { bySlug } from './yt-brands/brands.mjs';
 
 const FF = process.env.FFMPEG_PATH || (fs.existsSync('ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe')
   ? 'ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' : 'ffmpeg');
-const FP = FF.replace('ffmpeg.exe', 'ffprobe.exe');
+const FP = process.env.FFPROBE_PATH || (fs.existsSync('ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffprobe.exe')
+  ? 'ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffprobe.exe' : 'ffprobe');
 const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
 const ENV_PATH = path.resolve(HERE, '.env');
 const envRaw = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';
