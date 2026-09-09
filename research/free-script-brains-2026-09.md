@@ -34,3 +34,13 @@ of free tiers** + **local Ollama** as the unlimited floor.
 - Groq: user creates free account → paste GROQ_API_KEY (1 min).
 - Ollama: I install it + pull llama3.1:8b (~5GB download, one time).
 - GitHub Models: nothing — PAT already in .env.
+
+## UPDATE 2026-09-08 — implemented + deeper findings
+- SWITCHED both engines to `gemini-3.5-flash-lite` — that tier has **~1,000 requests/day free** vs ~20/day on 3.5-flash. Verified live (on-niche Buffett script, source: gemini). This alone solves the daily quota problem.
+- Groq key live (gpt-oss-120b — the Llama models were retired from Groq's lineup; current lineup: gpt-oss-120b/20b, qwen3.x-27b, compound). Note: Groq free tier also caps tokens/min (~6k) — long episode JSON (4-6k tokens) = pace 1 req/min; burst retries trip 429s.
+- Cerebras free tier: 1M tokens/day, no card, GPT-OSS-120B available, free-tier context capped 8,192 tokens (fits our prompts). Best next signup.
+- Mistral Experiment tier: ~1B tokens/month free, needs phone verification + data-training opt-in. Biggest raw volume.
+- SambaNova: free tier being folded into Developer tier (needs payment method) — skip.
+- GitHub Models: in retirement brownout (410) — dead.
+- Pollinations: 402 on authenticated-style calls — dead for us.
+- Final chain now live in code: Gemini flash-lite → Groq gpt-oss-120b → HF. Optional adds: Cerebras key, Mistral key.
