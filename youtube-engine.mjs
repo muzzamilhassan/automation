@@ -566,6 +566,42 @@ Return ONLY valid JSON:
   } catch (e) {
     console.log(`      [YT Script] Groq failed (${String(e.message).slice(0, 80)}) — trying HF...`);
   }
+  // Fallback brain 2: Cerebras (1M tokens/day free)
+  try {
+    const ck = process.env.CEREBRAS_API_KEY || (fs.existsSync('.env') ? (fs.readFileSync('.env', 'utf8').match(/^CEREBRAS_API_KEY=(.+)$/m) || [])[1]?.trim() : '');
+    if (!ck) throw new Error('no Cerebras key');
+    const res = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+      method: 'POST', headers: { Authorization: `Bearer ${ck}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'gpt-oss-120b', messages: [{ role: 'user', content: prompt }], temperature: 0.9, max_tokens: 1500 })
+    });
+    if (!res.ok) throw new Error("Cerebras HTTP " + res.status);
+    const data = await res.json();
+    const text = (data.choices?.[0]?.message?.content || "").trim();
+    const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+    if (!parsed?.hook || !Array.isArray(parsed.points) || parsed.points.length < 4) throw new Error("bad script shape");
+    console.log("      [YT Script] Cerebras script OK");
+    return { ...parsed, points: parsed.points.slice(0, 5), closing: parsed.closing || "", thumbHeadline: parsed.thumb_headline || `${parsed.points.length} RULES`, source: "cerebras" };
+  } catch (e) {
+    console.log(`      [YT Script] Cerebras failed (${String(e.message).slice(0, 70)}) — trying Mistral...`);
+  }
+  // Fallback brain 3: Mistral (free tier ~1B tokens/month)
+  try {
+    const mk = process.env.MISTRAL_API_KEY || (fs.existsSync('.env') ? (fs.readFileSync('.env', 'utf8').match(/^MISTRAL_API_KEY=(.+)$/m) || [])[1]?.trim() : '');
+    if (!mk) throw new Error('no Mistral key');
+    const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
+      method: 'POST', headers: { Authorization: `Bearer ${mk}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'mistral-small-latest', messages: [{ role: 'user', content: prompt }], temperature: 0.9, max_tokens: 1500 })
+    });
+    if (!res.ok) throw new Error("Mistral HTTP " + res.status);
+    const data = await res.json();
+    const parsed = JSON.parse((data.choices?.[0]?.message?.content || "").trim());
+    if (!parsed?.hook || !Array.isArray(parsed.points) || parsed.points.length < 4) throw new Error("bad shape");
+    console.log("      [YT Script] Mistral script OK");
+    return { ...parsed, points: parsed.points.slice(0, 5), closing: parsed.closing || "", thumbHeadline: parsed.thumb_headline || `${parsed.points.length} RULES`, source: "mistral" };
+  } catch (e) {
+    console.log(`      [YT Script] Mistral failed (${String(e.message).slice(0, 70)}) — trying HF...`);
+  }
+
   // Fallback brain: HuggingFace Inference (free tier, existing HF_TOKEN)
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
