@@ -222,7 +222,8 @@ for (let i = 0; i < script.chapters.length; i++) {
   const seg = `${work}/seg-${String(i + 1).padStart(2, '0')}.mp4`;
   let clip = null;
   try { clip = await getTopicClip(page(), { headline: ch.title }); } catch { }
-  segment(chapterLowerThird(i + 1, ch.title), clip?.file || null, narr, seg, dur, true);
+  const lt = await chapterLowerThird(i + 1, ch.title);
+  segment(lt, clip?.file || null, narr, seg, dur, true);
   segs.push({ file: seg, dur });
   total += dur;
   console.log(`  ✓ ${dur.toFixed(0)}s`);
