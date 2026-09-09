@@ -18,6 +18,7 @@ import sys
 
 VOICE = os.environ.get("YT_TTS_VOICE", "onyx")
 KOKORO_VOICE = os.environ.get("YT_KOKORO_VOICE", "am_michael")
+KOKORO_SPEED = float(os.environ.get("YT_KOKORO_SPEED", "1.0"))
 NARRATOR_INSTRUCTIONS = (
     "You are a calm, confident documentary narrator with quiet intensity. "
     "Speak slightly slower than normal with deliberate short pauses between "
@@ -72,7 +73,7 @@ def kokoro_tts(text, base_path):
     if not (os.path.exists(model) and os.path.exists(voices)):
         raise RuntimeError("kokoro model files missing in " + pool)
     k = Kokoro(model, voices)
-    audio, sr = k.create(text, voice=KOKORO_VOICE, speed=1.0, lang="en-us")
+    audio, sr = k.create(text, voice=KOKORO_VOICE, speed=KOKORO_SPEED, lang="en-us")
     wav_path = base_path.rsplit(".", 1)[0] + ".kokoro.wav"
     try:
         import soundfile as sf
