@@ -1,8 +1,7 @@
-name: 📺 Investor's Compass — Full Pipeline
+name: 📺 Quote Quarry — Full Pipeline
 
 on:
   schedule:
-    # Staggered: this channel's production window
     - cron: '40 8 * * *'
   workflow_dispatch:
 
@@ -12,7 +11,7 @@ concurrency:
 
 jobs:
   produce:
-    name: 🏭 Investor's Compass — Shorts + FB + IG
+    name: 🏭 Quote Quarry — Shorts + FB + IG
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -71,7 +70,7 @@ jobs:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-          YT_TOKEN_INVESTORS_COMPASS: ${{ secrets.YT_TOKEN_INVESTORS_COMPASS }}
+          YT_TOKEN_QUOTEQUARRY: ${{ secrets.YT_TOKEN_QUOTEQUARRY }}
         run: node channel-pipeline.mjs quotequarry --no-episode
 
       - name: 💾 Commit publishing state
@@ -80,4 +79,4 @@ jobs:
           git config user.email "bot@quotequarry.local"
           git add yt-mcp/schedule-state.json yt-mcp/trends-*.json || true
           git diff --cached --quiet || git commit -m "quotequarry daily state [skip ci]"
-          git push
+          git push || true
