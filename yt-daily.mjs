@@ -33,6 +33,7 @@ if (!b) { console.error('unknown slug', slug); process.exit(1); }
 const CLIENT_ID = process.env.YOUTUBE_CLIENT_ID || envRaw.match(/^YOUTUBE_CLIENT_ID=(.+)$/m)?.[1]?.trim() || '';
 const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET || envRaw.match(/^YOUTUBE_CLIENT_SECRET=(.+)$/m)?.[1]?.trim() || '';
 if (!CLIENT_ID || !CLIENT_SECRET) { console.error('YouTube OAuth client credentials missing (env or .env)'); process.exit(1); }
+const FF = process.env.FFMPEG_PATH || 'ffmpeg';
 
 function channelAuth(forSlug) {
   const envName = `YT_TOKEN_${forSlug.toUpperCase().replace(/-/g, '_')}`;
@@ -116,6 +117,32 @@ if (RUN_SHORTS) {
       await yt.commentThreads.insert({ part: 'snippet', requestBody: { snippet: { videoId, topLevelComment: { snippet: { textOriginal: `Which one hit hardest? 👇 Subscribe for daily ${b.kwShort}.` } } } } });
     } catch { }
     results.push({ videoId, publishAt, title: meta.title });
+
+    // ---- Video frames → FB image posts ----
+    try {
+      const videoFile = `fb-outbox/${slug}/${stamp}.mp4`;
+      const pageId = { 'investors-compass': '116157974886564', 'money-rulebook': '1077306835630491', 'debt-free-doctrine': '106473735839651', 'quotequarry': '108044922375174' }[slug];
+      if (pageId && process.env.FB_PAGE_TOKEN) {
+        const pageTokenRes = await fetch(`https://graph.facebook.com/v20.0/me/accounts?fields=access_token&access_token=${process.env.FB_PAGE_TOKEN}`);
+        const pageData = (await pageTokenRes.json()).data || [];
+        const pageToken = pageData.find(p => p.id === pageId)?.access_token || process.env.FB_PAGE_TOKEN;
+
+        // Extract 3 frames at key moments
+        for (const pct of [0.3, 0.5]) {
+          const ts = Math.round(parseFloat(out.duration || '50') * pct);
+          const frameFile = `fb-outbox/${slug}/${stamp}-f${Math.round(pct*100)}.jpg`;
+          execFileSync(FF, ["-y", '-v', 'error', '-ss', String(ts), '-i', videoFile, '-frames:v', '1', '-vf', 'scale=1080:1350:force_original_aspect_ratio=increase,crop=1080:1350,quality=90', frameFile], { timeout: 30000 });
+
+          const form = new FormData();
+          form.append('source', new Blob([fs.readFileSync(frameFile)], { type: 'image/jpeg' }), 'post.jpg');
+          form.append('caption', `${meta.title}\n\nFollow for daily ${b.kwShort}. ${b.hashtags || ''}`.slice(0, 3000));
+          const photoRes = await fetch(`https://graph.facebook.com/v20.0/${pageId}/photos?access_token=${encodeURIComponent(pageToken)}`, { method: 'POST', body: form });
+          const photoData = await photoRes.json();
+          if (photoData.id) console.log(`  ✓ FB image posted (${photoData.id})`);
+          break; // only post 1 frame per Short (don't spam)
+        }
+      }
+    } catch (e) { console.log('  [fb-image] skipped:', String(e.message).slice(0, 60)); }
   }
   if (!EPISODE_ONLY) {
     state[slug] = { ...(state[slug] || {}), lastRunDate: today, usedThemes: themesToday, lastVideos: results, deepdiveDate: state[slug]?.deepdiveDate || null };
