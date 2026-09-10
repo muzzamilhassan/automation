@@ -26,7 +26,7 @@ export const BRANDS = [
     tags: ['stoicism', 'stoic wisdom', 'motivation', 'discipline', 'mindset', 'self improvement', 'mental strength', 'philosophy', 'success mindset', 'inner peace'],
     musicFeels: ['epic', 'inspir', 'heroic'],
     voice: 'am_michael',
-    slots: [],
+    slots: ['11:35', '15:35', '22:35'], longSlot: '20:30',
     longSlot: '14:30',
     active: true,
     themeBank: ['silent behaviors that make people respect you', 'things to cut out of your life quietly', 'signs someone is secretly testing you', 'things you must do alone to become stronger', 'rules that protect you from toxic people', 'phrases fake friends use', 'things you should never apologize for', 'stop caring about these things', 'habits of mentally unbreakable people', 'ways to beat manipulators without fighting', 'habits that separate winners from dreamers', 'signs you are becoming mentally stronger']
