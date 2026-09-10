@@ -10,7 +10,9 @@
     "text-posts": "node post-text-engine.mjs"
   },
   "dependencies": {
+    "exceljs": "^4.4.0",
     "googleapis": "^176.0.0",
+    "js-yaml": "^5.4.1",
     "libsodium-wrappers": "^0.7.15",
     "pdfkit": "^0.20.2",
     "playwright-core": "^1.63.0",

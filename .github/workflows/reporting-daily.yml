@@ -34,7 +34,7 @@ jobs:
       - name: 📦 Install Dependencies
         run: npm install
 
-      - name: 📊 Build & Send Reports
+      - name: Build & Send Reports
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_PAT || secrets.SECRET_WRITER_PAT }}
           GITHUB_PAT: ${{ secrets.GITHUB_PAT || secrets.SECRET_WRITER_PAT }}
@@ -47,12 +47,12 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
-          node daily-report.mjs daily
+          node daily-excel-report.mjs daily
           # PKT weekday: 0=Sunday → also weekly; 1st of month → also monthly
           PKTDOW=$(date -u -d "+5 hours" +%w)
           PKTDATE=$(date -u -d "+5 hours" +%d)
-          if [ "$PKTDOW" = "0" ]; then node daily-report.mjs weekly; fi
-          if [ "$PKTDATE" = "01" ]; then node daily-report.mjs monthly; fi
+          if [ "$PKTDOW" = "0" ]; then node daily-excel-report.mjs weekly; fi
+          if [ "$PKTDATE" = "01" ]; then node daily-excel-report.mjs monthly; fi
 
       - name: 💾 Commit stats history back to repo
         run: |

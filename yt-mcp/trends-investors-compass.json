@@ -1,11 +1,11 @@
 {
-  "at": 1788621408478,
+  "at": 1789030949481,
   "seed": "investing psychology stock market wisdom",
   "hotKeywords": [
-    "mindset",
     "discipline",
     "motivation",
-    "market",
+    "mindset",
+    "success",
     "tradingpsychology",
     "tradingmindset",
     "soulngoal",
@@ -13,62 +13,61 @@
     "improvement",
     "personal",
     "growth",
-    "success"
+    "productivity"
   ],
   "viralChannels": [
     "Soul N Goal",
     "1stYearBcomGuide",
-    "Hariharan Asokkumar SEBI RIA",
-    "Sandip Auti-GC"
+    "Hariharan Asokkumar SEBI RIA"
   ],
   "videos": [
     {
-      "title": "A strategy without discipline is just an idea #TradingPsychology #TradingMindset #SoulNGoal",
-      "channel": "Soul N Goal",
-      "views": 2541,
-      "videoId": "HK_pnHn4PkE"
-    },
-    {
       "title": "Dare to Be Different  The Power of Going Against Crowd #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 1069,
+      "views": 1071,
       "videoId": "dRtWK6GWoZ0"
+    },
+    {
+      "title": "Mistakes Happen  Prepare for Anything #TradingPsychology #TradingMindset #SoulNGoal",
+      "channel": "Soul N Goal",
+      "views": 1000,
+      "videoId": "4pbizLfVfQI"
+    },
+    {
+      "title": "Discipline is accepting a small loss #TradingPsychology #TradingMindset #SoulNGoal",
+      "channel": "Soul N Goal",
+      "views": 984,
+      "videoId": "-5afS_1F4cI"
+    },
+    {
+      "title": "Spotting Trends Early  Your Success Advantage #TradingPsychology #TradingMindset #SoulNGoal",
+      "channel": "Soul N Goal",
+      "views": 948,
+      "videoId": "Kjx1QU44J1A"
     },
     {
       "title": "Discipline doesn't need motivation #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 887,
+      "views": 888,
       "videoId": "opi6ivv8BP4"
     },
     {
       "title": "THE 4 STAGES OF A BULL MARKET” 📈 | Sir John Templeton",
       "channel": "1stYearBcomGuide",
-      "views": 606,
+      "views": 608,
       "videoId": "E7rPCk8a6Xo"
     },
     {
       "title": "A trader's mindset is often important than their entry #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 594,
+      "views": 597,
       "videoId": "q_fK7Gr0S98"
-    },
-    {
-      "title": "How to Master Trading Psychology  Pen & Paper Strategy #TradingPsychology #TradingMindset #SoulNGoal",
-      "channel": "Soul N Goal",
-      "views": 501,
-      "videoId": "vMXKOP9zHfM"
     },
     {
       "title": "A trader's edge means little without controlled risk #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 385,
+      "views": 386,
       "videoId": "9JEF72-xO0o"
-    },
-    {
-      "title": "Why 99% of retail traders lose money in the stock market 📉 | Psychology vs Strategy",
-      "channel": "Hariharan Asokkumar SEBI RIA",
-      "views": 266,
-      "videoId": "Lmt_EwplkqM"
     }
   ]
 }
