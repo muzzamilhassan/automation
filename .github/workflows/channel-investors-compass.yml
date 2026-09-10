@@ -6,6 +6,9 @@ on:
     - cron: '35 9 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 concurrency:
   group: channel-investors-compass
   cancel-in-progress: false
@@ -80,4 +83,4 @@ jobs:
           git config user.email "bot@quotequarry.local"
           git add yt-mcp/schedule-state.json yt-mcp/trends-*.json || true
           git diff --cached --quiet || git commit -m "investors-compass daily state [skip ci]"
-          git push
+          git push || true

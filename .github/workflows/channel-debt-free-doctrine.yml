@@ -6,6 +6,9 @@ on:
     - cron: '35 10 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 concurrency:
   group: channel-debt-free-doctrine
   cancel-in-progress: false
@@ -80,4 +83,4 @@ jobs:
           git config user.email "bot@quotequarry.local"
           git add yt-mcp/schedule-state.json yt-mcp/trends-*.json || true
           git diff --cached --quiet || git commit -m "debt-free-doctrine daily state [skip ci]"
-          git push
+          git push || true
