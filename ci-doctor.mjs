@@ -26,21 +26,12 @@ for (const slug of SLUGS) {
     const c = data.items?.[0];
     if (!c) { results.push({ slug, status: 'NO_CHANNEL' }); continue; }
 
-    // Check for videos in last 48h
-    const since = new Date(Date.now() - 48 * 3600000).toISOString();
-    const { data: vData } = await yt.search.list({
-      part: 'snippet', forMine: true, type: 'video', order: 'date',
-      maxResults: 5, publishedAfter: since
-    });
-    const recent = vData.items?.length || 0;
-
     results.push({
       slug,
       channel: c.snippet.title,
       subs: c.statistics.subscriberCount,
       totalVideos: c.statistics.videoCount,
-      last48hVideos: recent,
-      status: recent > 0 ? 'OK' : 'NO_RECENT_VIDEOS'
+      status: +c.statistics.videoCount > 0 ? 'OK' : 'NO_VIDEOS'
     });
   } catch (e) {
     results.push({ slug, status: 'ERROR', error: e.message.slice(0, 100) });
