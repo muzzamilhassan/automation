@@ -132,7 +132,7 @@ async function buildExcel(ytData, fbPages) {
   // Send to NTFY (push notification + file attachment)
   if (process.env.NTFY_TOPIC) {
     try {
-      const topic = process.env.NTFY_TOPIC;
+      const topic = process.env.NTFY_TOPIC.trim().replace(/[^a-zA-Z0-9_-]/g, '');
       const msg = `📊 Daily Report — ${today()}\n${ytData.length} YouTube channels + ${fbPages.length} FB pages tracked\n\nExcel attached ⬇️`;
       await fetch(`https://ntfy.sh/${topic}`, {
         method: 'POST',
