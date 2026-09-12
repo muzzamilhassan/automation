@@ -62,11 +62,13 @@ jobs:
           git diff --cached --quiet || git commit -m "report state: $(date -u -d '+5 hours' +%F)"
           git push || true
 
-      - name: 🖼️ Upload PDF artifact
+      - name: 🖼️ Upload PDF + Excel artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: reports-${{ github.run_id }}
-          path: reports/*.pdf
+          path: |
+            reports/*.pdf
+            reports/*.xlsx
           if-no-files-found: ignore
           retention-days: 30
