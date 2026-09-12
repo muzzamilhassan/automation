@@ -136,7 +136,7 @@ async function buildExcel(ytData, fbPages) {
       const msg = `📊 Daily Report — ${today()}\n${ytData.length} YouTube channels + ${fbPages.length} FB pages tracked\n\nExcel attached ⬇️`;
       await fetch(`https://ntfy.sh/${topic}`, {
         method: 'POST',
-        headers: { 'Title': '📊 Quarry Daily Report', 'Tags': 'chart', 'Filename': `daily-report-${today()}.xlsx` },
+        headers: { 'Title': 'Quarry Daily Report', 'Tags': 'chart', 'Filename': `daily-report-${today()}.xlsx` },
         body: fs.readFileSync(file)
       });
       console.log(`[report] ✅ NTFY notification sent to topic: ${topic}`);
