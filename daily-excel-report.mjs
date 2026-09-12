@@ -128,6 +128,21 @@ async function buildExcel(ytData, fbPages) {
   fs.mkdirSync(dir, { recursive: true });
   const file = `${dir}/daily-report-${today()}.xlsx`;
   await wb.xlsx.writeFile(file);
+
+  // Send to NTFY (push notification + file attachment)
+  if (process.env.NTFY_TOPIC) {
+    try {
+      const topic = process.env.NTFY_TOPIC;
+      const msg = `📊 Daily Report — ${today()}\n${ytData.length} YouTube channels + ${fbPages.length} FB pages tracked\n\nExcel attached ⬇️`;
+      await fetch(`https://ntfy.sh/${topic}`, {
+        method: 'POST',
+        headers: { 'Title': '📊 Quarry Daily Report', 'Tags': 'chart', 'Filename': `daily-report-${today()}.xlsx` },
+        body: fs.readFileSync(file)
+      });
+      console.log(`[report] ✅ NTFY notification sent to topic: ${topic}`);
+    } catch (e) { console.log(`[report] NTFY send failed: ${e.message.slice(0, 80)}`); }
+  }
+
   return file;
 }
 function today() { return new Date().toISOString().slice(0, 10); }
