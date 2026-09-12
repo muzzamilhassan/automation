@@ -126,7 +126,8 @@ function downloadVideo(videoId, outFile, log = () => {}) {
       } catch (e) {
         lastErr = e;
         if (String(e.message).includes('ENOENT')) break; // launcher missing — skip its attempts
-        log(`recycle: download attempt ${cmd} [${name}] failed (${String(e.message).slice(0, 70)}), trying next...`);
+        const stderrTail = String(e.stderr || '').trim().split('\n').filter(Boolean).slice(-2).join(' | ').slice(0, 200);
+        log(`recycle: download attempt ${cmd} [${name}] failed: ${stderrTail || String(e.message).slice(0, 90)}`);
       }
     }
   }
