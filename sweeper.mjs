@@ -86,6 +86,54 @@ for (const slug of CHANNEL_SLUGS) {
   }
 }
 
+// ---- 1.5 Recycle pending deletes -------------------------------------------
+// yt-daily's recycler hides the old video immediately and queues
+// state[slug].recyclePending = [{oldVideoId, newVideoId, publishAt, ...}].
+// Once the recycled copy is live (public), delete the old copy. If the new copy
+// errored/was rejected, restore the old copy to public instead. Max 3/night.
+const STATE_FILE = path.join('yt-mcp', 'schedule-state.json');
+let recycleState = {};
+try { recycleState = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { }
+let pendingDeleted = 0;
+let pendingRestored = 0;
+for (const slug of CHANNEL_SLUGS) {
+  const pend = recycleState[slug]?.recyclePending;
+  if (!Array.isArray(pend) || !pend.length) continue;
+  let y;
+  try { y = google.youtube({ version: 'v3', auth: channelAuth(slug) }); } catch { continue; }
+  for (const p of [...pend]) {
+    if (pendingDeleted >= 3 && !DRY) { log(`[recycle] nightly delete cap reached — ${p.oldVideoId} waits for tomorrow`); continue; }
+    try {
+      const r = await y.videos.list({ part: 'status', id: p.newVideoId });
+      const st = r.data.items?.[0]?.status;
+      if (!st) { log(`[recycle] ${slug}: new copy ${p.newVideoId} not found — keeping pending`); continue; }
+      if (st.privacyStatus === 'public') {
+        if (DRY) { log(`[recycle] ${slug}: would delete old ${p.oldVideoId} (new copy ${p.newVideoId} is live) (dry-run)`); continue; }
+        await y.videos.delete({ id: p.oldVideoId });
+        recycleState[slug].recyclePending = pend.filter((x) => x !== p);
+        pendingDeleted++;
+        log(`✓ [recycle] ${slug}: deleted old ${p.oldVideoId} — recycled copy ${p.newVideoId} is live`);
+      } else if (['rejected', 'error', 'deleted'].includes(st.uploadStatus)) {
+        if (DRY) { log(`[recycle] ${slug}: new copy ${p.newVideoId} ${st.uploadStatus} — would restore old ${p.oldVideoId} (dry-run)`); continue; }
+        await y.videos.update({ part: 'status', requestBody: { id: p.oldVideoId, status: { privacyStatus: 'public', selfDeclaredMadeForKids: false } } });
+        recycleState[slug].recyclePending = pend.filter((x) => x !== p);
+        pendingRestored++;
+        warnings.push(`${slug}: recycled copy ${p.newVideoId} ${st.uploadStatus} — old video ${p.oldVideoId} restored to public`);
+        log(`⚠ [recycle] ${slug}: new copy ${p.newVideoId} ${st.uploadStatus} — old ${p.oldVideoId} restored to public`);
+      } else {
+        log(`[recycle] ${slug}: new copy ${p.newVideoId} still ${st.privacyStatus}/${st.uploadStatus} — waiting`);
+      }
+    } catch (e) {
+      warnings.push(`recycle ${slug}: ${String(e.message).slice(0, 80)}`);
+      log(`✗ [recycle] ${slug}: ${String(e.message).slice(0, 80)}`);
+    }
+  }
+}
+try {
+  fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
+  fs.writeFileSync(STATE_FILE, JSON.stringify(recycleState, null, 2));
+} catch (e) { log(`[recycle] state write failed: ${e.message}`); }
+
 // ---- 2. Drain FB/IG outboxes so healed reels cross-post too -----------------
 if (healed.length && !DRY) {
   for (const s of ['fb-crosspost.mjs', 'ig-crosspost.mjs']) {
@@ -140,5 +188,6 @@ if (healed.length && envOf('NTFY_TOPIC') && !DRY) {
 
 log('\n══ SWEEP COMPLETE ══');
 log(healed.length ? `  Healed: ${healed.join(', ')}` : '  All channels healthy');
+if (pendingDeleted || pendingRestored) log(`  Recycle cleanup: ${pendingDeleted} deleted, ${pendingRestored} restored`);
 warnings.forEach(w => log('  ! ' + w));
 log(DRY ? '  (dry-run — nothing was changed)' : '  Sweeper done.');

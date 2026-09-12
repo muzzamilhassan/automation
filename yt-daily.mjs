@@ -22,6 +22,7 @@ const { generateYouTubeScript, renderYouTubeScriptShort, buildScriptMeta } = awa
 const { pickMusicTrack } = await import('./music-engine.mjs');
 const { bySlug } = await import('./yt-brands/brands.mjs');
 const { researchTrend } = await import('./trend-research.mjs');
+const { recycleForSlot } = await import('./yt-recycle.mjs');
 
 const slug = process.argv[2];
 const FORCE = process.argv.includes('--force');
@@ -97,7 +98,24 @@ if (RUN_SHORTS) {
       console.log('  off-niche drift — regenerating');
       script = await generateYouTubeScript(page, themesToday[i]);
     }
-    if (script.source === 'fallback') { console.log('  ✗ SKIP — no AI script (never publish off-niche fallback)'); continue; }
+    if (script.source === 'fallback') {
+      // Quota out: instead of losing the slot, recycle the channel's own oldest
+      // Short with < 1K views (same file/metadata, YouTube only, old copy hidden
+      // + deleted later by the sweeper). Nothing to recycle → slot skipped.
+      console.log('  ✗ no AI script — trying recycle of an old under-1K Short...');
+      try {
+        const r = await recycleForSlot({ slug, publishAt, auth: channelAuth(slug), state, log: (m) => console.log('  ' + m) });
+        if (r.ok) {
+          console.log(`  ✓ slot recovered via recycle — new: ${r.newVideoId}, old: ${r.oldVideoId}`);
+          results.push({ videoId: r.newVideoId, publishAt, title: r.title, recycled: true });
+        } else {
+          console.log(`  ✗ slot stays skipped (${r.reason})`);
+        }
+      } catch (e) {
+        console.log(`  ✗ recycle failed: ${String(e.message).slice(0, 100)} — slot stays skipped`);
+      }
+      continue;
+    }
     let music = null;
     try { music = await pickMusicTrack(i, { feels: b.musicFeels }); } catch { }
     const out = await renderYouTubeScriptShort(page, script, music);

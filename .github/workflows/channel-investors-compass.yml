@@ -5,6 +5,11 @@ on:
     # Staggered: this channel's production window
     - cron: '35 9 * * *'
   workflow_dispatch:
+    inputs:
+      recycle_test:
+        description: 'Run one recycle instead of the pipeline (test mode)'
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -63,6 +68,20 @@ jobs:
           node image-tools/server.js &
           sleep 3
 
+      - name: 📥 Install yt-dlp (recycle downloads)
+        run: python3 -m pip install --quiet yt-dlp || pip install --quiet yt-dlp || true
+
+      - name: 🍪 Restore yt-dlp cookies (optional)
+        env:
+          YT_DLP_COOKIES: ${{ secrets.YT_DLP_COOKIES }}
+        run: |
+          if [ -n "$YT_DLP_COOKIES" ]; then
+            printf '%s' "$YT_DLP_COOKIES" > /tmp/yt-cookies.txt
+            echo "cookies restored — recycle downloads will use them"
+          else
+            echo "no cookies secret — recycle downloads try client fallbacks only"
+          fi
+
       - name: 🚀 Channel Pipeline — Shorts + FB Reels + IG Reels + Posters
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -75,7 +94,12 @@ jobs:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YT_TOKEN_INVESTORS_COMPASS: ${{ secrets.YT_TOKEN_INVESTORS_COMPASS }}
-        run: node channel-pipeline.mjs investors-compass --no-episode
+        run: |
+          if [ "${{ inputs.recycle_test }}" = "true" ]; then
+            node yt-recycle.mjs investors-compass
+          else
+            node channel-pipeline.mjs investors-compass --no-episode
+          fi
 
       - name: 💾 Commit publishing state
         run: |

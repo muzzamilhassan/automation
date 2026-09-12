@@ -55,7 +55,16 @@
         "title": "Stop Being Poor By 30 | Personal Finance"
       }
     ],
-    "imageDate": "2026-09-11"
+    "imageDate": "2026-09-11",
+    "recyclePending": [
+      {
+        "oldVideoId": "cbclwL6k32U",
+        "newVideoId": "hM3fDm1jR0k",
+        "publishAt": "2026-09-13T12:35:00Z",
+        "date": "2026-09-12",
+        "title": "Pay Yourself First | Personal Finance"
+      }
+    ]
   },
   "debt-free-doctrine": {
     "lastRunDate": "2026-09-06",
