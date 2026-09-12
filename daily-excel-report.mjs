@@ -131,6 +131,24 @@ async function buildExcel(ytData, fbPages) {
   fs.mkdirSync(dir, { recursive: true });
   var file = path.join(dir, 'daily-report-' + new Date().toISOString().slice(0, 10) + '.xlsx');
   await wb.xlsx.writeFile(file);
+
+  // NTFY push notification with Excel attachment
+  var topic = (process.env.NTFY_TOPIC || '').trim();
+  if (topic) {
+    var ntfyBody = fs.readFileSync(file);
+    var res = await fetch('https://ntfy.sh/' + topic, {
+      method: 'POST',
+      headers: {
+        'Title': 'Quarry Daily Report',
+        'Tags': 'chart',
+        'Filename': 'daily-report-' + new Date().toISOString().slice(0, 10) + '.xlsx'
+      },
+      body: ntfyBody
+    });
+    if (res.ok) console.log('[report] NTFY: Excel sent to phone ✓');
+    else console.log('[report] NTFY failed: ' + res.status);
+  }
+
   return file;
 }
 
