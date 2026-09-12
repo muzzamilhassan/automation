@@ -27,6 +27,11 @@ const slug = process.argv[2];
 const FORCE = process.argv.includes('--force');
 const NO_EPISODE = process.argv.includes('--no-episode');
 const EPISODE_ONLY = process.argv.includes('--episode-only');
+// --topup=N: heal mode (used by sweeper.mjs) — produce only the first N slots.
+// Marks the NEXT day as done so the scheduled morning run doesn't double-produce
+// the healed reels. Never touches the episode step.
+const topupArg = process.argv.find(a => a.startsWith('--topup'));
+const TOPUP_N = topupArg ? Math.max(0, Number(topupArg.split('=')[1]) || 0) : 0;
 const b = bySlug[slug];
 if (!b) { console.error('unknown slug', slug); process.exit(1); }
 
@@ -61,8 +66,8 @@ const state = loadState();
 const today = new Date().toISOString().slice(0, 10);
 const shortsDone = state[slug]?.lastRunDate === today;
 const episodeDone = state[slug]?.deepdiveDate === today;
-const RUN_SHORTS = !EPISODE_ONLY && (!shortsDone || FORCE);
-const RUN_EPISODE = !NO_EPISODE && (!episodeDone || (FORCE && !EPISODE_ONLY));
+const RUN_SHORTS = !EPISODE_ONLY && (TOPUP_N > 0 || !shortsDone || FORCE);
+const RUN_EPISODE = !NO_EPISODE && TOPUP_N === 0 && (!episodeDone || (FORCE && !EPISODE_ONLY));
 const results = [];
 const themes = [];
 
@@ -83,7 +88,8 @@ if (RUN_SHORTS) {
   });
   const OFF_NICHE = /\bstoic\w*|manipulat\w*|toxic|calm your mind|dark psychology\b/i;
 
-  for (let i = 0; i < b.slots.length; i++) {
+  const slotLimit = TOPUP_N > 0 ? Math.min(TOPUP_N, b.slots.length) : b.slots.length;
+  for (let i = 0; i < slotLimit; i++) {
     const publishAt = nextSlotISO(b.slots[i]);
     console.log(`\n[${slug}] short ${i + 1}/${b.slots.length} → goes public ${publishAt}`);
     let script = await generateYouTubeScript(page, themesToday[i]);
@@ -145,7 +151,15 @@ if (RUN_SHORTS) {
     } catch (e) { console.log('  [fb-image] skipped:', String(e.message).slice(0, 60)); }
   }
   if (!EPISODE_ONLY) {
-    state[slug] = { ...(state[slug] || {}), lastRunDate: today, usedThemes: themesToday, lastVideos: results, deepdiveDate: state[slug]?.deepdiveDate || null };
+    // Heal run with produced reels covers the next cycle — suppress the morning
+    // full run. Heal that produced 0 keeps today, so tomorrow morning retries.
+    const suppressNext = TOPUP_N > 0 && results.length > 0;
+    state[slug] = {
+      ...(state[slug] || {}),
+      lastRunDate: suppressNext ? new Date(Date.now() + 86400000).toISOString().slice(0, 10) : today,
+      ...(TOPUP_N > 0 ? { healedDate: today, healedCount: results.length } : {}),
+      usedThemes: themesToday, lastVideos: results, deepdiveDate: state[slug]?.deepdiveDate || null
+    };
     saveState(state);
   }
 } else {
