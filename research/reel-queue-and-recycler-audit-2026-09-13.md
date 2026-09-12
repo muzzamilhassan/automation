@@ -82,3 +82,65 @@ Safety rules:
 5. Reporting scope (finding #3): separate decision, not needed for A or B.
 
 All of it runs on existing free quotas and tokens. Cost: $0.
+
+---
+
+## 6. APPROVED-FOR-REVIEW DESIGN: FIFO missed-reel queue (2026-09-13)
+
+**File:** `yt-mcp/reel-queue.json` (committed back to repo by CI, like schedule-state.json).
+
+**Ticket shape:**
+```json
+{ "slug": "money-rulebook", "theme": "money rules by age 30", "queuedAt": "2026-09-13", "reason": "script-fallback" }
+```
+Ticket = intent only (theme + channel + date). No video files. Remake is a fresh render.
+
+**Write path** (`yt-daily.mjs`, where `source === 'fallback'` skip happens):
+- push ticket, keep going; state write unchanged; queue saved with the state file.
+
+**Drain path** (start of `RUN_SHORTS` in `yt-daily.mjs`, before the normal slot loop):
+1. Load queue, filter: keep tickets for this slug; drop `queuedAt` older than 7 days (log drops).
+2. `drainN = min(2, queue.length, slots.length)` — oldest first.
+3. Slots 0..drainN-1 render the queued themes (fresh script — off-niche check + regen applies).
+4. Remaining slots run the normal date-rotated themes.
+5. If a drained ticket's script fails AGAIN (fallback): ticket stays in queue (no render happened — fail happens before render), slot is skipped as today.
+6. Produced tickets are removed from the queue; queue written back; CI commit step picks it up.
+
+**Caps:** max 2 drained per channel per day (1 fresh theme minimum still goes out); queue trimmed to newest 6 per slug.
+
+**Wiring:** each `channel-*.yml` "Commit publishing state" step: add `yt-mcp/reel-queue.json` to `git add`.
+Channels run at staggered crons, so write races are unlikely; a lost write self-corrects (ticket re-added on next skip or lost once — acceptable).
+
+**Interplay:**
+- Sweeper `--topup` does NOT drain the queue (v1) — heal makes fresh reels; queue drains in the once-daily morning run only. Can combine later.
+- Queue reels are normal yt-daily productions → FB/IG outbox + cross-post + thumbnail + pinned comment all automatic.
+- `lastRunDate` guard unchanged → no double-posting; drain happens inside the normal once-daily run.
+
+**Testing plan:**
+1. Local: syntax + logic; seed a test ticket locally, confirm drain logic picks it first (no upload — test the selection function in isolation).
+2. Live: seed 1 real ticket (real theme from the brand's bank) for ONE channel → trigger its workflow → confirm CI log shows "queue: draining ticket from <date>" and the ticket disappears from the committed file.
+3. Rollback: empty the queue file / revert commit; production unchanged.
+
+**Optional extras (say yes/no):**
+- Daily report line: "Queue: N reels waiting" per channel.
+- Ride-along 1-line fix: `execFileSync` import bug (FB photo posts currently dead).
+
+---
+
+## 7. RECycler BUILD STATUS (2026-09-13 ~03:30 PKT)
+
+**Built + working locally:** `yt-recycle.mjs` (oldest-first scan → public Short <61s <1K views →
+yt-dlp download → same-metadata re-upload into the missed slot → hide old → pending entry).
+- Local live proof: money-rulebook cbclwL6k32U (6 views) → hM3fDm1jR0k scheduled 2026-09-13T12:35Z,
+  old copy private, pending delete recorded in schedule-state.json.
+- Sweeper deletes the old copy the night after the copy goes live (max 3/night); restores old
+  to public if the new copy gets rejected.
+- yt-daily fallback-skip path wired; recycled videos are YouTube-only (no FB/IG outbox).
+- googleapis quirk: thumbnails.list missing in installed version → thumbnails now fetched from
+  i.ytimg.com URLs BEFORE the old copy is hidden; thumbnails.set works.
+
+**CI blocker (evidence: run 34722761908):** every yt-dlp attempt from GitHub's IP fails with
+"Sign in to confirm you're not a bot" — YouTube's datacenter bot-wall, all player clients.
+Downloads from the user's home IP work fine (proven). Options: A) cookies file secret
+(throwaway Gmail recommended), B) bgutil PO-token provider sidecar, C) run recycles locally
+when CI drops a ticket, D) archive new renders instead of downloading old ones.
