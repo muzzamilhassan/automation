@@ -1,4 +1,4 @@
-name: 📊 Daily/Weekly/Monthly Reports (WhatsApp + PDF)
+name: 📊 Daily/Weekly/Monthly Reports (Excel + ntfy)
 
 on:
   schedule:
@@ -36,19 +36,15 @@ jobs:
 
       - name: Build & Send Reports
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN || secrets.SECRET_WRITER_PAT }}
-          GITHUB_PAT: ${{ secrets.GITHUB_PAT || secrets.SECRET_WRITER_PAT }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          YT_TOKEN_QUOTEQUARRY: ${{ secrets.YT_TOKEN_QUOTEQUARRY }}
           YT_TOKEN_INVESTORS_COMPASS: ${{ secrets.YT_TOKEN_INVESTORS_COMPASS }}
           YT_TOKEN_MONEY_RULEBOOK: ${{ secrets.YT_TOKEN_MONEY_RULEBOOK }}
           YT_TOKEN_DEBT_FREE_DOCTRINE: ${{ secrets.YT_TOKEN_DEBT_FREE_DOCTRINE }}
-          YT_TOKEN_QUOTEQUARRY: ${{ secrets.YT_TOKEN_QUOTEQUARRY }}
-          CALLMEBOT_PHONE: ${{ secrets.CALLMEBOT_PHONE }}
-          CALLMEBOT_KEY: ${{ secrets.CALLMEBOT_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
           node daily-excel-report.mjs daily
