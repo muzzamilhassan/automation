@@ -1,14 +1,14 @@
 {
-  "at": 1789030949481,
+  "at": 1789307648714,
   "seed": "investing psychology stock market wisdom",
   "hotKeywords": [
     "discipline",
     "motivation",
-    "mindset",
     "success",
     "tradingpsychology",
     "tradingmindset",
     "soulngoal",
+    "mindset",
     "self",
     "improvement",
     "personal",
@@ -17,10 +17,16 @@
   ],
   "viralChannels": [
     "Soul N Goal",
-    "1stYearBcomGuide",
+    "Blue Sky Fintech",
     "Hariharan Asokkumar SEBI RIA"
   ],
   "videos": [
+    {
+      "title": "The chart doesn't know your expectations #TradingPsychology #TradingMindset #SoulNGoal",
+      "channel": "Soul N Goal",
+      "views": 3046,
+      "videoId": "EXUvHQHe94Q"
+    },
     {
       "title": "Dare to Be Different  The Power of Going Against Crowd #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
@@ -28,46 +34,40 @@
       "videoId": "dRtWK6GWoZ0"
     },
     {
-      "title": "Mistakes Happen  Prepare for Anything #TradingPsychology #TradingMindset #SoulNGoal",
-      "channel": "Soul N Goal",
-      "views": 1000,
-      "videoId": "4pbizLfVfQI"
-    },
-    {
       "title": "Discipline is accepting a small loss #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 984,
+      "views": 1015,
       "videoId": "-5afS_1F4cI"
+    },
+    {
+      "title": "Mistakes Happen  Prepare for Anything #TradingPsychology #TradingMindset #SoulNGoal",
+      "channel": "Soul N Goal",
+      "views": 1002,
+      "videoId": "4pbizLfVfQI"
     },
     {
       "title": "Spotting Trends Early  Your Success Advantage #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 948,
+      "views": 949,
       "videoId": "Kjx1QU44J1A"
     },
     {
       "title": "Discipline doesn't need motivation #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 888,
+      "views": 890,
       "videoId": "opi6ivv8BP4"
     },
     {
-      "title": "THE 4 STAGES OF A BULL MARKET” 📈 | Sir John Templeton",
-      "channel": "1stYearBcomGuide",
-      "views": 608,
-      "videoId": "E7rPCk8a6Xo"
+      "title": "Be greedy when others are fearful, and fearful when others are greedy.",
+      "channel": "Blue Sky Fintech",
+      "views": 518,
+      "videoId": "sm9VZpLtwGY"
     },
     {
-      "title": "A trader's mindset is often important than their entry #TradingPsychology #TradingMindset #SoulNGoal",
+      "title": "Trade Smarter  Redirect Your Trading Emotional Energy  #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 597,
-      "videoId": "q_fK7Gr0S98"
-    },
-    {
-      "title": "A trader's edge means little without controlled risk #TradingPsychology #TradingMindset #SoulNGoal",
-      "channel": "Soul N Goal",
-      "views": 386,
-      "videoId": "9JEF72-xO0o"
+      "views": 493,
+      "videoId": "lDlJBsBquCs"
     }
   ]
 }

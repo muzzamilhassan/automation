@@ -1,29 +1,29 @@
 {
   "investors-compass": {
-    "lastRunDate": "2026-09-06",
+    "lastRunDate": "2026-09-13",
     "usedThemes": [
-      "contrarian moves that paid off",
-      "questions to ask before buying any stock",
-      "signs a stock is hype not value"
+      "habits of patient investors",
+      "things to never do in a market crash",
+      "compounding explained through small habits"
     ],
     "lastVideos": [
       {
-        "videoId": "wMLX2_27UE0",
-        "publishAt": "2026-09-07T12:05:00Z",
-        "title": "Profit From Market Panic | Investing Psychology"
+        "videoId": "lMjuBsi9erg",
+        "publishAt": "2026-09-14T12:05:00Z",
+        "title": "Master Market Patience | Investing Psychology"
       },
       {
-        "videoId": "YV9vDHaDU1c",
-        "publishAt": "2026-09-07T16:05:00Z",
-        "title": "Ask This Before You Buy | Investing Psychology"
+        "videoId": "dyvrVvhwMy8",
+        "publishAt": "2026-09-13T16:05:00Z",
+        "title": "Never Do This In A Crash | Investing Psychology"
       },
       {
-        "videoId": "rOCjDbyoAiw",
-        "publishAt": "2026-09-06T23:35:00Z",
-        "title": "Is It Value Or Hype? | Investing Psychology"
+        "videoId": "UEMvbKg7Du0",
+        "publishAt": "2026-09-13T23:35:00Z",
+        "title": "Stop Checking Your Stocks | Investing Psychology"
       }
     ],
-    "imageDate": "2026-09-11",
+    "imageDate": "2026-09-13",
     "deepdiveDate": "2026-09-07",
     "deepdiveVideo": {
       "videoId": "dOJgBHpJgwQ",
