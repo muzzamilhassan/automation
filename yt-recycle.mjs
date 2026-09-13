@@ -95,7 +95,7 @@ export async function findRecycleCandidate(y, log = () => {}) {
 // then (optionally) a cookies file secret and local Chrome cookies.
 function downloadVideo(videoId, outFile, log = () => {}) {
   const url = `https://www.youtube.com/watch?v=${videoId}`;
-  const clients = ['default', 'tv', 'android', 'ios', 'mweb'];
+  const clients = ['default', 'tv', 'android', 'ios', 'mweb', 'android_vr', 'tv_embedded', 'web_embedded'];
   const attempts = [];
   if (process.env.YT_DLP_COOKIES && fs.existsSync(process.env.YT_DLP_COOKIES)) {
     for (const c of clients) attempts.push([`cookies+${c}`, ['--cookies', process.env.YT_DLP_COOKIES, ...(c === 'default' ? [] : ['--extractor-args', `youtube:player_client=${c}`])]]);

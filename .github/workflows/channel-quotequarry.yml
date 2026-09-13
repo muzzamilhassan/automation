@@ -67,6 +67,14 @@ jobs:
       - name: 📥 Install yt-dlp (recycle downloads)
         run: python3 -m pip install --quiet yt-dlp || pip install --quiet yt-dlp || true
 
+      - name: 🧩 Setup PO-token provider (bgutil) for recycle downloads
+        run: |
+          git clone --depth 1 https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git /tmp/bgutil || true
+          cd /tmp/bgutil/server && (npm ci --silent || npm install --silent) && npx tsc
+          (node /tmp/bgutil/server/build/main.js > /tmp/bgutil-server.log 2>&1 &)
+          sleep 3
+          curl -s http://127.0.0.1:4416/ping && echo " <- bgutil up" || echo "bgutil not responding (recycle may fall back)"
+
       - name: 🍪 Restore yt-dlp cookies (optional)
         env:
           YT_DLP_COOKIES: ${{ secrets.YT_DLP_COOKIES }}
