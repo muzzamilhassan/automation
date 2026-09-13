@@ -97,6 +97,15 @@
       "videoId": "INCR7ceFCOA",
       "publishAt": "2026-09-08T01:30:00Z",
       "title": "7 Rules for Your First Credit Card | Debt Freedom"
-    }
+    },
+    "recyclePending": [
+      {
+        "oldVideoId": "fH9ia4A7ihA",
+        "newVideoId": "OzHow8Hh8ZA",
+        "publishAt": "2026-09-14T13:05:00Z",
+        "date": "2026-09-13",
+        "title": "First Credit Card Rules | Debt Freedom"
+      }
+    ]
   }
 }
