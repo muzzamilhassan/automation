@@ -75,6 +75,9 @@ jobs:
           (node /tmp/bgutil/server/build/main.js > /tmp/bgutil-server.log 2>&1 &)
           sleep 3
           curl -s http://127.0.0.1:4416/ping && echo " <- bgutil up" || echo "bgutil not responding (recycle may fall back)"
+          echo "--- plugin check ---"
+          python3 -m pip show bgutil-ytdlp-pot-provider 2>/dev/null | head -2 || echo "PLUGIN NOT INSTALLED"
+          yt-dlp -v --extractor-args "youtube:player_client=mweb" --skip-download "https://www.youtube.com/watch?v=wjqz7A6Gx-I" 2>&1 | grep -iE "plugin|pot|token|sign in|bot|player_client|ERROR|Download(s|ing)" | head -25 || true
 
       - name: 🍪 Restore yt-dlp cookies (optional)
         env:
