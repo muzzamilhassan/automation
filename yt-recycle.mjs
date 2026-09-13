@@ -110,7 +110,8 @@ function downloadVideo(videoId, outFile, log = () => {}) {
       try {
         const args = [
           ...pre,
-          '-f', 'mp4/best[ext=mp4]/best',
+          '-f', 'b[ext=mp4]/bv*+ba/b',           // logged-in clients often serve split streams — merge with ffmpeg
+          '--merge-output-format', 'mp4',
           '--no-playlist', '--no-warnings', '--quiet',
           '--ffmpeg-location', FF,
           '-o', outFile,
