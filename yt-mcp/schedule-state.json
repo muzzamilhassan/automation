@@ -68,30 +68,30 @@
     "deepdiveDate": null
   },
   "debt-free-doctrine": {
-    "lastRunDate": "2026-09-06",
+    "lastRunDate": "2026-09-13",
     "usedThemes": [
-      "things to never finance",
-      "habits that quietly raise your credit score",
-      "what collectors hope you never learn"
+      "rules for your first credit card",
+      "signs a loan is predatory",
+      "snowball vs avalanche made simple"
     ],
     "lastVideos": [
       {
-        "videoId": "8JcL3ba33pc",
-        "publishAt": "2026-09-07T13:05:00Z",
-        "title": "Don't Finance These 5 Things | Debt Freedom"
+        "videoId": "pHs_LN_SdEQ",
+        "publishAt": "2026-09-14T13:05:00Z",
+        "title": "First Credit Card Rules | Debt Freedom"
       },
       {
-        "videoId": "zF9zPVdxKgI",
-        "publishAt": "2026-09-07T17:05:00Z",
-        "title": "Boost Credit Score Today | Debt Freedom"
+        "videoId": "WRpIF1nCKg0",
+        "publishAt": "2026-09-13T17:05:00Z",
+        "title": "Stop Using These Predatory Loan Apps | Debt Freedom"
       },
       {
-        "videoId": "9bO0d9C1F6A",
-        "publishAt": "2026-09-07T00:35:00Z",
-        "title": "Beat Debt Collectors Today | Debt Freedom"
+        "videoId": "tD9vmlVdiJ0",
+        "publishAt": "2026-09-14T00:35:00Z",
+        "title": "Snowball Vs Avalanche | Debt Freedom"
       }
     ],
-    "imageDate": "2026-09-11",
+    "imageDate": "2026-09-13",
     "deepdiveDate": "2026-09-07",
     "deepdiveVideo": {
       "videoId": "INCR7ceFCOA",
