@@ -79,9 +79,11 @@ export async function findRecycleCandidates(y, { log = () => {}, limit = 6 } = {
     const views = Number(v.statistics?.viewCount) || 0;
     const dur = parseISODuration(v.contentDetails?.duration);
     const privacy = v.status?.privacyStatus;
+    const ageDays = (Date.now() - Date.parse(v.snippet.publishedAt || 0)) / 86400000;
     if (privacy !== 'public') { log(`recycle: skip ${v.id} (privacy=${privacy})`); continue; }
     if (dur === null || dur > MAX_SECONDS) { log(`recycle: skip ${v.id} (not a Short, ${dur ?? '?'}s)`); continue; }
     if (views >= VIEWS_THRESHOLD) { log(`recycle: skip ${v.id} (${views} views >= 1K)`); continue; }
+    if (ageDays < 7) { log(`recycle: skip ${v.id} (only ${Math.round(ageDays)}d old — fresh videos get time to grow)`); continue; }
     log(`recycle: candidate — ${v.id} "${v.snippet.title}" (${views} views, ${dur}s)`);
     out.push({ videoId: v.id, title: v.snippet.title, views, duration: dur });
     if (out.length >= limit) break;
