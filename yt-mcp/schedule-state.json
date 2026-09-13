@@ -32,30 +32,30 @@
     }
   },
   "money-rulebook": {
-    "lastRunDate": "2026-09-06",
+    "lastRunDate": "2026-09-13",
     "usedThemes": [
-      "things broke people buy first",
-      "automation habits that build wealth",
-      "money rules by age 30"
+      "pay yourself first explained",
+      "lifestyle creep warning signs",
+      "rules for your first $10,000"
     ],
     "lastVideos": [
       {
-        "videoId": "JUcBghokNM4",
-        "publishAt": "2026-09-07T12:35:00Z",
-        "title": "Stop Buying This First | Personal Finance"
+        "videoId": "OPhrbthDN-I",
+        "publishAt": "2026-09-14T12:35:00Z",
+        "title": "Pay Yourself First Trick | Personal Finance"
       },
       {
-        "videoId": "OihXfFUI-PY",
-        "publishAt": "2026-09-07T16:35:00Z",
-        "title": "Automate This To Get Rich | Personal Finance"
+        "videoId": "ze-V3ULRvl0",
+        "publishAt": "2026-09-13T16:35:00Z",
+        "title": "Stop Feeding Lifestyle Creep | Personal Finance"
       },
       {
-        "videoId": "rXnoR73dtvg",
-        "publishAt": "2026-09-07T00:05:00Z",
-        "title": "Stop Being Poor By 30 | Personal Finance"
+        "videoId": "cC6yKbxypfQ",
+        "publishAt": "2026-09-14T00:05:00Z",
+        "title": "First $10k Money Rules | Personal Finance"
       }
     ],
-    "imageDate": "2026-09-11",
+    "imageDate": "2026-09-13",
     "recyclePending": [
       {
         "oldVideoId": "cbclwL6k32U",
@@ -64,7 +64,8 @@
         "date": "2026-09-12",
         "title": "Pay Yourself First | Personal Finance"
       }
-    ]
+    ],
+    "deepdiveDate": null
   },
   "debt-free-doctrine": {
     "lastRunDate": "2026-09-06",
