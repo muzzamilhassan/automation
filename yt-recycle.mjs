@@ -144,15 +144,24 @@ export async function downloadFromArchive(videoId, outFile, log = () => {}) {
 export async function archiveUpload(videoId, filePath, log = () => {}) {
   const tag = 'archive-' + new Date().toISOString().slice(0, 7);
   let rel = null;
-  try { rel = await ghApi(`releases/tags/${tag}`); } catch { /* not found */ }
+  // lookup can fail transiently (rate limits) — retry once before creating
+  for (let attempt = 0; attempt < 2 && !rel; attempt++) {
+    try { rel = await ghApi(`releases/tags/${tag}`); } catch { await new Promise(r => setTimeout(r, 1500)); }
+  }
   if (!rel || !rel.id) {
     const res = await fetch(`https://api.github.com/repos/${ghRepo()}/releases`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${ghToken()}`, Accept: 'application/vnd.github+json', 'User-Agent': 'quarry-recycler', 'Content-Type': 'application/json' },
       body: JSON.stringify({ tag_name: tag, name: 'Recycle archive ' + tag.slice(8), body: 'Monthly Short archive for the recycler (auto-generated).' }),
     });
-    if (!res.ok) throw new Error(`release create HTTP ${res.status}`);
-    rel = await res.json();
+    if (res.status === 422) {
+      // tag already exists (lookup flaked) — fetch the real release and continue
+      rel = await ghApi(`releases/tags/${tag}`);
+    } else if (!res.ok) {
+      throw new Error(`release create HTTP ${res.status}`);
+    } else {
+      rel = await res.json();
+    }
   }
   const up = await fetch(`https://uploads.github.com/repos/${ghRepo()}/releases/${rel.id}/assets?name=${videoId}.mp4`, {
     method: 'POST',
