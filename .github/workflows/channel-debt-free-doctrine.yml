@@ -73,6 +73,7 @@ jobs:
 
       - name: 🧩 Setup PO-token provider (bgutil) for recycle downloads
         run: |
+          python3 -m pip install --quiet bgutil-ytdlp-pot-provider || pip install --quiet bgutil-ytdlp-pot-provider || true
           git clone --depth 1 https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git /tmp/bgutil || true
           cd /tmp/bgutil/server && (npm ci --silent || npm install --silent) && npx tsc
           (node /tmp/bgutil/server/build/main.js > /tmp/bgutil-server.log 2>&1 &)
