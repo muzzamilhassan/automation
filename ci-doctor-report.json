@@ -1,19 +1,19 @@
 {
-  "at": "2026-09-13T08:11:16.915Z",
+  "at": "2026-09-13T15:53:23.090Z",
   "problems": 0,
   "results": [
     {
       "slug": "investors-compass",
       "channel": "INVESTOR'S COMPASS",
       "subs": "7",
-      "totalVideos": "58",
+      "totalVideos": "60",
       "status": "OK"
     },
     {
       "slug": "money-rulebook",
       "channel": "THE MONEY RULEBOOK",
-      "subs": "2",
-      "totalVideos": "45",
+      "subs": "4",
+      "totalVideos": "48",
       "status": "OK"
     },
     {
@@ -27,7 +27,7 @@
       "slug": "quotequarry",
       "channel": "QuoteQuarry",
       "subs": "93",
-      "totalVideos": "275",
+      "totalVideos": "276",
       "status": "OK"
     }
   ]
