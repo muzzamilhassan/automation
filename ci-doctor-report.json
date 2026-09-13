@@ -1,5 +1,5 @@
 {
-  "at": "2026-09-12T22:11:50.837Z",
+  "at": "2026-09-13T08:11:16.915Z",
   "problems": 0,
   "results": [
     {
@@ -13,7 +13,7 @@
       "slug": "money-rulebook",
       "channel": "THE MONEY RULEBOOK",
       "subs": "2",
-      "totalVideos": "46",
+      "totalVideos": "45",
       "status": "OK"
     },
     {
@@ -26,7 +26,7 @@
     {
       "slug": "quotequarry",
       "channel": "QuoteQuarry",
-      "subs": "92",
+      "subs": "93",
       "totalVideos": "275",
       "status": "OK"
     }
