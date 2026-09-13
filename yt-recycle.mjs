@@ -43,9 +43,9 @@ function httpsGetBuffer(url) {
   });
 }
 
-// Oldest-first walk of the channel's uploads; first video that is a public Short
-// with views < VIEWS_THRESHOLD wins. Returns null when nothing qualifies.
-export async function findRecycleCandidate(y, log = () => {}) {
+// Oldest-first walk of the channel's uploads; returns public Shorts with views
+// < VIEWS_THRESHOLD (up to `limit`), oldest first. Empty array = nothing qualifies.
+export async function findRecycleCandidates(y, { log = () => {}, limit = 6 } = {}) {
   const ch = await y.channels.list({ part: 'contentDetails,statistics', mine: true });
   const c = ch.data.items?.[0];
   if (!c) throw new Error('channel not reachable');
@@ -64,7 +64,7 @@ export async function findRecycleCandidate(y, log = () => {}) {
   }
   const oldestIds = allIds.slice(-MAX_OLDEST_SCAN).reverse(); // oldest first
   log(`recycle: scanning ${oldestIds.length} oldest of ${total} uploads...`);
-  if (!oldestIds.length) return null;
+  if (!oldestIds.length) return [];
 
   const details = [];
   for (let i = 0; i < oldestIds.length; i += 50) {
@@ -74,6 +74,7 @@ export async function findRecycleCandidate(y, log = () => {}) {
   const order = new Map(oldestIds.map((id, k) => [id, k]));
   details.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
 
+  const out = [];
   for (const v of details) {
     const views = Number(v.statistics?.viewCount) || 0;
     const dur = parseISODuration(v.contentDetails?.duration);
@@ -81,11 +82,83 @@ export async function findRecycleCandidate(y, log = () => {}) {
     if (privacy !== 'public') { log(`recycle: skip ${v.id} (privacy=${privacy})`); continue; }
     if (dur === null || dur > MAX_SECONDS) { log(`recycle: skip ${v.id} (not a Short, ${dur ?? '?'}s)`); continue; }
     if (views >= VIEWS_THRESHOLD) { log(`recycle: skip ${v.id} (${views} views >= 1K)`); continue; }
-    log(`recycle: candidate found — ${v.id} "${v.snippet.title}" (${views} views, ${dur}s)`);
-    return { videoId: v.id, title: v.snippet.title, views, duration: dur };
+    log(`recycle: candidate — ${v.id} "${v.snippet.title}" (${views} views, ${dur}s)`);
+    out.push({ videoId: v.id, title: v.snippet.title, views, duration: dur });
+    if (out.length >= limit) break;
   }
-  log(`recycle: no candidate — all ${details.length} oldest Shorts have >= 1K views or are unusable`);
+  if (!out.length) log(`recycle: no candidate — all ${details.length} oldest Shorts have >= 1K views or are unusable`);
+  return out;
+}
+
+// Backwards-compatible single-candidate helper
+export async function findRecycleCandidate(y, log = () => {}) {
+  const list = await findRecycleCandidates(y, { log, limit: 1 });
+  return list[0] || null;
+}
+
+// ---- GitHub archive (Release assets named <videoId>.mp4, tags archive-YYYY-MM)
+// The archive removes YouTube from the recycle path entirely: renders are stored
+// as release assets at production time, and recycles download from GitHub.
+function ghRepo() { return process.env.GH_REPO || 'muzzamilhassan/automation'; }
+function ghToken() { return process.env.GH_TOKEN || process.env.GITHUB_PAT || ''; }
+
+async function ghApi(pathname) {
+  const r = await fetch(`https://api.github.com/repos/${ghRepo()}/${pathname}`, {
+    headers: { Authorization: `Bearer ${ghToken()}`, Accept: 'application/vnd.github+json', 'User-Agent': 'quarry-recycler' },
+  });
+  if (!r.ok) throw new Error(`gh api ${pathname}: HTTP ${r.status}`);
+  return r.json();
+}
+
+async function findArchiveAsset(videoId) {
+  for (let page = 1; page <= 3; page++) {
+    const rels = await ghApi(`releases?per_page=30&page=${page}`);
+    if (!Array.isArray(rels) || !rels.length) break;
+    for (const rel of rels) {
+      if (!String(rel.tag_name || '').startsWith('archive-')) continue;
+      const a = (rel.assets || []).find((x) => x.name === `${videoId}.mp4`);
+      if (a) return { url: a.url, tag: rel.tag_name };
+    }
+  }
   return null;
+}
+
+// Returns true when the file was fetched from the archive.
+export async function downloadFromArchive(videoId, outFile, log = () => {}) {
+  const hit = await findArchiveAsset(videoId);
+  if (!hit) return false;
+  const res = await fetch(hit.url, {
+    headers: { Authorization: `Bearer ${ghToken()}`, Accept: 'application/octet-stream', 'User-Agent': 'quarry-recycler' },
+    redirect: 'follow',
+  });
+  if (!res.ok) throw new Error(`archive download HTTP ${res.status}`);
+  fs.writeFileSync(outFile, Buffer.from(await res.arrayBuffer()));
+  if (fs.statSync(outFile).size < 100_000) throw new Error('archive file too small');
+  log(`recycle: downloaded ${videoId} from archive ${hit.tag} (${Math.round(fs.statSync(outFile).size / 1024)} KB) — no YouTube involved`);
+  return true;
+}
+
+// Attach a file to this month's archive release (creates the release if missing).
+export async function archiveUpload(videoId, filePath, log = () => {}) {
+  const tag = 'archive-' + new Date().toISOString().slice(0, 7);
+  let rel = null;
+  try { rel = await ghApi(`releases/tags/${tag}`); } catch { /* not found */ }
+  if (!rel || !rel.id) {
+    const res = await fetch(`https://api.github.com/repos/${ghRepo()}/releases`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${ghToken()}`, Accept: 'application/vnd.github+json', 'User-Agent': 'quarry-recycler', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tag_name: tag, name: 'Recycle archive ' + tag.slice(8), body: 'Monthly Short archive for the recycler (auto-generated).' }),
+    });
+    if (!res.ok) throw new Error(`release create HTTP ${res.status}`);
+    rel = await res.json();
+  }
+  const up = await fetch(`https://uploads.github.com/repos/${ghRepo()}/releases/${rel.id}/assets?name=${videoId}.mp4`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${ghToken()}`, 'User-Agent': 'quarry-recycler', 'Content-Type': 'application/octet-stream' },
+    body: fs.readFileSync(filePath),
+  });
+  if (!up.ok) throw new Error(`archive asset upload HTTP ${up.status}`);
+  log(`archive: stored ${videoId}.mp4 in ${tag}`);
 }
 
 // Download via yt-dlp. OAuth cache (generated once locally) makes CI downloads
@@ -93,7 +166,7 @@ export async function findRecycleCandidate(y, log = () => {}) {
 // Download via yt-dlp. No login needed for public videos — the android client
 // works from residential IPs; CI datacenter IPs fall through the client chain,
 // then (optionally) a cookies file secret and local Chrome cookies.
-function downloadVideo(videoId, outFile, log = () => {}) {
+export function downloadVideo(videoId, outFile, log = () => {}) {
   const url = `https://www.youtube.com/watch?v=${videoId}`;
   const clients = ['default', 'tv', 'android', 'ios', 'mweb', 'android_vr', 'tv_embedded', 'web_embedded'];
   const attempts = [];
@@ -139,13 +212,31 @@ function downloadVideo(videoId, outFile, log = () => {}) {
 // returns { ok, ... } so yt-daily can decide what to log.
 export async function recycleForSlot({ slug, publishAt, auth, state, log = () => {} }) {
   const y = google.youtube({ version: 'v3', auth });
-  const cand = await findRecycleCandidate(y, log);
-  if (!cand) return { ok: false, reason: 'no-candidate' };
+  const cands = await findRecycleCandidates(y, { log, limit: 6 });
+  if (!cands.length) return { ok: false, reason: 'no-candidate' };
 
   const tmp = path.join(ROOT, 'fb-outbox', slug);
   fs.mkdirSync(tmp, { recursive: true });
-  const videoFile = path.join(tmp, `recycle-${cand.videoId}.mp4`);
-  downloadVideo(cand.videoId, videoFile, log);
+
+  // Oldest-first: archive copy wins instantly; otherwise fall back to YouTube
+  // (works from residential IPs, blocked from CI). Unusable candidate → next one.
+  let cand = null, videoFile = null, fromArchive = false;
+  for (const c of cands) {
+    const f = path.join(tmp, `recycle-${c.videoId}.mp4`);
+    try {
+      if (await downloadFromArchive(c.videoId, f, log)) {
+        cand = c; videoFile = f; fromArchive = true; break;
+      }
+      log(`recycle: ${c.videoId} not in archive — trying YouTube...`);
+      downloadVideo(c.videoId, f, log);
+      cand = c; videoFile = f; fromArchive = false; break;
+    } catch (e) {
+      log(`recycle: ${c.videoId} unusable (${String(e.message).slice(0, 70)}) — trying next candidate...`);
+      try { fs.unlinkSync(f); } catch { }
+      continue;
+    }
+  }
+  if (!cand) return { ok: false, reason: 'download-blocked' };
 
   // metadata (exact copy)
   const meta = await y.videos.list({ part: 'snippet', id: cand.videoId });
@@ -190,6 +281,11 @@ export async function recycleForSlot({ slug, publishAt, auth, state, log = () =>
   if (thumbBuf) {
     try { await y.thumbnails.set({ videoId: newVideoId, media: Readable.from(thumbBuf) }); log('recycle: thumbnail set'); } catch { }
   }
+  // keep the archive pool complete: store the recycled copy under its new id
+  try {
+    if (ghToken()) await archiveUpload(newVideoId, videoFile, log);
+  } catch (e) { log(`archive: re-attach skipped (${String(e.message).slice(0, 60)})`); }
+
   try { fs.unlinkSync(videoFile); } catch { }
 
   // hide the old copy instantly (deleted by sweeper once the new one is live)
@@ -241,6 +337,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(im
   const STATE_FILE = path.join(ROOT, 'yt-mcp', 'schedule-state.json');
   let state = {};
   try { state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { }
+  // Safe re-run guard: one recycle per channel per day (protects against repeated
+  // dispatches — e.g. a leftover test automation — recycling many videos at once).
+  const today = new Date().toISOString().slice(0, 10);
+  if ((state[slug]?.recyclePending || []).some(p => p.date === today)) {
+    console.log(`[${slug}] already recycled today — nothing to do (safe re-run guard)`);
+    process.exit(0);
+  }
   const r = await recycleForSlot({ slug, publishAt, auth, state, log });
   console.log('RESULT:', JSON.stringify(r));
   if (r.ok) {

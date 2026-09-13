@@ -22,7 +22,7 @@ const { generateYouTubeScript, renderYouTubeScriptShort, buildScriptMeta } = awa
 const { pickMusicTrack } = await import('./music-engine.mjs');
 const { bySlug } = await import('./yt-brands/brands.mjs');
 const { researchTrend } = await import('./trend-research.mjs');
-const { recycleForSlot } = await import('./yt-recycle.mjs');
+const { recycleForSlot, archiveUpload } = await import('./yt-recycle.mjs');
 
 const slug = process.argv[2];
 const FORCE = process.argv.includes('--force');
@@ -150,6 +150,13 @@ if (RUN_SHORTS) {
     try {
       await yt.commentThreads.insert({ part: 'snippet', requestBody: { snippet: { videoId, topLevelComment: { snippet: { textOriginal: `Which one hit hardest? 👇 Subscribe for daily ${b.kwShort}.` } } } } });
     } catch { }
+    // archive the render (GitHub Release asset, <videoId>.mp4) so the recycler
+    // never needs to download from YouTube
+    try {
+      if (process.env.GH_TOKEN || process.env.GITHUB_PAT) {
+        await archiveUpload(videoId, `fb-outbox/${slug}/${stamp}.mp4`, (m) => console.log('  ' + m));
+      }
+    } catch (e) { console.log(`  [archive] skipped: ${String(e.message).slice(0, 60)}`); }
     results.push({ videoId, publishAt, title: meta.title });
 
     // ---- Video frames → FB image posts ----
