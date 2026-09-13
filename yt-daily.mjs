@@ -113,6 +113,16 @@ if (RUN_SHORTS) {
         }
       } catch (e) {
         console.log(`  ✗ recycle failed: ${String(e.message).slice(0, 100)} — slot stays skipped`);
+        // CI can't download (YouTube bot-wall on datacenter IPs) — nudge the phone
+        // so a local run (node yt-recycle.mjs <slug>) can recover the slot later.
+        try {
+          const topic = (process.env.NTFY_TOPIC || '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
+          if (topic) await fetch(`https://ntfy.sh/${topic}`, {
+            method: 'POST',
+            headers: { 'Title': 'Recycle Needed' },
+            body: `${slug}: CI download blocked — run locally: node yt-recycle.mjs ${slug}`
+          });
+        } catch { }
       }
       continue;
     }
