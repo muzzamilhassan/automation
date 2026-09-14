@@ -75,3 +75,4 @@
 ---
 
 *Last updated: 2026-09-14. Append-only per RULES. Owner: Muzzamil.*
+> 5. A companion PLAN.xlsx is generated from this file by `node plan-sheet.mjs` — regenerate it after every PLAN.md update. Never hand-edit the xlsx.
