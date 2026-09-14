@@ -1,11 +1,20 @@
-// Quarry Local Pipeline — runs ALL channels sequentially.
+// Quarry Local Pipeline — TOPUP HELPER ONLY (manual / PC-on use).
+// CI channel workflows are the production master. This script must NOT be the
+// first producer of the day: it starts with a git pull so the state guard sees
+// what CI already produced, and it never uses --force unless you pass it.
 // Usage: node run-all-channels.mjs [--force] [--no-episode]
-// Each channel runs independently: if one fails, the rest continue.
-import { spawnSync } from 'node:child_process';
+import { spawnSync, execSync } from 'node:child_process';
 import fs from 'node:fs';
 
 const envRaw = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
 for (const m of envRaw.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
+
+// sync state from origin first — without this the stale state file caused
+// double production (CI produced the same slots again)
+try {
+  console.log('▶ git pull (sync state from origin)...');
+  console.log(execSync('git pull --rebase --autostash', { stdio: 'pipe' }).toString().trim());
+} catch (e) { console.log('  git pull failed (offline?) — continuing with local state'); }
 
 const FORCE = process.argv.includes('--force');
 const NO_EPISODE = process.argv.includes('--no-episode');
