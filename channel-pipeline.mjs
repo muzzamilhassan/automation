@@ -52,10 +52,11 @@ log(`Phase 2 — Cross-posting to Facebook...`);
 if (run('fb-crosspost.mjs')) { results.fbReels = true; log(`✓ FB Reels done`); }
 else errors.push('FB cross-post failed');
 
-// ---- Phase 3: Instagram Reels (cross-post from outbox) ----
-log(`Phase 3 — Cross-posting to Instagram...`);
-if (run('ig-crosspost.mjs')) { results.igReels = true; log(`✓ IG Reels done`); }
-else errors.push('IG cross-post failed');
+// ---- Phase 3: Instagram Reels ----
+// IG has no scheduling API, so posting here meant reels went live whenever the
+// run finished. They are now posted by ig-slot-poster.yml 3x/day at fixed slot
+// times, pulling the produced reels from the run's saved outbox cache.
+log(`Phase 3 — IG reels: handled by ig-slot-poster (3x/day at slot times)`);
 
 // ---- Phase 4: Niche poster to FB page ----
 log(`Phase 4 — Posting niche poster...`);
@@ -76,7 +77,7 @@ if (!SKIP_EPISODE && !episodeDone) {
 log(`══ PIPELINE COMPLETE ══`);
 log(`  Shorts: ${results.shorts ? '✓' : '✗'}`);
 log(`  FB Reels: ${results.fbReels ? '✓' : '✗'}`);
-log(`  IG Reels: ${results.igReels ? '✓' : '✗'}`);
+log(`  IG Reels: 📅 via ig-slot-poster (3x/day)`);
 log(`  Poster: ${results.poster ? '✓' : '✗'}`);
 log(`  Episode: ${results.episode ? '✓' : (SKIP_EPISODE ? '⏸ paused' : '✗')}`);
 log(`  Errors: ${errors.length}`);

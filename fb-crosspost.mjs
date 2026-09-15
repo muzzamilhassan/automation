@@ -76,12 +76,16 @@ async function postReel(slug, videoBuffer, meta, publishAtIso) {
   const token = await getPageToken(pageId);
   const form = new FormData();
 const fields = { access_token: token, title: String(meta.title || '').slice(0, 255), description: seoDescription(meta) };
-  const unix = publishAtIso ? Math.floor(new Date(publishAtIso).getTime() / 1000) : 0;
+  let unix = publishAtIso ? Math.floor(new Date(publishAtIso).getTime() / 1000) : 0;
   const minFuture = Math.floor(Date.now() / 1000) + 11 * 60;
+  // FB needs the slot >=10 min out to schedule; a passed/too-soon slot gets
+  // pushed ~20 min out instead of silently posting at upload time.
+  if (unix > 0 && unix <= minFuture) unix = minFuture + 9 * 60;
   if (unix > minFuture) { fields.published = 'false'; fields.scheduled_publish_time = String(unix); }
   const data = await graphPostForm(pageId, fields, videoBuffer);
   if (data.id) {
-    console.log(`  ✓ FB ${unix > minFuture ? 'Reel scheduled ' + publishAtIso : 'Reel PUBLISHED'} → page ${pageId}, video ${data.id}`);
+    const schedIso = unix > minFuture ? new Date(unix * 1000).toISOString().replace(/\.\d+Z$/, 'Z') : null;
+    console.log(`  ✓ FB ${schedIso ? 'Reel scheduled ' + schedIso : 'Reel PUBLISHED'} → page ${pageId}, video ${data.id}`);
     return data.id;
   }
   console.log(`  ✗ FB failed:`, JSON.stringify(data).slice(0, 160));

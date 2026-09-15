@@ -85,6 +85,34 @@ jobs:
             node sweeper.mjs
           fi
 
+      - name: 📦 Keep healed reels for IG slot poster (quotequarry)
+        if: ${{ hashFiles('fb-outbox/quotequarry/*.json*') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: fb-outbox/quotequarry
+          key: ig-outbox-quotequarry-sweep-${{ github.run_id }}
+
+      - name: 📦 Keep healed reels for IG slot poster (investors-compass)
+        if: ${{ hashFiles('fb-outbox/investors-compass/*.json*') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: fb-outbox/investors-compass
+          key: ig-outbox-investors-compass-sweep-${{ github.run_id }}
+
+      - name: 📦 Keep healed reels for IG slot poster (money-rulebook)
+        if: ${{ hashFiles('fb-outbox/money-rulebook/*.json*') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: fb-outbox/money-rulebook
+          key: ig-outbox-money-rulebook-sweep-${{ github.run_id }}
+
+      - name: 📦 Keep healed reels for IG slot poster (debt-free-doctrine)
+        if: ${{ hashFiles('fb-outbox/debt-free-doctrine/*.json*') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: fb-outbox/debt-free-doctrine
+          key: ig-outbox-debt-free-doctrine-sweep-${{ github.run_id }}
+
       - name: 💾 Commit logs back
         run: |
           git config user.name "quarry-bot"

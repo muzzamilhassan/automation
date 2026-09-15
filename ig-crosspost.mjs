@@ -74,12 +74,56 @@ async function postIgReel(slug, videoBuffer, meta) {
 
 // ---------- main ----------
 const oneFile = process.argv[2];
-if (oneFile) {
+if (oneFile && !oneFile.startsWith('--')) {
   const slug = process.argv[3];
   const metaFile = oneFile.replace(/\.mp4$/, '.json');
   const meta = fs.existsSync(metaFile) ? JSON.parse(fs.readFileSync(metaFile, 'utf8'))
     : { title: 'Daily Investing Wisdom', description: 'Investing psychology and market wisdom for long-term wealth.', slug };
   await postIgReel(slug, fs.readFileSync(oneFile), meta);
+  process.exit(0);
+}
+
+// ---------- slot mode: post ONE queued reel per channel (ig-slot-poster.yml) ----------
+// IG has no scheduling API, so instead of posting everything the moment a run
+// finishes, the slot poster calls this 3x/day. Posted stamps are tracked in
+// yt-mcp/ig-state.json because the outbox cache is immutable between slots.
+const SLOT_STATE_FILE = 'yt-mcp/ig-state.json';
+const loadSlotState = () => { try { return JSON.parse(fs.readFileSync(SLOT_STATE_FILE, 'utf8')); } catch { return {}; } };
+const saveSlotState = (s) => { fs.mkdirSync(path.dirname(SLOT_STATE_FILE), { recursive: true }); fs.writeFileSync(SLOT_STATE_FILE, JSON.stringify(s, null, 2)); };
+
+if (process.argv.includes('--one')) {
+  const st = loadSlotState();
+  for (const dir of fs.existsSync('fb-outbox') ? fs.readdirSync('fb-outbox') : []) {
+    const d = path.join('fb-outbox', dir);
+    if (!fs.statSync(d).isDirectory()) continue;
+    const posted = new Set(st[dir]?.posted || []);
+    const pending = fs.readdirSync(d)
+      .filter(f => (f.endsWith('.json') || f.endsWith('.fb-done')) && !f.endsWith('.done'))
+      .filter(f => !posted.has(f.replace(/\.json.*$/, '')))
+      .sort(); // stamps are Date.now() based → oldest first
+    const metaFile = pending[0] ? path.join(d, pending[0]) : null;
+    if (!metaFile) { console.log(`[ig] ${dir}: nothing pending for this slot`); continue; }
+    const stampKey = pending[0].replace(/\.json.*$/, '');
+    const meta = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
+    const videoPath = path.resolve(meta.videoFile);
+    if (!fs.existsSync(videoPath)) { console.log(`[ig] ${dir}: missing video for ${stampKey} — skipped`); continue; }
+    let id = null;
+    for (let a = 1; a <= 2 && !id; a++) {
+      try { id = await postIgReel(meta.slug, fs.readFileSync(videoPath), meta); }
+      catch (e) { console.log(`  ✗ attempt ${a} network error: ${e.message}`); if (a < 2) await new Promise(r => setTimeout(r, 5000)); }
+    }
+    if (id) {
+      st[dir] = st[dir] || { posted: [] };
+      st[dir].posted.push(stampKey);
+      if (st[dir].posted.length > 12) st[dir].posted = st[dir].posted.slice(-12);
+      saveSlotState(st);
+      try { fs.renameSync(metaFile, metaFile + '.done'); } catch {}
+      console.log(`[ig] ${dir}: slot reel posted (${stampKey})`);
+    } else {
+      console.log(`[ig] ${dir}: post failed — retrying at next slot`);
+    }
+    await new Promise(r => setTimeout(r, 3000));
+  }
   process.exit(0);
 }
 

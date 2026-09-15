@@ -3,7 +3,7 @@ name: 📺 Debt-Free Doctrine — Full Pipeline
 on:
   schedule:
     # Staggered: this channel's production window
-    - cron: '35 10 * * *'
+    - cron: '53 3 * * *'
   workflow_dispatch:
     inputs:
       recycle_test:
@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   produce:
-    name: 🏭 Debt-Free Doctrine — Shorts + FB + IG
+    name: 🏭 Debt-Free Doctrine — Shorts + FB (IG = slot poster)
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -103,6 +103,13 @@ jobs:
           else
             node channel-pipeline.mjs debt-free-doctrine --no-episode
           fi
+
+      - name: 📦 Keep reels for IG slot poster
+        if: ${{ hashFiles('fb-outbox/debt-free-doctrine/*.json*') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: fb-outbox/debt-free-doctrine
+          key: ig-outbox-debt-free-doctrine-${{ github.run_id }}
 
       - name: 💾 Commit publishing state
         run: |

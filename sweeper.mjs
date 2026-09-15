@@ -134,9 +134,11 @@ try {
   fs.writeFileSync(STATE_FILE, JSON.stringify(recycleState, null, 2));
 } catch (e) { log(`[recycle] state write failed: ${e.message}`); }
 
-// ---- 2. Drain FB/IG outboxes so healed reels cross-post too -----------------
+// ---- 2. Drain FB outbox so healed reels cross-post too ----------------------
+// (IG is NOT drained here — reels are posted by ig-slot-poster.yml at fixed
+// slot times; an instant IG drain at 20:15 UTC would double-post slot 3.)
 if (healed.length && !DRY) {
-  for (const s of ['fb-crosspost.mjs', 'ig-crosspost.mjs']) {
+  for (const s of ['fb-crosspost.mjs']) {
     try { execFileSync('node', [s], { stdio: 'inherit', timeout: 40 * 60 * 1000 }); }
     catch (e) { warnings.push(`${s}: ${String(e.message).slice(0, 80)}`); }
   }

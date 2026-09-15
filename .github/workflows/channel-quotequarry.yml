@@ -2,7 +2,7 @@ name: 📺 Quote Quarry — Full Pipeline
 
 on:
   schedule:
-    - cron: '40 8 * * *'
+    - cron: '13 2 * * *'
   workflow_dispatch:
     inputs:
       recycle_test:
@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   produce:
-    name: 🏭 Quote Quarry — Shorts + FB + IG
+    name: 🏭 Quote Quarry — Shorts + FB (IG = slot poster)
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -99,6 +99,13 @@ jobs:
           else
             node channel-pipeline.mjs quotequarry --no-episode
           fi
+
+      - name: 📦 Keep reels for IG slot poster
+        if: ${{ hashFiles('fb-outbox/quotequarry/*.json*') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: fb-outbox/quotequarry
+          key: ig-outbox-quotequarry-${{ github.run_id }}
 
       - name: 💾 Commit publishing state
         run: |

@@ -3,7 +3,7 @@ name: 📺 Investor's Compass — Full Pipeline
 on:
   schedule:
     # Staggered: this channel's production window
-    - cron: '35 9 * * *'
+    - cron: '47 2 * * *'
   workflow_dispatch:
     inputs:
       recycle_test:
@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   produce:
-    name: 🏭 Investor's Compass — Shorts + FB + IG
+    name: 🏭 Investor's Compass — Shorts + FB (IG = slot poster)
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -103,6 +103,13 @@ jobs:
           else
             node channel-pipeline.mjs investors-compass --no-episode
           fi
+
+      - name: 📦 Keep reels for IG slot poster
+        if: ${{ hashFiles('fb-outbox/investors-compass/*.json*') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: fb-outbox/investors-compass
+          key: ig-outbox-investors-compass-${{ github.run_id }}
 
       - name: 💾 Commit publishing state
         run: |

@@ -3,7 +3,7 @@ name: 📺 The Money Rulebook — Full Pipeline
 on:
   schedule:
     # Staggered: this channel's production window
-    - cron: '5 10 * * *'
+    - cron: '21 3 * * *'
   workflow_dispatch:
     inputs:
       recycle_test:
@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   produce:
-    name: 🏭 The Money Rulebook — Shorts + FB + IG
+    name: 🏭 The Money Rulebook — Shorts + FB (IG = slot poster)
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -103,6 +103,13 @@ jobs:
           else
             node channel-pipeline.mjs money-rulebook --no-episode
           fi
+
+      - name: 📦 Keep reels for IG slot poster
+        if: ${{ hashFiles('fb-outbox/money-rulebook/*.json*') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: fb-outbox/money-rulebook
+          key: ig-outbox-money-rulebook-${{ github.run_id }}
 
       - name: 💾 Commit publishing state
         run: |
