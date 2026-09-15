@@ -1,33 +1,33 @@
 {
-  "at": "2026-09-15T08:33:35.132Z",
+  "at": "2026-09-15T16:36:51.377Z",
   "problems": 0,
   "results": [
     {
       "slug": "investors-compass",
       "channel": "INVESTOR'S COMPASS",
       "subs": "7",
-      "totalVideos": "67",
+      "totalVideos": "72",
       "status": "OK"
     },
     {
       "slug": "money-rulebook",
       "channel": "THE MONEY RULEBOOK",
       "subs": "4",
-      "totalVideos": "52",
+      "totalVideos": "58",
       "status": "OK"
     },
     {
       "slug": "debt-free-doctrine",
       "channel": "DEBT-FREE DOCTRINE",
       "subs": "0",
-      "totalVideos": "54",
+      "totalVideos": "56",
       "status": "OK"
     },
     {
       "slug": "quotequarry",
       "channel": "QuoteQuarry",
       "subs": "95",
-      "totalVideos": "280",
+      "totalVideos": "283",
       "status": "OK"
     }
   ]
