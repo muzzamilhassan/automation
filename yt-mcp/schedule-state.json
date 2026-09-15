@@ -1,29 +1,29 @@
 {
   "investors-compass": {
-    "lastRunDate": "2026-09-14",
+    "lastRunDate": "2026-09-15",
     "usedThemes": [
-      "contrarian moves that paid off",
-      "questions to ask before buying any stock",
-      "signs a stock is hype not value"
+      "what rich investors do during a downturn",
+      "beginner investing rules that never change",
+      "psychology traps every trader falls into"
     ],
     "lastVideos": [
       {
-        "videoId": "dVLcbq8d-VQ",
-        "publishAt": "2026-09-15T12:05:00Z",
-        "title": "Buy When Others Panic | Investing Psychology"
+        "videoId": "q2au_hyg26k",
+        "publishAt": "2026-09-16T12:05:00Z",
+        "title": "What Rich Investors Do | Investing Psychology"
       },
       {
-        "videoId": "s7kMoWuIqsQ",
+        "videoId": "QM9eXGRhewA",
         "publishAt": "2026-09-15T16:05:00Z",
-        "title": "Four Questions Before Buying | Investing Psychology"
+        "title": "Unbreakable Investing Rules | Investing Psychology"
       },
       {
-        "videoId": "Pk74X73A2rw",
-        "publishAt": "2026-09-14T23:35:00Z",
-        "title": "Stop Buying Hype Stocks | Investing Psychology"
+        "videoId": "R-hPDVVO6Z8",
+        "publishAt": "2026-09-15T23:35:00Z",
+        "title": "The Trading Psychology Trap | Investing Psychology"
       }
     ],
-    "imageDate": "2026-09-14",
+    "imageDate": "2026-09-15",
     "deepdiveDate": "2026-09-07",
     "deepdiveVideo": {
       "videoId": "dOJgBHpJgwQ",
