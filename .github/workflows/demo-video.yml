@@ -1,0 +1,87 @@
+# Cloud demo renderer: builds ONE 2-3 minute themed video per run, fully on
+# GitHub's servers (script -> Edge-TTS -> Pexels photos -> Remotion 720p).
+# The finished mp4 is attached to the run as an artifact — nothing local.
+name: Demo Video (cloud render)
+
+on:
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: "Output name, e.g. demo-invest"
+        required: true
+      theme:
+        description: "investing | vox | poster"
+        required: true
+        default: "investing"
+      title:
+        description: "Video title"
+        required: true
+      topic:
+        description: "Story topic for the AI script"
+        required: true
+      brand:
+        description: "Brand strip text (bottom)"
+        required: false
+        default: ""
+      eyebrow:
+        description: "Top-left kicker line"
+        required: false
+        default: ""
+      queries:
+        description: "Backup photo queries, pipe-separated"
+        required: false
+        default: ""
+      voice:
+        description: "Edge-TTS voice"
+        required: false
+        default: ""
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Remotion system libraries (Ubuntu 24.04)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libnss3 libdbus-1-3 libatk1.0-0 libasound2t64 libxrandr2 \
+            libxkbcommon-dev libxfixes3 libxcomposite1 libxdamage1 \
+            libgbm-dev libcups2 libcairo2 libpango-1.0-0 libatk-bridge2.0-0
+
+      - name: Install Edge-TTS (free Microsoft voices)
+        run: python3 -m pip install --quiet --user edge-tts
+
+      - name: Install node dependencies
+        working-directory: explainer
+        run: npm ci
+
+      - name: Build demo video
+        working-directory: longvideo
+        env:
+          LONGVIDEO_GEMINI_API_KEY: ${{ secrets.LONGVIDEO_GEMINI_API_KEY }}
+          LONGVIDEO_GROQ_API_KEY: ${{ secrets.LONGVIDEO_GROQ_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+        run: |
+          node make-demo.mjs \
+            --slug "${{ inputs.slug }}" \
+            --theme "${{ inputs.theme }}" \
+            --title "${{ inputs.title }}" \
+            --topic "${{ inputs.topic }}" \
+            --brand "${{ inputs.brand }}" \
+            --eyebrow "${{ inputs.eyebrow }}" \
+            --queries "${{ inputs.queries }}" \
+            --voice "${{ inputs.voice }}"
+
+      - name: Upload finished video
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.slug }}
+          path: explainer/out/demo-${{ inputs.slug }}.mp4
+          if-no-files-found: error

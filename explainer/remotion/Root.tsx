@@ -2,6 +2,8 @@ import React from "react";
 import { Composition } from "remotion";
 import { Explainer, type Storyboard } from "./Explainer";
 import { Reel } from "./reels";
+import { LongVideo } from "./longscenes";
+import { DocV2 } from "./longscenes2";
 
 const EMPTY: Storyboard = {
   title: "Explainer",
@@ -36,6 +38,13 @@ const calculateMetadata = ({ props }: { props: unknown }) => {
   };
 };
 
+// DocV2 docs arrive raw as {beats, totalMs, fps}
+const calculateDocV2Metadata = ({ props }: { props: any }) => {
+  const doc = Array.isArray(props?.beats) && props.beats.length > 0 ? props : (Array.isArray(props?.docv2?.beats) && props.docv2.beats.length > 0 ? props.docv2 : null);
+  if (!doc) return { durationInFrames: 10, fps: 30, width: 1920, height: 1080 };
+  return { durationInFrames: Math.max(Math.ceil((doc.totalMs / 1000) * (doc.fps || 30)), 10), fps: doc.fps || 30, width: 1920, height: 1080, props: { docv2: doc } };
+};
+
 // Reel docs arrive raw as {spec, timeline, totalMs, fps}. defaultProps merge an
 // empty {reel} key in — so require NON-empty timelines before trusting either shape.
 const calculateReelMetadata = ({ props }: { props: any }) => {
@@ -48,6 +57,20 @@ const calculateReelMetadata = ({ props }: { props: any }) => {
     width: 1080,
     height: 1920,
     props: { reel: doc },
+  };
+};
+
+// LongVideo docs arrive raw as {beats:[...], totalMs, fps}
+const calculateLongMetadata = ({ props }: { props: any }) => {
+  const doc = Array.isArray(props?.beats) && props.beats.length > 0 ? props
+    : (Array.isArray(props?.longvideo?.beats) && props.longvideo.beats.length > 0 ? props.longvideo : null);
+  if (!doc) return { durationInFrames: 10, fps: 30, width: 1920, height: 1080 };
+  return {
+    durationInFrames: Math.max(Math.ceil((doc.totalMs / 1000) * (doc.fps || 30)), 10),
+    fps: doc.fps || 30,
+    width: 1920,
+    height: 1080,
+    props: { longvideo: doc },
   };
 };
 
@@ -73,6 +96,26 @@ export const RemotionRoot: React.FC = () => {
         height={1920}
         defaultProps={{ reel: { spec: { id: "demo", themeKey: "money", beats: [] }, timeline: [], totalMs: 100, fps: 30 } }}
         calculateMetadata={calculateReelMetadata}
+      />
+      <Composition
+        id="DocV2"
+        component={DocV2}
+        durationInFrames={10}
+        fps={30}
+        width={1920}
+        height={1080}
+        defaultProps={{ docv2: { beats: [], totalMs: 100, fps: 30 } }}
+        calculateMetadata={calculateDocV2Metadata}
+      />
+      <Composition
+        id="LongVideo"
+        component={LongVideo}
+        durationInFrames={10}
+        fps={30}
+        width={1920}
+        height={1080}
+        defaultProps={{ longvideo: { beats: [], totalMs: 100, fps: 30 } }}
+        calculateMetadata={calculateLongMetadata}
       />
     </>
   );
