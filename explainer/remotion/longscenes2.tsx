@@ -304,7 +304,9 @@ const EndLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
   );
 };
 
-// premium karaoke captions — word-by-word reveal, active word pops, key words emphasized
+// STYLE 2 — KARAOKE HIGHLIGHT (user pick 09-16): full phrase shown, spoken words
+// turn accent, active word pops inside an accent box, upcoming words dimmed.
+const CapWindow = 7;
 const Captions: React.FC<{ b: V2Beat }> = ({ b }) => {
   const T = useT();
   const f = useCurrentFrame();
@@ -312,30 +314,27 @@ const Captions: React.FC<{ b: V2Beat }> = ({ b }) => {
   const ms = (f / fps) * 1000;
   const words = b.words || [];
   if (!words.length) return null;
-  const idx = words.findIndex((w) => ms >= w.t0 - 40 && ms < w.t1 + 160);
+  const idx = words.findIndex((w) => ms >= w.t0 - 40 && ms < w.t1 + 150);
   if (idx < 0) return null;
-  const winStart = Math.max(0, Math.min(idx - 1, words.length - 4));
-  const win = words.slice(winStart, Math.min(winStart + 4, words.length));
+  const winStart = Math.max(0, Math.min(idx - 2, words.length - CapWindow));
+  const win = words.slice(winStart, Math.min(winStart + CapWindow, words.length));
+  const pop = spring({ frame: f - (words[idx].t0 / 1000) * fps, fps, config: { damping: 12, stiffness: 200 } });
   return (
     <div style={{ position: "absolute", bottom: 150, left: 150, right: 150, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
-      <div style={{ display: "flex", gap: 16, alignItems: "baseline", flexWrap: "wrap", justifyContent: "center", background: "rgba(10,12,18,0.55)", borderRadius: 22, padding: "20px 40px", maxWidth: 1500 }}>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center", alignItems: "baseline", maxWidth: 1500 }}>
         {win.map((w, i) => {
           const gi = winStart + i;
-          const spoken = gi <= idx;
           const active = gi === idx;
-          const pop = active ? spring({ frame: f - (w.t0 / 1000) * fps, fps, config: { damping: 11, stiffness: 220 } }) : 0;
-          const scale = active ? 1 + 0.14 * Math.max(pop, 0) : 1;
           return (
             <span key={i} style={{
-              fontFamily: GROT, fontWeight: 900, fontSize: w.key ? 56 : 46, lineHeight: 1.1,
-              color: active ? T.capColor : w.key ? T.capColor : "#FFFFFF",
-              opacity: spoken ? 1 : 0.3,
-              transform: `scale(${scale})`,
-              transformOrigin: "center bottom",
+              fontFamily: GROT, fontWeight: 900, fontSize: 62, lineHeight: 1.15,
+              color: gi < idx ? T.capColor : active ? "#FFFFFF" : "rgba(255,255,255,0.55)",
+              background: active ? T.capColor : "transparent",
+              borderRadius: active ? 14 : 0,
+              padding: active ? "2px 18px" : 0,
+              transform: `scale(${active ? 1 + 0.06 * Math.max(pop, 0) : 1})`,
+              transformOrigin: "center bottom", display: "inline-block",
               textShadow: "0 3px 16px rgba(0,0,0,0.4)",
-              textTransform: w.key ? "uppercase" : "none",
-              letterSpacing: "0.01em",
-              display: "inline-block",
             }}>{w.w}</span>
           );
         })}

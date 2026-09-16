@@ -4,6 +4,7 @@ import { Explainer, type Storyboard } from "./Explainer";
 import { Reel } from "./reels";
 import { LongVideo } from "./longscenes";
 import { DocV2 } from "./longscenes2";
+import { CapShowcase } from "./caption-showcase";
 
 const EMPTY: Storyboard = {
   title: "Explainer",
@@ -116,6 +117,15 @@ export const RemotionRoot: React.FC = () => {
         height={1080}
         defaultProps={{ longvideo: { beats: [], totalMs: 100, fps: 30 } }}
         calculateMetadata={calculateLongMetadata}
+      />
+      <Composition
+        id="CapShowcase"
+        component={CapShowcase}
+        durationInFrames={1344}
+        fps={30}
+        width={1920}
+        height={1080}
+        defaultProps={{ showcase: { words: [], audio: "cap-voice.mp3" } }}
       />
     </>
   );
