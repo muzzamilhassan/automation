@@ -1,0 +1,51 @@
+# Long-form upload (PRIVATE repo): downloads the newest render artifacts from
+# the public quarry-render repo and schedules one YouTube upload per channel
+# at that channel's prime-time ET slot. Idempotent per artifact.
+# Cron disabled until the user reviews the first manual uploads.
+name: Long-form Upload
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "one channel only (blank = all 4)"
+        required: false
+        default: ""
+  # schedule:
+  #   - cron: "30 20 * * *"
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Download artifacts + schedule uploads
+        env:
+          GITHUB_PAT: ${{ secrets.GITHUB_PAT }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YT_TOKEN_INVESTORS_COMPASS: ${{ secrets.YT_TOKEN_INVESTORS_COMPASS }}
+          YT_TOKEN_MONEY_RULEBOOK: ${{ secrets.YT_TOKEN_MONEY_RULEBOOK }}
+          YT_TOKEN_DEBT_FREE_DOCTRINE: ${{ secrets.YT_TOKEN_DEBT_FREE_DOCTRINE }}
+          YT_TOKEN_QUOTEQUARRY: ${{ secrets.YT_TOKEN_QUOTEQUARRY }}
+        run: node longvideo/longform-upload.mjs ${{ inputs.channel != '' && format('--channel {0}', inputs.channel) || '' }}
+
+      - name: Save upload history
+        run: |
+          if [ -f state/longform-uploads.json ]; then
+            git config user.name "longform-bot"
+            git config user.email "bot@users.noreply.github.com"
+            git add state/longform-uploads.json
+            git commit -m "longform uploads [skip ci]" || true
+            git push origin HEAD:main || (git pull --rebase -q origin main && git push origin HEAD:main) || true
+          fi

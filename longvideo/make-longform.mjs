@@ -1,9 +1,10 @@
-// LONG-FORM daily factory: ONE 10+ min documentary per channel per day.
-// topic (AI, deduped) -> 10-min script (Gemini->Groq) -> chapter beats -> Edge-TTS
-// -> Pexels/Pixabay photos -> approved music (looped) -> Style-2 karaoke captions
-// -> DocV2 render 1280x720@24fps (1920-space CSS via scaled stage)
-// -> Wikimedia persona thumbnail (Remotion still) -> scheduled YouTube upload.
+// LONG-FORM daily factory (runs in the PUBLIC render repo — no YouTube tokens here).
+// ONE 10+ min documentary per channel: topic (AI, deduped) -> 10-min script
+// (Gemini->Groq) -> chapter beats -> Edge-TTS -> Pexels/Pixabay photos -> approved
+// music (looped) -> Style-2 karaoke captions -> DocV2 render 1080p/24fps
+// -> Wikipedia persona thumbnail (Remotion still) -> META json for the private uploader.
 //   node make-longform.mjs --channel investors-compass [--test]
+//   LF_MINUTES=1 for quick tests.
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -17,14 +18,15 @@ const PUB = path.join(EXPL, "public");
 const IS_WIN = process.platform === "win32";
 const PY = IS_WIN ? "python" : "python3";
 const TEST = process.argv.includes("--test");
-const SLUG = (process.argv.find((a) => a.startsWith("--channel")) || "--channel investors-compass").split("=")[1] || process.argv[process.argv.indexOf("--channel") + 1];
+const chanArg = process.argv.indexOf("--channel");
+const SLUG = chanArg > 0 ? process.argv[chanArg + 1] : "investors-compass";
 
 try {
   for (const line of fs.readFileSync(path.join(ROOT, ".env"), "utf8").split("\n")) {
     const m = line.match(/^([A-Z_0-9]+)=(.*)\s*$/);
     if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim();
   }
-} catch { /* CI */ }
+} catch { /* CI injects secrets */ }
 
 const CHANNELS = {
   "investors-compass": { theme: "investing", group: "TENSION", slotET: "19:00", voice: "en-US-AndrewNeural", brand: "INVESTOR'S COMPASS", eyebrow: "MARKET DOCUMENTARIES // IC", accent: "#E8C15A", bg: "#0B1220", niche: "stock market crashes, famous investors, investing disasters, market history" },
@@ -52,7 +54,7 @@ const recentTitles = history.slice(-25).map((h) => h.title);
 const TOPIC_SYS = `You plan documentary YouTube videos. Return ONLY JSON: {"title":"...","thumbHeadline":"...","personaQuery":"...","personaName":"..."}.
 - "title": a documentary topic for this niche, a real story with real facts you know well: NICHE.
 - "thumbHeadline": 3-5 punchy words for the thumbnail (max 22 chars), no punctuation except $ or numbers.
-- "personaQuery": the single most FAMOUS person, logo, or object tied to the story (e.g. "Warren Buffett", "Twitter logo", "silicon wafer") for Wikimedia photo search.
+- "personaQuery": the single most FAMOUS person, logo, or object tied to the story (e.g. "Warren Buffett", "Twitter logo", "silicon wafer") - this is used to find its Wikipedia photo.
 - "personaName": that same name.
 Not in this list of already-used topics: ${JSON.stringify(recentTitles)}`;
 
@@ -63,16 +65,15 @@ async function postJson(url, headers, body) {
   return r.json();
 }
 async function aiJson(runner) {
+  let lastErr;
   for (let a = 0; a < 3; a++) {
-    try { return await runner(); } catch (e) {
-      if (!/HTTP 5\d\d/.test(String(e.message))) { if (a === 2 || !/HTTP 429/.test(String(e.message))) { if (a === 2) throw e; } }
-      await new Promise((r) => setTimeout(r, 4000));
-    }
+    try { return await runner(); } catch (e) { lastErr = e; await new Promise((r) => setTimeout(r, 4000)); }
   }
-  throw new Error("ai failed");
+  throw lastErr;
 }
 const geminiTopic = () => aiJson(async () => {
   const key = process.env.LONGVIDEO_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  if (!key) throw new Error("no gemini key");
   const d = await postJson(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${key}`,
     { "Content-Type": "application/json" },
     { contents: [{ parts: [{ text: `${TOPIC_SYS.replace("NICHE", CH.niche)}` }] }], generationConfig: { temperature: 1.0, responseMimeType: "application/json" } });
@@ -80,6 +81,7 @@ const geminiTopic = () => aiJson(async () => {
 });
 const groqTopic = () => aiJson(async () => {
   const key = process.env.LONGVIDEO_GROQ_API_KEY;
+  if (!key) throw new Error("no groq key");
   const d = await postJson("https://api.groq.com/openai/v1/chat/completions",
     { "Content-Type": "application/json", Authorization: `Bearer ${key}`, "User-Agent": "quarry-longform/1.0" },
     { model: "openai/gpt-oss-120b", temperature: 1.0, max_tokens: 6000, messages: [{ role: "user", content: `${TOPIC_SYS.replace("NICHE", CH.niche)}\nOutput ONLY the raw JSON object.` }] });
@@ -89,7 +91,7 @@ const groqTopic = () => aiJson(async () => {
 console.log("[step] topic ...");
 let topic = await step("gemini-topic", geminiTopic)();
 if (!topic) topic = await step("groq-topic", groqTopic)();
-if (!topic || !topic.title) { topic = { title: `The Most Surprising ${CH.brand} Story Ever Told`, thumbHeadline: "THE UNTOLD STORY", personaQuery: CH.niche.split(",")[0], personaName: "" }; }
+if (!topic || !topic.title) { topic = { title: "The Most Surprising Money Story Ever Told", thumbHeadline: "THE UNTOLD STORY", personaQuery: CH.niche.split(",")[0], personaName: "" }; }
 console.log(`[topic] "${topic.title}" | persona: ${topic.personaName || topic.personaQuery}`);
 
 // ---------- 2. script (existing 10-min engine) ----------
@@ -108,7 +110,7 @@ const beats = [];
 const push = (b) => { b.i = beats.length; beats.push(b); };
 push({ layout: "hero", kicker: "", headline: fit(topic.title, 76), sub: fit(sentences(script.hook)[0] || "", 90), text: script.hook });
 script.chapters.forEach((ch, ci) => {
-  push({ layout: "chapter", n: ci + 1, chapterTitle: fit(ch.title, 70), text: ch.narration ? "" : "" });
+  push({ layout: "chapter", n: ci + 1, chapterTitle: fit(ch.title, 70) });
   for (const snt of sentences(ch.narration)) {
     const isStat = /(\$\d|\d+%|\d{4,})/.test(snt);
     push({ layout: isStat ? "stat" : "split", n: ci + 1, chapterTitle: ch.title, side: beats.length % 2 === 0 ? "left" : "right", headline: fit(snt, 110), text: snt });
@@ -119,10 +121,11 @@ console.log(`[beats] ${beats.length} beats`);
 
 // ---------- 4. photos ----------
 const photoDir = path.join(PUB, "lf-photos", SLUG);
+const nicheWords = CH.niche.split(",").map((x) => x.trim());
 let photoIdx = 0;
 for (const b of beats) {
   if (b.layout !== "split" && b.layout !== "hero") continue;
-  const q = b.layout === "hero" ? (topic.personaQuery || CH.niche.split(",")[0]) : `${b.chapterTitle} ${CH.niche.split(",")[photoIdx % CH.niche.split(",").length]}`;
+  const q = b.layout === "hero" ? (topic.personaQuery || nicheWords[0]) : `${b.chapterTitle} ${nicheWords[photoIdx % nicheWords.length]}`;
   let r = await fetchPhoto({ key: process.env.PEXELS_API_KEY, query: q.slice(0, 60), outPath: path.join(photoDir, `p-${b.i}.jpg`) });
   if (!r) r = await fetchPhotoPixabay({ key: process.env.PIXABAY_API_KEY, query: q.slice(0, 60), outPath: path.join(photoDir, `p-${b.i}.jpg`) });
   if (!r) { await new Promise((res) => setTimeout(res, 1000)); r = await fetchPhoto({ key: process.env.PEXELS_API_KEY, query: q.slice(0, 60), outPath: path.join(photoDir, `p-${b.i}.jpg`) }); }
@@ -144,8 +147,9 @@ const durs = JSON.parse(fs.readFileSync(path.join(audioDir, "tts-durations.json"
 const durByI = new Map(durs.map((d) => [d.i, d]));
 
 // ---------- 6. music (approved pool, ONE track, loops) ----------
-const pickFrom = await step("music-list", () => Promise.resolve(JSON.parse(fs.readFileSync(path.join(DIR, "approved-music.json"), "utf8")).filter((m) => m.group === CH.group)))() || [];
-const track = await step("music", () => pickApprovedTrack(pickFrom.map((m) => m.title)))();
+const ALL_APPROVED = JSON.parse(fs.readFileSync(path.join(DIR, "approved-music.json"), "utf8"));
+const pickFrom = ALL_APPROVED.filter((m) => m.group === CH.group);
+const track = await step("music", () => pickApprovedTrack((pickFrom.length ? pickFrom : ALL_APPROVED).map((m) => m.title)))();
 let musicFile = null;
 if (track) {
   musicFile = `lf-audio/${SLUG}/music.mp3`;
@@ -174,23 +178,22 @@ const jsonPath = path.join(PUB, `lf-${SLUG}.json`);
 fs.writeFileSync(jsonPath, JSON.stringify(doc, null, 2));
 console.log(`[timeline] ${beats.length} beats, ${(totalMs / 60000).toFixed(1)} min -> ${path.basename(jsonPath)}`);
 
-// ---------- 8. render (1280x720 via scaled stage; composition metadata drives size) ----------
+// ---------- 8. render (composition metadata drives 1920x1080; CSS is 1920-space) ----------
 const ensure = spawnSync("npx", ["remotion", "browser", "ensure"], { cwd: EXPL, ...spawnOpts });
 if (ensure.status !== 0) throw new Error("browser ensure failed");
 const outMp4 = path.join(EXPL, "out", `lf-${SLUG}.mp4`);
 const renderArgs = (conc) => ["remotion", "render", "remotion/index.ts", "DocV2", outMp4, `--props=${jsonPath}`, `--concurrency=${conc}`, "--timeout=300000", "--port=3492"];
 let r = spawnSync("npx", renderArgs(2), { cwd: EXPL, ...spawnOpts });
 if (r.status !== 0) {
-  console.log("[render] retry concurrency off");
-  r = spawnSync("npx", renderArgs(1).map((a) => (a === "--concurrency=1" ? "--concurrency=1" : a)), { cwd: EXPL, ...spawnOpts });
+  console.log("[render] retry concurrency 1");
+  r = spawnSync("npx", renderArgs(1), { cwd: EXPL, ...spawnOpts });
 }
 if (r.status !== 0) throw new Error("render failed");
 console.log(`[DONE] ${outMp4} (${(fs.statSync(outMp4).size / 1048576).toFixed(1)} MB, ${(totalMs / 1000).toFixed(0)}s)`);
 
-// ---------- 9. thumbnail (Wikimedia persona + Remotion still) ----------
+// ---------- 9. thumbnail (Wikipedia persona image + Remotion still) ----------
 const WIKI_UA = { "User-Agent": "QuarryLongform/1.0 (video thumbnail; contact via channel)" };
 async function fetchPersonaImage(query, name, outPath) {
-  // 1) iconic Wikipedia page image of the subject (best for famous personas/things)
   if (name) {
     try {
       const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(String(name).trim().replace(/\s+/g, "_"))}`, { headers: WIKI_UA });
@@ -204,7 +207,6 @@ async function fetchPersonaImage(query, name, outPath) {
       }
     } catch (e) { console.log(`[thumb] wikipedia: ${String(e.message).slice(0, 60)}`); }
   }
-  // 2) Wikimedia Commons search (no filetype filter)
   try {
     const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=10&gsrnamespace=6&prop=imageinfo&iiprop=url%7Csize&iiurlwidth=1280&format=json`;
     const r = await fetch(url, { headers: WIKI_UA });
@@ -218,18 +220,16 @@ async function fetchPersonaImage(query, name, outPath) {
       }
     }
   } catch (e) { console.log(`[thumb] commons: ${String(e.message).slice(0, 60)}`); }
-  // 3) Pexels as generic fallback so a thumbnail always renders
   const r = await fetchPhoto({ key: process.env.PEXELS_API_KEY, query, outPath });
   return r ? "pexels" : "";
 }
-
 let thumbFile = null;
-if (true) {
+{
+  const personaFile = path.join(photoDir, "persona.jpg");
   try {
-    const personaFile = path.join(photoDir, "persona.jpg");
-    const src = await fetchPersonaImage(topic.personaQuery || topic.personaName || CH.niche.split(",")[0], topic.personaName || topic.personaQuery, personaFile);
+    const src = await fetchPersonaImage(topic.personaQuery || topic.personaName || nicheWords[0], topic.personaName || topic.personaQuery, personaFile);
     if (src) console.log(`[thumb] persona (${src})`);
-    const thumbDoc = { thumb: { headline: topic.thumbHeadline || fit(topic.title, 22), brand: CH.brand, accent: CH.accent, bg: CH.bg, persona: path.relative(PUB, personaFile).split(path.sep).join("/") } };
+    const thumbDoc = { thumb: { headline: topic.thumbHeadline || fit(topic.title, 22), brand: CH.brand, accent: CH.accent, bg: CH.bg, persona: src ? path.relative(PUB, personaFile).split(path.sep).join("/") : "" } };
     const thumbJson = path.join(PUB, `lf-thumb-${SLUG}.json`);
     fs.writeFileSync(thumbJson, JSON.stringify(thumbDoc, null, 2));
     thumbFile = path.join(EXPL, "out", `lf-thumb-${SLUG}.jpg`);
@@ -242,22 +242,19 @@ if (true) {
   }
 }
 
-// ---------- 10. upload (skipped in --test) ----------
-if (TEST) {
-  console.log("[TEST] skipping upload. Artifacts: video + thumbnail + doc json.");
-  console.log(`[TEST] would go public next ${CH.slotET} ET on ${SLUG}`);
-  process.exit(0);
-}
-
-const { google } = await import("googleapis");
-const CLIENT_ID = process.env.YOUTUBE_CLIENT_ID || "";
-const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET || "";
-const tokenRaw = process.env[`YT_TOKEN_${SLUG.toUpperCase().replace(/-/g, "_")}`] || "";
-if (!CLIENT_ID || !CLIENT_SECRET || !tokenRaw) throw new Error("missing YT client/token secrets");
-const t = JSON.parse(tokenRaw);
-const auth = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET);
-auth.setCredentials({ refresh_token: t.refresh_token });
-const youtube = google.youtube({ version: "v3", auth });
+// ---------- 10. META json (private uploader reads this; no tokens live here) ----------
+const chapterBeats = beats.filter((b) => b.layout === "chapter");
+function fmtTime(sec) { const m = Math.floor(sec / 60); const s = Math.round(sec % 60); return `${m}:${String(s).padStart(2, "0")}`; }
+const chapters = script.chapters.map((c, i) => ({ t: fmtTime((chapterBeats[i]?.startMs || 0) / 1000), title: c.title }));
+const description = [
+  script.hook,
+  "",
+  "CHAPTERS:",
+  ...chapters.map((c) => `${c.t} ${c.title}`),
+  "",
+  `Subscribe to ${CH.brand}.`,
+  track ? `Music: ${track.title} - ${track.credit}` : "",
+].filter(Boolean).join("\n").slice(0, 4900);
 
 function etToUTC(y, mo, d, h, mi) {
   let ts = Date.UTC(y, mo - 1, d, h, mi);
@@ -281,51 +278,28 @@ function nextSlotET(hhmm) {
   throw new Error("no slot found");
 }
 const publishAt = nextSlotET(CH.slotET);
-console.log(`[upload] goes public ${publishAt}`);
 
-const chapters = script.chapters.map((c, i) => ({ t: fmtTime(beats.filter((b) => b.layout === "chapter")[i]?.startMs / 1000 || 0), title: c.title }));
-function fmtTime(sec) { const m = Math.floor(sec / 60); const s = Math.round(sec % 60); return `${m}:${String(s).padStart(2, "0")}`; }
-const description = [
-  script.hook,
-  "",
-  "⏱ CHAPTERS:",
-  ...chapters.map((c) => `${c.t} ${c.title}`),
-  "",
-  `Subscribe to ${CH.brand}.`,
-  track ? `🎵 ${track.title} — ${track.credit}` : "",
-].filter(Boolean).join("\n").slice(0, 4900);
+const meta = {
+  channel: SLUG, brand: CH.brand, title: script.title, description,
+  tags: [nicheWords[0], "documentary", "stories", SLUG],
+  publishAt, durationMs: totalMs,
+  music: track ? { title: track.title, credit: track.credit } : null,
+  persona: { query: topic.personaQuery || "", name: topic.personaName || "" },
+  videoFile: `lf-${SLUG}.mp4`, thumbFile: `lf-thumb-${SLUG}.jpg`,
+};
+const metaPath = path.join(EXPL, "out", `lf-meta-${SLUG}.json`);
+fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+console.log(`[meta] ${metaPath} (publishAt ${publishAt})`);
 
-const { Readable } = await import("node:stream");
-const readable = new Readable();
-readable._read = () => { };
-readable.push(fs.readFileSync(outMp4));
-readable.push(null);
-const res = await youtube.videos.insert({
-  part: ["snippet", "status"],
-  requestBody: {
-    snippet: { title: fit(script.title, 95), description, tags: [CH.niche.split(",")[0], "documentary", "stories", SLUG], categoryId: "27", defaultLanguage: "en", defaultAudioLanguage: "en" },
-    status: { privacyStatus: "private", publishAt, selfDeclaredMadeForKids: false },
-  },
-  media: { body: readable },
-});
-console.log(`[upload] scheduled 👉 https://youtube.com/watch?v=${res.data.id}`);
-if (thumbFile && fs.existsSync(thumbFile)) {
-  try {
-    const ts2 = new Readable(); ts2._read = () => { }; ts2.push(fs.readFileSync(thumbFile)); ts2.push(null);
-    await youtube.thumbnails.set({ videoId: res.data.id, media: { body: ts2 } });
-    console.log("[upload] thumbnail set");
-  } catch (e) { console.log(`[warn] thumbnail upload: ${String(e.message).slice(0, 80)}`); }
-}
-
-history.push({ date: new Date().toISOString().slice(0, 10), title: script.title, videoId: res.data.id, publishAt });
+// topic history lives HERE (public repo stores only titles, no private data)
+history.push({ date: new Date().toISOString().slice(0, 10), title: script.title });
 fs.mkdirSync(path.dirname(HIST), { recursive: true });
 fs.writeFileSync(HIST, JSON.stringify(history.slice(-200), null, 2));
 
-// ntfy notify (ASCII headers only)
 try {
-  const topic2 = process.env.NTFY_TOPIC;
-  if (topic2) {
-    await fetch(`https://ntfy.sh/${topic2}`, { method: "POST", headers: { "Content-Type": "text/plain", Title: `Long-form scheduled: ${SLUG}` }, body: `${script.title}\nGoes public ${publishAt}\nhttps://youtube.com/watch?v=${res.data.id}` });
+  const ntopic = process.env.NTFY_TOPIC;
+  if (ntopic) {
+    await fetch(`https://ntfy.sh/${ntopic}`, { method: "POST", headers: { "Content-Type": "text/plain", Title: `Long-form rendered: ${SLUG}` }, body: `${script.title}\nReady for upload (goes public ${publishAt})` });
   }
 } catch { }
 console.log("[ALL DONE]");
