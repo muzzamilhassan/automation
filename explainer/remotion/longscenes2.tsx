@@ -185,17 +185,17 @@ const HeroLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
   const kIn = spring({ frame: f - 4, fps, config: { damping: 200 } });
   const hIn = spring({ frame: f - 10, fps, config: { damping: 200 } });
   const len = (b.headline || "").length;
-  const size = len > 80 ? 54 : len > 55 ? 66 : len > 34 ? 84 : 96;
+  const size = len > 66 ? 68 : 88;
   return (
     <Content beat={b}>
-      <div style={{ position: "absolute", top: 230, left: 0, right: 0, textAlign: "center", opacity: kIn }}>
+      <div style={{ position: "absolute", top: 210, left: 0, right: 0, textAlign: "center", opacity: kIn }}>
         <Kicker text={b.kicker || ""} center />
       </div>
-      <div style={{ position: "absolute", top: 360, left: 140, right: 140, textAlign: "center", opacity: hIn, transform: `translateY(${(1 - hIn) * 30}px)` }}>
-        <Headline text={fitText(b.headline || "", 88)} size={size} />
+      <div style={{ position: "absolute", top: 330, left: 140, right: 140, textAlign: "center", opacity: hIn, transform: `translateY(${(1 - hIn) * 30}px)` }}>
+        <Headline text={fitText(b.headline || "", 76)} size={size} />
         {b.sub ? (
-          <div style={{ marginTop: 36 }}>
-            <Sub text={fitText(b.sub, 92)} size={34} />
+          <div style={{ marginTop: 32 }}>
+            <Sub text={fitText(b.sub, 62)} size={34} />
           </div>
         ) : null}
       </div>
@@ -208,18 +208,21 @@ const SplitLayout: React.FC<{ b: V2Beat; side: "left" | "right" }> = ({ b, side 
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
   const tIn = spring({ frame: f - 6, fps, config: { damping: 200 } });
-  const textW = 880, imgW = 640;
+  const textW = 900, imgW = 620;
+  // photo sits OPPOSITE the text column — they must never overlap
+  const textSide = side === "left" ? "left" : "right";
+  const photoSide = side === "left" ? "right" : "left";
   return (
     <Content beat={b}>
-      {b.photo ? <Photo file={b.photo} side={side} width={imgW} /> : null}
-      <div style={{ position: "absolute", top: 260, [side === "left" ? "left" : "right"]: SAFE.x, width: textW, textAlign: side === "left" ? "left" : "right", opacity: tIn, transform: `translateY(${(1 - tIn) * 30}px)` }}>
-        <div style={{ marginBottom: 34 }}>
+      {b.photo ? <Photo file={b.photo} side={photoSide} width={imgW} /> : null}
+      <div style={{ position: "absolute", top: 280, [textSide]: SAFE.x, width: textW, textAlign: textSide, opacity: tIn, transform: `translateY(${(1 - tIn) * 30}px)` }}>
+        <div style={{ marginBottom: 30 }}>
           <Kicker text={b.kicker || `PART ${String(b.n || 1).padStart(2, "0")}`} />
         </div>
-        <Headline text={fitText(b.headline || "", 96)} size={(b.headline || "").length > 72 ? 56 : 64} />
+        <Headline text={fitText(b.headline || "", 88)} size={(b.headline || "").length > 66 ? 66 : 78} />
         {b.sub ? (
-          <div style={{ marginTop: 34, display: "inline-block", marginLeft: side === "left" ? 0 : undefined }}>
-            <Sub text={fitText(b.sub, 88)} />
+          <div style={{ marginTop: 30, display: "inline-block" }}>
+            <Sub text={fitText(b.sub, 80)} size={36} />
           </div>
         ) : null}
       </div>

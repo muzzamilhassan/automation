@@ -214,7 +214,7 @@ const ensure = spawnSync("npx", ["remotion", "browser", "ensure"], { cwd: EXPL, 
 if (ensure.status !== 0) throw new Error("browser ensure failed");
 const outMp4 = path.join(EXPL, "out", `demo-${SLUG}.mp4`);
 const renderArgs = (conc) => ["remotion", "render", "remotion/index.ts", "DocV2", outMp4,
-  `--props=${jsonPath}`, "--width=1280", "--height=720", `--concurrency=${conc}`, "--timeout=180000", "--port=3491"];
+  `--props=${jsonPath}`, `--concurrency=${conc}`, "--timeout=180000", "--port=3491"];
 let r = spawnSync("npx", renderArgs(3), { cwd: EXPL, stdio: "inherit", shell: IS_WIN });
 if (r.status !== 0) {
   console.log("[render] retry at concurrency 2");
