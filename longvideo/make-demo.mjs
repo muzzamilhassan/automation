@@ -169,6 +169,19 @@ const buildCues = (words) => {
   return cues;
 };
 
+// premium captions: word-level timings + emphasis on key words (numbers, money, power words)
+const POWER_WORDS = new Set(["billion", "million", "thousand", "trillion", "dollars", "dollar", "percent", "never", "always", "money", "rich", "broke", "free", "quit", "banned", "illegal", "secret", "huge", "massive", "warning", "collapsed", "crash", "erased", "vanished", "fortune", "empire", "power", "control", "impossible", "insane", "biggest", "most"]);
+const isKeyWord = (w) => {
+  const clean = String(w).toLowerCase().replace(/[^a-z0-9$%.]/g, "");
+  return /\d/.test(clean) || /[$%]/.test(clean) || POWER_WORDS.has(clean);
+};
+const buildWords = (words) => (words || []).map((w) => ({
+  w: w.w,
+  t0: Math.round(w.s * 1000),
+  t1: Math.round((w.s + w.d) * 1000),
+  key: isKeyWord(w.w),
+}));
+
 // user-approved music pool (locked 09-16) — one track per video, looped if short
 const APPROVED = JSON.parse(fs.readFileSync(path.join(DIR, "approved-music.json"), "utf8"));
 const THEME_GROUP = { investing: "TENSION", vox: "CINEMATIC", poster: "TECH" };
@@ -240,6 +253,7 @@ for (const b of beats) {
   const mp3Rel = `demo-audio/${SLUG}/audio/beat-${String(b.i).padStart(2, "0")}.mp3`;
   b.audio = b.text.trim() && fs.existsSync(path.join(PUB, mp3Rel)) && fs.statSync(path.join(PUB, mp3Rel)).size > 2048 ? mp3Rel : null;
   b.cues = buildCues(durByI2.get(b.i)?.words);
+  b.words = buildWords(durByI2.get(b.i)?.words);
   cursor += b.ms;
 }
 const totalMs = Math.round(cursor + 1200);

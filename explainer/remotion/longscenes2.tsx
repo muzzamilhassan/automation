@@ -61,6 +61,8 @@ export type V2Beat = {
   kicker?: string; headline?: string; sub?: string; big?: string; label?: string;
   n?: number; chapterTitle?: string; chapterCount?: number; total?: number;
   photo?: string; photoSide?: "left" | "right";
+  words?: Array<{ w: string; t0: number; t1: number; key?: boolean }>;
+  cues?: Array<{ t0: number; t1: number; text: string }>;
   startMs: number; ms: number; audio: string | null; i: number;
 };
 
@@ -302,18 +304,41 @@ const EndLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
   );
 };
 
-// karaoke caption pill — soft shadow, never heavy borders; sits above the brand strip
-const Captions: React.FC<{ cues: Array<{ t0: number; t1: number; text: string }> }> = ({ cues }) => {
+// premium karaoke captions — word-by-word reveal, active word pops, key words emphasized
+const Captions: React.FC<{ b: V2Beat }> = ({ b }) => {
   const T = useT();
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
   const ms = (f / fps) * 1000;
-  const cue = cues.find((c) => ms >= c.t0 - 60 && ms < c.t1 + 120);
-  if (!cue) return null;
+  const words = b.words || [];
+  if (!words.length) return null;
+  const idx = words.findIndex((w) => ms >= w.t0 - 40 && ms < w.t1 + 160);
+  if (idx < 0) return null;
+  const winStart = Math.max(0, Math.min(idx - 1, words.length - 4));
+  const win = words.slice(winStart, Math.min(winStart + 4, words.length));
   return (
     <div style={{ position: "absolute", bottom: 150, left: 150, right: 150, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
-      <div style={{ background: "rgba(10,12,18,0.62)", borderRadius: 16, padding: "14px 32px", fontFamily: GROT, fontWeight: 800, fontSize: 44, lineHeight: 1.2, color: T.capColor, letterSpacing: "0.01em", textShadow: "0 2px 14px rgba(0,0,0,0.35)", maxWidth: 1480, textAlign: "center" }}>
-        {cue.text}
+      <div style={{ display: "flex", gap: 16, alignItems: "baseline", flexWrap: "wrap", justifyContent: "center", background: "rgba(10,12,18,0.55)", borderRadius: 22, padding: "20px 40px", maxWidth: 1500 }}>
+        {win.map((w, i) => {
+          const gi = winStart + i;
+          const spoken = gi <= idx;
+          const active = gi === idx;
+          const pop = active ? spring({ frame: f - (w.t0 / 1000) * fps, fps, config: { damping: 11, stiffness: 220 } }) : 0;
+          const scale = active ? 1 + 0.14 * Math.max(pop, 0) : 1;
+          return (
+            <span key={i} style={{
+              fontFamily: GROT, fontWeight: 900, fontSize: w.key ? 56 : 46, lineHeight: 1.1,
+              color: active ? T.capColor : w.key ? T.capColor : "#FFFFFF",
+              opacity: spoken ? 1 : 0.3,
+              transform: `scale(${scale})`,
+              transformOrigin: "center bottom",
+              textShadow: "0 3px 16px rgba(0,0,0,0.4)",
+              textTransform: w.key ? "uppercase" : "none",
+              letterSpacing: "0.01em",
+              display: "inline-block",
+            }}>{w.w}</span>
+          );
+        })}
       </div>
     </div>
   );
@@ -341,7 +366,7 @@ export const DocV2: React.FC<any> = (input) => {
             <Sequence key={`${b.layout}-${b.i}`} from={from} durationInFrames={dur} name={`b${b.i}-${b.layout}`}>
               {comp}
               <Furniture beat={{ ...b, i }} total={total} kicker={T.eyebrow} />
-              {b.cues && b.cues.length ? <Captions cues={b.cues} /> : null}
+              {b.words && b.words.length ? <Captions b={b} /> : null}
             </Sequence>
           );
         })}
