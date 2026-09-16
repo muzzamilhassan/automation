@@ -188,25 +188,47 @@ if (r.status !== 0) throw new Error("render failed");
 console.log(`[DONE] ${outMp4} (${(fs.statSync(outMp4).size / 1048576).toFixed(1)} MB, ${(totalMs / 1000).toFixed(0)}s)`);
 
 // ---------- 9. thumbnail (Wikimedia persona + Remotion still) ----------
-async function wikimediaPersona(query, outPath) {
-  const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query + " filetype:bitmap")}&gsrlimit=10&gsrnamespace=6&prop=imageinfo&iiprop=url%7Csize&iiurlwidth=1280&format=json`;
-  const r = await fetch(url, { headers: { "User-Agent": "QuarryLongform/1.0 (video thumbnail; contact via channel)" } });
-  if (!r.ok) throw new Error(`wiki HTTP ${r.status}`);
-  const pages = Object.values((await r.json()).query?.pages || {});
-  const cands = pages.map((p) => p.imageinfo?.[0]).filter((ii) => ii && /\.(jpe?g|png)$/i.test(ii.url) && ii.width >= 700);
-  cands.sort((a, b) => (b.width * b.height) - (a.width * a.height));
-  if (!cands.length) throw new Error("no wiki image");
-  const dl = await fetch(cands[0].thumburl || cands[0].url, { headers: { "User-Agent": "QuarryLongform/1.0" } });
-  if (!dl.ok) throw new Error(`dl HTTP ${dl.status}`);
-  fs.writeFileSync(outPath, Buffer.from(await dl.arrayBuffer()));
-  return cands[0].descriptionurl || "";
+const WIKI_UA = { "User-Agent": "QuarryLongform/1.0 (video thumbnail; contact via channel)" };
+async function fetchPersonaImage(query, name, outPath) {
+  // 1) iconic Wikipedia page image of the subject (best for famous personas/things)
+  if (name) {
+    try {
+      const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(String(name).trim().replace(/\s+/g, "_"))}`, { headers: WIKI_UA });
+      if (r.ok) {
+        const d = await r.json();
+        const src = d.originalimage?.source || d.thumbnail?.source;
+        if (src) {
+          const dl = await fetch(src, { headers: WIKI_UA });
+          if (dl.ok) { fs.writeFileSync(outPath, Buffer.from(await dl.arrayBuffer())); return d.content_urls?.desktop?.page || "wikipedia"; }
+        }
+      }
+    } catch (e) { console.log(`[thumb] wikipedia: ${String(e.message).slice(0, 60)}`); }
+  }
+  // 2) Wikimedia Commons search (no filetype filter)
+  try {
+    const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=10&gsrnamespace=6&prop=imageinfo&iiprop=url%7Csize&iiurlwidth=1280&format=json`;
+    const r = await fetch(url, { headers: WIKI_UA });
+    if (r.ok) {
+      const pages = Object.values((await r.json()).query?.pages || {});
+      const cands = pages.map((p) => p.imageinfo?.[0]).filter((ii) => ii && /\.jpe?g$/i.test(ii.url) && ii.width >= 700);
+      cands.sort((a, b) => b.width * b.height - a.width * a.height);
+      if (cands.length) {
+        const dl = await fetch(cands[0].thumburl || cands[0].url, { headers: WIKI_UA });
+        if (dl.ok) { fs.writeFileSync(outPath, Buffer.from(await dl.arrayBuffer())); return cands[0].descriptionurl || "commons"; }
+      }
+    }
+  } catch (e) { console.log(`[thumb] commons: ${String(e.message).slice(0, 60)}`); }
+  // 3) Pexels as generic fallback so a thumbnail always renders
+  const r = await fetchPhoto({ key: process.env.PEXELS_API_KEY, query, outPath });
+  return r ? "pexels" : "";
 }
+
 let thumbFile = null;
 if (true) {
   try {
     const personaFile = path.join(photoDir, "persona.jpg");
-    const wikiUrl = await wikimediaPersona(topic.personaQuery || topic.personaName || CH.niche.split(",")[0], personaFile);
-    if (wikiUrl) console.log(`[thumb] persona: ${wikiUrl}`);
+    const src = await fetchPersonaImage(topic.personaQuery || topic.personaName || CH.niche.split(",")[0], topic.personaName || topic.personaQuery, personaFile);
+    if (src) console.log(`[thumb] persona (${src})`);
     const thumbDoc = { thumb: { headline: topic.thumbHeadline || fit(topic.title, 22), brand: CH.brand, accent: CH.accent, bg: CH.bg, persona: path.relative(PUB, personaFile).split(path.sep).join("/") } };
     const thumbJson = path.join(PUB, `lf-thumb-${SLUG}.json`);
     fs.writeFileSync(thumbJson, JSON.stringify(thumbDoc, null, 2));
