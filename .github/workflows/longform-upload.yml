@@ -11,8 +11,8 @@ on:
         description: "one channel only (blank = all 4)"
         required: false
         default: ""
-  # schedule:
-  #   - cron: "30 20 * * *"
+  schedule:
+    - cron: "30 20 * * *"
 
 jobs:
   upload:
