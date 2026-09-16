@@ -85,7 +85,10 @@ async def main():
                 print(f"  [tts] beat {b['i']:02d} retry {attempt + 1}: {str(e)[:90]}", flush=True)
                 await asyncio.sleep(2 * (attempt + 1))
         if not ok or not os.path.exists(mp3) or os.path.getsize(mp3) < 2048:
-            silence(mp3, 8.0)
+            try:
+                silence(mp3, 8.0)
+            except Exception as e:
+                print(f"  [tts] beat {b['i']:02d}: silence placeholder failed: {str(e)[:60]}", flush=True)
             words = []
             print(f"  [tts] beat {b['i']:02d}: SILENT PLACEHOLDER (network)", flush=True)
         dur = (words[-1]["s"] + words[-1]["d"]) if words else probe_ms(ffprobe, mp3) / 1000 or 8.0

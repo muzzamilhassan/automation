@@ -26,7 +26,8 @@ try {
 
 const arg = (name, def) => {
   const i = process.argv.indexOf(`--${name}`);
-  return i > 0 ? process.argv[i + 1] : def;
+  const v = i > 0 ? process.argv[i + 1] : undefined;
+  return v === undefined || v === "" ? def : v;
 };
 const slugify = (s) => (s || "demo").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 50);
 
@@ -105,8 +106,8 @@ const step = (name, fn) => async () => {
 };
 
 console.log("[step] script: trying Gemini");
-let script = await step("gemini")(geminiScript);
-if (!script) { console.log("[step] script: trying Groq"); script = await step("groq")(groqScript); }
+let script = await step("gemini", geminiScript)();
+if (!script) { console.log("[step] script: trying Groq"); script = await step("groq", groqScript)(); }
 if (!script || !Array.isArray(script.beats) || script.beats.length < 4) {
   console.log("[step] script: using built-in fallback");
   script = FALLBACK;
@@ -141,8 +142,10 @@ for (const b of beats) {
   if (b.layout !== "split" && b.layout !== "hero") continue;
   const q = b.photoQuery || QUERIES[0];
   if (!q) continue;
-  const r = await fetchPhoto({ key: process.env.PEXELS_API_KEY, query: q, outPath: path.join(photoDir, `p-${b.i}.jpg`) });
+  let r = await fetchPhoto({ key: process.env.PEXELS_API_KEY, query: q, outPath: path.join(photoDir, `p-${b.i}.jpg`) });
+  if (!r) { await new Promise((res) => setTimeout(res, 1200)); r = await fetchPhoto({ key: process.env.PEXELS_API_KEY, query: q, outPath: path.join(photoDir, `p-${b.i}.jpg`) }); }
   if (r) b.photo = path.relative(PUB, r.file).split(path.sep).join("/");
+  await new Promise((res) => setTimeout(res, 300));
 }
 console.log(`[photos] ${beats.filter((b) => b.photo).length}/${beats.filter((b) => b.layout === "split" || b.layout === "hero").length} fetched`);
 
@@ -165,7 +168,8 @@ for (const b of beats) {
   const spokenMs = durByI.get(b.i) || 0;
   b.ms = b.layout === "end" ? 3500 : Math.max(Math.round(spokenMs) + 500, 2800);
   b.startMs = Math.round(cursor);
-  b.audio = b.text.trim() ? `demo-audio/${SLUG}/audio/beat-${String(b.i).padStart(2, "0")}.mp3` : null;
+  const mp3Rel = `demo-audio/${SLUG}/audio/beat-${String(b.i).padStart(2, "0")}.mp3`;
+  b.audio = b.text.trim() && fs.existsSync(path.join(PUB, mp3Rel)) && fs.statSync(path.join(PUB, mp3Rel)).size > 2048 ? mp3Rel : null;
   cursor += b.ms;
 }
 const totalMs = Math.round(cursor + 1200);
