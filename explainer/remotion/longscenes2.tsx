@@ -120,9 +120,13 @@ const Furniture: React.FC<{ beat: V2Beat; total: number; kicker: string }> = ({ 
         {kicker}
       </div>
       <div style={{ position: "absolute", top: 52, right: 130, display: "flex", gap: 10 }}>
-        {Array.from({ length: total }).map((_, i) => (
-          <div key={i} style={{ width: 26, height: 5, borderRadius: 3, background: i <= beat.i ? T.accent : T.dot }} />
-        ))}
+        {(() => {
+          const shown = Math.min(total, 16);
+          const filled = total <= shown ? beat.i + 1 : Math.round(((beat.i + 1) / total) * shown);
+          return Array.from({ length: shown }).map((_, i) => (
+            <div key={i} style={{ width: 26, height: 5, borderRadius: 3, background: i < filled ? T.accent : T.dot }} />
+          ));
+        })()}
       </div>
       <div style={{ position: "absolute", bottom: 46, left: 130, right: 130, height: 2, background: T.line }} />
       <div style={{ position: "absolute", bottom: 30, left: 130, fontFamily: T.mono, fontWeight: 700, fontSize: 19, letterSpacing: "0.26em", color: T.furn }}>
@@ -353,10 +357,15 @@ export const DocV2: React.FC<any> = (input) => {
   if (!doc) return <AbsoluteFill style={{ background: T.bg }} />;
   const total = doc.beats.length;
 
+  const vw = doc.width || 1920;
+  const vh = doc.height || 1080;
+  const sc = vw / 1920;
+  const stage = sc === 1 ? null : { width: 1920, height: 1080, transform: `scale(${sc})`, transformOrigin: "top left" as const };
   return (
     <ThemeCtx.Provider value={T}>
       <AbsoluteFill style={{ background: T.bg }}>
         {T.grain ? <Grain /> : null}
+        <AbsoluteFill style={stage || undefined}>
         {doc.beats.map((b: V2Beat, i: number) => {
           const from = Math.round((b.startMs / 1000) * fps);
           const dur = Math.max(Math.ceil((b.ms / 1000) * fps), 2);
@@ -381,6 +390,7 @@ export const DocV2: React.FC<any> = (input) => {
             volume={(f: number) => interpolate(f, [0, 30, durationInFrames - 45, durationInFrames - 1], [0, 0.15, 0.15, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })}
           />
         ) : null}
+        </AbsoluteFill>
       </AbsoluteFill>
     </ThemeCtx.Provider>
   );

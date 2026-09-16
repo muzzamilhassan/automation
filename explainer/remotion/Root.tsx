@@ -5,6 +5,7 @@ import { Reel } from "./reels";
 import { LongVideo } from "./longscenes";
 import { DocV2 } from "./longscenes2";
 import { CapShowcase } from "./caption-showcase";
+import { Thumb } from "./thumb";
 
 const EMPTY: Storyboard = {
   title: "Explainer",
@@ -43,7 +44,7 @@ const calculateMetadata = ({ props }: { props: unknown }) => {
 const calculateDocV2Metadata = ({ props }: { props: any }) => {
   const doc = Array.isArray(props?.beats) && props.beats.length > 0 ? props : (Array.isArray(props?.docv2?.beats) && props.docv2.beats.length > 0 ? props.docv2 : null);
   if (!doc) return { durationInFrames: 10, fps: 30, width: 1920, height: 1080 };
-  return { durationInFrames: Math.max(Math.ceil((doc.totalMs / 1000) * (doc.fps || 30)), 10), fps: doc.fps || 30, width: 1920, height: 1080, props: { docv2: doc } };
+  return { durationInFrames: Math.max(Math.ceil((doc.totalMs / 1000) * (doc.fps || 30)), 10), fps: doc.fps || 30, width: doc.width || 1920, height: doc.height || 1080, props: { docv2: doc } };
 };
 
 // Reel docs arrive raw as {spec, timeline, totalMs, fps}. defaultProps merge an
@@ -126,6 +127,15 @@ export const RemotionRoot: React.FC = () => {
         width={1920}
         height={1080}
         defaultProps={{ showcase: { words: [], audio: "cap-voice.mp3" } }}
+      />
+      <Composition
+        id="Thumb"
+        component={Thumb}
+        durationInFrames={1}
+        fps={30}
+        width={1280}
+        height={720}
+        defaultProps={{ thumb: { headline: "THE $136B TWEET", brand: "BRAND" } }}
       />
     </>
   );
