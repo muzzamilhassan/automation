@@ -7,7 +7,9 @@ import path from "node:path";
 
 const DIR = import.meta.dirname;
 const ROOT = path.resolve(DIR, "..");
-for (const line of fs.readFileSync(path.join(ROOT, ".env"), "utf8").split("\n")) {
+let envLines = [];
+try { envLines = fs.readFileSync(path.join(ROOT, ".env"), "utf8").split("\n"); } catch { /* CI injects secrets */ }
+for (const line of envLines) {
   const m = line.match(/^([A-Z_0-9]+)=(.*)\s*$/);
   if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim();
 }
