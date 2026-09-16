@@ -15,6 +15,7 @@ export type Theme = {
   display: string; body: string; mono: string;
   displayWeight: number; upper: boolean; grain: boolean;
   subStyle: "bar" | "marker" | "none"; highlight: string;
+  capColor: string;
   brand: string; eyebrow: string; badge: string;
 };
 
@@ -29,7 +30,7 @@ export const THEMES: Record<string, Theme> = {
     ghost: "rgba(232,193,90,0.5)", photoTint: "rgba(11,18,32,0.32)",
     display: GROT, body: GROT, mono: MONO,
     displayWeight: 900, upper: false, grain: false,
-    subStyle: "bar", highlight: "transparent",
+    subStyle: "bar", highlight: "transparent", capColor: "#FFD97A",
     brand: "INVESTOR'S COMPASS", eyebrow: "MARKET WISDOM // INVESTOR'S COMPASS", badge: "IC",
   },
   vox: {
@@ -38,7 +39,7 @@ export const THEMES: Record<string, Theme> = {
     ghost: "rgba(193,39,45,0.35)", photoTint: "rgba(26,26,26,0.22)",
     display: SERIF, body: GROT, mono: MONO,
     displayWeight: 800, upper: false, grain: true,
-    subStyle: "marker", highlight: "#FFE45C",
+    subStyle: "marker", highlight: "#FFE45C", capColor: "#FF8A7A",
     brand: "QUARRY EXPLAINS", eyebrow: "THE BIG IDEA // QUARRY EXPLAINS", badge: "QX",
   },
   poster: {
@@ -47,7 +48,7 @@ export const THEMES: Record<string, Theme> = {
     ghost: "rgba(255,51,102,0.45)", photoTint: "rgba(10,10,10,0.38)",
     display: "'Archivo Black', Inter, Arial, sans-serif", body: GROT, mono: MONO,
     displayWeight: 400, upper: true, grain: false,
-    subStyle: "none", highlight: "transparent",
+    subStyle: "none", highlight: "transparent", capColor: "#FF5C82",
     brand: "SIGNAL LAB", eyebrow: "TECH DECODED // SIGNAL LAB", badge: "SL",
   },
 };
@@ -303,14 +304,15 @@ const EndLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
 
 // karaoke caption pill — soft shadow, never heavy borders; sits above the brand strip
 const Captions: React.FC<{ cues: Array<{ t0: number; t1: number; text: string }> }> = ({ cues }) => {
+  const T = useT();
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
   const ms = (f / fps) * 1000;
   const cue = cues.find((c) => ms >= c.t0 - 60 && ms < c.t1 + 120);
   if (!cue) return null;
   return (
-    <div style={{ position: "absolute", bottom: 205, left: 150, right: 150, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
-      <div style={{ background: "rgba(10,12,18,0.62)", borderRadius: 16, padding: "14px 32px", fontFamily: GROT, fontWeight: 800, fontSize: 44, lineHeight: 1.2, color: "#FFFFFF", letterSpacing: "0.01em", textShadow: "0 2px 14px rgba(0,0,0,0.35)", maxWidth: 1480, textAlign: "center" }}>
+    <div style={{ position: "absolute", bottom: 150, left: 150, right: 150, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
+      <div style={{ background: "rgba(10,12,18,0.62)", borderRadius: 16, padding: "14px 32px", fontFamily: GROT, fontWeight: 800, fontSize: 44, lineHeight: 1.2, color: T.capColor, letterSpacing: "0.01em", textShadow: "0 2px 14px rgba(0,0,0,0.35)", maxWidth: 1480, textAlign: "center" }}>
         {cue.text}
       </div>
     </div>
