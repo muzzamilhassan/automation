@@ -310,7 +310,7 @@ const EndLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
 
 // STYLE 2 — KARAOKE HIGHLIGHT (user pick 09-16): full phrase shown, spoken words
 // turn accent, active word pops inside an accent box, upcoming words dimmed.
-const CapWindow = 7;
+const CapWindow = 4; // ONE line at a time (user requirement) — 4 words max, never wraps
 const Captions: React.FC<{ b: V2Beat }> = ({ b }) => {
   const T = useT();
   const f = useCurrentFrame();
@@ -320,22 +320,22 @@ const Captions: React.FC<{ b: V2Beat }> = ({ b }) => {
   if (!words.length) return null;
   const idx = words.findIndex((w) => ms >= w.t0 - 40 && ms < w.t1 + 150);
   if (idx < 0) return null;
-  const winStart = Math.max(0, Math.min(idx - 2, words.length - CapWindow));
+  const winStart = Math.max(0, Math.min(idx - 1, words.length - CapWindow));
   const win = words.slice(winStart, Math.min(winStart + CapWindow, words.length));
   const pop = spring({ frame: f - (words[idx].t0 / 1000) * fps, fps, config: { damping: 12, stiffness: 200 } });
   return (
-    <div style={{ position: "absolute", bottom: 150, left: 150, right: 150, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center", alignItems: "baseline", maxWidth: 1150 }}>
+    <div style={{ position: "absolute", bottom: 170, left: 0, right: 0, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
+      <div style={{ display: "flex", gap: 18, justifyContent: "center", alignItems: "baseline", whiteSpace: "nowrap" }}>
         {win.map((w, i) => {
           const gi = winStart + i;
           const active = gi === idx;
           return (
             <span key={i} style={{
-              fontFamily: GROT, fontWeight: 900, fontSize: 56, lineHeight: 1.15,
+              fontFamily: GROT, fontWeight: 900, fontSize: 58, lineHeight: 1.1,
               color: gi < idx ? T.capColor : active ? "#FFFFFF" : "rgba(255,255,255,0.55)",
               background: active ? T.capColor : "transparent",
               borderRadius: active ? 14 : 0,
-              padding: active ? "2px 18px" : 0,
+              padding: active ? "4px 20px" : 0,
               transform: `scale(${active ? 1 + 0.06 * Math.max(pop, 0) : 1})`,
               transformOrigin: "center bottom", display: "inline-block",
               textShadow: "0 3px 16px rgba(0,0,0,0.4)",

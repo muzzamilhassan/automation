@@ -169,7 +169,7 @@ for (const b of beats) {
   cursor += b.ms;
 }
 const totalMs = Math.round(cursor + 1500);
-const doc = { title: script.title, theme: CH.theme, brand: CH.brand, eyebrow: CH.eyebrow, music: musicFile || undefined, width: 1280, height: 720, fps: 24, beats, totalMs };
+const doc = { title: script.title, theme: CH.theme, brand: CH.brand, eyebrow: CH.eyebrow, music: musicFile || undefined, width: 1920, height: 1080, fps: 24, beats, totalMs };
 const jsonPath = path.join(PUB, `lf-${SLUG}.json`);
 fs.writeFileSync(jsonPath, JSON.stringify(doc, null, 2));
 console.log(`[timeline] ${beats.length} beats, ${(totalMs / 60000).toFixed(1)} min -> ${path.basename(jsonPath)}`);
