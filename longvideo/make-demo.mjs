@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fetchPhoto, fetchPhotoPixabay } from "../explainer/assets-photos.mjs";
-import { pickMusicTrack } from "../music-engine.mjs";
+import { pickMusicTrack, pickApprovedTrack } from "../music-engine.mjs";
 
 const DIR = import.meta.dirname;
 const ROOT = path.resolve(DIR, "..");
@@ -169,12 +169,9 @@ const buildCues = (words) => {
   return cues;
 };
 
-// mood per theme for background music (incompetech feel tags)
-const MUSIC_FEELS = {
-  investing: ["calming", "inspir", "uplifting"],
-  vox: ["bright", "grooving", "uplifting"],
-  poster: ["epic", "driving", "action"],
-};
+// user-approved music pool (locked 09-16) — one track per video, looped if short
+const APPROVED = JSON.parse(fs.readFileSync(path.join(DIR, "approved-music.json"), "utf8"));
+const THEME_GROUP = { investing: "TENSION", vox: "CINEMATIC", poster: "TECH" };
 
 const beats = [];
 const push = (b) => { b.i = beats.length; beats.push(b); };
@@ -217,9 +214,12 @@ if (tts.status !== 0) throw new Error("tts failed");
 const durs = JSON.parse(fs.readFileSync(path.join(audioDir, "tts-durations.json"), "utf8"));
 const durByI = new Map(durs.map((d) => [d.i, d.ms]));
 
-// ---------------- 4. music ----------------
-console.log(`[step] music: picking a ${MUSIC_FEELS[THEME] ? THEME : "default"}-mood track`);
-const track = await step("music", () => pickMusicTrack(0, { feels: MUSIC_FEELS[THEME] || ["uplifting"] }))();
+// ---------------- 4. music (approved pool only, one track per video) ----------------
+const group = THEME_GROUP[THEME] || "TENSION";
+const groupTracks = APPROVED.filter((m) => m.group === group);
+const pickFrom = groupTracks.length ? groupTracks : APPROVED;
+console.log(`[step] music: picking from approved ${group} pool (${pickFrom.length} tracks)`);
+const track = await step("music", () => pickApprovedTrack(pickFrom.map((m) => m.title)))();
 let musicFile = null;
 if (track && track.file) {
   musicFile = `demo-audio/${SLUG}/music.mp3`;

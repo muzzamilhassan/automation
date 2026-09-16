@@ -50,7 +50,7 @@ function loadCatalog() {
   return null;
 }
 
-async function getCatalog() {
+async function fetchCatalog() {
   fs.mkdirSync(CACHE_DIR, { recursive: true });
   let catalog = loadCatalog();
   if (!catalog) {
@@ -58,6 +58,11 @@ async function getCatalog() {
     catalog = JSON.parse(buf.toString('utf8'));
     fs.writeFileSync(CATALOG_CACHE, buf);
   }
+  return catalog;
+}
+
+async function getCatalog() {
+  const catalog = await fetchCatalog();
   return catalog.filter((t) => {
     const feel = (t.feel || '').toLowerCase();
     if (!t.filename || !t.filename.endsWith('.mp3')) return false;
@@ -126,6 +131,49 @@ export async function pickMusicTrack(pageIndex = 0, opts = {}) {
     return info;
   } catch (e) {
     console.warn('      [music] engine failed: ' + e.message);
+    return null;
+  }
+}
+
+/**
+ * Picks ONLY from a user-approved list of track titles (locked pool).
+ * Same download/retry/credit behavior as pickMusicTrack.
+ * @param {string[]} titles approved track titles (exact catalog titles)
+ * @returns {Promise<null|{file:string, title:string, credit:string, feel:string}>}
+ */
+export async function pickApprovedTrack(titles) {
+  try {
+    const want = new Set((titles || []).map((t) => t.trim().toLowerCase()));
+    // RAW catalog — the approved pool bypasses the shorts feel-whitelist
+    // (documentary picks are intentionally dark/tense, which GOOD_FEELS would exclude)
+    const raw = await fetchCatalog();
+    const pool = raw.filter((t) => want.has(String(t.title || '').trim().toLowerCase()) && t.filename && t.filename.endsWith('.mp3'));
+    if (!pool.length) return null;
+    const track = pool[Math.floor(Math.random() * pool.length)];
+    const slug = slugify(track.title) || `track-${track.uuid}`;
+    const file = `${CACHE_DIR}/inc-${slug}.mp3`;
+    if (!fs.existsSync(file) || fs.statSync(file).size < 300000) {
+      const url = MP3_BASE + encodeURIComponent(track.filename);
+      let buf = null;
+      for (let attempt = 1; attempt <= 3 && !buf; attempt++) {
+        try {
+          buf = await httpsGet(url);
+        } catch (e) {
+          console.warn(`      [music] download attempt ${attempt} failed: ${e.message}`);
+          await new Promise((r) => setTimeout(r, 2500 * attempt));
+        }
+      }
+      if (!buf) return null;
+      fs.writeFileSync(file, buf);
+    }
+    return {
+      file,
+      title: String(track.title || slug).trim(),
+      feel: track.feel || '',
+      credit: `"${String(track.title).trim()}" by Kevin MacLeod (incompetech.com), Licensed under CC BY 4.0`,
+    };
+  } catch (e) {
+    console.warn('      [music] approved-pool pick failed: ' + e.message);
     return null;
   }
 }
