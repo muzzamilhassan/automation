@@ -145,7 +145,7 @@ const Grain: React.FC = () => (
 const Photo: React.FC<{ file: string; side: "left" | "right"; width: string }> = ({ file, side, width }) => {
   const T = useT();
   return (
-    <div style={{ position: "absolute", top: 170, bottom: 190, [side]: SAFE.x, width, overflow: "hidden", borderRadius: 22, boxShadow: "0 26px 60px rgba(0,0,0,0.45)" }}>
+    <div style={{ position: "absolute", top: 170, bottom: 320, [side]: SAFE.x, width, overflow: "hidden", borderRadius: 22, boxShadow: "0 26px 60px rgba(0,0,0,0.45)" }}>
       <Img src={staticFile(file)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
       <div style={{ position: "absolute", inset: 0, background: `linear-gradient(180deg, transparent, ${T.photoTint})` }} />
     </div>
@@ -321,13 +321,13 @@ const Captions: React.FC<{ b: V2Beat }> = ({ b }) => {
   const pop = spring({ frame: f - (words[idx].t0 / 1000) * fps, fps, config: { damping: 12, stiffness: 200 } });
   return (
     <div style={{ position: "absolute", bottom: 150, left: 150, right: 150, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center", alignItems: "baseline", maxWidth: 1500 }}>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center", alignItems: "baseline", maxWidth: 1150 }}>
         {win.map((w, i) => {
           const gi = winStart + i;
           const active = gi === idx;
           return (
             <span key={i} style={{
-              fontFamily: GROT, fontWeight: 900, fontSize: 62, lineHeight: 1.15,
+              fontFamily: GROT, fontWeight: 900, fontSize: 56, lineHeight: 1.15,
               color: gi < idx ? T.capColor : active ? "#FFFFFF" : "rgba(255,255,255,0.55)",
               background: active ? T.capColor : "transparent",
               borderRadius: active ? 14 : 0,
