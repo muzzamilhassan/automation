@@ -204,7 +204,8 @@ for (const b of beats) {
 }
 console.log(`[photos] ${beats.filter((b) => b.photo).length}/${beats.filter((b) => b.layout === "split" || b.layout === "hero").length} fetched`);
 
-// ---------------- 3. TTS ----------------const audioDir = path.join(PUB, "demo-audio", SLUG);
+// ---------------- 3. TTS ----------------
+const audioDir = path.join(PUB, "demo-audio", SLUG);
 fs.mkdirSync(audioDir, { recursive: true });
 const spoken = beats.filter((b) => b.text.trim()).map((b) => ({ i: b.i, text: b.text }));
 const inPath = path.join(audioDir, "tts-input.json");
