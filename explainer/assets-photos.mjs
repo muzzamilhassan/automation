@@ -38,3 +38,36 @@ export async function fetchPhoto({ key, query, outPath, orientation = "landscape
     return null;
   }
 }
+
+// Pixabay photo fallback (Pexels intermittently 401s from datacenter IPs)
+export async function fetchPhotoPixabay({ key, query, outPath, orientation = "landscape" }) {
+  try {
+    if (!key) throw new Error("no PIXABAY_API_KEY");
+    const url = `https://pixabay.com/api/?key=${encodeURIComponent(key)}&q=${encodeURIComponent(query)}&image_type=photo&orientation=${orientation}&per_page=10&safesearch=true`;
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 25000);
+    const r = await fetch(url, { headers: { "User-Agent": UA }, signal: ctrl.signal });
+    clearTimeout(t);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+    const hits = d.hits || [];
+    if (!hits.length) throw new Error("no results");
+    const pick = hits[Math.floor(Math.random() * Math.min(hits.length, 6))];
+    const src = pick.largeImageURL || pick.webformatURL;
+    if (!src) throw new Error("no src");
+    if (fs.existsSync(outPath) && fs.statSync(outPath).size > 30 * 1024) {
+      return { file: path.resolve(outPath), width: pick.imageWidth, height: pick.imageHeight };
+    }
+    fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    const c2 = new AbortController();
+    const t2 = setTimeout(() => c2.abort(), 60000);
+    const dl = await fetch(src, { headers: { "User-Agent": UA }, signal: c2.signal });
+    clearTimeout(t2);
+    if (!dl.ok) throw new Error(`dl HTTP ${dl.status}`);
+    fs.writeFileSync(outPath, Buffer.from(await dl.arrayBuffer()));
+    return { file: path.resolve(outPath), width: pick.imageWidth, height: pick.imageHeight };
+  } catch (e) {
+    console.warn(`  [photo-pix] SKIP (${query}): ${String(e.message).slice(0, 80)}`);
+    return null;
+  }
+}

@@ -69,6 +69,7 @@ jobs:
           LONGVIDEO_GEMINI_API_KEY: ${{ secrets.LONGVIDEO_GEMINI_API_KEY }}
           LONGVIDEO_GROQ_API_KEY: ${{ secrets.LONGVIDEO_GROQ_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
         run: |
           node make-demo.mjs \
             --slug "${{ inputs.slug }}" \

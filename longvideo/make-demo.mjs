@@ -7,7 +7,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { fetchPhoto } from "../explainer/assets-photos.mjs";
+import { fetchPhoto, fetchPhotoPixabay } from "../explainer/assets-photos.mjs";
 
 const DIR = import.meta.dirname;
 const ROOT = path.resolve(DIR, "..");
@@ -61,27 +61,34 @@ function parseJsonLoose(s) {
   return JSON.parse(m[0]);
 }
 
+async function postJson(url, headers, body) {
+  const r = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+  if (!r.ok) {
+    const t = await r.text().catch(() => "");
+    throw new Error(`HTTP ${r.status}: ${t.slice(0, 160)}`);
+  }
+  return r.json();
+}
+
 async function geminiScript() {
   const key = process.env.LONGVIDEO_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
   if (!key) throw new Error("no gemini key");
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${key}`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts: [{ text: `${SYSTEM}\n\nTOPIC: ${TOPIC}` }] }], generationConfig: { temperature: 0.85, responseMimeType: "application/json" } }),
-  });
-  if (!r.ok) throw new Error(`gemini HTTP ${r.status}`);
-  const d = await r.json();
+  const d = await postJson(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${key}`,
+    { "Content-Type": "application/json" },
+    { contents: [{ parts: [{ text: `${SYSTEM}\n\nTOPIC: ${TOPIC}` }] }], generationConfig: { temperature: 0.85, responseMimeType: "application/json" } }
+  );
   return parseJsonLoose(d.candidates?.[0]?.content?.parts?.[0]?.text || "");
 }
 
 async function groqScript() {
   const key = process.env.LONGVIDEO_GROQ_API_KEY;
   if (!key) throw new Error("no groq key");
-  const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}`, "User-Agent": "quarry-demo/1.0" },
-    body: JSON.stringify({ model: "gpt-oss-120b", temperature: 0.85, messages: [{ role: "user", content: `${SYSTEM}\n\nTOPIC: ${TOPIC}\nRespond with ONLY the JSON object.` }] }),
-  });
-  if (!r.ok) throw new Error(`groq HTTP ${r.status}`);
-  const d = await r.json();
+  const d = await postJson(
+    "https://api.groq.com/openai/v1/chat/completions",
+    { "Content-Type": "application/json", Authorization: `Bearer ${key}`, "User-Agent": "quarry-demo/1.0" },
+    { model: "openai/gpt-oss-120b", temperature: 0.85, messages: [{ role: "user", content: `${SYSTEM}\n\nTOPIC: ${TOPIC}\nRespond with ONLY the JSON object.` }] }
+  );
   return parseJsonLoose(d.choices?.[0]?.message?.content || "");
 }
 
@@ -125,13 +132,14 @@ const fit = (text, max) => {
 
 const beats = [];
 const push = (b) => { b.i = beats.length; beats.push(b); };
-push({ layout: "hero", kicker: EYEBROW ? "" : "THE STORY", headline: fit(script.hook.split(/(?<=[.!?])\s+/)[0] || TITLE, 110), text: script.hook });
+const firstHookSentence = (script.hook.split(/(?<=[.!?])\s+/)[0] || "").trim();
+push({ layout: "hero", kicker: "", headline: fit(TITLE, 60), sub: fit(firstHookSentence, 92), text: script.hook });
 script.beats.slice(0, 7).forEach((sb, i) => {
   const isStat = sb.big && sb.label;
   push({
     layout: isStat ? "stat" : "split",
-    n: i + 1, kicker: (sb.kicker || "").slice(0, 28), headline: fit(sb.headline || sb.text, 140),
-    text: sb.text, big: sb.big, label: sb.label, side: i % 2 === 0 ? "left" : "right",
+    n: i + 1, kicker: (sb.kicker || "").slice(0, 28), headline: fit(sb.headline || sb.text, 96),
+    text: sb.text, big: sb.big, label: fit(sb.label || "", 120), side: i % 2 === 0 ? "left" : "right",
     photoQuery: sb.photoQuery || QUERIES[i % Math.max(QUERIES.length, 1)] || "",
   });
 });
@@ -143,6 +151,7 @@ for (const b of beats) {
   const q = b.photoQuery || QUERIES[0];
   if (!q) continue;
   let r = await fetchPhoto({ key: process.env.PEXELS_API_KEY, query: q, outPath: path.join(photoDir, `p-${b.i}.jpg`) });
+  if (!r) r = await fetchPhotoPixabay({ key: process.env.PIXABAY_API_KEY, query: q, outPath: path.join(photoDir, `p-${b.i}.jpg`) });
   if (!r) { await new Promise((res) => setTimeout(res, 1200)); r = await fetchPhoto({ key: process.env.PEXELS_API_KEY, query: q, outPath: path.join(photoDir, `p-${b.i}.jpg`) }); }
   if (r) b.photo = path.relative(PUB, r.file).split(path.sep).join("/");
   await new Promise((res) => setTimeout(res, 300));

@@ -184,16 +184,18 @@ const HeroLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
   const { fps } = useVideoConfig();
   const kIn = spring({ frame: f - 4, fps, config: { damping: 200 } });
   const hIn = spring({ frame: f - 10, fps, config: { damping: 200 } });
+  const len = (b.headline || "").length;
+  const size = len > 80 ? 54 : len > 55 ? 66 : len > 34 ? 84 : 96;
   return (
     <Content beat={b}>
-      <div style={{ position: "absolute", top: 240, left: 0, right: 0, textAlign: "center", opacity: kIn }}>
+      <div style={{ position: "absolute", top: 230, left: 0, right: 0, textAlign: "center", opacity: kIn }}>
         <Kicker text={b.kicker || ""} center />
       </div>
-      <div style={{ position: "absolute", top: 380, left: 140, right: 140, textAlign: "center", opacity: hIn, transform: `translateY(${(1 - hIn) * 30}px)` }}>
-        <Headline text={b.headline || ""} size={b.headline && b.headline.length > 60 ? 76 : 92} />
+      <div style={{ position: "absolute", top: 360, left: 140, right: 140, textAlign: "center", opacity: hIn, transform: `translateY(${(1 - hIn) * 30}px)` }}>
+        <Headline text={fitText(b.headline || "", 88)} size={size} />
         {b.sub ? (
-          <div style={{ marginTop: 40 }}>
-            <Sub text={b.sub} size={38} />
+          <div style={{ marginTop: 36 }}>
+            <Sub text={fitText(b.sub, 92)} size={34} />
           </div>
         ) : null}
       </div>
@@ -214,10 +216,10 @@ const SplitLayout: React.FC<{ b: V2Beat; side: "left" | "right" }> = ({ b, side 
         <div style={{ marginBottom: 34 }}>
           <Kicker text={b.kicker || `PART ${String(b.n || 1).padStart(2, "0")}`} />
         </div>
-        <Headline text={b.headline || ""} size={68} />
+        <Headline text={fitText(b.headline || "", 96)} size={(b.headline || "").length > 72 ? 56 : 64} />
         {b.sub ? (
           <div style={{ marginTop: 34, display: "inline-block", marginLeft: side === "left" ? 0 : undefined }}>
-            <Sub text={b.sub} />
+            <Sub text={fitText(b.sub, 88)} />
           </div>
         ) : null}
       </div>
