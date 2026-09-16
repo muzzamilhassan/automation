@@ -73,23 +73,45 @@ async function postJson(url, headers, body) {
 async function geminiScript() {
   const key = process.env.LONGVIDEO_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
   if (!key) throw new Error("no gemini key");
-  const d = await postJson(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${key}`,
-    { "Content-Type": "application/json" },
-    { contents: [{ parts: [{ text: `${SYSTEM}\n\nTOPIC: ${TOPIC}` }] }], generationConfig: { temperature: 0.85, responseMimeType: "application/json" } }
-  );
-  return parseJsonLoose(d.candidates?.[0]?.content?.parts?.[0]?.text || "");
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const d = await postJson(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${key}`,
+        { "Content-Type": "application/json" },
+        { contents: [{ parts: [{ text: `${SYSTEM}\n\nTOPIC: ${TOPIC}` }] }], generationConfig: { temperature: 0.85, responseMimeType: "application/json" } }
+      );
+      return parseJsonLoose(d.candidates?.[0]?.content?.parts?.[0]?.text || "");
+    } catch (e) {
+      lastErr = e;
+      if (!/HTTP 5\d\d/.test(String(e.message))) break; // only retry server-side errors
+      await new Promise((r) => setTimeout(r, 4000));
+    }
+  }
+  throw lastErr;
 }
 
 async function groqScript() {
   const key = process.env.LONGVIDEO_GROQ_API_KEY;
   if (!key) throw new Error("no groq key");
-  const d = await postJson(
-    "https://api.groq.com/openai/v1/chat/completions",
-    { "Content-Type": "application/json", Authorization: `Bearer ${key}`, "User-Agent": "quarry-demo/1.0" },
-    { model: "openai/gpt-oss-120b", temperature: 0.85, messages: [{ role: "user", content: `${SYSTEM}\n\nTOPIC: ${TOPIC}\nRespond with ONLY the JSON object.` }] }
-  );
-  return parseJsonLoose(d.choices?.[0]?.message?.content || "");
+  let lastErr;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const d = await postJson(
+        "https://api.groq.com/openai/v1/chat/completions",
+        { "Content-Type": "application/json", Authorization: `Bearer ${key}`, "User-Agent": "quarry-demo/1.0" },
+        {
+          model: "openai/gpt-oss-120b", temperature: 0.85, max_tokens: 12000,
+          messages: [{ role: "user", content: `${SYSTEM}\n\nTOPIC: ${TOPIC}\nOutput ONLY the raw JSON object. No reasoning, no markdown, no code fences.` }],
+        }
+      );
+      return parseJsonLoose(d.choices?.[0]?.message?.content || "");
+    } catch (e) {
+      lastErr = e;
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+  }
+  throw lastErr;
 }
 
 // guaranteed script so the run ALWAYS produces a video even with zero API access
