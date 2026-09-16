@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fetchPhoto, fetchPhotoPixabay } from "../explainer/assets-photos.mjs";
+import { pickMusicTrack } from "../music-engine.mjs";
 
 const DIR = import.meta.dirname;
 const ROOT = path.resolve(DIR, "..");
@@ -152,6 +153,29 @@ const fit = (text, max) => {
   return cut.slice(0, cut.lastIndexOf(" ")).trim() + "…";
 };
 
+// karaoke captions: group word timings into cues of <=4 words / <=1.9s (ms, beat-relative)
+const buildCues = (words) => {
+  const cues = [];
+  let cur = [];
+  for (const w of words || []) {
+    cur.push(w);
+    const span = (cur[cur.length - 1].s + cur[cur.length - 1].d) - cur[0].s;
+    if (cur.length >= 4 || span >= 1.9) {
+      cues.push({ t0: Math.round(cur[0].s * 1000), t1: Math.round((cur[cur.length - 1].s + cur[cur.length - 1].d) * 1000), text: cur.map((x) => x.w).join(" ") });
+      cur = [];
+    }
+  }
+  if (cur.length) cues.push({ t0: Math.round(cur[0].s * 1000), t1: Math.round((cur[cur.length - 1].s + cur[cur.length - 1].d) * 1000), text: cur.map((x) => x.w).join(" ") });
+  return cues;
+};
+
+// mood per theme for background music (incompetech feel tags)
+const MUSIC_FEELS = {
+  investing: ["calming", "inspir", "uplifting"],
+  vox: ["bright", "grooving", "uplifting"],
+  poster: ["epic", "driving", "action"],
+};
+
 const beats = [];
 const push = (b) => { b.i = beats.length; beats.push(b); };
 const firstHookSentence = (script.hook.split(/(?<=[.!?])\s+/)[0] || "").trim();
@@ -180,8 +204,7 @@ for (const b of beats) {
 }
 console.log(`[photos] ${beats.filter((b) => b.photo).length}/${beats.filter((b) => b.layout === "split" || b.layout === "hero").length} fetched`);
 
-// ---------------- 3. TTS ----------------
-const audioDir = path.join(PUB, "demo-audio", SLUG);
+// ---------------- 3. TTS ----------------const audioDir = path.join(PUB, "demo-audio", SLUG);
 fs.mkdirSync(audioDir, { recursive: true });
 const spoken = beats.filter((b) => b.text.trim()).map((b) => ({ i: b.i, text: b.text }));
 const inPath = path.join(audioDir, "tts-input.json");
@@ -193,18 +216,33 @@ if (tts.status !== 0) throw new Error("tts failed");
 const durs = JSON.parse(fs.readFileSync(path.join(audioDir, "tts-durations.json"), "utf8"));
 const durByI = new Map(durs.map((d) => [d.i, d.ms]));
 
-// ---------------- 4. timeline json ----------------
+// ---------------- 4. music ----------------
+console.log(`[step] music: picking a ${MUSIC_FEELS[THEME] ? THEME : "default"}-mood track`);
+const track = await step("music", () => pickMusicTrack(0, { feels: MUSIC_FEELS[THEME] || ["uplifting"] }))();
+let musicFile = null;
+if (track && track.file) {
+  musicFile = `demo-audio/${SLUG}/music.mp3`;
+  fs.copyFileSync(track.file, path.join(PUB, musicFile));
+  console.log(`[music] "${track.title}" (${track.feel})`);
+  console.log(`[music] credit: ${track.credit}`);
+} else {
+  console.log("[warn] no music track available — continuing without bg music");
+}
+
+// ---------------- 5. timeline json ----------------
 let cursor = 600;
+const durByI2 = new Map(durs.map((d) => [d.i, d]));
 for (const b of beats) {
   const spokenMs = durByI.get(b.i) || 0;
   b.ms = b.layout === "end" ? 3500 : Math.max(Math.round(spokenMs) + 500, 2800);
   b.startMs = Math.round(cursor);
   const mp3Rel = `demo-audio/${SLUG}/audio/beat-${String(b.i).padStart(2, "0")}.mp3`;
   b.audio = b.text.trim() && fs.existsSync(path.join(PUB, mp3Rel)) && fs.statSync(path.join(PUB, mp3Rel)).size > 2048 ? mp3Rel : null;
+  b.cues = buildCues(durByI2.get(b.i)?.words);
   cursor += b.ms;
 }
 const totalMs = Math.round(cursor + 1200);
-const doc = { title: script.title, theme: THEME, brand: BRAND || undefined, eyebrow: EYEBROW || undefined, beats, totalMs, fps: 30 };
+const doc = { title: script.title, theme: THEME, brand: BRAND || undefined, eyebrow: EYEBROW || undefined, music: musicFile || undefined, beats, totalMs, fps: 30 };
 const jsonPath = path.join(PUB, `demo-${SLUG}.json`);
 fs.writeFileSync(jsonPath, JSON.stringify(doc, null, 2));
 console.log(`[timeline] ${beats.length} beats, ${(totalMs / 60000).toFixed(2)} min -> ${path.basename(jsonPath)}`);
