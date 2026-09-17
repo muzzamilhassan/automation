@@ -80,24 +80,35 @@ async function processChannel(slug) {
 
   // newest run that has this channel's artifact and is not yet uploaded
   let chosen = null;
+  const skippedShort = uploads[`${slug}-short`] || [];
+  const inbox = path.join(DIR, "lf-inbox", slug);
   for (const run of runs) {
     const arts = ghJson(["api", `repos/${RENDER_REPO}/actions/runs/${run.databaseId}/artifacts`, "--jq", ".artifacts"]) || [];
     const art = arts.find((a) => a.name === `lf-${slug}` && !a.expired);
     if (!art) continue;
-    const done = (uploads[slug] || []).some((u) => u.artifactId === art.id);
-    if (done) { console.log(`[skip] run ${run.databaseId} artifact ${art.id} already uploaded`); continue; }
-    chosen = { run: run.databaseId, art };
+    if ((uploads[slug] || []).some((u) => u.artifactId === art.id)) { console.log(`[skip] artifact ${art.id} already uploaded`); continue; }
+    if (skippedShort.includes(art.id)) { console.log(`[skip] artifact ${art.id} is a short test render`); continue; }
+
+    fs.rmSync(inbox, { recursive: true, force: true });
+    fs.mkdirSync(inbox, { recursive: true });
+    const dl = gh(["run", "download", String(run.databaseId), "-R", RENDER_REPO, "-n", `lf-${slug}`, "-D", inbox]);
+    if (dl.status !== 0) { console.log(`[warn] download failed for run ${run.databaseId}: ${String(dl.stderr).slice(0, 90)}`); continue; }
+    const metaPath = path.join(inbox, `lf-meta-${slug}.json`);
+    if (!fs.existsSync(metaPath)) { console.log("[warn] meta missing in artifact"); continue; }
+    const meta = JSON.parse(fs.readFileSync(metaPath, "utf8"));
+    if (meta.durationMs && meta.durationMs < 8 * 60 * 1000) {
+      console.log(`[skip] artifact ${art.id} is a short test render (${Math.round(meta.durationMs / 1000)}s)`);
+      uploads[`${slug}-short`] = skippedShort.concat([art.id]).slice(-40);
+      fs.mkdirSync(path.dirname(UPL), { recursive: true });
+      fs.writeFileSync(UPL, JSON.stringify(uploads, null, 2));
+      continue;
+    }
+    chosen = { run: run.databaseId, art, meta };
     break;
   }
   if (!chosen) { console.log("[skip] nothing new to upload"); return; }
-  console.log(`[found] run ${chosen.run.databaseId} artifact ${chosen.art.id}`);
-
-  const inbox = path.join(DIR, "lf-inbox", slug);
-  fs.rmSync(inbox, { recursive: true, force: true });
-  fs.mkdirSync(inbox, { recursive: true });
-  const dl = gh(["run", "download", String(chosen.run.databaseId), "-R", RENDER_REPO, "-n", `lf-${slug}`, "-D", inbox]);
-  if (dl.status !== 0) throw new Error("artifact download failed: " + String(dl.stderr).slice(0, 120));
-  const meta = JSON.parse(fs.readFileSync(path.join(inbox, `lf-meta-${slug}.json`), "utf8"));
+  console.log(`[found] run ${chosen.run} artifact ${chosen.art.id}`);
+  const meta = chosen.meta;
   const videoFile = path.join(inbox, meta.videoFile);
   const thumbFile = path.join(inbox, meta.thumbFile);
   if (!fs.existsSync(videoFile)) throw new Error("video missing in artifact");
@@ -131,7 +142,7 @@ async function processChannel(slug) {
       console.log("[upload] thumbnail set");
     } catch (e) { console.log(`[warn] thumbnail: ${String(e.message).slice(0, 80)}`); }
   }
-  uploads[slug] = (uploads[slug] || []).concat([{ date: new Date().toISOString().slice(0, 10), title: meta.title, videoId, publishAt, artifactId: chosen.art.id, runId: chosen.run.databaseId }]).slice(-100);
+  uploads[slug] = (uploads[slug] || []).concat([{ date: new Date().toISOString().slice(0, 10), title: meta.title, videoId, publishAt, artifactId: chosen.art.id, runId: chosen.run }]).slice(-100);
   fs.mkdirSync(path.dirname(UPL), { recursive: true });
   fs.writeFileSync(UPL, JSON.stringify(uploads, null, 2));
   try {
