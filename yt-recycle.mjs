@@ -249,12 +249,32 @@ export async function recycleForSlot({ slug, publishAt, auth, state, log = () =>
   }
   if (!cand) return { ok: false, reason: 'download-blocked' };
 
-  // metadata (exact copy)
+  // GUARD: never double-post — if another PUBLIC video already carries this
+  // title, skip the slot entirely (a live duplicate is what triggered the
+  // Sep-16 spam suppression).
+  const ch = await y.channels.list({ part: 'contentDetails', mine: true });
+  const upl = ch.data.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+  if (upl) {
+    const pl = await y.playlistItems.list({ part: 'contentDetails', playlistId: upl, maxResults: 50 });
+    const ids = pl.data.items.map((i) => i.contentDetails.videoId).filter(Boolean);
+    if (ids.length) {
+      const live = await y.videos.list({ part: 'snippet,status', id: ids.join(',') });
+      const norm = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      const clash = (live.data.items || []).find((v) => v.status.privacyStatus === 'public' && v.id !== cand.videoId && norm(v.snippet.title) === norm(cand.title));
+      if (clash) {
+        log(`recycle: SKIP — "${cand.title}" already live as ${clash.id} (duplicate guard)`);
+        return { ok: false, reason: 'duplicate-live' };
+      }
+    }
+  }
+
+  // metadata (copy, but title marked as a rewind so identical-title spam
+  // detection never fires)
   const meta = await y.videos.list({ part: 'snippet', id: cand.videoId });
   const s = meta.data.items?.[0]?.snippet;
   if (!s) throw new Error('candidate vanished before copy');
   const snippet = {
-    title: s.title,
+    title: ((s.title || '') + ' | Best Of').slice(0, 95),
     description: s.description,
     tags: s.tags || undefined,
     categoryId: s.categoryId || '27',
