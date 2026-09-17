@@ -1,13 +1,13 @@
 {
-  "at": 1789307648714,
+  "at": 1789632051626,
   "seed": "investing psychology stock market wisdom",
   "hotKeywords": [
     "discipline",
-    "motivation",
     "success",
     "tradingpsychology",
     "tradingmindset",
     "soulngoal",
+    "motivation",
     "mindset",
     "self",
     "improvement",
@@ -17,21 +17,26 @@
   ],
   "viralChannels": [
     "Soul N Goal",
-    "Blue Sky Fintech",
-    "Hariharan Asokkumar SEBI RIA"
+    "Blue Sky Fintech"
   ],
   "videos": [
     {
       "title": "The chart doesn't know your expectations #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 3046,
+      "views": 3425,
       "videoId": "EXUvHQHe94Q"
     },
     {
-      "title": "Dare to Be Different  The Power of Going Against Crowd #TradingPsychology #TradingMindset #SoulNGoal",
+      "title": "Be greedy when others are fearful, and fearful when others are greedy.",
+      "channel": "Blue Sky Fintech",
+      "views": 3151,
+      "videoId": "sm9VZpLtwGY"
+    },
+    {
+      "title": "Your emotion can turn a good strategy into a bad trade #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 1071,
-      "videoId": "dRtWK6GWoZ0"
+      "views": 1102,
+      "videoId": "herCxWeKnrI"
     },
     {
       "title": "Discipline is accepting a small loss #TradingPsychology #TradingMindset #SoulNGoal",
@@ -42,32 +47,26 @@
     {
       "title": "Mistakes Happen  Prepare for Anything #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 1002,
+      "views": 1003,
       "videoId": "4pbizLfVfQI"
     },
     {
       "title": "Spotting Trends Early  Your Success Advantage #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 949,
+      "views": 945,
       "videoId": "Kjx1QU44J1A"
-    },
-    {
-      "title": "Discipline doesn't need motivation #TradingPsychology #TradingMindset #SoulNGoal",
-      "channel": "Soul N Goal",
-      "views": 890,
-      "videoId": "opi6ivv8BP4"
-    },
-    {
-      "title": "Be greedy when others are fearful, and fearful when others are greedy.",
-      "channel": "Blue Sky Fintech",
-      "views": 518,
-      "videoId": "sm9VZpLtwGY"
     },
     {
       "title": "Trade Smarter  Redirect Your Trading Emotional Energy  #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 493,
+      "views": 492,
       "videoId": "lDlJBsBquCs"
+    },
+    {
+      "title": "Waiting for confirmation is discipline with patience #TradingPsychology #TradingMindset #SoulNGoal",
+      "channel": "Soul N Goal",
+      "views": 383,
+      "videoId": "fRiR4vCh9LE"
     }
   ]
 }
