@@ -52,6 +52,23 @@ function channelAuth(forSlug) {
   return a;
 }
 
+// UPLOAD VALIDATION GATE (hard rule 09-18): a broken render must die here,
+// never on YouTube. Shorts < 20s or garbage titles are skipped fail-closed.
+function ffprobeSeconds(file) {
+  try {
+    const r = spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file], { encoding: 'utf8', shell: process.platform === 'win32' });
+    const v = parseFloat(String(r.stdout || '').trim());
+    return Number.isFinite(v) ? v : 0;
+  } catch { return 0; }
+}
+function validateUploadOrSkip(file, title, log = () => {}) {
+  const secs = ffprobeSeconds(file);
+  if (secs < 20) { log(`  GATE: rejected (${secs.toFixed(1)}s render < 20s) — upload skipped`); return false; }
+  const t = String(title || '').trim();
+  if (t.length < 10 || !/[a-z]/i.test(t) || /\|\s*#|undefined|NaN/i.test(t)) { log(`  GATE: rejected (bad title "${t.slice(0, 40)}") — upload skipped`); return false; }
+  return true;
+}
+
 const STATE_FILE = path.join(path.dirname(ENV_PATH), 'yt-mcp/schedule-state.json');
 const loadState = () => { try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { return {}; } };
 const saveState = (s) => fs.writeFileSync(STATE_FILE, JSON.stringify(s, null, 2));
@@ -136,6 +153,10 @@ if (RUN_SHORTS) {
     fs.writeFileSync(`fb-outbox/${slug}/${stamp}.mp4`, out.buffer);
     fs.writeFileSync(`fb-outbox/${slug}/${stamp}.json`, JSON.stringify({ videoFile: `fb-outbox/${slug}/${stamp}.mp4`, publishAt, title: meta.title, description: meta.description, tags: meta.tags, slug }, null, 2));
 
+    if (!validateUploadOrSkip(`fb-outbox/${slug}/${stamp}.mp4`, meta.title, (m) => console.log(m))) {
+      results.push({ videoId: null, publishAt, title: meta.title, gateRejected: true });
+      continue;
+    }
     const res = await yt.videos.insert({
       part: ['snippet', 'status'],
       requestBody: {
