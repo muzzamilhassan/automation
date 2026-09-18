@@ -7,6 +7,8 @@ import { DocV2 } from "./longscenes2";
 import { CapShowcase } from "./caption-showcase";
 import { Thumb } from "./thumb";
 import { Teacher } from "./teacher";
+import { TechExplain } from "./tech-explain";
+import { TechVideo } from "./tech-video";
 
 const EMPTY: Storyboard = {
   title: "Explainer",
@@ -137,6 +139,30 @@ export const RemotionRoot: React.FC = () => {
         width={1280}
         height={720}
         defaultProps={{ thumb: { headline: "THE $136B TWEET", brand: "BRAND" } }}
+      />
+      <Composition
+        id="TechExplain"
+        component={TechExplain}
+        durationInFrames={Math.round((50.5) * 30)}
+        fps={30}
+        width={1920}
+        height={1080}
+        defaultProps={{ sceneWords: [], sceneAudio: [null, null, null, null], music: null }}
+      />
+      <Composition
+        id="TechVideo"
+        component={TechVideo}
+        durationInFrames={10}
+        fps={30}
+        width={1920}
+        height={1080}
+        defaultProps={{ scenes: [], starts: [], durs: [], sceneWords: [], sceneAudio: [], music: null }}
+        calculateMetadata={({ props }) => {
+          const last = Array.isArray(props?.starts) && props.starts.length ? props.starts[props.starts.length - 1] : 0;
+          const lastD = Array.isArray(props?.durs) && props.durs.length ? props.durs[props.durs.length - 1] : 1;
+          const total = Math.max(last + lastD + 0.5, 1);
+          return { durationInFrames: Math.ceil(total * 30), fps: 30, width: 1920, height: 1080, props };
+        }}
       />
       <Composition
         id="Teacher"
