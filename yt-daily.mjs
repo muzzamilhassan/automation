@@ -22,7 +22,7 @@ const { generateYouTubeScript, renderYouTubeScriptShort, buildScriptMeta } = awa
 const { pickMusicTrack } = await import('./music-engine.mjs');
 const { bySlug } = await import('./yt-brands/brands.mjs');
 const { researchTrend } = await import('./trend-research.mjs');
-const { recycleForSlot, archiveUpload } = await import('./yt-recycle.mjs');
+const { archiveUpload } = await import('./yt-archive.mjs');
 
 const slug = process.argv[2];
 const FORCE = process.argv.includes('--force');
@@ -116,31 +116,10 @@ if (RUN_SHORTS) {
       script = await generateYouTubeScript(page, themesToday[i]);
     }
     if (script.source === 'fallback') {
-      // Quota out: instead of losing the slot, recycle the channel's own oldest
-      // Short with < 1K views (same file/metadata, YouTube only, old copy hidden
-      // + deleted later by the sweeper). Nothing to recycle → slot skipped.
-      console.log('  ✗ no AI script — trying recycle of an old under-1K Short...');
-      try {
-        const r = await recycleForSlot({ slug, publishAt, auth: channelAuth(slug), state, log: (m) => console.log('  ' + m) });
-        if (r.ok) {
-          console.log(`  ✓ slot recovered via recycle — new: ${r.newVideoId}, old: ${r.oldVideoId}`);
-          results.push({ videoId: r.newVideoId, publishAt, title: r.title, recycled: true });
-        } else {
-          console.log(`  ✗ slot stays skipped (${r.reason})`);
-        }
-      } catch (e) {
-        console.log(`  ✗ recycle failed: ${String(e.message).slice(0, 100)} — slot stays skipped`);
-        // CI can't download (YouTube bot-wall on datacenter IPs) — nudge the phone
-        // so a local run (node yt-recycle.mjs <slug>) can recover the slot later.
-        try {
-          const topic = (process.env.NTFY_TOPIC || '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
-          if (topic) await fetch(`https://ntfy.sh/${topic}`, {
-            method: 'POST',
-            headers: { 'Title': 'Recycle Needed' },
-            body: `${slug}: CI download blocked — run locally: node yt-recycle.mjs ${slug}`
-          });
-        } catch { }
-      }
+      // Quota out → the slot SKIPS. Recycle was REMOVED 09-18: re-uploading the
+      // same file reads as reused content to YouTube and suppresses the channel
+      // (fail-closed rule: a missing video is free, a reuse strike costs weeks).
+      console.log('  ✗ no AI script — slot skipped (recycle removed 09-18)');
       continue;
     }
     let music = null;

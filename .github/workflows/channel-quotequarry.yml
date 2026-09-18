@@ -5,8 +5,6 @@ on:
     - cron: '13 2 * * *'
   workflow_dispatch:
     inputs:
-      recycle_test:
-        description: 'Run one recycle instead of the pipeline (test mode)'
         default: false
         type: boolean
 
@@ -64,20 +62,6 @@ jobs:
           node image-tools/server.js &
           sleep 3
 
-      - name: 📥 Install yt-dlp (recycle downloads)
-        run: python3 -m pip install --quiet yt-dlp || pip install --quiet yt-dlp || true
-
-      - name: 🍪 Restore yt-dlp cookies (optional)
-        env:
-          YT_DLP_COOKIES: ${{ secrets.YT_DLP_COOKIES }}
-        run: |
-          if [ -n "$YT_DLP_COOKIES" ]; then
-            printf '%s' "$YT_DLP_COOKIES" > /tmp/yt-cookies.txt
-            echo "cookies restored — recycle downloads will use them"
-          else
-            echo "no cookies secret — recycle downloads try client fallbacks only"
-          fi
-
       - name: 🚀 Channel Pipeline — Shorts + FB Reels + IG Reels + Posters
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -92,13 +76,7 @@ jobs:
           YT_TOKEN_QUOTEQUARRY: ${{ secrets.YT_TOKEN_QUOTEQUARRY }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          YT_DLP_COOKIES: /tmp/yt-cookies.txt
-        run: |
-          if [ "${{ inputs.recycle_test }}" = "true" ]; then
-            node yt-recycle.mjs quotequarry
-          else
-            node channel-pipeline.mjs quotequarry --no-episode
-          fi
+        run: node channel-pipeline.mjs quotequarry --no-episode
 
       - name: 📦 Keep reels for IG slot poster
         if: ${{ hashFiles('fb-outbox/quotequarry/*.json*') != '' }}
