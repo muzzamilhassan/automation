@@ -1,6 +1,6 @@
 {
-  "at": "2026-09-18T08:07:36.004Z",
-  "problems": 0,
+  "at": "2026-09-18T16:06:37.438Z",
+  "problems": 1,
   "results": [
     {
       "slug": "investors-compass",
@@ -13,7 +13,7 @@
       "slug": "money-rulebook",
       "channel": "The Money Rulebook",
       "subs": "4",
-      "totalVideos": "66",
+      "totalVideos": "67",
       "status": "OK"
     },
     {
@@ -25,10 +25,8 @@
     },
     {
       "slug": "quotequarry",
-      "channel": "QuoteQuarry",
-      "subs": "112",
-      "totalVideos": "290",
-      "status": "OK"
+      "status": "ERROR",
+      "error": "invalid_grant"
     }
   ]
 }
