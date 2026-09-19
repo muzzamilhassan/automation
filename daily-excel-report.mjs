@@ -69,11 +69,21 @@ async function fetchAll() {
   if (!auth) console.log('[report] GAP: no working YouTube token — YouTube rows will be empty');
   if (auth) {
     const yt = google.youtube({ version: 'v3', auth });
+    const ya = google.youtubeAnalytics({ version: 'v2', auth });
     for (const ch of CHANNELS) {
       try {
         const res = await yt.channels.list({ part: 'snippet,statistics,contentDetails', forHandle: ch.handle });
         const c = res.data.items && res.data.items[0];
         if (!c) { console.log('[report] GAP: handle not found on YouTube: ' + ch.handle); continue; }
+        // Retention (28d): the #1 Shorts signal — avg % watched + views + subs gained.
+        let retention = null;
+        try {
+          const end = new Date().toISOString().slice(0, 10);
+          const start = new Date(Date.now() - 28 * 86400000).toISOString().slice(0, 10);
+          const ar = await ya.reports.query({ ids: 'channel==MINE', startDate: start, endDate: end, metrics: 'views,averageViewPercentage,subscribersGained' });
+          const row = (ar.data.rows || [])[0];
+          if (row) retention = { views: Number(row[0]) || 0, avgPct: Number(row[1]).toFixed(1) + '%', subsGained: Number(row[2]) || 0 };
+        } catch (e) { console.log('[report] analytics gap for ' + ch.slug + ': ' + e.message.slice(0, 70)); }
         // Per-video views: last 50 uploads (public data — any working token can read)
         const videoRows = [];
         const uploads = c.contentDetails && c.contentDetails.relatedPlaylists && c.contentDetails.relatedPlaylists.uploads;
@@ -103,6 +113,7 @@ async function fetchAll() {
           subs: Number(c.statistics.subscriberCount) || 0,
           views: Number(c.statistics.viewCount) || 0,
           videos: Number(c.statistics.videoCount) || 0,
+          retention,
           videoRows
         });
       } catch (e) {
@@ -229,6 +240,23 @@ async function buildExcel(ytData, fbPages, threads) {
   ];
   styleHeader(ws2);
   ytData.forEach(y => ws2.addRow([y.label, y.handle, y.subs, y.views, y.videos]));
+
+  // Retention (28d) — the metric that decides whether the Shorts feed promotes us.
+  // Feed promotion threshold is ~85% avg watched; QQ proved it, the rest are climbing.
+  const ws2b = wb.addWorksheet('Retention (28d)');
+  ws2b.columns = [
+    { header: 'Channel', width: 28 },
+    { header: 'Views (28d)', width: 14 },
+    { header: 'Avg % Watched', width: 16 },
+    { header: 'Subs Gained (28d)', width: 18 },
+    { header: 'Verdict', width: 26 }
+  ];
+  styleHeader(ws2b);
+  ytData.forEach(y => {
+    const r = y.retention;
+    const verdict = !r ? 'no data' : Number(r.avgPct) >= 80 ? '✅ feed will promote' : Number(r.avgPct) >= 65 ? '🟡 close — tighten hooks' : '🔴 fix scripts (hook + length)';
+    ws2b.addRow([y.label, r ? r.views : '-', r ? r.avgPct : '-', r ? r.subsGained : '-', verdict]);
+  });
 
   const ws3 = wb.addWorksheet('Facebook Pages');
   ws3.columns = [
