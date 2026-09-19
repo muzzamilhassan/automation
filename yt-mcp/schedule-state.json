@@ -32,30 +32,30 @@
     }
   },
   "money-rulebook": {
-    "lastRunDate": "2026-09-17",
+    "lastRunDate": "2026-09-20",
     "usedThemes": [
-      "pay yourself first explained",
-      "lifestyle creep warning signs",
-      "rules for your first $10,000"
+      "signs you are budgeting wrong",
+      "financial red flags in your 20s",
+      "wealth killers hiding in plain sight"
     ],
     "lastVideos": [
       {
-        "videoId": "L0-_Chb37io",
-        "publishAt": "2026-09-17T12:35:00Z",
-        "title": "Pay Yourself First Trick | Personal Finance"
+        "videoId": "f24brS-XHzU",
+        "publishAt": "2026-09-20T12:35:00Z",
+        "title": "Stop Budgeting Like This | Personal Finance"
       },
       {
-        "videoId": "Y6QPfGPbYV8",
-        "publishAt": "2026-09-17T16:35:00Z",
-        "title": "Stop Lifestyle Creep Now | Personal Finance"
+        "videoId": "OQJhhyIum1o",
+        "publishAt": "2026-09-19T16:35:00Z",
+        "title": "Broke In Your 20s? | Personal Finance"
       },
       {
-        "videoId": "sPoZ_81DlbI",
-        "publishAt": "2026-09-18T00:05:00Z",
-        "title": "First $10k Money Rules | Personal Finance"
+        "videoId": "Z0NZ0bJtnwo",
+        "publishAt": "2026-09-20T00:05:00Z",
+        "title": "Wealth Killers In Plain Sight | Personal Finance"
       }
     ],
-    "imageDate": "2026-09-17",
+    "imageDate": "2026-09-19",
     "recyclePending": [
       {
         "oldVideoId": "cbclwL6k32U",
@@ -65,7 +65,9 @@
         "title": "Pay Yourself First | Personal Finance"
       }
     ],
-    "deepdiveDate": null
+    "deepdiveDate": null,
+    "healedDate": "2026-09-19",
+    "healedCount": 3
   },
   "debt-free-doctrine": {
     "lastRunDate": "2026-09-13",
