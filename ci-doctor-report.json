@@ -1,12 +1,12 @@
 {
-  "at": "2026-09-18T22:30:40.722Z",
+  "at": "2026-09-19T07:56:51.748Z",
   "problems": 1,
   "results": [
     {
       "slug": "investors-compass",
-      "channel": "INVESTOR'S COMPASS",
+      "channel": "Investor's Compass",
       "subs": "7",
-      "totalVideos": "80",
+      "totalVideos": "77",
       "status": "OK"
     },
     {
@@ -18,9 +18,9 @@
     },
     {
       "slug": "debt-free-doctrine",
-      "channel": "DEBT-FREE DOCTRINE",
+      "channel": "Debt-Free Doctrine",
       "subs": "0",
-      "totalVideos": "68",
+      "totalVideos": "64",
       "status": "OK"
     },
     {
