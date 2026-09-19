@@ -1,7 +1,7 @@
-# Long-form upload (PRIVATE repo): downloads the newest render artifacts from
-# the public quarry-render repo and schedules one YouTube upload per channel
-# at that channel's prime-time ET slot. Idempotent per artifact.
-# Cron disabled until the user reviews the first manual uploads.
+# MOVED 09-19: the upload flow now lives in the PUBLIC muzzamilhassan/quarry-render
+# (workflow longform-upload, cron 20:30 UTC) — free minutes, no private quota.
+# This file stays for emergency manual dispatch ONLY. Do NOT re-enable its schedule:
+# two uploaders = duplicate documentaries (that bug already cost 8 deleted dups).
 name: Long-form Upload
 
 on:
@@ -11,8 +11,6 @@ on:
         description: "one channel only (blank = all 4)"
         required: false
         default: ""
-  schedule:
-    - cron: "30 20 * * *"
 
 permissions:
   contents: write
