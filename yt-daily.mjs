@@ -65,7 +65,8 @@ function validateUploadOrSkip(file, title, log = () => {}) {
   const secs = ffprobeSeconds(file);
   if (secs < 20) { log(`  GATE: rejected (${secs.toFixed(1)}s render < 20s) — upload skipped`); return false; }
   const t = String(title || '').trim();
-  if (t.length < 10 || !/[a-z]/i.test(t) || /\|\s*#|undefined|NaN/i.test(t)) { log(`  GATE: rejected (bad title "${t.slice(0, 40)}") — upload skipped`); return false; }
+  const garbage = /\|\s*#/.test(t) || t.includes('undefined') || /NaN/.test(t); // case-sensitive NaN — /NaN/i poisoned 'FiNANce' titles
+  if (t.length < 10 || !/[a-z]/i.test(t) || garbage) { log(`  GATE: rejected (bad title "${t.slice(0, 40)}") — upload skipped`); return false; }
   return true;
 }
 
