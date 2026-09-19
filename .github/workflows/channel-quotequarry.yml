@@ -4,9 +4,6 @@ on:
   schedule:
     - cron: '13 2 * * *'
   workflow_dispatch:
-    inputs:
-        default: false
-        type: boolean
 
 concurrency:
   group: channel-quotequarry
