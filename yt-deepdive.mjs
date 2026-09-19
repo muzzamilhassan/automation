@@ -9,6 +9,7 @@ import { execFileSync } from 'node:child_process';
 import sharp from 'sharp';
 import { Readable } from 'node:stream';
 import { google } from 'googleapis';
+import { loadAllStates, saveChannelState } from './lib/state.mjs';
 import { EMBEDDED_FONTS_CSS } from './typography-poster-engine.mjs';
 import { getTopicClip } from './youtube-clips.mjs';
 import { pickMusicTrack } from './music-engine.mjs';
@@ -28,9 +29,8 @@ const FORCE = process.argv.includes('--force');
 const b = bySlug[slug];
 if (!b) { console.error('unknown slug', slug); process.exit(1); }
 
-const STATE_FILE = path.resolve(HERE, 'yt-mcp/schedule-state.json');
-const loadState = () => { try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { return {}; } };
-const saveState = (s) => fs.writeFileSync(STATE_FILE, JSON.stringify(s, null, 2));
+// 09-20: per-channel state files are the source of truth (lib/state.mjs)
+const loadState = () => loadAllStates();
 
 // ---------- script brain: Gemini -> Groq -> HF ----------
 function parseLoose(text) {
@@ -293,7 +293,7 @@ const st = loadState();
 st[slug] = st[slug] || {};
 st[slug].deepdiveDate = today();
 st[slug].deepdiveVideo = { videoId: res.data.id, publishAt, title: `${script.title} | ${b.authority}` };
-saveState(st);
+saveChannelState(slug, st[slug]);
 
 // FB/IG outbox — episode cross-post (fb-crosspost posts it as scheduled video,
 // ig-crosspost posts it as feed VIDEO; long content is not a Reel)

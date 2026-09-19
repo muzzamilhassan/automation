@@ -10,6 +10,33 @@ for (const m of envRaw.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= 
 const SLUGS = ['investors-compass', 'money-rulebook', 'debt-free-doctrine', 'quotequarry'];
 const results = [];
 
+// ---- Workflow file validation (09-20) ----
+// Sep 18 lesson: one orphaned YAML line silently dropped every scheduled run
+// while this doctor reported green. Parse every workflow file, fail loudly.
+let yamlProblems = [];
+try {
+  const yaml = (await import('js-yaml')).default;
+  for (const f of fs.readdirSync('.github/workflows').filter(f => f.endsWith('.yml') || f.endsWith('.yaml'))) {
+    const p = `.github/workflows/${f}`;
+    try {
+      const doc = yaml.load(fs.readFileSync(p, 'utf8'));
+      if (!doc || typeof doc !== 'object' || (!doc.jobs && !doc['on'] && !doc[true])) {
+        yamlProblems.push(`${f}: parses but has no jobs/triggers`);
+      }
+    } catch (e) {
+      yamlProblems.push(`${f}: ${String(e.message).slice(0, 120)}`);
+    }
+  }
+} catch (e) {
+  yamlProblems.push(`validator error: ${String(e.message).slice(0, 100)}`);
+}
+if (yamlProblems.length) {
+  results.push({ slug: 'workflows', status: 'BROKEN_WORKFLOW', error: yamlProblems.join(' | ') });
+  console.log('🚨 BROKEN WORKFLOW FILES:\n  ' + yamlProblems.join('\n  '));
+} else {
+  console.log('✅ all workflow files parse clean');
+}
+
 for (const slug of SLUGS) {
   const envName = `YT_TOKEN_${slug.toUpperCase().replace(/-/g, '_')}`;
   const tokenFile = `yt-mcp/channels/${slug}/token.json`;

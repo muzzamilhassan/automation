@@ -1,0 +1,43 @@
+{
+  "lastRunDate": "2026-09-20",
+  "usedThemes": [
+    "rules for your first credit card",
+    "signs a loan is predatory",
+    "snowball vs avalanche made simple"
+  ],
+  "lastVideos": [
+    {
+      "videoId": "pHs_LN_SdEQ",
+      "publishAt": "2026-09-14T13:05:00Z",
+      "title": "First Credit Card Rules | Debt Freedom"
+    },
+    {
+      "videoId": "WRpIF1nCKg0",
+      "publishAt": "2026-09-13T17:05:00Z",
+      "title": "Stop Using These Predatory Loan Apps | Debt Freedom"
+    },
+    {
+      "videoId": "tD9vmlVdiJ0",
+      "publishAt": "2026-09-14T00:35:00Z",
+      "title": "Snowball Vs Avalanche | Debt Freedom"
+    }
+  ],
+  "imageDate": "2026-09-13",
+  "deepdiveDate": "2026-09-07",
+  "deepdiveVideo": {
+    "videoId": "INCR7ceFCOA",
+    "publishAt": "2026-09-08T01:30:00Z",
+    "title": "7 Rules for Your First Credit Card | Debt Freedom"
+  },
+  "recyclePending": [
+    {
+      "oldVideoId": "fH9ia4A7ihA",
+      "newVideoId": "OzHow8Hh8ZA",
+      "publishAt": "2026-09-14T13:05:00Z",
+      "date": "2026-09-13",
+      "title": "First Credit Card Rules | Debt Freedom"
+    }
+  ],
+  "healedDate": "2026-09-19",
+  "healedCount": 3
+}

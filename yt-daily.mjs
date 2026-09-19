@@ -8,6 +8,7 @@ import path from 'node:path';
 import { Readable } from 'node:stream';
 import { spawnSync } from 'node:child_process';
 import { google } from 'googleapis';
+import { loadAllStates, saveChannelState } from './lib/state.mjs';
 
 // NEVER crash the CI — log errors and continue
 process.on('uncaughtException', (e) => { console.error('[yt-daily] Uncaught:', e.message, '— continuing'); });
@@ -70,9 +71,10 @@ function validateUploadOrSkip(file, title, log = () => {}) {
   return true;
 }
 
-const STATE_FILE = path.join(path.dirname(ENV_PATH), 'yt-mcp/schedule-state.json');
-const loadState = () => { try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { return {}; } };
-const saveState = (s) => fs.writeFileSync(STATE_FILE, JSON.stringify(s, null, 2));
+// 09-20: per-channel state files are the source of truth (lib/state.mjs) —
+// the shared schedule-state.json is a best-effort mirror for read-only consumers.
+const loadState = () => loadAllStates();
+const saveState = (s) => { for (const [k, v] of Object.entries(s)) saveChannelState(k, v); };
 
 function nextSlotISO(hhmm, now = new Date()) {
   const [h, m] = hhmm.split(':').map(Number);

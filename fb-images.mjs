@@ -6,6 +6,7 @@ import path from 'node:path';
 import { Readable } from 'node:stream';
 import { google } from 'googleapis';
 import { renderCinematicPoster } from './cinematic-engine.mjs';
+import { loadAllStates, saveChannelState } from './lib/state.mjs';
 
 const ENV_PATH = path.resolve(new URL('.', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'), '.env');
 const envRaw = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';
@@ -55,7 +56,7 @@ function llmJSON(prompt) {
 const b = (await import('./yt-brands/brands.mjs')).bySlug;
 const { researchTrend } = await import('./trend-research.mjs');
 const stateFile = 'yt-mcp/schedule-state.json';
-const loadState = () => { try { return JSON.parse(fs.readFileSync(stateFile, 'utf8')); } catch { return {}; } };
+const loadState = () => loadAllStates();
 
 const auth = new google.auth.OAuth2(process.env.YOUTUBE_CLIENT_ID || '', process.env.YOUTUBE_CLIENT_SECRET || '');
 
@@ -108,7 +109,7 @@ Return ONLY JSON: {"headline":"punchy <=5 word line in title case (MUST fit 3 sh
     const st2 = loadState();
     st2[job.slug] = st2[job.slug] || {};
     st2[job.slug].imageDate = new Date().toISOString().slice(0, 10);
-    saveState(st2);
+    saveChannelState(job.slug, st2[job.slug]);
   } else {
     console.log(`  ✗ FB image failed:`, JSON.stringify(data).slice(0, 140));
   }

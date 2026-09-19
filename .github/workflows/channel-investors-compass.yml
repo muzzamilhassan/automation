@@ -94,6 +94,6 @@ jobs:
         run: |
           git config user.name "quarry-bot"
           git config user.email "bot@quotequarry.local"
-          git add yt-mcp/schedule-state.json yt-mcp/trends-*.json || true
+          git add yt-mcp/state/ yt-mcp/schedule-state.json yt-mcp/trends-*.json || true
           git diff --cached --quiet || git commit -m "investors-compass daily state [skip ci]"
           git push || true

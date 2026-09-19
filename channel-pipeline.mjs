@@ -21,8 +21,9 @@ const b = brands[slug];
 if (!b) { console.error(`[pipeline] unknown slug: ${slug}`); process.exit(0); }
 
 const today = new Date().toISOString().slice(0, 10);
-const STATE_FILE = 'yt-mcp/schedule-state.json';
-const loadState = () => { try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { return {}; } };
+// 09-20: per-channel state files are the source of truth (lib/state.mjs)
+import { loadAllStates } from './lib/state.mjs';
+const loadState = () => loadAllStates();
 
 const log = (msg) => console.log(`[${slug}] ${msg}`);
 const results = { shorts: false, episode: false, fbReels: false, igReels: false, poster: false };
@@ -50,6 +51,14 @@ if (!shortsDone || FORCE || TOPUP_N > 0) {
 } else {
   log(`Shorts already produced today — skipping`);
   results.shorts = true;
+}
+
+// ---- Phase 1b: Proof-of-publication (09-20) ----
+// 09-19 lesson: a dead token printed "✓ Shorts queued / Errors: 0" while
+// nothing was uploaded. Verify the claimed uploads REALLY exist on YouTube.
+if (results.shorts) {
+  if (run('verify-run.mjs', [slug])) log(`✓ Uploads verified on YouTube`);
+  else errors.push('Upload verification failed — check ntfy alert');
 }
 
 // ---- Phase 2: Facebook Reels (cross-post from outbox) ----
