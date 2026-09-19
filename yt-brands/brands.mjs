@@ -48,7 +48,8 @@ export const BRANDS = [
     musicFeels: ['calming', 'inspir', 'mystical'], // premium, calm-confident market wisdom
     slots: ['12:05', '16:05', '23:35'], longSlot: '21:30', // long: 5:30p ET
     description: 'Investing wisdom and stock market psychology in 60 seconds. Timeless principles from Buffett, Munger and Bogle — patience, compounding, and buying fear instead of selling it. New Shorts daily. Build conviction, not panic. Subscribe for daily investing wisdom.',
-    themeBank: ['investor mistakes that cost fortunes', 'rules Warren Buffett never breaks', 'signs you are panic selling', 'habits of patient investors', 'things to never do in a market crash', 'compounding explained through small habits', 'contrarian moves that paid off', 'questions to ask before buying any stock', 'signs a stock is hype not value', 'what rich investors do during a downturn', 'beginner investing rules that never change', 'psychology traps every trader falls into']
+    themeBank: ['rule #1 warren buffett never breaks', 'the day the market lost $1 trillion', 'the trader who blew up $100 million', 'what buffett does when everyone panics', 'the biggest investing mistake according to buffett', 'why buffett never sells in a crash', 'how the rich buy the crash', 'the 90-year rule that beats day trading', 'what compounding does by age 60', 'the stock buffett held for 30 years', 'signs a stock is hype not value', 'the bull market trap that wipes beginners'],
+    script: { targetSeconds: 32, points: 4, lineWords: '9-12', titleStyle: 'authority + market-story', titleExamples: '"Rule #1 Warren Buffett Never Breaks", "The Day the Market Lost $1 Trillion"' }
   },
   {
     slug: 'money-rulebook',
@@ -67,7 +68,8 @@ export const BRANDS = [
     musicFeels: ['bright', 'uplifting', 'grooving'], // clean, confident money-rules energy
     slots: ['12:35', '16:35', '00:05'], longSlot: '22:30', // long: 6:30p ET
     description: 'Money rules that quietly build wealth — one principle per Short. Pay yourself first, automate savings, kill lifestyle creep. Personal finance in 60 seconds, new rule every day. Subscribe and let the rules compound.',
-    themeBank: ['money rules rich people never break', 'salary habits that change your life', 'silent ways you leak money', 'pay yourself first explained', 'lifestyle creep warning signs', 'rules for your first $10,000', 'things broke people buy first', 'automation habits that build wealth', 'money rules by age 30', 'signs you are budgeting wrong', 'financial red flags in your 20s', 'wealth killers hiding in plain sight']
+    themeBank: ['7 money habits that quietly make you rich', '6 rules for your first $10,000', '5 money moves before you turn 30', 'the 50/30/20 rule explained fast', '4 silent ways you leak money every month', 'the 24-hour rule that kills impulse spending', '5 things rich people never buy', 'how to automate your first $100k', '7 budget rules the rich actually follow', 'the $1 rule that changes how you spend', '6 salary moves that build wealth fast', 'why the rich never pay full price'],
+    script: { targetSeconds: 32, points: 4, lineWords: '9-12', titleStyle: 'numbered money listicle with a $ figure', titleExamples: '"7 Money Habits That Quietly Make You Rich", "6 Rules for Your First $10,000"' }
   },
   {
     slug: 'debt-free-doctrine',
@@ -86,7 +88,8 @@ export const BRANDS = [
     musicFeels: ['driving', 'action', 'heroic'], // determined, no-excuses debt payoff energy
     slots: ['13:05', '17:05', '00:35'], longSlot: '01:30', // long: 9:30p ET
     description: 'Debt freedom starts with the right rules, not more hustle. Credit scores, loan traps, and payoff order — explained in 60 seconds. New Shorts daily until debt is a word you forget. Subscribe and start owing nothing.',
-    themeBank: ['debt payoff mistakes that cost thousands', 'credit score moves banks hate', 'loan traps disguised as help', 'rules for your first credit card', 'signs a loan is predatory', 'snowball vs avalanche made simple', 'things to never finance', 'habits that quietly raise your credit score', 'what collectors hope you never learn', 'debt-free people never do these', 'interest math banks hide', 'how to negotiate debt like a pro']
+    themeBank: ['the $30,000 mistake almost everyone makes', 'week 1 of the debt snowball', 'how one rule paid off $10,000 fast', 'what debt collectors can actually do to you', 'the true cost of a $5,000 loan', '3 credit moves that raise your score 100 points', 'why minimum payments keep you broke', 'the snowball vs avalanche race', 'signs your loan is a trap', 'how it feels the day you are debt-free', 'the 0% card trick banks hate', 'the first debt to pay off is not the biggest'],
+    script: { targetSeconds: 32, points: 4, lineWords: '9-12', titleStyle: 'journey/stakes framing', titleExamples: '"The $30,000 Mistake Almost Everyone Makes", "Week 1 of the Debt Snowball"' }
   },
   {
     slug: 'escrow-estate',
