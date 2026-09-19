@@ -1,6 +1,6 @@
 {
   "investors-compass": {
-    "lastRunDate": "2026-09-17",
+    "lastRunDate": "2026-09-20",
     "usedThemes": [
       "habits of patient investors",
       "things to never do in a market crash",
@@ -29,7 +29,9 @@
       "videoId": "dOJgBHpJgwQ",
       "publishAt": "2026-09-07T21:30:00Z",
       "title": "The Patient Investor's Edge: 8 Unconventional Habits | Investing Psychology"
-    }
+    },
+    "healedDate": "2026-09-19",
+    "healedCount": 3
   },
   "money-rulebook": {
     "lastRunDate": "2026-09-20",
@@ -70,7 +72,7 @@
     "healedCount": 3
   },
   "debt-free-doctrine": {
-    "lastRunDate": "2026-09-13",
+    "lastRunDate": "2026-09-20",
     "usedThemes": [
       "rules for your first credit card",
       "signs a loan is predatory",
@@ -108,6 +110,13 @@
         "date": "2026-09-13",
         "title": "First Credit Card Rules | Debt Freedom"
       }
-    ]
+    ],
+    "healedDate": "2026-09-19",
+    "healedCount": 3
+  },
+  "quotequarry": {
+    "lastRunDate": "2026-09-20",
+    "healedDate": "2026-09-19",
+    "healedCount": 3
   }
 }
