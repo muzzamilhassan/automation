@@ -37,7 +37,11 @@ const gh = (args) => {
 };
 const ghJson = (args) => {
   const r = gh(args);
-  try { return JSON.parse(r.stdout); } catch { return null; }
+  try { return JSON.parse(r.stdout); } catch {
+    const err = String(r.stderr || r.error || "unknown gh error").split("\n").filter(Boolean).slice(0, 3).join(" | ");
+    console.log(`[warn] gh ${args[0]} failed (exit ${r.status}): ${err.slice(0, 200)}`);
+    return null;
+  }
 };
 
 function etToUTC(y, mo, d, h, mi) {
