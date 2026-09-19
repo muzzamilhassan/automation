@@ -1,32 +1,37 @@
 {
-  "at": "2026-09-19T15:39:00.664Z",
-  "problems": 0,
+  "at": "2026-09-19T22:18:28.550Z",
+  "problems": 1,
   "results": [
+    {
+      "slug": "workflows",
+      "status": "BROKEN_WORKFLOW",
+      "error": "channel-debt-free-doctrine.yml: Cannot read properties of undefined (reading 'load') | channel-investors-compass.yml: Cannot read properties of undefined (reading 'load') | channel-money-rulebook.yml: Cannot read properties of undefined (reading 'load') | channel-quotequarry.yml: Cannot read properties of undefined (reading 'load') | ci-doctor.yml: Cannot read properties of undefined (reading 'load') | daily-sweeper.yml: Cannot read properties of undefined (reading 'load') | demo-video.yml: Cannot read properties of undefined (reading 'load') | ig-slot-poster.yml: Cannot read properties of undefined (reading 'load') | longform-daily.yml: Cannot read properties of undefined (reading 'load') | longform-upload.yml: Cannot read properties of undefined (reading 'load') | reporting-daily.yml: Cannot read properties of undefined (reading 'load') | weekly-compilation.yml: Cannot read properties of undefined (reading 'load')"
+    },
     {
       "slug": "investors-compass",
       "channel": "Investor's Compass",
       "subs": "7",
-      "totalVideos": "81",
+      "totalVideos": "85",
       "status": "OK"
     },
     {
       "slug": "money-rulebook",
       "channel": "The Money Rulebook",
       "subs": "4",
-      "totalVideos": "67",
+      "totalVideos": "68",
       "status": "OK"
     },
     {
       "slug": "debt-free-doctrine",
       "channel": "Debt-Free Doctrine",
       "subs": "0",
-      "totalVideos": "69",
+      "totalVideos": "71",
       "status": "OK"
     },
     {
       "slug": "quotequarry",
       "channel": "QuoteQuarry",
-      "subs": "114",
+      "subs": "115",
       "totalVideos": "292",
       "status": "OK"
     }
