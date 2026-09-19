@@ -163,8 +163,8 @@ async function processChannel(slug) {
     const arts = ghJson(["api", `repos/${RENDER_REPO}/actions/runs/${run.databaseId}/artifacts`, "--jq", ".artifacts"]) || [];
     const art = arts.find((a) => a.name === `lf-${slug}` && !a.expired);
     if (!art) continue;
-    if ((uploads[slug] || []).some((u) => u.artifactId === art.id)) { console.log(`[skip] artifact ${art.id} already uploaded`); continue; }
-    if (skippedShort.includes(art.id)) { console.log(`[skip] artifact ${art.id} is a short test render`); continue; }
+    if ((uploads[slug] || []).some((u) => String(u.artifactId) === String(art.id))) { console.log(`[skip] artifact ${art.id} already uploaded`); continue; }
+    if (skippedShort.includes(art.id) || skippedShort.map(String).includes(String(art.id))) { console.log(`[skip] artifact ${art.id} is a short test render`); continue; }
 
     fs.rmSync(inbox, { recursive: true, force: true });
     fs.mkdirSync(inbox, { recursive: true });
