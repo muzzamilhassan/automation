@@ -129,6 +129,7 @@ async function buildThumbnail(slug, meta) {
   }
   if (!photo) throw new Error("no subject photo found");
   const dest = path.join(THUMB_DIR, "assets", `wiki-${slug}.jpg`);
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
   fs.writeFileSync(dest, photo.buf);
   const spec = {
     out: path.join(THUMB_DIR, "demos", `doc-${slug}.png`),
