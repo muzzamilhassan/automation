@@ -1,12 +1,12 @@
 {
-  "at": "2026-09-19T07:56:51.748Z",
-  "problems": 1,
+  "at": "2026-09-19T13:55:52.220Z",
+  "problems": 0,
   "results": [
     {
       "slug": "investors-compass",
       "channel": "Investor's Compass",
       "subs": "7",
-      "totalVideos": "77",
+      "totalVideos": "81",
       "status": "OK"
     },
     {
@@ -20,13 +20,15 @@
       "slug": "debt-free-doctrine",
       "channel": "Debt-Free Doctrine",
       "subs": "0",
-      "totalVideos": "64",
+      "totalVideos": "69",
       "status": "OK"
     },
     {
       "slug": "quotequarry",
-      "status": "ERROR",
-      "error": "invalid_grant"
+      "channel": "QuoteQuarry",
+      "subs": "114",
+      "totalVideos": "290",
+      "status": "OK"
     }
   ]
 }
