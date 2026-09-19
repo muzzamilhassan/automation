@@ -5,6 +5,11 @@ on:
     # Staggered: this channel's production window
     - cron: '53 3 * * *'
   workflow_dispatch:
+    inputs:
+      topup:
+        description: "heal N slots (blank = normal daily run)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -77,8 +82,7 @@ jobs:
           YT_TOKEN_DEBT_FREE_DOCTRINE: ${{ secrets.YT_TOKEN_DEBT_FREE_DOCTRINE }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: node channel-pipeline.mjs debt-free-doctrine --no-episode
-
+        run: node channel-pipeline.mjs debt-free-doctrine --no-episode ${{ inputs.topup && format('--topup={0}', inputs.topup) || '' }}
       - name: 📦 Keep reels for IG slot poster
         if: ${{ hashFiles('fb-outbox/debt-free-doctrine/*.json*') != '' }}
         uses: actions/cache/save@v4

@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '13 2 * * *'
   workflow_dispatch:
+    inputs:
+      topup:
+        description: "heal N slots (blank = normal daily run)"
+        required: false
+        default: ""
 
 concurrency:
   group: channel-quotequarry
@@ -73,8 +78,7 @@ jobs:
           YT_TOKEN_QUOTEQUARRY: ${{ secrets.YT_TOKEN_QUOTEQUARRY }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: node channel-pipeline.mjs quotequarry --no-episode
-
+        run: node channel-pipeline.mjs quotequarry --no-episode ${{ inputs.topup && format('--topup={0}', inputs.topup) || '' }}
       - name: 📦 Keep reels for IG slot poster
         if: ${{ hashFiles('fb-outbox/quotequarry/*.json*') != '' }}
         uses: actions/cache/save@v4

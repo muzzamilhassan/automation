@@ -11,6 +11,11 @@ import { spawnSync } from 'node:child_process';
 const slug = process.argv[2];
 const FORCE = process.argv.includes('--force');
 const SKIP_EPISODE = process.argv.includes('--no-episode');
+// --topup=N: heal/backfill mode (sweeper semantics) — produce the first N slots
+// even if today already ran; yt-daily marks the NEXT day done so the morning
+// cron can't double-produce the healed reels.
+const topupArg = process.argv.find(a => a.startsWith('--topup'));
+const TOPUP_N = topupArg ? Math.max(0, Number(topupArg.split('=')[1]) || 0) : 0;
 const brands = JSON.parse(fs.readFileSync('lib/brands.json', 'utf8'));
 const b = brands[slug];
 if (!b) { console.error(`[pipeline] unknown slug: ${slug}`); process.exit(0); }
@@ -37,9 +42,9 @@ const shortsDone = state[slug]?.lastRunDate === today;
 const episodeDone = state[slug]?.deepdiveDate === today;
 
 // ---- Phase 1: YouTube Shorts (3 per day) ----
-if (!shortsDone || FORCE) {
-  log(`Phase 1 — Producing ${b.slots.length} Shorts for ${b.label}...`);
-  const ok = run('yt-daily.mjs', [slug, '--no-episode', ...(FORCE ? ['--force'] : [])]);
+if (!shortsDone || FORCE || TOPUP_N > 0) {
+  log(`Phase 1 — Producing ${TOPUP_N > 0 ? `topup ${TOPUP_N}/${b.slots.length}` : b.slots.length} Shorts for ${b.label}...`);
+  const ok = run('yt-daily.mjs', [slug, '--no-episode', ...(FORCE ? ['--force'] : []), ...(TOPUP_N > 0 ? [`--topup=${TOPUP_N}`] : [])]);
   if (ok) { results.shorts = true; log(`✓ Shorts queued`); }
   else { errors.push('Shorts production failed'); log(`✗ Shorts failed`); }
 } else {
