@@ -14,7 +14,7 @@ const FB_PAGE_TOKEN = process.env.FB_PAGE_TOKEN || (envStr.match(/^FB_PAGE_TOKEN
 
 // YT slug -> FB page (audience-matched)
 const PAGE_MAP = {
-  'quotequarry': '108044922375174',      // Strategic Silence (stoicism)
+  'quotequarry': '114550268199751',      // Reliq North (8.6k followers, user order 09-20 — replaces Strategic Silence)
   'investors-compass': '116157974886564', // Silent Wealth (money psychology)
   'money-rulebook': '1077306835630491',   // Eon Ventures (success habits)
   'debt-free-doctrine': '106473735839651' // The Boundaries Club (boundaries)

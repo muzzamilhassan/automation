@@ -10,7 +10,7 @@ const envStr = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
 const FB_PAGE_TOKEN = process.env.FB_PAGE_TOKEN || (envStr.match(/^FB_PAGE_TOKEN=(.+)$/m) || [])[1]?.trim() || '';
 
 const PAGE_MAP = {
-  'quotequarry': '108044922375174',
+  'quotequarry': '114550268199751',  // Reliq North — owns IG @quotequarry8 (Strategic Silence had NO IG: QQ reels could never post)
   'investors-compass': '116157974886564',
   'money-rulebook': '1077306835630491',
   'debt-free-doctrine': '106473735839651'

@@ -20,7 +20,7 @@ const MAP = [
   { slug: 'investors-compass', pageId: '116157974886564', hashtags: '#InvestingPsychology #StockMarket #WealthBuilding' },
   { slug: 'money-rulebook', pageId: '1077306835630491', hashtags: '#MoneyRules #PersonalFinance #FinancialFreedom' },
   { slug: 'debt-free-doctrine', pageId: '106473735839651', hashtags: '#DebtFree #MoneyTips #FinancialFreedom' },
-  { slug: 'quotequarry', pageId: '108044922375174', hashtags: '#Stoicism #DailyWisdom #Mindset' }
+  { slug: 'quotequarry', pageId: '114550268199751', hashtags: '#Stoicism #DailyWisdom #Mindset' }
 ];
 
 function llmJSON(prompt) {

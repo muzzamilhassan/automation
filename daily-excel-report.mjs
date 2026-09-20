@@ -21,13 +21,13 @@ const MODE = (process.argv[2] || 'daily').toLowerCase();
 // FB pairing mirrors fb-crosspost.mjs PAGE_MAP (audience-matched: the YT channel
 // feeds a page whose name is a legacy brand name — both are shown in the report).
 const CHANNELS = [
-  { slug: 'quotequarry', label: 'Quote Quarry', handle: '@quotequarry302', fbPageId: '108044922375174' },
+  { slug: 'quotequarry', label: 'Quote Quarry', handle: '@quotequarry302', fbPageId: '114550268199751' },
   { slug: 'investors-compass', label: "Investor's Compass", handle: '@InvestorsCompass-c7h', fbPageId: '116157974886564' },
   { slug: 'money-rulebook', label: 'The Money Rulebook', handle: '@themoneyrulebook-p4y', fbPageId: '1077306835630491' },
   { slug: 'debt-free-doctrine', label: 'Debt-Free Doctrine', handle: '@debtfreedoctrine', fbPageId: '106473735839651' }
 ];
 // Extra owned page, not part of the 4-brand pairing (kept visible for its stats)
-const EXTRA_PAGE_IDS = ['114550268199751']; // Reliq North
+const EXTRA_PAGE_IDS = []; // Reliq North is now QQ's primary FB page (moved 09-20)
 const KNOWN_PAGE_IDS = new Set([...CHANNELS.map(c => c.fbPageId), ...EXTRA_PAGE_IDS]);
 
 // ---- YouTube auth: env-first per channel, then token file; pick one that works ----
