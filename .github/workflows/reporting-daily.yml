@@ -54,6 +54,13 @@ jobs:
           if [ "$PKTDOW" = "0" ]; then node daily-excel-report.mjs weekly; fi
           if [ "$PKTDATE" = "01" ]; then node daily-excel-report.mjs monthly; fi
 
+      - name: 🧹 Weekly FB duplicate-reel cleanup (Mondays only)
+        if: \${{ github.event.schedule != '' }}
+        env:
+          FB_PAGE_TOKEN: \${{ secrets.FB_PAGE_TOKEN }}
+        run: |
+          if [ "$(date -u +%u)" = "1" ]; then node fb-dedupe.mjs --apply; else echo "not Monday — skip"; fi
+
       - name: 💾 Commit stats history back to repo
         run: |
           git config user.name "quarry-bot"
