@@ -9,6 +9,7 @@ import { Thumb } from "./thumb";
 import { Teacher } from "./teacher";
 import { TechExplain } from "./tech-explain";
 import { TechVideo } from "./tech-video";
+import { PsychToon, type PsychDoc } from "./psych-toon";
 
 const EMPTY: Storyboard = {
   title: "Explainer",
@@ -177,6 +178,29 @@ export const RemotionRoot: React.FC = () => {
           const d = Array.isArray(props?.beats) && props.beats.length > 0 ? props : (props?.teacher?.beats?.length ? props.teacher : null);
           if (!d) return { durationInFrames: 10, fps: 30, width: 1920, height: 1080 };
           return { durationInFrames: Math.max(Math.ceil((d.totalMs / 1000) * (d.fps || 30)), 10), fps: d.fps || 30, width: 1920, height: 1080, props: { teacher: d } };
+        }}
+      />
+      <Composition
+        id="PsychToon"
+        component={PsychToon}
+        durationInFrames={10}
+        fps={30}
+        width={1920}
+        height={1080}
+        defaultProps={{ psych: { title: "PsychToon", fps: 30, width: 1920, height: 1080, totalMs: 100, music: null, scenes: [] } as PsychDoc }}
+        calculateMetadata={({ props }: any) => {
+          // input props merge shallowly over defaultProps, so check the raw
+          // --props doc FIRST (it still carries the stale {psych} empty key).
+          const raw = Array.isArray(props?.scenes) && props.scenes.length > 0;
+          const d: PsychDoc | undefined = raw ? props : props?.psych;
+          if (!d || !Array.isArray(d.scenes) || d.scenes.length === 0) return { durationInFrames: 10, fps: 30, width: 1920, height: 1080 };
+          return {
+            durationInFrames: Math.max(Math.ceil((d.totalMs / 1000) * (d.fps || 30)), 10),
+            fps: d.fps || 30,
+            width: d.width || 1920,
+            height: d.height || 1080,
+            props: raw ? props : { psych: d },
+          };
         }}
       />
     </>
