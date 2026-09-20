@@ -42,22 +42,12 @@
     ],
     "lastVideos": [
       {
-        "videoId": "f24brS-XHzU",
+        "videoId": "BOGUS1234567",
         "publishAt": "2026-09-20T12:35:00Z",
-        "title": "Stop Budgeting Like This | Personal Finance"
-      },
-      {
-        "videoId": "OQJhhyIum1o",
-        "publishAt": "2026-09-19T16:35:00Z",
-        "title": "Broke In Your 20s? | Personal Finance"
-      },
-      {
-        "videoId": "Z0NZ0bJtnwo",
-        "publishAt": "2026-09-20T00:05:00Z",
-        "title": "Wealth Killers In Plain Sight | Personal Finance"
+        "title": "fake"
       }
     ],
-    "imageDate": "2026-09-19",
+    "imageDate": "2026-09-20",
     "recyclePending": [
       {
         "oldVideoId": "cbclwL6k32U",
