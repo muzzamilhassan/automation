@@ -8,6 +8,10 @@
 import fs from 'node:fs';
 import https from 'node:https';
 import path from 'node:path';
+import { buildFbVariant } from './fb-variant.mjs';
+import { BRANDS } from './yt-brands/brands.mjs';
+
+const brandOf = (slug) => BRANDS.find(b => b.slug === slug);
 
 const envStr = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
 const FB_PAGE_TOKEN = process.env.FB_PAGE_TOKEN || (envStr.match(/^FB_PAGE_TOKEN=(.+)$/m) || [])[1]?.trim() || '';
@@ -64,10 +68,15 @@ async function getPageToken(pageId) {
 }
 
 function seoDescription(meta) {
-  // keyword-first first line (FB SEO: first 100 chars weigh most), body, <=3 hashtags
+  // FB-native caption (09-20): hook first line, one value line, follow CTA,
+  // <=3 hashtags (FB uses fewer hashtags than YouTube).
+  const b = brandOf(meta.slug);
+  const label = b ? b.label.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : 'us';
+  const kw = b ? b.kwShort : 'content';
   const hash = HASHTAGS[meta.slug] || '#Motivation #Mindset #Success';
-  const body = String(meta.description || '').slice(0, 900);
-  return `${meta.title}\n\n${body}\n\nFollow for daily content. ${hash}`.slice(0, 1200);
+  const hook = String(meta.title || '').slice(0, 90);
+  const body = String(meta.description || '').split('\n').filter(Boolean)[0] || '';
+  return `${hook}\n\n${body}\n\nFollow ${label} for daily ${kw}. ${hash}`.slice(0, 1200);
 }
 
 async function postReel(slug, videoBuffer, meta, publishAtIso) {
@@ -99,7 +108,10 @@ if (oneFile) {
   const metaFile = oneFile.replace(/\.mp4$/, '.json');
   const meta = fs.existsSync(metaFile) ? JSON.parse(fs.readFileSync(metaFile, 'utf8'))
     : { title: 'Daily Investing Wisdom', description: 'Investing psychology and market wisdom for long-term wealth.', slug };
-  await postReel(slug, fs.readFileSync(oneFile), meta, null);
+  let buf = fs.readFileSync(oneFile);
+  try { await buildFbVariant(oneFile, slug, oneFile.replace(/\.mp4$/, '-fb.mp4')); buf = fs.readFileSync(oneFile.replace(/\.mp4$/, '-fb.mp4')); }
+  catch (e) { console.log('[fb] variant failed — posting original:', String(e.message).slice(0, 90)); }
+  await postReel(slug, buf, meta, null);
   process.exit(0);
 }
 
@@ -113,20 +125,58 @@ for (const dir of fs.existsSync('fb-outbox') ? fs.readdirSync('fb-outbox') : [])
 }
 if (!jobs.length) { console.log('[fb] outbox empty — nothing to cross-post'); process.exit(0); }
 
-for (const metaFile of jobs) {
-  const meta = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
-  const videoPath = path.resolve(meta.videoFile);
+// 09-20 CADENCE FIX: one NATIVE reel per page per day (cold pages posting 3
+// identical reels daily read as automation spam, and unchanged cross-posts get
+// demoted to ~0 views). The oldest queued file per slug is transformed into an
+// FB-native variant and posted; same-day files stay queued (next day's run
+// posts one of them — the backlog self-paces at 1/day).
+const parsed = jobs.map(metaFile => {
+  try {
+    const meta = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
+    const stamp = Number(path.basename(metaFile).replace(/\.json$/, '')) || fs.statSync(metaFile).mtimeMs;
+    return { metaFile, meta, stamp, slug: meta.slug };
+  } catch { return null; }
+}).filter(Boolean).sort((a, b) => a.stamp - b.stamp);
+
+const postedSlugs = new Set();
+for (const job of parsed) {
+  if (!fs.existsSync(job.metaFile)) continue; // skipped/marked during this pass
+  const videoPath = path.resolve(job.meta.videoFile);
   if (!fs.existsSync(videoPath)) { console.log(`[fb] missing ${videoPath} — skipped`); continue; }
+  if (postedSlugs.has(job.slug)) {
+    console.log(`[fb] cadence: ${job.slug} already has today's native reel — ${path.basename(job.metaFile)} stays queued`);
+    continue;
+  }
+  const dayKey = new Date(job.stamp).toISOString().slice(0, 10);
+  const variantPath = videoPath.replace(/\.mp4$/, '-fb.mp4');
+  try {
+    buildFbVariant(videoPath, job.slug, variantPath);
+    console.log(`  ✓ FB-native variant rendered: ${path.basename(variantPath)}`);
+  } catch (e) {
+    console.log(`  ⚠ variant failed (${String(e.message).slice(0, 90)}) — posting original file`);
+  }
+  const usePath = fs.existsSync(variantPath) && fs.statSync(variantPath).size > 10000 ? variantPath : videoPath;
   let id = null;
   for (let a = 1; a <= 2 && !id; a++) {
     try {
-      id = await postReel(meta.slug, fs.readFileSync(videoPath), meta, meta.publishAt);
+      id = await postReel(job.slug, fs.readFileSync(usePath), job.meta, job.meta.publishAt);
     } catch (e) {
       console.log(`  ✗ attempt ${a} network error: ${e.message}`);
       if (a < 2) await new Promise(r => setTimeout(r, 5000));
     }
   }
-  if (id) fs.renameSync(metaFile, metaFile + '.fb-done');
+  if (id) {
+    fs.renameSync(job.metaFile, job.metaFile + '.fb-done');
+    postedSlugs.add(job.slug);
+    // same-day siblings: skip (they'd drip out 1/day otherwise)
+    for (const other of parsed) {
+      if (other.slug !== job.slug || other === job || !fs.existsSync(other.metaFile)) continue;
+      if (new Date(other.stamp).toISOString().slice(0, 10) === dayKey) {
+        fs.renameSync(other.metaFile, other.metaFile + '.fb-skipped');
+        console.log(`  skip same-day file: ${path.basename(other.metaFile)}`);
+      }
+    }
+  }
   await new Promise(r => setTimeout(r, 3000)); // space out page posts
 }
 console.log('[fb] cross-post pass complete');

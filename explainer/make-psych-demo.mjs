@@ -25,11 +25,26 @@ const scenes = sb.scenes;
 // ---- 1. TTS -----------------------------------------------------------------
 const beatsIn = path.join(PUB, "psych-tts-input.json");
 fs.writeFileSync(beatsIn, JSON.stringify(scenes.map((s, i) => ({ i, text: s.narration }))));
+
+// edge_batch's cached-beat path drops word boundaries — carry them over from
+// the previous durations file so word-synced actions survive re-runs.
+const oldDursPath = path.join(PUB, "tts-durations.json");
+const oldWords = new Map();
+if (fs.existsSync(oldDursPath)) {
+  for (const d of JSON.parse(fs.readFileSync(oldDursPath, "utf8"))) {
+    if (Array.isArray(d.words) && d.words.length > 0) oldWords.set(d.i, d.words);
+  }
+}
+
 console.log(`[psych] synthesizing ${scenes.length} scenes (voice: ${sb.voice || process.env.EXPLAINER_VOICE || "en-US-AndrewNeural"})`);
 execFileSync("python", [path.join(DIR, "edge_batch.py"), beatsIn], { stdio: "inherit", env: { ...process.env, EXPLAINER_VOICE: sb.voice || "en-US-AndrewNeural" } });
 
-const durs = JSON.parse(fs.readFileSync(path.join(PUB, "tts-durations.json"), "utf8"));
-const durByI = new Map(durs.map((d) => [d.i, d.ms]));
+const durs = JSON.parse(fs.readFileSync(oldDursPath, "utf8")).map((d) => ({
+  ...d,
+  words: Array.isArray(d.words) && d.words.length > 0 ? d.words : oldWords.get(d.i) ?? [],
+}));
+fs.writeFileSync(oldDursPath, JSON.stringify(durs));
+const durByI = new Map(durs.map((d) => [d.i, d]));
 
 const FFPROBE = process.env.FFPROBE_PATH
   || path.join(DIR, "..", "ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffprobe.exe");
@@ -42,14 +57,39 @@ const probeMs = (file) => {
   }
 };
 
-// ---- 2. timeline -------------------------------------------------------------
+// ---- 2. timeline + word-synced actions ---------------------------------------
+// Actions can trigger on `word` — resolved to seconds-within-scene using the
+// Edge TTS word boundaries captured during synthesis.
 let cursor = LEAD_MS;
 scenes.forEach((s, i) => {
   const audio = `audio/beat-${String(i).padStart(2, "0")}.mp3`;
-  const spoken = Math.max(durByI.get(i) ?? 0, probeMs(audio));
+  const beat = durByI.get(i);
+  const spoken = Math.max(beat?.ms ?? 0, probeMs(audio));
   s.audio = audio;
   s.startMs = cursor;
   s.ms = spoken + PAD_MS;
+
+  if (Array.isArray(s.actions) && s.actions.length > 0 && Array.isArray(beat?.words) && beat.words.length > 0) {
+    const words = beat.words; // [{ w, s }] relative to audio start
+    let searchFrom = 0;
+    for (const a of s.actions) {
+      if (!a.word || a.at !== undefined) continue;
+      const norm = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9']/g, "");
+      let idx = words.findIndex((w, j) => j >= searchFrom && norm(w.w) === norm(a.word));
+      if (idx < 0) idx = words.findIndex((w) => norm(w.w) === norm(a.word)); // same word may drive two cues
+      if (idx >= 0) {
+        a.at = Math.max(0, words[idx].s - 0.15); // land the cue just before the word
+        searchFrom = idx + 1;
+        if (a.prop !== undefined && s.props?.[a.prop]) {
+          s.props[a.prop].hideUntil = a.at; // prop pops in on its word
+          delete a.prop;
+        }
+      } else {
+        console.warn(`[psych] scene ${i + 1}: word "${a.word}" not found in TTS — cue dropped`);
+        a.at = undefined;
+      }
+    }
+  }
   cursor += s.ms;
 });
 const totalMs = cursor + TAIL_MS - PAD_MS;

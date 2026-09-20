@@ -117,7 +117,41 @@ fix → CTA, mirroring the reference's narrative beats.
    Render time is the long pole → run on GitHub Actions (quarry-render
    pattern) once style is approved.
 
-## 8. Gotchas discovered (for future sessions)
+## 8. v2 upgrade — motion grammar from 2fps frame study (same day, after user feedback)
+
+User verdict on v1 demo: "animations not good." Frame-flipping two 12s scenes
+of the reference at 2fps exposed the real motion grammar v1 was missing:
+
+1. **Shot rhythm** — reference cuts to a NEW composition every 2.5–6s
+   (books-arrows → reading-desk → writing-table = 3 setups in 12s), each from a
+   different "camera angle". v1 had one static scene per narration paragraph.
+2. **Line boil** — all lines wobble and re-jitter constantly (hand-drawn "boil
+   on 4s"). Implemented as an SVG `feTurbulence + feDisplacementMap` filter
+   whose seed changes every 4 frames — roughens every line and fill edge for
+   free. This single filter kills the "flat AI vector" look.
+3. **Framed vignettes** — many shots sit inside a rough-edged inset frame on
+   paper, with the big handwritten caption ABOVE the frame ("2 WEEKS LATER").
+4. **Faces emote** — brows + mouth shapes change (shocked = raised brows,
+   O-mouth, spark marks; worried = tilted brows, frown). v1 had one static smile.
+5. **Word-synced props/actions** — props pop in exactly when narration names
+   them. Edge TTS gives word boundaries (`edge_batch.py` already saved them);
+   storyboard actions use `{word: "phone", prop: 0}` and the orchestrator bakes
+   seconds. Characters also switch pose/mood mid-shot on a word.
+6. **Micro-motion holds** — reference "holds" are never frozen: tiny arm/head
+   adjustments. Added: blink (2 frames every ~2.6s), idle arm sway, pose-change
+   squash (puppet snap), breathing, reading-paper rock.
+7. **Zoom-punch cuts** — every shot opens with a quick 1.055→1.0 punch + slow
+   push + ±0.25° organic tilt. v1's paper-fade transitions removed (ref cuts hard).
+
+v2 demo: 16 shots / 80.6s (was 8 scenes / 76s). Fixes found while building v2:
+- HTML divs inside `<svg>` don't paint — SetBg had to become SVG-native rects
+  (this silently blanked every background after scene 1 in the first v2 build).
+- edge_batch.py cached-beat path rewrites tts-durations.json with `words: []` —
+  orchestrator now carries word lists over from the previous run.
+- Two actions triggering on the same word need a find-from-0 fallback after the
+  cursor passes it.
+
+## 9. Gotchas discovered (for future sessions)
 
 - `--props` passes the doc RAW and Remotion shallow-merges it over
   `defaultProps` — a stale `psych`/wrapper key survives. Both

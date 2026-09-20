@@ -14,11 +14,14 @@ import {
 } from "remotion";
 
 // ---------------------------------------------------------------------------
-// PsychToon — hand-drawn "stick figure explainer" style engine.
-// Reference: PsychToons "Psychology of Intelligence" (2M views, 15 min).
-// Every scene is drawn as vector art from a JSON spec: flat horizontal color
-// bands, ink-line characters with big round white heads, simple wooden props,
-// big handwritten caps labels, paper grain on top.
+// PsychToon v2 — hand-drawn "stick figure explainer" style engine.
+// Motion grammar measured from the reference (see research doc):
+//  - hard cuts every 2.5–6s, each shot a new composition
+//  - "line boil": wobbly hand-drawn lines that re-jitter every ~4 frames
+//  - framed vignettes on paper with big handwritten captions above
+//  - characters emote (brows, O-mouth, sweat marks) and change pose mid-shot
+//  - props appear exactly when narration names them (word-synced actions)
+//  - micro-motion holds: blink, breathing, arm sway — never frozen stills
 // ---------------------------------------------------------------------------
 
 const INK = "#2f2b26";
@@ -27,7 +30,6 @@ const WOOD = "#a9743f";
 const WOOD_DARK = "#7d5528";
 const PROP_PAPER = "#f8f2e2";
 
-// Palette cycle: [wall, floor] — muted earthy pairs sampled from the reference.
 const PALETTES: [string, string][] = [
   ["#e6c368", "#bf5f45"], // mustard / rust
   ["#b4c49c", "#d8c29c"], // sage / tan
@@ -63,15 +65,27 @@ const ensureFonts = () => {
 
 // ---- spec types ------------------------------------------------------------
 
+export type PsychMood = "calm" | "happy" | "worried" | "shocked" | "sad";
+
+export type PsychAction = {
+  at?: number; // seconds within scene (baked by orchestrator from `word`)
+  word?: string; // narration word trigger (orchestrator resolves to `at`)
+  char?: number; // char index for pose/mood change
+  pose?: string;
+  mood?: PsychMood;
+  prop?: number; // prop index to reveal at this moment
+};
+
 export type PsychProp = {
   t: string;
   x?: number;
-  y?: number; // baseline on the floor line
+  y?: number;
   s?: number;
   text?: string;
   color?: string;
   delay?: number;
-  front?: boolean; // render after characters (hides legs behind desks)
+  front?: boolean;
+  hideUntil?: number; // seconds within scene (baked from actions)
 };
 
 export type PsychChar = {
@@ -86,13 +100,15 @@ export type PsychChar = {
     | "celebrate"
     | "shrug"
     | "carry"
-    | "phone";
+    | "phone"
+    | "lean";
   x?: number;
   y?: number;
   shirt?: number | string;
   flip?: boolean;
   s?: number;
   face?: boolean;
+  mood?: PsychMood;
   delay?: number;
 };
 
@@ -102,11 +118,15 @@ export type PsychScene = {
   startMs?: number;
   set?: "room" | "field" | "night" | "textcard";
   palette?: number;
+  frame?: "full" | "vignette";
+  caption?: string; // big handwritten caption above a vignette frame
   label?: { text: string; y?: number; size?: number };
   signText?: string;
   cardText?: string;
+  floorTiles?: boolean;
   props?: PsychProp[];
   chars?: PsychChar[];
+  actions?: PsychAction[];
   zoom?: "in" | "out";
 };
 
@@ -170,26 +190,133 @@ const Box = ({
   rx?: number;
 }) => <rect x={x} y={y} width={w} height={h} rx={rx} fill={fill} stroke={stroke ?? "none"} strokeWidth={sw} />;
 
-// ---- character rig (origin = feet center, total height ≈ 265 at s=1) -------
+// ---- character rig ---------------------------------------------------------
 
-const Char: React.FC<PsychChar & { f: number }> = ({ pose, x = 960, y = 810, shirt = 0, flip, s = 1, face, f }) => {
+// returns {pose, mood, changedAtFrame} given scene actions
+const resolveCharState = (
+  base: PsychChar,
+  actions: PsychAction[] | undefined,
+  localT: number,
+  fps: number
+): { pose: PsychChar["pose"]; mood: PsychMood; changedAt: number } => {
+  let pose = base.pose;
+  let mood = (base.mood ?? "calm") as PsychMood;
+  let changedAt = -100;
+  for (const a of actions ?? []) {
+    if (a.char === undefined || a.at === undefined) continue;
+    if (localT + 1e-6 >= a.at && (a.pose || a.mood)) {
+      if (a.pose) pose = a.pose as PsychChar["pose"];
+      if (a.mood) mood = a.mood;
+      changedAt = a.at;
+    }
+  }
+  return { pose, mood, changedAt: changedAt * fps };
+};
+
+const Face: React.FC<{ mood: PsychMood; blink: boolean }> = ({ mood, blink }) => {
+  const eyeY = -208;
+  if (mood === "calm") {
+    return (
+      <g>
+        {blink ? (
+          <Line d={`M -19 ${eyeY} L -11 ${eyeY} M 11 ${eyeY} L 19 ${eyeY}`} w={3.5} />
+        ) : (
+          <>
+            <O cx={-15} cy={eyeY} rx={3.4} ry={4.6} fill={INK} sw={0} />
+            <O cx={15} cy={eyeY} rx={3.4} ry={4.6} fill={INK} sw={0} />
+          </>
+        )}
+        <Line d="M -12 -184 Q 0 -176 12 -184" w={3.5} />
+      </g>
+    );
+  }
+  if (mood === "happy") {
+    return (
+      <g>
+        {blink ? (
+          <Line d={`M -21 ${eyeY - 4} L -9 ${eyeY - 4} M 9 ${eyeY - 4} L 21 ${eyeY - 4}`} w={3.5} />
+        ) : (
+          <>
+            <O cx={-15} cy={eyeY - 4} rx={3.6} ry={4.4} fill={INK} sw={0} />
+            <O cx={15} cy={eyeY - 4} rx={3.6} ry={4.4} fill={INK} sw={0} />
+          </>
+        )}
+        <Line d="M -22 -222 L -10 -218 M 10 -218 L 22 -222" w={3.5} />
+        <Line d="M -16 -184 Q 0 -170 16 -184" w={4} />
+      </g>
+    );
+  }
+  if (mood === "worried") {
+    return (
+      <g>
+        <O cx={-15} cy={eyeY - 2} rx={3.4} ry={4.4} fill={INK} sw={0} />
+        <O cx={15} cy={eyeY - 2} rx={3.4} ry={4.4} fill={INK} sw={0} />
+        <Line d="M -24 -224 L -10 -219 M 10 -219 L 24 -224" w={3.5} />
+        <Line d="M -13 -180 Q 0 -187 13 -180" w={3.5} />
+      </g>
+    );
+  }
+  if (mood === "shocked") {
+    return (
+      <g>
+        <O cx={-15} cy={eyeY - 10} rx={4} ry={5.2} fill={INK} sw={0} />
+        <O cx={15} cy={eyeY - 10} rx={4} ry={5.2} fill={INK} sw={0} />
+        <Line d="M -25 -232 L -11 -226 M 11 -226 L 25 -232" w={3.5} />
+        <O cx={0} cy={-180} rx={8} ry={11} fill={INK} sw={0} />
+        {/* shock sparks */}
+        <Line d="M -50 -262 L -58 -276 M 46 -260 L 55 -272 M 0 -276 L 0 -290" w={4} />
+      </g>
+    );
+  }
+  // sad
+  return (
+    <g>
+      <O cx={-15} cy={eyeY} rx={3.4} ry={4.6} fill={INK} sw={0} />
+      <O cx={15} cy={eyeY} rx={3.4} ry={4.6} fill={INK} sw={0} />
+      <Line d="M -24 -216 L -10 -221 M 10 -221 L 24 -216" w={3.5} />
+      <Line d="M -12 -178 Q 0 -187 12 -178" w={3.5} />
+    </g>
+  );
+};
+
+const Char: React.FC<PsychChar & { f: number; actions?: PsychAction[]; localT: number; fps: number }> = ({
+  x = 960,
+  y = 810,
+  shirt = 0,
+  flip,
+  s = 1,
+  face,
+  f,
+  actions,
+  localT,
+  fps,
+  ...rest
+}) => {
+  const { pose, mood, changedAt } = resolveCharState(rest as PsychChar, actions, localT, fps);
   const shirtColor = typeof shirt === "number" ? SHIRTS[shirt % SHIRTS.length] : shirt;
   const bob = Math.sin(f / 28) * 2.5;
+  const sway = Math.sin(f / 17) * 2.5; // idle arm micro-motion
   const swing = Math.sin(f / 7) * 16; // walk cycle
+  const blink = f % 78 < 2 || f % 91 < 2;
   const armW = 4.5;
 
-  // arm + leg endpoints per pose (local coords, y negative = up)
-  let armL: [number, number] = [-34, -62];
-  let armR: [number, number] = [34, -62];
-  let legs: [string, string] = ["M -10 -84 L -16 0", "M 10 -84 L 16 0"];
+  // squash on pose change (puppet snap)
+  const since = f - changedAt;
+  const squash =
+    since >= 0 && since < 8
+      ? 1 + Math.sin((since / 8) * Math.PI) * 0.06 * (since < 4 ? 1 : -1)
+      : 1;
+
+  let armL: [number, number] = [-34 + sway, -62];
+  let armR: [number, number] = [34 + sway, -62];
   let extra: React.ReactNode = null;
-  let sitting = false;
+  let legsOverride: [string, string] | null = null;
 
   switch (pose) {
     case "walk":
       armL = [-34 + swing * 0.6, -62];
       armR = [34 - swing * 0.6, -62];
-      legs = [`M -10 -84 L ${-16 + swing} 0`, `M 10 -84 L ${16 - swing} 0`];
+      legsOverride = [`M -10 -84 L ${-16 + swing} 0`, `M 10 -84 L ${16 - swing} 0`];
       break;
     case "point":
       armR = [88, -118];
@@ -220,72 +347,63 @@ const Char: React.FC<PsychChar & { f: number }> = ({ pose, x = 960, y = 810, shi
         </g>
       );
       break;
+    case "lean":
+      // standing, leaning on the desk with one arm
+      armR = [74, -78];
+      break;
     case "write":
-      sitting = true;
       armR = [58, -96];
       armL = [-30, -66];
-      legs = ["M -10 -92 L -34 -92 L -34 -4", "M 10 -92 L 22 -92 L 34 -30 L 40 -2"];
+      legsOverride = ["M -10 -92 L -34 -92 L -34 -4", "M 10 -92 L 22 -92 L 34 -30 L 40 -2"];
+      extra = (
+        <g>
+          <Line d={`M 58 -96 L ${58 + Math.sin(f / 5) * 4} -108`} w={4} />
+          <Box x={30 - 64} y={-118} w={64} h={46} fill={PROP_PAPER} sw={4} rx={3} />
+        </g>
+      );
       break;
     case "read":
-      sitting = true;
       armR = [34, -124];
       armL = [-34, -124];
       extra = (
-        <g transform="rotate(-4 0 -120)">
+        <g transform={`rotate(${-4 + Math.sin(f / 33) * 2} 0 -120)`}>
           <Box x={-34} y={-148} w={68} h={48} fill={PROP_PAPER} sw={4} rx={4} />
           <Line d="M -22 -134 L 22 -134" w={3} />
           <Line d="M -22 -122 L 22 -122" w={3} />
           <Line d="M -22 -110 L 12 -110" w={3} />
         </g>
       );
-      legs = ["M -10 -92 L -34 -92 L -34 -4", "M 10 -92 L 22 -92 L 34 -30 L 40 -2"];
+      legsOverride = ["M -10 -92 L -34 -92 L -34 -4", "M 10 -92 L 22 -92 L 34 -30 L 40 -2"];
       break;
     case "sit":
-      sitting = true;
-      legs = ["M -10 -92 L -34 -92 L -34 -4", "M 10 -92 L 22 -92 L 34 -30 L 40 -2"];
+      legsOverride = ["M -10 -92 L -34 -92 L -34 -4", "M 10 -92 L 22 -92 L 34 -30 L 40 -2"];
       break;
     default:
       break;
   }
 
-  const hipY = sitting ? -92 : -84;
-  const legEls =
-    pose === "walk" || pose === "write" || pose === "read" || pose === "sit" ? (
-      <>
-        <Line d={legs[0]} w={armW} />
-        <Line d={legs[1]} w={armW} />
-      </>
-    ) : (
-      <>
-        <Line d={`M -10 ${hipY} L ${-16 + (swing > 0 ? 0 : 0)} 0`} w={armW} />
-        <Line d={`M 10 ${hipY} L 16 0`} w={armW} />
-      </>
-    );
-
   return (
-    <g transform={`translate(${x} ${y}) scale(${flip ? -s : s} ${s}) translate(0 ${bob})`}>
-      {/* legs */}
-      {legEls}
-      {/* torso */}
-      <g transform={`translate(0 ${bob > 0 ? 0 : 0})`}>
-        <Box x={-26} y={-156} w={52} h={76} fill={shirtColor} rx={18} sw={4.5} />
-        {/* arms */}
-        <Line d={`M -22 -138 L ${armL[0]} ${armL[1]}`} w={armW} />
-        <Line d={`M 22 -138 L ${armR[0]} ${armR[1]}`} w={armW} />
-        {/* head */}
-        <g transform={`rotate(${Math.sin(f / 45) * 1.6} 0 -190)`}>
-          <Line d="M 0 -156 L 0 -148" w={5} />
-          <O cx={0} cy={-206} rx={54} ry={58} fill="#faf5e8" sw={4.5} />
-          {face && (
-            <g>
-              <O cx={-16} cy={-208} rx={3.4} ry={4.6} fill={INK} sw={0} />
-              <O cx={16} cy={-208} rx={3.4} ry={4.6} fill={INK} sw={0} />
-              <Line d="M -12 -184 Q 0 -176 12 -184" w={3.5} />
-            </g>
-          )}
-        </g>
-        {extra}
+    <g transform={`translate(${x} ${y}) scale(${(flip ? -1 : 1) * s * 1} ${s * squash}) translate(0 ${bob})`}>
+      {legsOverride ? (
+        <>
+          <Line d={legsOverride[0]} w={armW} />
+          <Line d={legsOverride[1]} w={armW} />
+        </>
+      ) : (
+        <>
+          <Line d={`M -10 -84 L -16 0`} w={armW} />
+          <Line d={`M 10 -84 L 16 0`} w={armW} />
+        </>
+      )}
+      <Box x={-26} y={-156} w={52} h={76} fill={shirtColor} rx={18} sw={4.5} />
+      <Line d={`M -22 -138 L ${armL[0]} ${armL[1]}`} w={armW} />
+      <Line d={`M 22 -138 L ${armR[0]} ${armR[1]}`} w={armW} />
+      <g transform={`rotate(${Math.sin(f / 45) * 1.6} 0 -190)`}>
+        <Line d="M 0 -156 L 0 -148" w={5} />
+        <O cx={0} cy={-206} rx={54} ry={58} fill="#faf5e8" sw={4.5} />
+        {face && <Face mood={mood} blink={blink} />}
       </g>
+      {extra}
     </g>
   );
 };
@@ -305,6 +423,17 @@ const Prop: React.FC<PsychProp & { f: number }> = ({ t, x = 960, y = 810, s = 1,
         </g>
       );
       break;
+    case "sideDesk":
+      // perspective desk, viewed from the side (like the reference writing scene)
+      el = (
+        <g>
+          <path d="M -250 -158 L 250 -176 L 250 -136 L -250 -120 Z" fill={WOOD} stroke={INK} strokeWidth={4.5} />
+          <Line d="M -215 -132 L -230 0" w={12} color={WOOD_DARK} />
+          <Line d="M 215 -150 L 228 0" w={12} color={WOOD_DARK} />
+          <Line d="M -170 -56 L 195 -70" w={9} color={WOOD_DARK} />
+        </g>
+      );
+      break;
     case "chair":
       el = (
         <g>
@@ -317,8 +446,8 @@ const Prop: React.FC<PsychProp & { f: number }> = ({ t, x = 960, y = 810, s = 1,
     case "stool":
       el = (
         <g>
-          <Box x={-34} y={-72} w={68} h={14} fill={WOOD} sw={4} rx={4} />
-          <Line d="M -26 -58 L -30 0 M 26 -58 L 30 0" w={7} color={WOOD_DARK} />
+          <Box x={-36} y={-70} w={72} h={14} fill={WOOD} sw={4} rx={4} />
+          <Line d="M -26 -56 L -32 0 M 26 -56 L 32 0" w={7} color={WOOD_DARK} />
         </g>
       );
       break;
@@ -328,7 +457,28 @@ const Prop: React.FC<PsychProp & { f: number }> = ({ t, x = 960, y = 810, s = 1,
           <Box x={-42} y={-26} w={84} h={26} fill={color ?? "#b0523d"} sw={4} rx={3} />
           <Box x={-36} y={-50} w={72} h={24} fill={color ?? "#5f8f8a"} sw={4} rx={3} />
           <Box x={-30} y={-72} w={60} h={22} fill={color ?? "#d9a441"} sw={4} rx={3} />
-          <Line d="M -42 -13 L 42 -13 M -36 -38 L 36 -38" w={2.5} color="#00000022" />
+        </g>
+      );
+      break;
+    case "paperStack":
+      el = (
+        <g>
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <Box key={i} x={-40 + (i % 2) * 4} y={-18 - i * 12} w={82 - (i % 3) * 5} h={12} fill={PROP_PAPER} sw={3.5} rx={2} />
+          ))}
+        </g>
+      );
+      break;
+    case "note":
+      // paper with a big word on it (like the reference's FINAL EXAM)
+      el = (
+        <g transform="rotate(-3)">
+          <Box x={-52} y={-70} w={104} h={72} fill={color ?? "#cfe3dd"} sw={4.5} rx={3} />
+          {(text ?? "NOTE").toUpperCase().split("\n").map((ln, i, arr) => (
+            <text key={i} x={0} y={-70 + 40 + (i - (arr.length - 1) / 2) * 24} textAnchor="middle" fontFamily="Patrick Hand" fontSize={22} fill={INK}>
+              {ln}
+            </text>
+          ))}
         </g>
       );
       break;
@@ -378,25 +528,41 @@ const Prop: React.FC<PsychProp & { f: number }> = ({ t, x = 960, y = 810, s = 1,
       );
       break;
     }
+    case "clockBig":
+      el = (
+        <g>
+          <Line d="M -26 0 L 0 -96 L 26 0" w={9} color={WOOD_DARK} />
+          <O cx={0} cy={-166} rx={78} ry={78} fill={PROP_PAPER} sw={5.5} />
+          <Line d={`M 0 -166 L 0 -216 M 0 -166 L ${34 + Math.sin(f / 40) * 3} -150`} w={6} />
+        </g>
+      );
+      break;
     case "clocks":
       el = (
         <g>
           <O cx={-30} cy={-40} rx={42} ry={42} fill={PROP_PAPER} />
           <O cx={38} cy={-58} rx={46} ry={46} fill={PROP_PAPER} />
           <O cx={-4} cy={-118} rx={48} ry={48} fill={PROP_PAPER} />
-          <Line d="M -4 -118 L 14 -138 M -4 -118 L 10 -104" w={3.5} />
-          <Line d="M 38 -58 L 54 -70 M 38 -58 L 50 -44" w={3.5} />
           <Line d="M -92 -160 L 84 6" w={13} />
-          <Line d="M -92 -160 L 84 6" w={7} color={PAPER} opacity={0.0} />
           <Line d="M -88 0 L 80 -166" w={13} />
         </g>
       );
       break;
-    case "wall":
+    case "blackboard":
       el = (
         <g>
-          <Box x={-170} y={-190} w={340} h={190} fill="#6b6157" sw={5} rx={2} />
-          <Box x={-140} y={-165} w={110} h={74} fill={color ?? "#d9a441"} sw={0} rx={2} opacity={0.85} />
+          <Box x={-190} y={-230} w={380} h={180} fill="#5f574e" sw={6} rx={4} />
+          <Box x={-170} y={-210} w={150} h={70} fill={color ?? "#d9a441"} sw={0} rx={2} opacity={0.5} />
+          <Line d="M -160 -110 L 40 -104" w={4} color="#ffffff" opacity={0.55} />
+          <Line d="M -160 -80 L 80 -76" w={4} color="#ffffff" opacity={0.4} />
+        </g>
+      );
+      break;
+    case "shelf":
+      el = (
+        <g>
+          <Line d="M -90 -8 L 90 -12" w={9} color={WOOD_DARK} />
+          <path d="M -30 -8 Q -40 -50 0 -54 Q 40 -50 30 -8 Z" fill={color ?? "#8f8577"} stroke={INK} strokeWidth={4} />
         </g>
       );
       break;
@@ -404,14 +570,8 @@ const Prop: React.FC<PsychProp & { f: number }> = ({ t, x = 960, y = 810, s = 1,
       el = (
         <g>
           {[0, 120, 240].map((a) => (
-            <g key={a} transform={`rotate(${a} 0 -90)`}>
-              <path
-                d="M 0 -172 A 82 82 0 0 1 71 -49"
-                fill="none"
-                stroke={INK}
-                strokeWidth={7}
-                strokeLinecap="round"
-              />
+            <g key={a} transform={`rotate(${a + f / 2.2} 0 -90)`}>
+              <path d="M 0 -172 A 82 82 0 0 1 71 -49" fill="none" stroke={INK} strokeWidth={7} strokeLinecap="round" />
               <path d="M 71 -49 L 46 -58 M 71 -49 L 66 -76" fill="none" stroke={INK} strokeWidth={7} strokeLinecap="round" />
             </g>
           ))}
@@ -423,8 +583,8 @@ const Prop: React.FC<PsychProp & { f: number }> = ({ t, x = 960, y = 810, s = 1,
         <g>
           <Box x={-24} y={-64} w={48} h={84} fill={INK} rx={9} sw={0} />
           <Box x={-17} y={-56} w={34} h={60} fill="#cfe3dd" rx={3} sw={0} />
-          <Line d="M -60 -140 Q 0 -190 60 -140" w={4} />
-          <Line d="M -70 -170 Q 0 -230 70 -170" w={4} />
+          <Line d="M -60 -140 Q 0 -190 60 -140" w={4} opacity={0.5 + Math.sin(f / 6) * 0.4} />
+          <Line d="M -70 -170 Q 0 -230 70 -170" w={4} opacity={0.3 + Math.sin(f / 6 + 1) * 0.3} />
         </g>
       );
       break;
@@ -446,7 +606,6 @@ const Prop: React.FC<PsychProp & { f: number }> = ({ t, x = 960, y = 810, s = 1,
             strokeWidth={5}
           />
           <Line d="M -40 -135 Q -20 -100 -45 -60 M 10 -158 Q 30 -110 5 -60 M 55 -152 Q 70 -110 50 -45" w={3.5} />
-          <Line d="M -10 -14 L -10 18 M 18 -16 L 18 14" w={6} />
         </g>
       );
       break;
@@ -499,6 +658,14 @@ const Prop: React.FC<PsychProp & { f: number }> = ({ t, x = 960, y = 810, s = 1,
         </g>
       );
       break;
+    case "flag":
+      el = (
+        <g>
+          <Line d="M 0 0 L 0 -190" w={7} />
+          <path d="M 0 -190 L 110 -168 L 0 -146 Z" fill={color ?? "#b0523d"} stroke={INK} strokeWidth={4} />
+        </g>
+      );
+      break;
     case "road":
       el = (
         <g>
@@ -531,23 +698,6 @@ const Prop: React.FC<PsychProp & { f: number }> = ({ t, x = 960, y = 810, s = 1,
         </g>
       );
       break;
-    case "clockBig":
-      el = (
-        <g>
-          <Line d="M -26 0 L 0 -96 L 26 0" w={9} color={WOOD_DARK} />
-          <O cx={0} cy={-166} rx={78} ry={78} fill={PROP_PAPER} sw={5.5} />
-          <Line d="M 0 -166 L 0 -216 M 0 -166 L 34 -150" w={6} />
-        </g>
-      );
-      break;
-    case "flag":
-      el = (
-        <g>
-          <Line d="M 0 0 L 0 -190" w={7} />
-          <path d="M 0 -190 L 110 -168 L 0 -146 Z" fill={color ?? "#b0523d"} stroke={INK} strokeWidth={4} />
-        </g>
-      );
-      break;
     default:
       el = null;
   }
@@ -556,18 +706,29 @@ const Prop: React.FC<PsychProp & { f: number }> = ({ t, x = 960, y = 810, s = 1,
 
 // ---- sets ------------------------------------------------------------------
 
-const SetBg: React.FC<{ set: string; palette: number }> = ({ set, palette }) => {
+const SetBg: React.FC<{ set: string; palette: number; floorTiles?: boolean }> = ({ set, palette, floorTiles }) => {
   const [wall, floor] = PALETTES[palette % PALETTES.length];
   if (set === "textcard") {
-    return <AbsoluteFill style={{ backgroundColor: PAPER }} />;
+    // textcard is rendered in HTML context, not inside sceneSvg
+    return null;
   }
+  // SVG-native bands (HTML divs don't paint inside <svg>)
   return (
-    <AbsoluteFill>
-      <div style={{ position: "absolute", inset: "0 0 22% 0", backgroundColor: wall }} />
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "22%", backgroundColor: floor }} />
-      <div style={{ position: "absolute", left: 0, right: 0, bottom: "22%", height: 10, backgroundColor: "#00000018" }} />
+    <g>
+      <rect x={-120} y={-120} width={2160} height={963} fill={wall} />
+      <rect x={-120} y={843} width={2160} height={477} fill={floor} />
+      <rect x={-120} y={835} width={2160} height={10} fill="#00000018" />
+      {floorTiles && (
+        <g stroke="#00000022" strokeWidth={4}>
+          {Array.from({ length: 7 }).map((_, i) => (
+            <line key={i} x1={-200 + i * 400} y1={843} x2={-500 + i * 620} y2={1080} />
+          ))}
+          <line x1={0} y1={930} x2={1920} y2={930} stroke="#00000018" strokeWidth={3} />
+          <line x1={0} y1={1000} x2={1920} y2={1000} stroke="#00000015" strokeWidth={3} />
+        </g>
+      )}
       {set === "night" && <Prop t="moon" x={960} y={0} f={0} />}
-    </AbsoluteFill>
+    </g>
   );
 };
 
@@ -592,137 +753,225 @@ const Grain: React.FC = () => (
 
 const PsychSceneView: React.FC<{ scene: PsychScene; index: number }> = ({ scene, index }) => {
   const frame = useCurrentFrame();
-  const { fps, durationInFrames } = useVideoConfig();
+  const { fps, durationInFrames, width, height } = useVideoConfig();
+  const localT = frame / fps;
   const set = scene.set ?? "room";
   const palette = scene.palette ?? index % PALETTES.length;
-  const fade = interpolate(frame, [0, 8], [1, 0], { extrapolateRight: "clamp" });
+  const frameKind = scene.frame ?? (set === "textcard" ? "full" : "full");
+  const boilSeed = 11 + (Math.floor(frame / 4) % 3) * 17;
+
   const pop = (d = 0) =>
     spring({ frame: frame - d, fps, config: { damping: 14, stiffness: 130, mass: 0.7 } });
 
-  // Ken Burns
-  const zb = scene.zoom === "out" ? [1.07, 1.0] : [1.0, 1.07];
-  const scale = interpolate(frame, [0, durationInFrames], zb, { easing: Easing.inOut(Easing.ease) });
-  const drift = interpolate(frame, [0, durationInFrames], [index % 2 ? -14 : 14, index % 2 ? 14 : -14]);
+  // camera: zoom punch on cut, then slow push + drift + tiny organic rotate
+  const punch = interpolate(frame, [0, 9], [1.055, 1], {
+    easing: Easing.out(Easing.cubic),
+    extrapolateRight: "clamp",
+  });
+  const push = interpolate(frame, [0, durationInFrames], scene.zoom === "out" ? [1.05, 1] : [1, 1.045], {
+    easing: Easing.inOut(Easing.ease),
+  });
+  const drift = interpolate(frame, [0, durationInFrames], [index % 2 ? -12 : 12, index % 2 ? 12 : -12]);
+  const tilt = Math.sin(frame / 150) * 0.25;
+
+  const filterDef = (
+    <filter id={`rough${index}`} x="-6%" y="-6%" width="112%" height="112%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.013" numOctaves={2} seed={boilSeed} result="n" />
+      <feDisplacementMap in="SourceGraphic" in2="n" scale={5} xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  );
+
+  const captionEl = scene.caption ? (
+    <text
+      x={width / 2}
+      y={150}
+      textAnchor="middle"
+      fontFamily="Patrick Hand"
+      fontSize={92}
+      fill={INK}
+      letterSpacing={4}
+      opacity={pop(6)}
+      transform={`rotate(-0.6 ${width / 2} 150)`}
+    >
+      {scene.caption.toUpperCase()}
+    </text>
+  ) : null;
+
+  // scene content, reusable for full-bleed and vignette-frame layouts
+  const sceneSvg = (clipId?: string) => (
+    <svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      style={{ position: "absolute", inset: 0 }}
+      clipPath={clipId ? `url(#${clipId})` : undefined}
+    >
+      <defs>
+        {filterDef}
+        <clipPath id={`clip${index}`}>
+          <rect x={110} y={238} width={1700} height={744} rx={10} />
+        </clipPath>
+      </defs>
+      <SetBg set={set} palette={palette} floorTiles={scene.floorTiles} />
+      <g filter={`url(#rough${index})`}>
+        {(scene.props ?? [])
+          .filter((p) => !p.front && (p.hideUntil === undefined || localT >= p.hideUntil))
+          .map((p, i) => {
+            const appearAt = p.hideUntil !== undefined ? p.hideUntil * fps : p.delay ?? 6 + i * 5;
+            const ps = pop(appearAt);
+            return (
+              <g key={i} style={{ opacity: ps, transform: `scale(${0.7 + ps * 0.3})`, transformOrigin: `${p.x ?? 960}px ${p.y ?? 810}px` }}>
+                <Prop {...p} f={frame} />
+              </g>
+            );
+          })}
+
+        {(scene.chars ?? []).map((c, i) => {
+          const cs = pop(c.delay ?? 0);
+          return (
+            <g key={`c${i}`} style={{ opacity: Math.min(1, cs * 1.2) }}>
+              <Char {...c} f={frame} actions={scene.actions} localT={localT} fps={fps} s={(c.s ?? 1) * (0.9 + cs * 0.1)} />
+            </g>
+          );
+        })}
+
+        {scene.signText && <Prop t="sign" x={960} y={810} text={scene.signText} f={frame} />}
+
+        {(scene.props ?? [])
+          .filter((p) => p.front && (p.hideUntil === undefined || localT >= p.hideUntil))
+          .map((p, i) => {
+            const appearAt = p.hideUntil !== undefined ? p.hideUntil * fps : p.delay ?? 6;
+            const ps = pop(appearAt);
+            return (
+              <g key={`f${i}`} style={{ opacity: ps, transform: `scale(${0.7 + ps * 0.3})`, transformOrigin: `${p.x ?? 960}px ${p.y ?? 810}px` }}>
+                <Prop {...p} f={frame} />
+              </g>
+            );
+          })}
+      </g>
+    </svg>
+  );
 
   if (set === "textcard") {
     const s = pop(4);
     const under = interpolate(frame, [12, 34], [0, 1], { extrapolateRight: "clamp", extrapolateLeft: "clamp" });
     return (
       <AbsoluteFill style={{ backgroundColor: PAPER }}>
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            transform: `scale(${0.92 + s * 0.08})`,
-          }}
-        >
-          <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                fontFamily: "Patrick Hand",
-                fontSize: (scene.label?.size ?? 150),
-                color: INK,
-                letterSpacing: 6,
-                lineHeight: 1.05,
-                opacity: s,
-              }}
+        <svg width={width} height={height} style={{ position: "absolute", inset: 0 }}>
+          <defs>
+            <filter id={`rough${index}`} x="-6%" y="-6%" width="112%" height="112%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.013" numOctaves={2} seed={boilSeed} result="n" />
+              <feDisplacementMap in="SourceGraphic" in2="n" scale={4} xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+          </defs>
+          <g filter={`url(#rough${index})`}>
+            <text
+              x={width / 2}
+              y={height / 2 + 20}
+              textAnchor="middle"
+              fontFamily="Patrick Hand"
+              fontSize={scene.label?.size ?? 168}
+              fill={INK}
+              letterSpacing={8}
+              opacity={s}
+              transform={`scale(${0.92 + s * 0.08})`}
+              style={{ transformOrigin: `${width / 2}px ${height / 2}px` }}
             >
               {(scene.cardText ?? "").toUpperCase()}
-            </div>
-            <svg width={620} height={40} style={{ marginLeft: "auto", marginRight: "auto", display: "block" }}>
-              <path
-                d="M 10 20 Q 310 6 610 22"
-                fill="none"
-                stroke={INK}
-                strokeWidth={9}
-                strokeLinecap="round"
-                strokeDasharray={620}
-                strokeDashoffset={620 * (1 - under)}
-              />
-            </svg>
-          </div>
-        </div>
-        <AbsoluteFill style={{ backgroundColor: PAPER, opacity: fade }} />
+            </text>
+            <path
+              d={`M ${width / 2 - 310} ${height / 2 + 70} Q ${width / 2} ${height / 2 + 56} ${width / 2 + 310} ${height / 2 + 72}`}
+              fill="none"
+              stroke={INK}
+              strokeWidth={9}
+              strokeLinecap="round"
+              strokeDasharray={640}
+              strokeDashoffset={640 * (1 - under)}
+            />
+          </g>
+        </svg>
         <Grain />
       </AbsoluteFill>
     );
   }
 
-  return (
-    <AbsoluteFill style={{ overflow: "hidden" }}>
-      <AbsoluteFill style={{ transform: `scale(${scale}) translateX(${drift}px)` }}>
-        <SetBg set={set} palette={palette} />
-
-        <svg width={1920} height={1080} style={{ position: "absolute", inset: 0 }}>
-          {/* floor-y baseline: props stand on y=810 (78.5% of 1080) */}
-          {(scene.props ?? [])
-            .filter((p) => !p.front)
-            .map((p, i) => {
-              const ps = pop(p.delay ?? 6 + i * 5);
-              return (
-                <g key={i} style={{ opacity: ps, transform: `scale(${0.7 + ps * 0.3})`, transformOrigin: `${p.x ?? 960}px ${p.y ?? 810}px` }}>
-                  <Prop {...p} f={frame} />
-                </g>
-              );
-            })}
-
-          {(scene.chars ?? []).map((c, i) => {
-            const cs = pop(c.delay ?? 0);
-            return (
-              <g key={`c${i}`} style={{ opacity: Math.min(1, cs * 1.2) }}>
-                <Char {...c} f={frame} s={(c.s ?? 1) * (0.85 + cs * 0.15)} />
-              </g>
-            );
-          })}
-
-          {scene.signText && (
-            <g>
-              <Prop t="sign" x={960} y={810} text={scene.signText} f={frame} />
+  if (frameKind === "vignette") {
+    return (
+      <>
+        <AbsoluteFill style={{ backgroundColor: PAPER, overflow: "hidden" }}>
+          <svg width={width} height={height} style={{ position: "absolute", inset: 0 }}>
+            <defs>
+              <clipPath id={`vclip${index}`}>
+                <rect x={110} y={238} width={1700} height={744} rx={10} />
+              </clipPath>
+              <filter id={`innerRough${index}`} x="-3%" y="-3%" width="106%" height="106%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves={2} seed={boilSeed + 5} result="n" />
+                <feDisplacementMap in="SourceGraphic" in2="n" scale={7} xChannelSelector="R" yChannelSelector="G" />
+              </filter>
+            </defs>
+            {captionEl}
+            <g transform={`scale(${punch}) rotate(${tilt * 0.4} ${width / 2} ${height / 2})`} style={{ transformOrigin: `${width / 2}px ${height / 2}px` }}>
+              {sceneSvg(`vclip${index}`)}
             </g>
+            <rect
+              x={110}
+              y={238}
+              width={1700}
+              height={744}
+              rx={10}
+              fill="none"
+              stroke={INK}
+              strokeWidth={6}
+              filter={`url(#innerRough${index})`}
+            />
+          </svg>
+          <Grain />
+        </AbsoluteFill>
+        {scene.audio && <Audio src={staticFile(scene.audio as string)} />}
+      </>
+    );
+  }
+
+  // full-bleed
+  return (
+    <>
+      <AbsoluteFill style={{ overflow: "hidden" }}>
+        <AbsoluteFill
+          style={{
+            transform: `scale(${punch * push}) translateX(${drift}px) rotate(${tilt}deg)`,
+            transformOrigin: "center center",
+          }}
+        >
+          {sceneSvg()}
+          {scene.label && (
+            <svg width={width} height={height} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+              <defs>
+                <filter id={`labRough${index}`} x="-4%" y="-4%" width="108%" height="108%">
+                  <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves={2} seed={boilSeed + 3} result="n" />
+                  <feDisplacementMap in="SourceGraphic" in2="n" scale={3} xChannelSelector="R" yChannelSelector="G" />
+                </filter>
+              </defs>
+              <text
+                x={width / 2}
+                y={(scene.label.y ?? 120) + (scene.label.size ?? 100) * 0.8}
+                textAnchor="middle"
+                fontFamily="Patrick Hand"
+                fontSize={scene.label.size ?? 100}
+                fill={INK}
+                letterSpacing={4}
+                opacity={pop(8)}
+                filter={`url(#labRough${index})`}
+                transform={`rotate(${-1 + (index % 2) * 2} ${width / 2} ${scene.label.y ?? 120})`}
+              >
+                {scene.label.text.toUpperCase()}
+              </text>
+            </svg>
           )}
-
-          {(scene.props ?? [])
-            .filter((p) => p.front)
-            .map((p, i) => {
-              const ps = pop(p.delay ?? 6);
-              return (
-                <g key={`f${i}`} style={{ opacity: ps, transform: `scale(${0.7 + ps * 0.3})`, transformOrigin: `${p.x ?? 960}px ${p.y ?? 810}px` }}>
-                  <Prop {...p} f={frame} />
-                </g>
-              );
-            })}
-        </svg>
-
-        {scene.label && (
-          <div
-            style={{
-              position: "absolute",
-              top: scene.label.y ?? 120,
-              left: 0,
-              right: 0,
-              textAlign: "center",
-              fontFamily: "Patrick Hand",
-              fontSize: scene.label.size ?? 104,
-              color: INK,
-              letterSpacing: 4,
-              transform: `rotate(${-1 + (index % 2) * 2}deg) scale(${0.8 + pop(8) * 0.2})`,
-              opacity: pop(8),
-            }}
-          >
-            {scene.label.text.toUpperCase()}
-          </div>
-        )}
+        </AbsoluteFill>
+        <Grain />
       </AbsoluteFill>
-
-      <AbsoluteFill style={{ backgroundColor: PAPER, opacity: fade }} />
-      <Grain />
-      {scene.audio && (
-        <Audio src={staticFile(scene.audio as string)} />
-      )}
-    </AbsoluteFill>
+      {scene.audio && <Audio src={staticFile(scene.audio as string)} />}
+    </>
   );
 };
 
