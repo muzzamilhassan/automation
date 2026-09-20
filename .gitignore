@@ -51,3 +51,4 @@ qa-*.jpg
 
 # rotating music cache
 .music-cache/
+music-review/

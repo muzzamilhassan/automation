@@ -4,7 +4,10 @@
 //
 // Output: music-menu-2026-09-13.md (full menu with moods) + compact console print.
 // After user approval, approved lists get locked into the engine (next step).
+// Also importable: `import { buildMenu, CHANNELS } from './build-music-menu.mjs'`
+// (CLI write/print only happens when run directly).
 import fs from 'node:fs';
+import { pathToFileURL } from 'node:url';
 
 const cat = JSON.parse(fs.readFileSync('.music-cache/pieces.json', 'utf8'));
 
@@ -74,34 +77,42 @@ const scoreTrack = (t, ch) => {
 };
 
 const PER_CHANNEL = 40;
-const menu = {};
-for (const ch of CHANNELS) {
-  const ranked = pool
-    .map((t) => ({ t, s: scoreTrack(t, ch) }))
-    .filter((x) => x.s > 0)
-    .sort((a, b) => b.s - a.s || hash(String(a.t.title)) - hash(String(b.t.title)))
-    .slice(0, PER_CHANNEL)
-    .map((x) => x.t);
-  menu[ch.slug] = ranked;
+export function buildMenu() {
+  const menu = {};
+  for (const ch of CHANNELS) {
+    menu[ch.slug] = pool
+      .map((t) => ({ t, s: scoreTrack(t, ch) }))
+      .filter((x) => x.s > 0)
+      .sort((a, b) => b.s - a.s || hash(String(a.t.title)) - hash(String(b.t.title)))
+      .slice(0, PER_CHANNEL)
+      .map((x) => x.t);
+  }
+  return menu;
 }
+export { CHANNELS, pool };
 
-// markdown doc
-let md = `# Music Approval Menu — 40 tracks per channel (2026-09-13)\n\n`;
-md += `Source: incompetech.com (Kevin MacLeod), CC BY 4.0 — free, credit added to captions automatically.\n`;
-md += `Reply with approvals; only approved tracks will play on that channel.\n\n`;
-for (const ch of CHANNELS) {
-  md += `## ${ch.label} — ${ch.niche}\n*Mood: ${ch.theme}* (${menu[ch.slug].length} tracks)\n\n`;
-  menu[ch.slug].forEach((t, i) => { md += `${i + 1}. **${String(t.title).trim()}** — ${t.feel}\n`; });
-  md += `\n`;
-}
-fs.writeFileSync('music-menu-2026-09-13.md', md);
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 
-// compact console print for chat
-for (const ch of CHANNELS) {
-  console.log(`\n### ${ch.label} (${ch.niche}) — mood: ${ch.theme} [${menu[ch.slug].length}]`);
-  console.log(menu[ch.slug].map((t, i) => `${i + 1}.${String(t.title).trim()}`).join(' · '));
+if (isMain) {
+  const menu = buildMenu();
+  // markdown doc
+  let md = `# Music Approval Menu — 40 tracks per channel (2026-09-13)\n\n`;
+  md += `Source: incompetech.com (Kevin MacLeod), CC BY 4.0 — free, credit added to captions automatically.\n`;
+  md += `Reply with approvals; only approved tracks will play on that channel.\n\n`;
+  for (const ch of CHANNELS) {
+    md += `## ${ch.label} — ${ch.niche}\n*Mood: ${ch.theme}* (${menu[ch.slug].length} tracks)\n\n`;
+    menu[ch.slug].forEach((t, i) => { md += `${i + 1}. **${String(t.title).trim()}** — ${t.feel}\n`; });
+    md += `\n`;
+  }
+  fs.writeFileSync('music-menu-2026-09-13.md', md);
+
+  // compact console print for chat
+  for (const ch of CHANNELS) {
+    console.log(`\n### ${ch.label} (${ch.niche}) — mood: ${ch.theme} [${menu[ch.slug].length}]`);
+    console.log(menu[ch.slug].map((t, i) => `${i + 1}.${String(t.title).trim()}`).join(' · '));
+  }
+  const uniq = new Set(Object.values(menu).flat().map((t) => t.title));
+  console.log(`\n[summary] channels: ${CHANNELS.length}, unique tracks across all lists: ${uniq.size}`);
+  const short = CHANNELS.filter((c) => menu[c.slug].length < PER_CHANNEL);
+  if (short.length) console.log('[warn] channels under 40:', short.map((c) => `${c.slug}=${menu[c.slug].length}`).join(', '));
 }
-const uniq = new Set(Object.values(menu).flat().map((t) => t.title));
-console.log(`\n[summary] channels: ${CHANNELS.length}, unique tracks across all lists: ${uniq.size}`);
-const short = CHANNELS.filter((c) => menu[c.slug].length < PER_CHANNEL);
-if (short.length) console.log('[warn] channels under 40:', short.map((c) => `${c.slug}=${menu[c.slug].length}`).join(', '));

@@ -11,7 +11,9 @@ import os
 import random
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-FONTS = os.path.join(HERE, "..", "image-tools", "fonts")
+_fnt_local = os.path.join(HERE, "fonts")
+_fnt_shared = os.path.join(HERE, "..", "image-tools", "fonts")
+FONTS = _fnt_local if os.path.isdir(_fnt_local) else _fnt_shared
 W, H = 1280, 720
 PAPER = (243, 241, 236)
 INK = (18, 18, 20)
