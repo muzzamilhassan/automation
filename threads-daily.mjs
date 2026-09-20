@@ -30,11 +30,17 @@ if (!files.length) {
 }
 // newest reel wins; skip files already posted in earlier days if any remain
 const posted = tstate.postedFiles || [];
-const fresh = files.filter(f => !posted.includes(f));
-const pick = (fresh.length ? fresh : files)[files.includes(fresh[0]) ? files.indexOf(fresh[0]) : files.length - 1];
+// NEWEST reel with a real title (stale cache files without meta are skipped)
+let pick = null, meta = {};
+for (const f of [...files].reverse()) {
+  if (posted.includes(f)) continue;
+  let m = {};
+  try { m = JSON.parse(fs.readFileSync(`${dir}/${f.replace(/\.mp4$/, '.json')}`, 'utf8')); } catch { }
+  if (!m.title) continue;
+  pick = f; meta = m; break;
+}
+if (!pick) { console.log('[threads] no fresh titled reel in the outbox — skip'); process.exit(0); }
 const stamp = pick.replace(/\.mp4$/, '');
-let meta = {};
-try { meta = JSON.parse(fs.readFileSync(`${dir}/${stamp}.json`, 'utf8')); } catch { }
 const hashtags = (meta.tags || []).slice(0, 3).map(t => '#' + String(t).replace(/\s+/g, '')).join(' ');
 const text = [meta.title || 'Daily wisdom', meta.description || '', hashtags].filter(Boolean).join('\n\n').slice(0, 460);
 

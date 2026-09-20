@@ -134,12 +134,16 @@ export async function hostImagePublicly(buffer, mime, filename) {
 }
 
 async function pollVideoContainer(containerId, token) {
-  for (let i = 0; i < 30; i++) {
-    const res = await fetch(`${API}/${containerId}?fields=status_code&access_token=${token}`);
-    const data = await res.json();
-    if (data.status_code === 'FINISHED') return true;
-    if (data.status_code === 'FAILED' || data.error) return false;
-    await sleep(2000);
+  // 09-21: video processing can take minutes AND transient API errors (rate
+  // limits) must not abort — only an explicit FAILED status does.
+  for (let i = 0; i < 60; i++) {
+    try {
+      const res = await fetch(`${API}/${containerId}?fields=status_code&access_token=${token}`);
+      const data = await res.json();
+      if (data.status_code === 'FINISHED') return true;
+      if (data.status_code === 'FAILED') return false;
+    } catch { }
+    await sleep(3000);
   }
   return false;
 }
