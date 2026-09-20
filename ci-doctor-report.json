@@ -1,5 +1,5 @@
 {
-  "at": "2026-09-20T15:44:10.308Z",
+  "at": "2026-09-20T22:22:33.080Z",
   "problems": 1,
   "results": [
     {
@@ -10,15 +10,15 @@
     {
       "slug": "investors-compass",
       "channel": "Investor's Compass",
-      "subs": "7",
+      "subs": "8",
       "totalVideos": "89",
       "status": "OK"
     },
     {
       "slug": "money-rulebook",
       "channel": "The Money Rulebook",
-      "subs": "4",
-      "totalVideos": "72",
+      "subs": "5",
+      "totalVideos": "74",
       "status": "OK"
     },
     {
