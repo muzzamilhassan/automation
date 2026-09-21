@@ -1,5 +1,5 @@
 {
-  "at": 1789632051626,
+  "at": 1789978468130,
   "seed": "investing psychology stock market wisdom",
   "hotKeywords": [
     "discipline",
@@ -16,57 +16,58 @@
     "productivity"
   ],
   "viralChannels": [
+    "Blue Sky Fintech",
     "Soul N Goal",
-    "Blue Sky Fintech"
+    "Kissa Aur Capital"
   ],
   "videos": [
     {
+      "title": "Be greedy when others are fearful, and fearful when others are greedy.",
+      "channel": "Blue Sky Fintech",
+      "views": 3435,
+      "videoId": "sm9VZpLtwGY"
+    },
+    {
       "title": "The chart doesn't know your expectations #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 3425,
+      "views": 3423,
       "videoId": "EXUvHQHe94Q"
     },
     {
-      "title": "Be greedy when others are fearful, and fearful when others are greedy.",
-      "channel": "Blue Sky Fintech",
-      "views": 3151,
-      "videoId": "sm9VZpLtwGY"
+      "title": "Is Rationality a Myth? How Human Behaviour drives the Stock Market. 📈ft. Sanjeev Pandiya",
+      "channel": "Kissa Aur Capital",
+      "views": 3420,
+      "videoId": "bsTsfIwBTJE"
     },
     {
       "title": "Your emotion can turn a good strategy into a bad trade #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 1102,
+      "views": 1145,
       "videoId": "herCxWeKnrI"
     },
     {
-      "title": "Discipline is accepting a small loss #TradingPsychology #TradingMindset #SoulNGoal",
+      "title": "Your strategy cannot protect you from yourself #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 1015,
-      "videoId": "-5afS_1F4cI"
-    },
-    {
-      "title": "Mistakes Happen  Prepare for Anything #TradingPsychology #TradingMindset #SoulNGoal",
-      "channel": "Soul N Goal",
-      "views": 1003,
-      "videoId": "4pbizLfVfQI"
+      "views": 976,
+      "videoId": "yyB0-jt6dhU"
     },
     {
       "title": "Spotting Trends Early  Your Success Advantage #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 945,
+      "views": 947,
       "videoId": "Kjx1QU44J1A"
+    },
+    {
+      "title": "The market can take more than you planned  #TradingPsychology #TradingMindset #SoulNGoal",
+      "channel": "Soul N Goal",
+      "views": 697,
+      "videoId": "aXRb1DrIyos"
     },
     {
       "title": "Trade Smarter  Redirect Your Trading Emotional Energy  #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
       "views": 492,
       "videoId": "lDlJBsBquCs"
-    },
-    {
-      "title": "Waiting for confirmation is discipline with patience #TradingPsychology #TradingMindset #SoulNGoal",
-      "channel": "Soul N Goal",
-      "views": 383,
-      "videoId": "fRiR4vCh9LE"
     }
   ]
 }
