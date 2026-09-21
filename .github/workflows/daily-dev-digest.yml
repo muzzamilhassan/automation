@@ -1,4 +1,4 @@
-name: 📰 Daily.dev news digest
+name: 📰 Daily.dev news digest + topic brain
 
 on:
   schedule:
@@ -15,8 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: 📥 Checkout
+      - name: 📥 Checkout (push-capable — topic bank gets committed)
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_PAT || secrets.SECRET_WRITER_PAT }}
 
       - name: ⚙️ Setup Node.js 20
         uses: actions/setup-node@v4
@@ -28,3 +30,18 @@ jobs:
           DAILY_DEV_TOKEN: ${{ secrets.DAILY_DEV_TOKEN }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: node daily-dev-digest.mjs
+
+      - name: 🧠 Score trends + update tech topic bank
+        env:
+          DAILY_DEV_TOKEN: ${{ secrets.DAILY_DEV_TOKEN }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: node tech-topic-brain.mjs
+
+      - name: 💾 Commit topic bank
+        run: |
+          git config user.name "topic-brain"
+          git config user.email "brain@quarrystudio"
+          git add state/tech-topic-bank.json || true
+          git diff --cached --quiet || git commit -m "tech topic bank update [skip ci]"
+          git pull --rebase || true
+          git push || true
