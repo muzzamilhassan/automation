@@ -1,5 +1,5 @@
 {
-  "at": "2026-09-21T18:02:52.631Z",
+  "at": "2026-09-21T23:12:27.209Z",
   "problems": 1,
   "results": [
     {
@@ -31,8 +31,8 @@
     {
       "slug": "quotequarry",
       "channel": "QuoteQuarry",
-      "subs": "124",
-      "totalVideos": "302",
+      "subs": "127",
+      "totalVideos": "305",
       "status": "OK"
     }
   ]
