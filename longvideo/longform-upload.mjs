@@ -225,6 +225,21 @@ async function processChannel(slug) {
       console.log("[upload] thumbnail set");
     } catch (e) { console.log(`[warn] thumbnail: ${String(e.message).slice(0, 80)}`); }
   }
+  // SEO: closed captions (indexed for search) from the word-timing .srt
+  const srtFile = path.join(inbox, meta.srtFile || `lf-srt-${slug}.srt`);
+  if (fs.existsSync(srtFile)) {
+    try {
+      const cs = new Readable(); cs._read = () => { }; cs.push(fs.readFileSync(srtFile)); cs.push(null);
+      await youtube.captions.insert({ part: ["snippet"], requestBody: { snippet: { videoId, language: "en", name: "English" } }, media: { body: cs, mimeType: "text/plain" } });
+      console.log("[upload] captions uploaded");
+    } catch (e) { console.log(`[warn] captions: ${String(e.message).slice(0, 90)}`); }
+  }
+  // SEO: pinned comment with the keyword question
+  try {
+    const kw = meta.keyword || "this story";
+    await youtube.commentThreads.insert({ part: "snippet", requestBody: { snippet: { videoId, topLevelComment: { snippet: { textOriginal: `Everything about ${kw} is in this video. Which part surprised you the most?` } } } } });
+    console.log("[upload] pinned comment posted");
+  } catch (e) { console.log(`[warn] comment: ${String(e.message).slice(0, 80)}`); }
   uploads[slug] = (uploads[slug] || []).concat([{ date: new Date().toISOString().slice(0, 10), title: meta.title, videoId, publishAt, artifactId: chosen.art.id, runId: chosen.run }]).slice(-100);
   fs.mkdirSync(path.dirname(UPL), { recursive: true });
   fs.writeFileSync(UPL, JSON.stringify(uploads, null, 2));
