@@ -1,29 +1,29 @@
 {
   "investors-compass": {
-    "lastRunDate": "2026-09-22",
+    "lastRunDate": "2026-09-23",
     "usedThemes": [
-      "how the rich buy the crash",
-      "the 90-year rule that beats day trading",
-      "what compounding does by age 60"
+      "the stock buffett held for 30 years",
+      "signs a stock is hype not value",
+      "the bull market trap that wipes beginners"
     ],
     "lastVideos": [
       {
-        "videoId": "CX1KWDeQb9c",
-        "publishAt": "2026-09-22T12:05:00Z",
-        "title": "How Billionaires Buy The Crash | Investing Psychology"
+        "videoId": "qN9XYmbJFYM",
+        "publishAt": "2026-09-23T12:05:00Z",
+        "title": "Warren Buffett's 30 Year Secret | Investing Psychology"
       },
       {
-        "videoId": "-ZSnGslByz8",
-        "publishAt": "2026-09-22T16:05:00Z",
-        "title": "The 90-Year Wealth Secret | Investing Psychology"
+        "videoId": "5EOWCWQia8Q",
+        "publishAt": "2026-09-23T16:05:00Z",
+        "title": "The Hype Trap | Investing Psychology"
       },
       {
-        "videoId": "ontuymEctBA",
-        "publishAt": "2026-09-22T23:35:00Z",
-        "title": "The 60-Year Wealth Miracle | Investing Psychology"
+        "videoId": "N5iRXV3dj54",
+        "publishAt": "2026-09-23T23:35:00Z",
+        "title": "The Bull Market Trap | Investing Psychology"
       }
     ],
-    "imageDate": "2026-09-22",
+    "imageDate": "2026-09-23",
     "deepdiveDate": "2026-09-07",
     "deepdiveVideo": {
       "videoId": "dOJgBHpJgwQ",
