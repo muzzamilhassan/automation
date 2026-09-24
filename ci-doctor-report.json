@@ -1,5 +1,5 @@
 {
-  "at": "2026-09-24T16:48:35.065Z",
+  "at": "2026-09-24T23:10:33.531Z",
   "problems": 1,
   "results": [
     {
@@ -17,7 +17,7 @@
     {
       "slug": "money-rulebook",
       "channel": "The Money Rulebook",
-      "subs": "6",
+      "subs": "7",
       "totalVideos": "93",
       "status": "OK"
     },
@@ -25,14 +25,14 @@
       "slug": "debt-free-doctrine",
       "channel": "Debt-Free Doctrine",
       "subs": "0",
-      "totalVideos": "93",
+      "totalVideos": "94",
       "status": "OK"
     },
     {
       "slug": "quotequarry",
       "channel": "QuoteQuarry",
-      "subs": "150",
-      "totalVideos": "316",
+      "subs": "151",
+      "totalVideos": "317",
       "status": "OK"
     }
   ]
