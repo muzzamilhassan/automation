@@ -34,30 +34,30 @@
     "healedCount": 3
   },
   "money-rulebook": {
-    "lastRunDate": "2026-09-23",
+    "lastRunDate": "2026-09-24",
     "usedThemes": [
-      "the $1 rule that changes how you spend",
-      "6 salary moves that build wealth fast",
-      "why the rich never pay full price"
+      "7 money habits that quietly make you rich",
+      "6 rules for your first $10,000",
+      "5 money moves before you turn 30"
     ],
     "lastVideos": [
       {
-        "videoId": "Doaq8v-uZLs",
-        "publishAt": "2026-09-23T12:35:00Z",
+        "videoId": "9eExaPG5YHc",
+        "publishAt": "2026-09-24T12:35:00Z",
+        "title": "7 Money Habits That Make You Rich | Personal Finance"
+      },
+      {
+        "videoId": "QK5Rxb3yHiA",
+        "publishAt": "2026-09-24T16:35:00Z",
         "title": "6 Rules For Your First $10,000 | Personal Finance"
       },
       {
-        "videoId": "K1-YVSSt7ss",
-        "publishAt": "2026-09-23T16:35:00Z",
-        "title": "6 Rules For Your First $10,000 | Personal Finance"
-      },
-      {
-        "videoId": "1twuim4iJAo",
-        "publishAt": "2026-09-24T00:05:00Z",
-        "title": "7 Money Habits Making You Rich | Personal Finance"
+        "videoId": "4R54KShI0mE",
+        "publishAt": "2026-09-25T00:05:00Z",
+        "title": "5 Money Moves Before 30 | Personal Finance"
       }
     ],
-    "imageDate": "2026-09-23",
+    "imageDate": "2026-09-24",
     "recyclePending": [
       {
         "oldVideoId": "cbclwL6k32U",
