@@ -1,77 +1,78 @@
 {
-  "at": 1789981720597,
+  "at": 1790326668065,
   "seed": "personal finance money habits",
   "hotKeywords": [
-    "habits",
     "money",
-    "rich",
-    "save",
+    "habits",
     "mindset",
-    "tips",
+    "rich",
     "people",
-    "millionaire",
+    "save",
+    "middle",
+    "class",
     "wealth",
-    "frugal",
-    "smart",
-    "saving"
+    "millionaire",
+    "saving",
+    "tips"
   ],
   "viralChannels": [
-    "Zayaan Farm",
-    "Namma Tamil Arivu.",
+    "Tamilmotivationl_Liya",
     "Talks With Rochit",
+    "Zayaan Farm",
     "Telugu Assets",
     "RiseOrRegret",
-    "Tamil Spark",
-    "The Good Steward"
+    "Saloni Gavde",
+    "innermotivation",
+    "MoneyMinded.official"
   ],
   "videos": [
     {
+      "title": "4 Simple Money Habits That Can Save You Thousands",
+      "channel": "Tamilmotivationl_Liya",
+      "views": 649762,
+      "videoId": "TpNvNIappWM"
+    },
+    {
+      "title": "Rich Mindset vs Middle Class Mindset | Money Psychology",
+      "channel": "Talks With Rochit",
+      "views": 506490,
+      "videoId": "jw9eOdxKtYg"
+    },
+    {
       "title": "8 Smart Money Saving Tips Simple Habits to Save More Money Every Month",
       "channel": "Zayaan Farm",
-      "views": 290686,
+      "views": 442602,
       "videoId": "pSNAgxma7gk"
     },
     {
       "title": "7 Smart Money Habits That Will Make You Rich Personal Finance Tips",
       "channel": "Zayaan Farm",
-      "views": 288563,
+      "views": 338453,
       "videoId": "_6w8sdu-E88"
-    },
-    {
-      "title": "Money Comes In But Never Stays? Try This! 💰✨ #tamildevotional #shortvideo",
-      "channel": "Namma Tamil Arivu.",
-      "views": 262979,
-      "videoId": "wU4bH9Bnh7M"
-    },
-    {
-      "title": "Rich Mindset vs Middle Class Mindset | Money Psychology",
-      "channel": "Talks With Rochit",
-      "views": 260775,
-      "videoId": "jw9eOdxKtYg"
-    },
-    {
-      "title": "10 Smart Habits That Will Save You Money Powerful Money-Saving Tips You Should Know",
-      "channel": "Zayaan Farm",
-      "views": 129281,
-      "videoId": "YUiMdKEVjVo"
     },
     {
       "title": "10 Millionaire Habits That Can Change Your Financial Life | Wealth Building Secrets",
       "channel": "Telugu Assets",
-      "views": 99396,
+      "views": 107844,
       "videoId": "KiEFas3aPf8"
     },
     {
       "title": "5 Smart Money Habits of Successful People | Ratan Tata Inspired Tips",
       "channel": "Zayaan Farm",
-      "views": 97852,
+      "views": 98179,
       "videoId": "girp9wggh3k"
     },
     {
       "title": "How to Save Money When You Don't Earn Much",
       "channel": "RiseOrRegret",
-      "views": 66848,
+      "views": 96791,
       "videoId": "6M1DAVEuTq8"
+    },
+    {
+      "title": "10 Unsexy Habits that Save Me Serious Money (like, a lot)",
+      "channel": "Saloni Gavde",
+      "views": 73045,
+      "videoId": "o-Yc9uMHW38"
     }
   ]
 }

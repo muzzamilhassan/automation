@@ -34,30 +34,30 @@
     "healedCount": 3
   },
   "money-rulebook": {
-    "lastRunDate": "2026-09-24",
+    "lastRunDate": "2026-09-25",
     "usedThemes": [
-      "7 money habits that quietly make you rich",
-      "6 rules for your first $10,000",
-      "5 money moves before you turn 30"
+      "the 50/30/20 rule explained fast",
+      "4 silent ways you leak money every month",
+      "the 24-hour rule that kills impulse spending"
     ],
     "lastVideos": [
       {
-        "videoId": "9eExaPG5YHc",
-        "publishAt": "2026-09-24T12:35:00Z",
+        "videoId": "2Mc7d0pLKPU",
+        "publishAt": "2026-09-25T12:35:00Z",
+        "title": "7 Money Habits To Get Rich | Personal Finance"
+      },
+      {
+        "videoId": "at5bKd-_fd0",
+        "publishAt": "2026-09-25T16:35:00Z",
+        "title": "4 Ways You Leak Money | Personal Finance"
+      },
+      {
+        "videoId": "LCXeGytqbII",
+        "publishAt": "2026-09-26T00:05:00Z",
         "title": "7 Money Habits That Make You Rich | Personal Finance"
-      },
-      {
-        "videoId": "QK5Rxb3yHiA",
-        "publishAt": "2026-09-24T16:35:00Z",
-        "title": "6 Rules For Your First $10,000 | Personal Finance"
-      },
-      {
-        "videoId": "4R54KShI0mE",
-        "publishAt": "2026-09-25T00:05:00Z",
-        "title": "5 Money Moves Before 30 | Personal Finance"
       }
     ],
-    "imageDate": "2026-09-24",
+    "imageDate": "2026-09-25",
     "recyclePending": [
       {
         "oldVideoId": "cbclwL6k32U",
