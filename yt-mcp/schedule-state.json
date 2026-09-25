@@ -1,29 +1,29 @@
 {
   "investors-compass": {
-    "lastRunDate": "2026-09-24",
+    "lastRunDate": "2026-09-25",
     "usedThemes": [
-      "rule #1 warren buffett never breaks",
-      "the day the market lost $1 trillion",
-      "the trader who blew up $100 million"
+      "what buffett does when everyone panics",
+      "the biggest investing mistake according to buffett",
+      "why buffett never sells in a crash"
     ],
     "lastVideos": [
       {
-        "videoId": "JUY2FbHOqm4",
-        "publishAt": "2026-09-24T12:05:00Z",
+        "videoId": "thpWqixZI3o",
+        "publishAt": "2026-09-25T12:05:00Z",
+        "title": "Warren Buffett's Panic Rule | Investing Psychology"
+      },
+      {
+        "videoId": "hnIyNYL-2Ck",
+        "publishAt": "2026-09-25T16:05:00Z",
+        "title": "Buffett's #1 Unbroken Rule | Investing Psychology"
+      },
+      {
+        "videoId": "GrimfC7v0z4",
+        "publishAt": "2026-09-25T23:35:00Z",
         "title": "Rule #1 Warren Buffett Never Breaks | Investing Psychology"
-      },
-      {
-        "videoId": "787C7Q2AfLw",
-        "publishAt": "2026-09-24T16:05:00Z",
-        "title": "The Day The Market Lost $1 Trillion | Investing Psychology"
-      },
-      {
-        "videoId": "533voODhE1M",
-        "publishAt": "2026-09-24T23:35:00Z",
-        "title": "The Day A Trader Blew Up | Investing Psychology"
       }
     ],
-    "imageDate": "2026-09-24",
+    "imageDate": "2026-09-25",
     "deepdiveDate": "2026-09-07",
     "deepdiveVideo": {
       "videoId": "dOJgBHpJgwQ",
