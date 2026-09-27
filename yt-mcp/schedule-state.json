@@ -34,30 +34,30 @@
     "healedCount": 3
   },
   "money-rulebook": {
-    "lastRunDate": "2026-09-26",
+    "lastRunDate": "2026-09-27",
     "usedThemes": [
-      "5 things rich people never buy",
-      "how to automate your first $100k",
-      "7 budget rules the rich actually follow"
+      "the $1 rule that changes how you spend",
+      "6 salary moves that build wealth fast",
+      "why the rich never pay full price"
     ],
     "lastVideos": [
       {
-        "videoId": "nWn2sbKugV8",
-        "publishAt": "2026-09-26T12:35:00Z",
-        "title": "5 Things Rich People Never Buy | Personal Finance"
+        "videoId": "VVrVEwm1j6E",
+        "publishAt": "2026-09-27T12:35:00Z",
+        "title": "7 Money Habits That Make You Rich | Personal Finance"
       },
       {
-        "videoId": "lKB9tdyCsy4",
-        "publishAt": "2026-09-26T16:35:00Z",
-        "title": "4 Habits To Make Your First $100k | Personal Finance"
+        "videoId": "x8EkVXNV95o",
+        "publishAt": "2026-09-27T16:35:00Z",
+        "title": "6 Rules For Your First $10k | Personal Finance"
       },
       {
-        "videoId": "uqT1dGelW7Y",
-        "publishAt": "2026-09-27T00:05:00Z",
-        "title": "7 Rules Of The Rich | Personal Finance"
+        "videoId": "b27bmozhplo",
+        "publishAt": "2026-09-28T00:05:00Z",
+        "title": "7 Money Habits That Make You Rich | Personal Finance"
       }
     ],
-    "imageDate": "2026-09-26",
+    "imageDate": "2026-09-27",
     "recyclePending": [
       {
         "oldVideoId": "cbclwL6k32U",
