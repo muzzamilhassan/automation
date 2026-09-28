@@ -4,6 +4,7 @@
 // frees up over time, so failed attempts are retried with a delay. Set
 // ZERNIO_TIKTOK_DRAFT=true to fall back to Creator-Inbox drafts instead.
 import fs from 'node:fs';
+import path from 'node:path';
 
 const ZERNIO_API = 'https://api.zernio.com/v1';
 const CAPTION_LIMIT = 2200; // TikTok caption cap incl. hashtags
