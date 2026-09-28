@@ -1,29 +1,29 @@
 {
   "investors-compass": {
-    "lastRunDate": "2026-09-27",
+    "lastRunDate": "2026-09-28",
     "usedThemes": [
-      "the stock buffett held for 30 years",
-      "signs a stock is hype not value",
-      "the bull market trap that wipes beginners"
+      "rule #1 warren buffett never breaks",
+      "the day the market lost $1 trillion",
+      "the trader who blew up $100 million"
     ],
     "lastVideos": [
       {
-        "videoId": "L2LOBU9XEhM",
-        "publishAt": "2026-09-27T12:05:00Z",
-        "title": "Buffett's 30-Year Stock Secret | Investing Psychology"
+        "videoId": "kvINNP8uSMA",
+        "publishAt": "2026-09-28T12:05:00Z",
+        "title": "Buffett's Unbroken Rule | Investing Psychology"
       },
       {
-        "videoId": "tyqt9sg2M6w",
-        "publishAt": "2026-09-27T16:05:00Z",
-        "title": "The Hype Trap | Investing Psychology"
+        "videoId": "EPCY3J2CC18",
+        "publishAt": "2026-09-28T16:05:00Z",
+        "title": "The Day The Market Lost $1 Trillion | Investing Psychology"
       },
       {
-        "videoId": "Kfe7FH1OYro",
-        "publishAt": "2026-09-27T23:35:00Z",
-        "title": "The Bull Market Trap | Investing Psychology"
+        "videoId": "RMfv8ftWKvU",
+        "publishAt": "2026-09-28T23:35:00Z",
+        "title": "The $100m Trader Who Lost It All | Investing Psychology"
       }
     ],
-    "imageDate": "2026-09-27",
+    "imageDate": "2026-09-28",
     "deepdiveDate": "2026-09-07",
     "deepdiveVideo": {
       "videoId": "dOJgBHpJgwQ",
