@@ -27,7 +27,24 @@ jobs:
           restore-keys: |
             ig-outbox-quotequarry-
 
-      - name: Post new reels to TikTok
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: Clip newest long-form into TikTok parts (if new)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
+        run: node longvideo/tiktok-clips.mjs ensure-queue
+
+      - name: Post next TikTok part
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
+        run: node longvideo/tiktok-clips.mjs post-next
+
+      - name: Post new shorts reels to TikTok
         env:
           ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
         run: node zernio-tiktok-publisher.mjs post-all-qq
