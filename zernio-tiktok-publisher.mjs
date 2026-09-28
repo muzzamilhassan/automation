@@ -309,7 +309,7 @@ if (process.argv[1] && process.argv[1].endsWith('zernio-tiktok-publisher.mjs')) 
     let posted = 0;
     for (const e of entries) {
       let meta;
-      try { meta = JSON.parse(fs.readFileSync(path.join(dir, e.f), 'utf8')); } catch { continue; }
+      try { meta = JSON.parse(fs.readFileSync(path.join(dir, e.f), 'utf8')); } catch (e2) { console.log('  parse failed:', e.f, String(e2.message).slice(0, 60)); continue; }
       const caption = clip(`${meta.title || ''} ${(meta.tags || []).map(t => '#' + String(t).replace(/\s+/g, '')).join(' ')}`);
       if (existing.has(caption.trim().toLowerCase())) { console.log('  skip (already on TikTok):', String(meta.title).slice(0, 40)); continue; }
       if (!meta.videoFile || !fs.existsSync(meta.videoFile)) { console.log('  skip (video missing):', e.f); continue; }
