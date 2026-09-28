@@ -1,38 +1,38 @@
 {
-  "at": "2026-09-28T09:35:48.038Z",
+  "at": "2026-09-28T19:27:22.237Z",
   "problems": 1,
   "results": [
     {
       "slug": "workflows",
       "status": "BROKEN_WORKFLOW",
-      "error": "channel-debt-free-doctrine.yml: Cannot read properties of undefined (reading 'load') | channel-investors-compass.yml: Cannot read properties of undefined (reading 'load') | channel-money-rulebook.yml: Cannot read properties of undefined (reading 'load') | channel-quotequarry.yml: Cannot read properties of undefined (reading 'load') | ci-doctor.yml: Cannot read properties of undefined (reading 'load') | daily-dev-digest.yml: Cannot read properties of undefined (reading 'load') | daily-sweeper.yml: Cannot read properties of undefined (reading 'load') | demo-video.yml: Cannot read properties of undefined (reading 'load') | ig-slot-poster.yml: Cannot read properties of undefined (reading 'load') | longform-daily.yml: Cannot read properties of undefined (reading 'load') | longform-upload.yml: Cannot read properties of undefined (reading 'load') | reporting-daily.yml: Cannot read properties of undefined (reading 'load') | weekly-compilation.yml: Cannot read properties of undefined (reading 'load')"
+      "error": "channel-debt-free-doctrine.yml: Cannot read properties of undefined (reading 'load') | channel-investors-compass.yml: Cannot read properties of undefined (reading 'load') | channel-money-rulebook.yml: Cannot read properties of undefined (reading 'load') | channel-quotequarry.yml: Cannot read properties of undefined (reading 'load') | ci-doctor.yml: Cannot read properties of undefined (reading 'load') | daily-dev-digest.yml: Cannot read properties of undefined (reading 'load') | daily-sweeper.yml: Cannot read properties of undefined (reading 'load') | demo-video.yml: Cannot read properties of undefined (reading 'load') | ig-slot-poster.yml: Cannot read properties of undefined (reading 'load') | longform-daily.yml: Cannot read properties of undefined (reading 'load') | longform-upload.yml: Cannot read properties of undefined (reading 'load') | reporting-daily.yml: Cannot read properties of undefined (reading 'load') | tiktok-post.yml: Cannot read properties of undefined (reading 'load') | weekly-compilation.yml: Cannot read properties of undefined (reading 'load')"
     },
     {
       "slug": "investors-compass",
       "channel": "Investor's Compass",
       "subs": "8",
-      "totalVideos": "119",
+      "totalVideos": "121",
       "status": "OK"
     },
     {
       "slug": "money-rulebook",
       "channel": "The Money Rulebook",
       "subs": "8",
-      "totalVideos": "104",
+      "totalVideos": "106",
       "status": "OK"
     },
     {
       "slug": "debt-free-doctrine",
       "channel": "Debt-Free Doctrine",
       "subs": "0",
-      "totalVideos": "105",
+      "totalVideos": "108",
       "status": "OK"
     },
     {
       "slug": "quotequarry",
       "channel": "QuoteQuarry",
-      "subs": "172",
-      "totalVideos": "317",
+      "subs": "171",
+      "totalVideos": "319",
       "status": "OK"
     }
   ]
