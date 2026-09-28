@@ -292,6 +292,33 @@ if (process.argv[1] && process.argv[1].endsWith('zernio-tiktok-publisher.mjs')) 
         console.log('No accounts found:', data);
       }
     }).catch(err => console.error(err));
+  } else if (cmd === 'post-all-qq') {
+    // Post every produced QuoteQuarry reel from the outbox to TikTok (dedup by caption)
+    const dir = 'fb-outbox/quotequarry';
+    const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.json')) : [];
+    const apiKey = envOf('ZERNIO_API_KEY');
+    let existing = new Set();
+    try {
+      const res = await fetch(`${ZERNIO_API}/posts`, { headers: { Authorization: `Bearer ${apiKey}` } });
+      const d = await res.json();
+      const posts = Array.isArray(d) ? d : (d.posts || d.data || []);
+      for (const pp of posts) existing.add(String(pp.content || '').trim().toLowerCase());
+    } catch (e) { console.log('  [warn] could not list existing posts:', String(e.message).slice(0, 80)); }
+    const entries = files.map(f => ({ f, stamp: parseInt(f.split('-')[0], 10) || 0 })).sort((a, b) => a.stamp - b.stamp);
+    let posted = 0;
+    for (const e of entries) {
+      let meta;
+      try { meta = JSON.parse(fs.readFileSync(path.join(dir, e.f), 'utf8')); } catch { continue; }
+      const caption = clip(`${meta.title || ''} ${(meta.tags || []).map(t => '#' + String(t).replace(/\s+/g, '')).join(' ')}`);
+      if (existing.has(caption.trim().toLowerCase())) { console.log('  skip (already on TikTok):', String(meta.title).slice(0, 40)); continue; }
+      if (!meta.videoFile || !fs.existsSync(meta.videoFile)) { console.log('  skip (video missing):', e.f); continue; }
+      try {
+        await publishToTikTok({ videoBuffer: fs.readFileSync(meta.videoFile), title: caption });
+        posted++;
+      } catch (err) { console.log('  post failed:', String(err.message).slice(0, 120)); }
+    }
+    console.log(`[TikTok] posted ${posted} reel(s) for quotequarry`);
+    process.exit(0);
   } else if (cmd === 'post') {
     const videoFile = process.argv[3];
     const caption = process.argv[4] || 'Test video from automated workflow';

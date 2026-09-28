@@ -70,6 +70,15 @@ else errors.push('FB cross-post failed');
 // IG has no scheduling API, so posting here meant reels went live whenever the
 // run finished. They are now posted by ig-slot-poster.yml 3x/day at fixed slot
 // times, pulling the produced reels from the run's saved outbox cache.
+// ---- Phase 2b: TikTok via Zernio (QuoteQuarry only) ----
+if (slug === 'quotequarry') {
+  log(`Phase 2b — TikTok via Zernio (direct, drafts fallback)...`);
+  const tt = run('zernio-tiktok-publisher.mjs', ['post-all-qq']);
+  if (tt) { results.tiktok = true; log(`✓ TikTok done`); }
+  else errors.push('TikTok failed');
+}
+
+
 log(`Phase 3 — IG reels: handled by ig-slot-poster (3x/day at slot times)`);
 
 // ---- Phase 4: Niche poster to FB page ----
