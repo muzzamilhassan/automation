@@ -295,7 +295,7 @@ if (process.argv[1] && process.argv[1].endsWith('zernio-tiktok-publisher.mjs')) 
   } else if (cmd === 'post-all-qq') {
     // Post every produced QuoteQuarry reel from the outbox to TikTok (dedup by caption)
     const dir = 'fb-outbox/quotequarry';
-    const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.json')) : [];
+    const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => /-s[0-9]+[.]json([.][a-z-]+)*$/.test(f)) : [];
     const apiKey = envOf('ZERNIO_API_KEY');
     let existing = new Set();
     try {
