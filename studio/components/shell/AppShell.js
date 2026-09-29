@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import {
   Menu,
@@ -18,6 +18,7 @@ import {
   Info,
   OctagonAlert,
   Pickaxe,
+  LogOut,
 } from 'lucide-react';
 import { NAV } from './nav';
 import CommandPalette from './CommandPalette';
@@ -140,7 +141,10 @@ export default function AppShell({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [userOpen, setUserOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     try {
@@ -163,6 +167,17 @@ export default function AppShell({ children }) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
   useEffect(() => setMobileOpen(false), [pathname]);
+
+  // The login page renders bare — no sidebar, no topbar.
+  if (pathname === '/login') return <>{children}</>;
+
+  const logout = async () => {
+    setLoggingOut(true);
+    try {
+      await fetch('/api/logout', { method: 'POST' });
+    } catch {}
+    router.replace('/login');
+  };
 
   const current = NAV.flatMap((g) => g.items).find((i) => i.href === pathname);
   const pageTitle = current ? current.label : pathname === '/channels' ? 'Channels' : 'Quarry Studio';
@@ -264,13 +279,37 @@ export default function AppShell({ children }) {
 
             <ThemeToggle />
 
-            <span
-              className="flex items-center justify-center w-8 h-8 rounded-full font-display font-bold text-[12px] shrink-0"
-              style={{ background: 'var(--accent-soft)', color: 'var(--accent)', border: '1px solid color-mix(in srgb, var(--accent) 35%, transparent)' }}
-              title="Muzzamil — owner"
-            >
-              MH
-            </span>
+            <div className="relative">
+              <button
+                className="flex items-center justify-center w-8 h-8 rounded-full font-display font-bold text-[12px] shrink-0 cursor-pointer transition-transform hover:scale-105"
+                style={{ background: 'var(--accent-soft)', color: 'var(--accent)', border: '1px solid color-mix(in srgb, var(--accent) 35%, transparent)' }}
+                onClick={() => setUserOpen((o) => !o)}
+                aria-label="Account menu"
+                title="Muzzamil — owner"
+              >
+                MH
+              </button>
+              {userOpen ? (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setUserOpen(false)} />
+                  <div className="absolute right-0 top-[calc(100%+10px)] w-[220px] card pop-in overflow-hidden z-50" style={{ boxShadow: '0 18px 50px rgba(0,0,0,0.35)' }}>
+                    <div className="px-4 py-3 border-b border-line">
+                      <p className="text-[12.5px] font-semibold text-ink">Muzzamil Hassan</p>
+                      <p className="text-[11px] text-faint mt-0.5">Studio owner · trusted 30 days</p>
+                    </div>
+                    <button
+                      onClick={logout}
+                      disabled={loggingOut}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12.5px] font-semibold transition-colors hover:bg-surface-2 disabled:opacity-50"
+                      style={{ color: 'var(--bad)' }}
+                    >
+                      <LogOut size={14} />
+                      {loggingOut ? 'Signing out…' : 'Log out'}
+                    </button>
+                  </div>
+                </>
+              ) : null}
+            </div>
           </div>
         </header>
 

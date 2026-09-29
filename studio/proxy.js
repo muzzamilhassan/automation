@@ -10,7 +10,7 @@ export default async function proxy(req) {
   if (!password && !process.env.VERCEL) return NextResponse.next();
 
   const { pathname } = req.nextUrl;
-  if (pathname === '/login' || pathname === '/api/login') return NextResponse.next();
+  if (pathname === '/login' || pathname === '/api/login' || pathname === '/api/logout') return NextResponse.next();
 
   const cookie = req.cookies.get(COOKIE)?.value;
   if (cookie && cookie === (await authToken(password))) return NextResponse.next();
