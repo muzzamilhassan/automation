@@ -29,6 +29,14 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Install Chrome (poster thumbnails)
+        run: |
+          npx --yes @puppeteer/browsers install chrome@stable --path "$HOME/chrome-cache"
+          echo "CHROME_PATH=$(find "$HOME/chrome-cache" -name chrome -type f | head -1)" >> "$GITHUB_ENV"
+
+      - name: Guard — poster integration must be in the uploader
+        run: grep -q "buildPoster" longvideo/longform-upload.mjs || { echo "::error::uploader lost the poster-thumbnail integration (a sync overwrote it) — restore the buildPoster block"; exit 1; }
+
       - name: Install Pillow (thumbnail style generator)
         run: python3 -m pip install --quiet pillow || sudo apt-get install -y -qq python3-pil
 
@@ -42,6 +50,7 @@ jobs:
           YT_TOKEN_MONEY_RULEBOOK: ${{ secrets.YT_TOKEN_MONEY_RULEBOOK }}
           YT_TOKEN_DEBT_FREE_DOCTRINE: ${{ secrets.YT_TOKEN_DEBT_FREE_DOCTRINE }}
           YT_TOKEN_QUOTEQUARRY: ${{ secrets.YT_TOKEN_QUOTEQUARRY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         run: node longvideo/longform-upload.mjs ${{ inputs.channel != '' && format('--channel {0}', inputs.channel) || '' }}
 
       - name: Save upload history
