@@ -1,34 +1,51 @@
-import { spawn } from 'node:child_process';
-import fs from 'node:fs';
-import path from 'node:path';
+// Studio buttons trigger REAL runs through GitHub Actions (workflow_dispatch).
+// Works the same locally and on Vercel — nothing runs on the web server itself.
+// The workflows are the same ones the daily crons use, so dedupe/state rules apply.
+import { ENV } from '../../../lib/data.mjs';
 
 export const dynamic = 'force-dynamic';
 
-const ROOT = path.resolve(process.cwd(), '..'); // scripts live in the repo root (studio/..)
-const ACTIONS = {
-  'yt-daily': { script: 'yt-daily.mjs', needsSlug: true },
-  'deepdive': { script: 'yt-deepdive.mjs', needsSlug: true },
-  'fb-crosspost': { script: 'fb-crosspost.mjs', needsSlug: false },
-  'ig-crosspost': { script: 'ig-crosspost.mjs', needsSlug: false },
-  'fb-images': { script: 'fb-images.mjs', needsSlug: false }
+const REPO = ENV.GITHUB_REPO || 'muzzamilhassan/automation';
+const TOKEN = ENV.GITHUB_TOKEN || ENV.GITHUB_PAT || '';
+
+const SLUGS = ['quotequarry', 'investors-compass', 'money-rulebook', 'debt-free-doctrine'];
+
+// action (+ optional slug) → workflow file + inputs
+const MAP = {
+  'yt-daily': (slug) => ({ workflow: `channel-${slug}.yml`, inputs: {} }),
+  'deepdive': (slug) => ({ workflow: 'longform-upload.yml', inputs: { channel: slug } }),
+  'ig-crosspost': () => ({ workflow: 'ig-slot-poster.yml', inputs: {} }),
+  'fb-crosspost': () => ({ workflow: 'fb-now.yml', inputs: { job: 'reels' } }),
+  'fb-images': () => ({ workflow: 'fb-now.yml', inputs: { job: 'posters' } }),
 };
 
 export async function POST(req) {
   let body = {};
   try { body = await req.json(); } catch { }
-  const conf = ACTIONS[body.action];
-  if (!conf) return Response.json({ error: 'unknown action' }, { status: 400 });
+  const fn = MAP[body.action];
+  if (!fn) return Response.json({ error: 'unknown action' }, { status: 400 });
   const slug = body.slug || '';
-  if (conf.needsSlug && !slug) return Response.json({ error: 'slug required' }, { status: 400 });
+  if (['yt-daily', 'deepdive'].includes(body.action) && !SLUGS.includes(slug)) {
+    return Response.json({ error: 'unknown channel' }, { status: 400 });
+  }
+  if (!TOKEN) return Response.json({ error: 'server has no GITHUB_TOKEN' }, { status: 500 });
 
-  const logDir = path.resolve(ROOT, 'studio-logs');
-  fs.mkdirSync(logDir, { recursive: true });
-  const logFile = path.join(logDir, `${body.action}-${slug || 'all'}-${Date.now()}.log`);
-  const out = fs.openSync(logFile, 'a');
-  const child = spawn('node', [conf.script, ...(conf.needsSlug ? [slug] : []), ...(body.action === 'yt-daily' ? ['--force'] : [])], {
-    cwd: ROOT, detached: true, stdio: ['ignore', out, out]
+  const { workflow, inputs } = fn(slug);
+  const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${workflow}/dispatches`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${TOKEN}`,
+      Accept: 'application/vnd.github+json',
+      'User-Agent': 'quarry-studio',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ ref: 'main', inputs }),
   });
-  child.unref();
-  fs.closeSync(out);
-  return Response.json({ started: true, pid: child.pid, logFile });
+
+  if (res.status === 204) {
+    return Response.json({ started: true, via: 'github-actions', workflow });
+  }
+  const text = await res.text();
+  return Response.json({ error: `github ${res.status}: ${text.slice(0, 140)}` }, { status: 502 });
 }

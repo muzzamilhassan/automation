@@ -1,24 +1,55 @@
 'use client';
 import { useState } from 'react';
+import { Play, Loader2, Check, X } from 'lucide-react';
+import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
-export default function ActionButton({ action, slug = null, label, small = false }) {
+export default function ActionButton({ action, slug = null, label, small = false, primary = false }) {
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState('');
+  const [ok, setOk] = useState(null);
+
   const run = async () => {
-    setBusy(true); setMsg('');
+    setBusy(true);
+    setOk(null);
     try {
-      const r = await fetch('/api/action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, slug }) });
+      const r = await fetch('/api/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, slug }),
+      });
       const d = await r.json();
-      setMsg(d.started ? '▶ started — watch Logs' : (d.error || 'failed'));
-    } catch (e) { setMsg('error: ' + e.message); }
+      setOk(!!d.started);
+    } catch {
+      setOk(false);
+    }
     setBusy(false);
+    setTimeout(() => setOk(null), 5000);
   };
+
   return (
-    <span>
-      <button onClick={run} disabled={busy} className={(small ? 'text-xs px-2.5 py-1 ' : 'px-3.5 py-1.5 text-sm ') + 'rounded-lg border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 hover:border-zinc-500 text-zinc-100 transition disabled:opacity-40'}>
-        {busy ? '⏳ starting…' : label}
+    <span className="inline-flex items-center gap-2">
+      <button
+        onClick={run}
+        disabled={busy}
+        className={cn('btn', small && 'btn-sm', primary ? 'btn-primary' : 'btn-outline')}
+        title={`Runs ${action}${slug ? ` (${slug})` : ''} in the background`}
+      >
+        {busy ? (
+          <Loader2 size={small ? 12 : 14} className="animate-spin" />
+        ) : ok === true ? (
+          <Check size={small ? 12 : 14} />
+        ) : ok === false ? (
+          <X size={small ? 12 : 14} />
+        ) : (
+          <Play size={small ? 12 : 14} />
+        )}
+        {busy ? 'Starting…' : ok === true ? 'Started' : ok === false ? 'Failed' : label}
       </button>
-      {msg ? <span className="ml-2 text-xs text-zinc-400">{msg}</span> : null}
+      {ok === true ? (
+        <Link href="/logs" className="text-[11px] text-accent hover:underline whitespace-nowrap">
+          watch logs →
+        </Link>
+      ) : null}
     </span>
   );
 }

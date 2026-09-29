@@ -1,93 +1,267 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { FacebookIcon, InstagramIcon } from '@/components/BrandIcons';
+import {
+  Users,
+  Eye,
+  Film,
+  RefreshCw,
+  Zap,
+  Flame,
+  ArrowUpRight,
+  Clock,
+  CalendarDays,
+  Radar,
+} from 'lucide-react';
 import ActionButton from '@/components/ActionButton';
+import { Card, CardHead, Chip, StatCard, PageSkeleton, EmptyState, BrandMark } from '@/components/ui';
+import { MultiChart } from '@/components/charts';
+import { ALERTS, VIEWS_SERIES, BRAND_META } from '@/lib/site-data';
+import { fmt, fmtFull, timeAgo, when } from '@/lib/utils';
+
+const ALERT_ICON = { bad: 'var(--bad)', warn: 'var(--warn)', info: 'var(--info)' };
 
 export default function Overview() {
   const [data, setData] = useState(null);
-  const load = () => fetch('/api/overview').then(r => r.json()).then(setData).catch(() => { });
-  useEffect(() => { load(); const t = setInterval(load, 60000); return () => clearInterval(t); }, []);
+  const [err, setErr] = useState(false);
+  const [tick, setTick] = useState(0);
 
-  if (!data) return <div className="p-8 text-zinc-500">Loading empire status…</div>;
+  const load = () =>
+    fetch('/api/overview')
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => setErr(true));
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 60000);
+    return () => clearInterval(t);
+  }, [tick]);
+
+  if (err)
+    return (
+      <EmptyState
+        icon={RefreshCw}
+        title="Could not reach the engine"
+        sub="The /api/overview endpoint did not answer. Check that the studio server is running, then retry."
+      />
+    );
+  if (!data) return <PageSkeleton />;
+
   const { channels, totals, logs, trends } = data;
-  const active = channels.filter(c => c.active);
-  const today = new Date().toISOString().slice(0, 10);
+  const active = channels.filter((c) => c.active);
+
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  const labels = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(Date.now() - (13 - i) * 86400000);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  });
+  const series = active.map((c) => ({
+    key: c.slug,
+    name: c.label.split(' ').map((w) => w[0]).join('').slice(0, 3),
+    color: c.accent,
+    data: VIEWS_SERIES[c.slug] || VIEWS_SERIES['quotequarry'],
+  }));
+  const last = series.reduce((a, s) => a + s.data[13], 0);
+  const prev = series.reduce((a, s) => a + s.data[12], 0);
+  const viewsDelta = prev ? Math.round(((last - prev) / prev) * 100) : 0;
+
+  const upcoming = logs.filter((l) => l.at).slice(0, 8);
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl">
-      <div className="flex items-center justify-between">
+    <div>
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-7">
         <div>
-          <h1 className="text-white text-2xl font-bold">Overview</h1>
-          <p className="text-zinc-500 text-sm">{active.length} active channels · 3 platforms · content brain running</p>
+          <h1 className="font-display text-[26px] font-bold tracking-tight text-ink leading-tight">
+            {greet}, Muzzamil
+          </h1>
+          <p className="text-[13px] text-muted mt-0.5 flex items-center gap-1.5">
+            <CalendarDays size={13} className="text-faint" />
+            {today} · {active.length} live channels · engine running on GitHub Actions
+          </p>
         </div>
-        <button onClick={load} className="text-xs px-3 py-1.5 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-900">↻ Refresh</button>
+        <div className="flex items-center gap-2">
+          <button className="btn btn-outline" onClick={() => setTick((t) => t + 1)}>
+            <RefreshCw size={14} /> Refresh
+          </button>
+          <Link href="/production" className="btn btn-primary">
+            <Zap size={14} /> Production
+          </Link>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {[['YouTube subs', totals.ytSubs], ['YouTube views', totals.ytViews], ['YT videos', totals.ytVideos], ['FB followers', totals.fbFollowers], ['IG followers', totals.igFollowers]].map(([label, v]) => (
-          <div key={label} className="card">
-            <div className="text-zinc-500 text-xs">{label}</div>
-            <div className="stat-num">{v.toLocaleString()}</div>
-          </div>
-        ))}
+      {/* KPI row */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-5">
+        <StatCard delay={0} icon={Users} label="YT subs" value={totals.ytSubs} fmt={fmt} />
+        <StatCard delay={1} icon={Eye} label="YT views" value={totals.ytViews} fmt={fmt} delta={viewsDelta} spark={series[0]?.data} color="var(--info)" iconBg="color-mix(in srgb, var(--info) 12%, transparent)" />
+        <StatCard delay={2} icon={Film} label="Videos" value={totals.ytVideos} fmt={fmt} />
+        <StatCard delay={3} icon={FacebookIcon} label="FB followers" value={totals.fbFollowers} fmt={fmt} color="#3b82f6" iconBg="color-mix(in srgb, #3b82f6 12%, transparent)" />
+        <StatCard delay={4} icon={InstagramIcon} label="IG followers" value={totals.igFollowers} fmt={fmt} color="#ec4899" iconBg="color-mix(in srgb, #ec4899 12%, transparent)" />
       </div>
 
-      <div className="card">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-white font-semibold">Today&apos;s production line</h2>
-          <div className="flex gap-2 flex-wrap">
-            <ActionButton action="yt-daily" slug="investors-compass" label="▶ IC Shorts" small />
-            <ActionButton action="yt-daily" slug="money-rulebook" label="▶ MR Shorts" small />
-            <ActionButton action="yt-daily" slug="debt-free-doctrine" label="▶ DFD Shorts" small />
-            <ActionButton action="fb-crosspost" label="FB Reels" small />
-            <ActionButton action="ig-crosspost" label="IG Reels" small />
-            <ActionButton action="fb-images" label="FB posters" small />
+      {/* chart + alerts */}
+      <div className="grid lg:grid-cols-3 gap-4 mb-5">
+        <Card className="lg:col-span-2 overflow-hidden">
+          <CardHead
+            title="Views this fortnight"
+            sub="Daily views per channel · sample trend until metrics API is wired"
+            icon={Radar}
+            right={
+              <div className="flex items-center gap-3">
+                {active.map((c) => (
+                  <span key={c.slug} className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: c.accent }}>
+                    <span className="w-2 h-2 rounded-full" style={{ background: c.accent }} />
+                    {BRAND_META[c.slug]?.short}
+                  </span>
+                ))}
+              </div>
+            }
+          />
+          <div className="px-2 pb-2">
+            <MultiChart series={series} labels={labels} />
           </div>
-        </div>
-        <table className="data">
-          <thead><tr><th>Channel</th><th>Queued today</th><th>Poster</th><th>Episode</th><th>Slots (UTC)</th></tr></thead>
-          <tbody>
-            {channels.filter(c => c.active).map(c => (
-              <tr key={c.slug}>
-                <td><span style={{ color: c.accent }}>●</span> {c.label}</td>
-                <td>{c.todayVideos ? `${c.todayVideos} queued` : <span className="chip chip-warn">not run today</span>}</td>
-                <td>{c.imageDate === today ? <span className="chip chip-ok">done</span> : <span className="chip chip-off">—</span>}</td>
-                <td>{c.deepdiveDate ? <span className="chip chip-ok">{c.deepdiveDate}</span> : <span className="chip chip-off">—</span>}</td>
-                <td className="text-zinc-400">{c.slots.join(' · ')}{c.longSlot ? ` + ${c.longSlot}` : ''}</td>
-              </tr>
+        </Card>
+
+        <Card>
+          <CardHead title="Needs attention" sub={`${ALERTS.length} open alerts`} icon={Flame} right={<Link href="/tasks" className="text-[11.5px] text-accent hover:underline">all tasks →</Link>} />
+          <div className="px-2 pb-2">
+            {ALERTS.map((a) => (
+              <Link key={a.title} href={a.href} className="flex gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-2 transition-colors">
+                <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: ALERT_ICON[a.level] }} />
+                <span className="min-w-0">
+                  <span className="block text-[12.5px] font-semibold text-ink leading-snug">{a.title}</span>
+                  <span className="block text-[11px] text-faint mt-0.5 leading-snug line-clamp-2">{a.body}</span>
+                </span>
+              </Link>
             ))}
-          </tbody>
-        </table>
+          </div>
+        </Card>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
-        <div className="card">
-          <h2 className="text-white font-semibold mb-3">Latest scheduled posts</h2>
+      {/* production line */}
+      <Card className="mb-5 overflow-hidden">
+        <CardHead
+          title="Today's production line"
+          sub="What the machine already made today, and each channel's upload slots"
+          icon={Zap}
+          right={
+            <div className="flex gap-2 flex-wrap justify-end">
+              <ActionButton small action="yt-daily" slug="investors-compass" label="IC Shorts" />
+              <ActionButton small action="yt-daily" slug="money-rulebook" label="MR Shorts" />
+              <ActionButton small action="yt-daily" slug="debt-free-doctrine" label="DFD Shorts" />
+              <ActionButton small action="fb-crosspost" label="FB Reels" />
+              <ActionButton small action="ig-crosspost" label="IG Reels" />
+              <ActionButton small action="fb-images" label="FB posters" />
+            </div>
+          }
+        />
+        <div className="overflow-x-auto">
           <table className="data">
-            <thead><tr><th>When (UTC)</th><th>Title</th><th>Channel</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Channel</th>
+                <th>Shorts today</th>
+                <th>Poster</th>
+                <th>Episode</th>
+                <th>Slots (UTC)</th>
+              </tr>
+            </thead>
             <tbody>
-              {logs.filter(l => l.videoId).slice(0, 8).map((l, i) => (
-                <tr key={i}>
-                  <td className="text-zinc-400 whitespace-nowrap">{(l.at || '').slice(0, 16).replace('T', ' ')}</td>
-                  <td>{l.title}</td>
-                  <td className="text-zinc-500">{l.slug}</td>
-                </tr>
-              ))}
+              {active.map((c) => {
+                const meta = BRAND_META[c.slug];
+                return (
+                  <tr key={c.slug}>
+                    <td>
+                      <span className="flex items-center gap-2.5">
+                        <BrandMark short={meta?.short || '•'} accent={c.accent} size={26} />
+                        <span className="font-semibold">{c.label}</span>
+                      </span>
+                    </td>
+                    <td>
+                      {c.todayVideos ? (
+                        <Chip tone="ok" dot>{c.todayVideos} queued</Chip>
+                      ) : (
+                        <Chip tone="warn">not run today</Chip>
+                      )}
+                    </td>
+                    <td>
+                      {c.imageDate === new Date().toISOString().slice(0, 10) ? (
+                        <Chip tone="ok">done</Chip>
+                      ) : (
+                        <Chip>—</Chip>
+                      )}
+                    </td>
+                    <td>{c.deepdiveDate ? <Chip tone="ok">{c.deepdiveDate}</Chip> : <Chip>—</Chip>}</td>
+                    <td className="text-muted font-mono text-[11.5px] tnum">
+                      {c.slots.join(' · ')}
+                      {c.longSlot ? ` + ${c.longSlot}` : ''}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
-        <div className="card">
-          <h2 className="text-white font-semibold mb-3">🔥 Trend radar (live from YouTube)</h2>
-          {Object.entries(trends).length === 0 ? <p className="text-zinc-500 text-sm">No trend cache yet — runs with the next production batch.</p> : (
-            Object.entries(trends).map(([slug, t]) => (
-              <div key={slug} className="mb-3">
-                <div className="text-zinc-300 text-sm font-medium mb-1">{slug}</div>
-                <div className="flex flex-wrap gap-1.5">{t.keywords.map(k => <span key={k} className="chip">{k}</span>)}</div>
-                <div className="text-zinc-500 text-xs mt-1.5">viral now: {t.viral.map(v => v.title).join(' · ').slice(0, 110)}</div>
-              </div>
-            ))
-          )}
-        </div>
+      </Card>
+
+      {/* uploads + trends */}
+      <div className="grid lg:grid-cols-2 gap-4">
+        <Card>
+          <CardHead title="Latest uploads" sub="Newest scheduled posts across platforms" icon={Clock} right={<Link href="/videos" className="text-[11.5px] text-accent hover:underline">all videos →</Link>} />
+          <div className="px-2 pb-2">
+            {upcoming.length === 0 ? (
+              <EmptyState icon={Film} title="Nothing logged yet" sub="Uploads appear here after the next production run." />
+            ) : (
+              upcoming.map((l, i) => (
+                <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-2 transition-colors">
+                  <BrandMark short={(BRAND_META[l.slug]?.short) || '•'} accent={BRAND_META[l.slug]?.accent || 'var(--faint)'} size={26} />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-[12.5px] font-medium text-ink truncate">{l.title}</span>
+                    <span className="block text-[11px] text-faint">{when(l.at)} · {l.kind}</span>
+                  </span>
+                  {l.videoId ? (
+                    <a href={`https://youtube.com/shorts/${l.videoId}`} target="_blank" rel="noreferrer" className="icon-btn" style={{ width: 28, height: 28 }} aria-label="Open on YouTube">
+                      <ArrowUpRight size={13} />
+                    </a>
+                  ) : null}
+                </div>
+              ))
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <CardHead title="Trend radar" sub="Live keywords + viral videos per niche" icon={Flame} />
+          <div className="px-5 pb-5">
+            {Object.entries(trends).length === 0 ? (
+              <EmptyState icon={Radar} title="No trend cache yet" sub="Trends refresh with the next production batch." />
+            ) : (
+              Object.entries(trends).map(([slug, t]) => (
+                <div key={slug} className="py-2.5 border-b border-line last:border-0">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <BrandMark short={BRAND_META[slug]?.short || '•'} accent={BRAND_META[slug]?.accent || 'var(--faint)'} size={20} />
+                    <span className="text-[12.5px] font-semibold text-ink">{slug}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mb-1.5">
+                    {t.keywords.map((k) => (
+                      <Chip key={k} tone="accent">{k}</Chip>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-faint truncate">viral now: {t.viral.map((v) => v.title).join(' · ').slice(0, 110)}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </Card>
       </div>
+
+      <p className="mt-4 text-[11px] text-faint">
+        Live numbers: {fmtFull(totals.ytSubs)} subs · {fmtFull(totals.ytViews)} views · refreshed every 60s from YouTube + Facebook APIs.
+      </p>
     </div>
   );
 }
