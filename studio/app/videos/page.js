@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { Film, Search, ArrowUpRight } from 'lucide-react';
+import { Film, Search, ArrowUpRight, Info } from 'lucide-react';
 import { YoutubeIcon, FacebookIcon, InstagramIcon } from '@/components/BrandIcons';
 import { Card, Chip, PageHeader, PageSkeleton, EmptyState, BrandMark, Segmented } from '@/components/ui';
 import { BRAND_META } from '@/lib/site-data';
@@ -69,6 +69,14 @@ export default function Videos() {
           {filtered.length} of {logs.length} · {counts.Short} shorts · {counts.Episode} episodes · {counts.Cross} cross-posts
         </span>
       </div>
+
+      {data.mode === 'cloud' ? (
+        <p className="text-[11.5px] text-muted mb-4 flex items-center gap-1.5">
+          <Info size={13} className="text-faint shrink-0" />
+          Cross-post rows (FB / IG / Threads) show on your PC build. The live site tracks YouTube uploads, episodes and posters —
+          for reels see the GitHub Actions tab.
+        </p>
+      ) : null}
 
       <Card className="overflow-hidden">
         {filtered.length === 0 ? (

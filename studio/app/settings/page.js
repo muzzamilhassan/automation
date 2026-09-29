@@ -150,8 +150,9 @@ export default function SettingsPage() {
               <Chip tone="ok" dot className="ml-auto">connected</Chip>
             </div>
             <div className="space-y-2 text-[12px] text-muted">
-              <p className="flex justify-between"><span>Studio server</span><code className="font-mono text-accent">localhost:3000</code></p>
-              <p className="flex justify-between"><span>Production</span><span>GitHub Actions (cloud-only)</span></p>
+              <p className="flex justify-between"><span>Live site</span><code className="font-mono text-accent">quarry-studio.vercel.app</code></p>
+              <p className="flex justify-between"><span>Local dev</span><code className="font-mono text-accent">localhost:3000</code></p>
+              <p className="flex justify-between"><span>Production runs</span><span>GitHub Actions (cloud-only)</span></p>
               <p className="flex justify-between"><span>Render repo</span><code className="font-mono text-accent">quarry-render</code></p>
               <p className="flex justify-between"><span>State files</span><code className="font-mono text-accent">yt-mcp/ · fb-outbox/</code></p>
             </div>

@@ -90,6 +90,7 @@ export const PIPELINES = [
     icon: 'film',
     engine: 'quarry-render repo · render + upload yml',
     schedule: 'Render 18:00 UTC · Upload IC 7PM · MR 7:45 · DFD 8:30 · QQ 9:15 (ET)',
+    note: 'Safe to press anytime — days that already uploaded are skipped automatically, never double-posted.',
     actions: [
       { action: 'deepdive', slug: 'quotequarry', label: 'QQ episode' },
       { action: 'deepdive', slug: 'investors-compass', label: 'IC episode' },
@@ -106,7 +107,7 @@ export const PIPELINES = [
     icon: 'music2',
     engine: 'tiktok-post.yml · Zernio app',
     schedule: '4×/day + 1 clip part/day',
-    actions: [],
+    actions: [{ action: 'tiktok', label: 'Post TikTok now' }],
     stages: ['Source video', 'Cut parts', 'Caption align', 'Post via Zernio'],
   },
   {

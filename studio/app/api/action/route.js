@@ -15,6 +15,7 @@ const MAP = {
   'yt-daily': (slug) => ({ workflow: `channel-${slug}.yml`, inputs: {} }),
   'deepdive': (slug) => ({ workflow: 'longform-upload.yml', inputs: { channel: slug } }),
   'ig-crosspost': () => ({ workflow: 'ig-slot-poster.yml', inputs: {} }),
+  'tiktok': () => ({ workflow: 'tiktok-post.yml', inputs: {} }),
   'fb-crosspost': () => ({ workflow: 'fb-now.yml', inputs: { job: 'reels' } }),
   'fb-images': () => ({ workflow: 'fb-now.yml', inputs: { job: 'posters' } }),
 };

@@ -65,6 +65,10 @@ export default function Production() {
                 <span className="font-mono">{p.schedule}</span>
               </div>
 
+              {p.note ? (
+                <p className="text-[11px] text-muted leading-relaxed -mt-2">{p.note}</p>
+              ) : null}
+
               {p.actions.length ? (
                 <div className="flex flex-wrap gap-2 pt-1 mt-auto">
                   {p.actions.map((a) => (

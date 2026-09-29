@@ -43,6 +43,7 @@ const RUN_ACTIONS = [
   { id: 'run-fb', label: 'Run FB reels cross-post', action: 'fb-crosspost' },
   { id: 'run-ig', label: 'Run IG reels cross-post', action: 'ig-crosspost' },
   { id: 'run-posters', label: 'Run FB brand posters', action: 'fb-images' },
+  { id: 'run-tiktok', label: 'Run TikTok posts now', action: 'tiktok' },
 ];
 
 export default function CommandPalette({ open, onClose }) {
