@@ -27,6 +27,7 @@ const GITHUB_REPO = ENV.GITHUB_REPO || 'muzzamilhassan/automation';
 const GH_TOKEN = ENV.GITHUB_TOKEN || ENV.GITHUB_PAT || '';
 const HAS_LOCAL_REPO = fs.existsSync(path.resolve(ROOT, 'yt-mcp'));
 const CLOUD = ENV.FORCE_GITHUB === '1' || !HAS_LOCAL_REPO;
+export const MODE = CLOUD ? 'cloud' : 'local';
 
 let cache = {};
 const cached = (key, ms, fn) => {

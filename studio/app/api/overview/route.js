@@ -1,4 +1,4 @@
-import { brands, state, trend, fbPages, ytChannels, allLogs } from '../../../lib/data.mjs';
+import { brands, state, trend, fbPages, ytChannels, allLogs, MODE } from '../../../lib/data.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,5 +34,5 @@ export async function GET() {
     const t = await trend(slug);
     if (t) trends[slug] = { keywords: t.hotKeywords.slice(0, 8), viral: t.videos.slice(0, 3) };
   }
-  return Response.json({ channels, totals, logs: logs.slice(0, 40), trends, mode: process.env.FORCE_GITHUB === '1' ? 'cloud' : 'local' });
+  return Response.json({ channels, totals, logs: logs.slice(0, 40), trends, mode: MODE });
 }
