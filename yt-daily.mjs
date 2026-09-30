@@ -101,12 +101,23 @@ if (RUN_SHORTS) {
   } catch (e) { console.log('[trend] skipped:', String(e.message).slice(0, 60)); }
 
   const yt = google.youtube({ version: 'v3', auth: channelAuth(slug) });
-  const used = state[slug]?.usedThemes || [];
+  // 09-30 DUP FIX: the old picker was (dayIdx*3+k) % bank.length — a 12-theme
+  // bank with 3 slots/day mathematically repeated every theme every 4 days
+  // (same titles on YouTube + FB/IG reels). Now: keep the rotation order but
+  // skip anything already used in the recorded history, and PERSIST that
+  // history (rolling window of 2× bank size) instead of overwriting it daily.
+  const used = Array.isArray(state[slug]?.usedThemes) ? state[slug].usedThemes : [];
   const dayIdx = Math.floor(Date.now() / 86400000);
-  const themesToday = b.slots.map((_, k) => {
-    const t = b.themeBank[(dayIdx * b.slots.length + k) % b.themeBank.length];
-    return used.includes(t) ? b.themeBank[(dayIdx * b.slots.length + k + 3) % b.themeBank.length] : t;
-  });
+  const themesToday = [];
+  for (let k = 0; k < b.slots.length; k++) {
+    let t = null;
+    for (let off = 0; off < b.themeBank.length; off++) {
+      const cand = b.themeBank[(dayIdx * b.slots.length + k + off) % b.themeBank.length];
+      if (!used.includes(cand) && !themesToday.includes(cand)) { t = cand; break; }
+    }
+    // Bank fully used → least-bad fallback: continue rotation (old behavior).
+    themesToday.push(t || b.themeBank[(dayIdx * b.slots.length + k) % b.themeBank.length]);
+  }
   const OFF_NICHE = /\bstoic\w*|manipulat\w*|toxic|calm your mind|dark psychology\b/i;
 
   const slotLimit = TOPUP_N > 0 ? Math.min(TOPUP_N, b.slots.length) : b.slots.length;
@@ -196,7 +207,7 @@ if (RUN_SHORTS) {
       ...(state[slug] || {}),
       lastRunDate: suppressNext ? new Date(Date.now() + 86400000).toISOString().slice(0, 10) : today,
       ...(TOPUP_N > 0 ? { healedDate: today, healedCount: results.length } : {}),
-      usedThemes: themesToday, lastVideos: results, deepdiveDate: state[slug]?.deepdiveDate || null
+      usedThemes: [...used, ...themesToday].slice(-(b.themeBank.length * 2)), lastVideos: results, deepdiveDate: state[slug]?.deepdiveDate || null
     };
     saveState(state);
   }

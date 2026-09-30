@@ -198,7 +198,15 @@ if (state[slug]?.deepdiveDate === today() && !FORCE) {
 function today() { return new Date().toISOString().slice(0, 10); }
 
 console.log(`[long] ${b.label} — premium daily episode`);
-const theme = b.themeBank[Math.floor(Date.now() / 86400000) % b.themeBank.length];
+// 09-30 DUP FIX: was day % bank.length — a 12-theme bank repeated every
+// 12 days per channel. Skip anything used in the recorded episode history.
+const usedLong = Array.isArray(state[slug]?.usedLongThemes) ? state[slug].usedLongThemes : [];
+let theme = null;
+for (let off = 0; off < b.themeBank.length; off++) {
+  const cand = b.themeBank[(Math.floor(Date.now() / 86400000) + off) % b.themeBank.length];
+  if (!usedLong.includes(cand)) { theme = cand; break; }
+}
+if (!theme) theme = b.themeBank[Math.floor(Date.now() / 86400000) % b.themeBank.length];
 const script = await llmScript(LONG_PROMPT(b, theme));
 
 fs.mkdirSync(`demos/deepdive-${slug}`, { recursive: true });
@@ -292,6 +300,7 @@ await yt.thumbnails.set({ videoId: res.data.id, media: { body: Readable.from(thu
 const st = loadState();
 st[slug] = st[slug] || {};
 st[slug].deepdiveDate = today();
+st[slug].usedLongThemes = [...usedLong, theme].slice(-(b.themeBank.length * 2));
 st[slug].deepdiveVideo = { videoId: res.data.id, publishAt, title: `${script.title} | ${b.authority}` };
 saveChannelState(slug, st[slug]);
 
