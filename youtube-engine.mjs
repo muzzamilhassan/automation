@@ -517,12 +517,15 @@ export async function generateYouTubeScript(page, forcedTheme = null) {
   const brand = resolveBrand(page);
   const fallback = FALLBACK_SCRIPTS[page?.id] || FALLBACK_SCRIPTS['114550268199751'];
   if (!GEMINI_API_KEY) return { ...fallback, source: 'fallback' };
-  const legacyThemes = ['silent behaviors that make people respect you', 'things to cut out of your life quietly', 'signs someone is secretly testing you', 'things you must do alone to become stronger', 'rules that protect you from toxic people', 'phrases fake friends use', 'things you should never apologize for', 'stop caring about these things', 'habits of mentally unbreakable people', 'ways to beat manipulators without fighting'];
-  const themeList = forcedTheme ? forcedTheme : (brand.themeBank?.length ? brand.themeBank : legacyThemes).join(' / ');
+  // 09-30: static theme lists are gone. The caller passes a research-derived
+  // topic directive; without one, the model chooses from the live trend
+  // signals (or the niche itself as last resort).
   const themeLine = forcedTheme
-    ? `Theme for this script (MUST be about exactly this): ${forcedTheme}.`
-    : `Pick ONE theme from this PROVEN list (rotate, never repeat yesterday's): ${themeList}.`;
-  const styleLine = brand.themeBank?.length
+    ? `Topic for this script (MUST be about exactly this): ${forcedTheme}`
+    : page.trend
+      ? `Choose the single most compelling topic for today's video yourself, derived from the viral signals below. Do NOT copy any existing title.`
+      : `Choose the single most compelling, most searched topic in the niche for today's video.`;
+  const styleLine = brand.niches?.length
     ? `Write like the top ${brand.authority} YouTube channels for "${page.name}" (Niche: ${page.niche}). The points must be concrete, specific ${brand.niches[0]} insights that feel like insider knowledge, not vague motivation.\nCRITICAL: every point MUST be strictly about ${brand.niches.join(' / ')}. Do NOT write generic stoicism, generic self-improvement, or mindset fluff.`
     : `You write viral self-improvement YouTube Shorts scripts (like top stoicism channels: Stoic Legend, Psygena, Legacy Mindset) for "${page.name}" (Niche: ${page.niche}).\nWrite in EASY, CLEAR, punchy English. The points must be about HUMAN PSYCHOLOGY, respect and social dynamics (this is what performs best), not abstract quotes.`;
   const trendBlock = page.trend ? `\nGOING VIRAL RIGHT NOW in this exact niche (ride this wave — align your angle and wording with what is working): ${page.trend.videos.slice(0, 5).map(v => `"${v.title}"`).join(' | ')}\nHot search keywords to weave in naturally: ${page.trend.hotKeywords.join(', ')}.` : '';

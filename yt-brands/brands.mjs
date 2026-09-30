@@ -29,7 +29,6 @@ export const BRANDS = [
     slots: ['11:35', '15:35', '22:35'], longSlot: '20:30',
     longSlot: '14:30',
     active: true,
-    themeBank: ['silent behaviors that make people respect you', 'things to cut out of your life quietly', 'signs someone is secretly testing you', 'things you must do alone to become stronger', 'rules that protect you from toxic people', 'phrases fake friends use', 'things you should never apologize for', 'stop caring about these things', 'habits of mentally unbreakable people', 'ways to beat manipulators without fighting', 'habits that separate winners from dreamers', 'signs you are becoming mentally stronger', 'morning habits that build unshakeable discipline', 'how to stay calm when everyone panics', 'signs you are becoming impossible to manipulate', 'the stoic way to handle insults', 'why silence scares manipulators', 'habits that quietly rebuild your confidence', 'how to stop needing everyones approval', 'rules for choosing your circle wisely', 'what strong people never explain to anyone', 'how to respond instead of react', 'signs you are healing louder than they hurt you', 'the art of not reacting', 'daily habits of the emotionally unshakeable', 'how to be respected without saying a word', 'why discipline beats motivation every time', 'how to detach without hatred', 'signs someone envies you secretly', 'how to protect your energy daily', 'things strong people do in silence', 'how to outgrow people politely', 'the stoic rule for dealing with haters', 'why walking away is a power move', 'habits that make you dangerously focused', 'how to master your mornings like a stoic', 'signs you are winning quietly', 'how to stop overthinking everything', 'the power of being unnoticed', 'rules that keep your peace untouchable', 'how to handle betrayal like a stoic', 'why lonely seasons build strong people', 'habits of people who never stress', 'how to train your mind like a warrior', 'signs your standards are quietly rising', 'how to be happy with less', 'the quiet art of self-respect', 'why observation beats reaction every time']
   },
   {
     slug: 'investors-compass',
@@ -48,7 +47,6 @@ export const BRANDS = [
     musicFeels: ['calming', 'inspir', 'mystical'], // premium, calm-confident market wisdom
     slots: ['12:05', '16:05', '23:35'], longSlot: '21:30', // long: 5:30p ET
     description: 'Investing wisdom and stock market psychology in 60 seconds. Timeless principles from Buffett, Munger and Bogle — patience, compounding, and buying fear instead of selling it. New Shorts daily. Build conviction, not panic. Subscribe for daily investing wisdom.',
-    themeBank: ['rule #1 warren buffett never breaks', 'the day the market lost $1 trillion', 'the trader who blew up $100 million', 'what buffett does when everyone panics', 'the biggest investing mistake according to buffett', 'why buffett never sells in a crash', 'how the rich buy the crash', 'the 90-year rule that beats day trading', 'what compounding does by age 60', 'the stock buffett held for 30 years', 'signs a stock is hype not value', 'the bull market trap that wipes beginners', 'why cash is a position too', 'the 2008 lesson rich investors never forgot', 'how fees quietly eat your millions', 'the danger of averaging down blindly', 'why the market punishes the impatient', 'mungers rule for avoiding stupid mistakes', 'how market cycles trick beginners', 'the psychology of selling too early', 'what a crashing dollar means for you', 'why dividends compound quietly', 'the dotcom trap history repeats', 'how to think in decades not days', 'why boring stocks build fortunes', 'the circle of competence rule', 'how the fed moves your money', 'signs you are gambling not investing', 'the margin call that ended a legend', 'why bear markets are gifts', 'how inflation steals retirement', 'the rebalancing rule pros swear by', 'why time in market beats timing', 'the greatest investor you never hear about', 'how panic creates millionaires', 'the etf rule for lazy investors', 'why smart people make poor investors', 'the 1929 lesson modern markets forgot', 'how to read fear like buffett', 'why patience is the ultimate edge', 'the silent power of index funds', 'when to do nothing at all', 'how narratives inflate bubbles', 'the warren buffett snowball effect', 'why losses hurt twice as much', 'the risk hiding in your favorites', 'how to invest like the wealthy', 'the one metric that warns you first'],
     script: { targetSeconds: 32, points: 4, lineWords: '9-12', titleStyle: 'authority + market-story', titleExamples: '"Rule #1 Warren Buffett Never Breaks", "The Day the Market Lost $1 Trillion"' }
   },
   {
@@ -68,7 +66,6 @@ export const BRANDS = [
     musicFeels: ['bright', 'uplifting', 'grooving'], // clean, confident money-rules energy
     slots: ['12:35', '16:35', '00:05'], longSlot: '22:30', // long: 6:30p ET
     description: 'Money rules that quietly build wealth — one principle per Short. Pay yourself first, automate savings, kill lifestyle creep. Personal finance in 60 seconds, new rule every day. Subscribe and let the rules compound.',
-    themeBank: ['7 money habits that quietly make you rich', '6 rules for your first $10,000', '5 money moves before you turn 30', 'the 50/30/20 rule explained fast', '4 silent ways you leak money every month', 'the 24-hour rule that kills impulse spending', '5 things rich people never buy', 'how to automate your first $100k', '7 budget rules the rich actually follow', 'the $1 rule that changes how you spend', '6 salary moves that build wealth fast', 'why the rich never pay full price', 'the pay yourself first method', 'why the middle class stays middle class', '5 money lies you were told', 'how to price your time correctly', 'the 3-account system that builds wealth', 'why your car is killing your net worth', 'the 10-year money plan in 60 seconds', 'how credit card points really work', '6 expenses the rich skip', 'the latte factor myth explained', 'why raises make poor people poorer', 'how to build an emergency fund fast', 'the 1% rule for daily spending', '7 signs you are bad with money', 'how the rich dodge lifestyle traps', 'why budgets fail by february', 'the cash flow rule of the wealthy', '4 bank fees you should never pay', 'how to negotiate everything', 'the 30-day list that saves thousands', 'why assets beat income', '6 money rules by age 40', 'how subscriptions drain your future', 'the envelope method modernized', 'why your friends decide your net worth', 'the 80/20 of saving money', 'how to split income like the rich', '5 investing myths that keep you poor', 'the wealth ladder nobody teaches', 'why debt-free feels like a raise', 'how to spend guilt-free', 'the 10k rule for big purchases', 'why the poor buy twice', '6 ways to make money work overnight', 'the money map of your 20s', 'how to escape the paycheck cycle'],
     script: { targetSeconds: 32, points: 4, lineWords: '9-12', titleStyle: 'numbered money listicle with a $ figure', titleExamples: '"7 Money Habits That Quietly Make You Rich", "6 Rules for Your First $10,000"' }
   },
   {
@@ -88,7 +85,6 @@ export const BRANDS = [
     musicFeels: ['driving', 'action', 'heroic'], // determined, no-excuses debt payoff energy
     slots: ['13:05', '17:05', '00:35'], longSlot: '01:30', // long: 9:30p ET
     description: 'Debt freedom starts with the right rules, not more hustle. Credit scores, loan traps, and payoff order — explained in 60 seconds. New Shorts daily until debt is a word you forget. Subscribe and start owing nothing.',
-    themeBank: ['the $30,000 mistake almost everyone makes', 'week 1 of the debt snowball', 'how one rule paid off $10,000 fast', 'what debt collectors can actually do to you', 'the true cost of a $5,000 loan', '3 credit moves that raise your score 100 points', 'why minimum payments keep you broke', 'the snowball vs avalanche race', 'signs your loan is a trap', 'how it feels the day you are debt-free', 'the 0% card trick banks hate', 'the first debt to pay off is not the biggest', 'why your credit score drops after paying off', 'the debt freeze method that works', '5 signs debt is controlling you', 'how to read your loan contract like a lawyer', 'the credit utilization rule explained', 'why consolidation loans can backfire', 'the 28% rule for safe borrowing', 'how to dispute errors on your report', 'what happens when you stop paying', 'the psychology of impulse debt', 'why stores push their credit cards', 'the avalanche method for impatient people', 'how to build credit without debt', 'the grace period trick', '6 debts to kill first', 'why bnpl is quietly dangerous', 'the secured card comeback plan', 'how interest is actually calculated', 'the 15/3 payment hack', 'why minimum due is a trap design', 'how to negotiate a settlement', 'the debt-free budget template', 'signs you are ready for a mortgage', 'why collections calls have rules', 'the 50/30/20 fix for debt', 'how to say no to cosigning', 'the credit mix myth', 'what bankruptcy really costs', 'how to recover from a default', 'the 90-day credit rebuild plan', 'why auto loans trap the middle class', 'the one question before any loan', 'how to track every dollar you owe', 'the statute of limitations on debt', 'why payday loans cost 400%', 'the freedom date every debtor needs'],
     script: { targetSeconds: 32, points: 4, lineWords: '9-12', titleStyle: 'journey/stakes framing', titleExamples: '"The $30,000 Mistake Almost Everyone Makes", "Week 1 of the Debt Snowball"' }
   },
   {
@@ -107,7 +103,6 @@ export const BRANDS = [
     voice: 'bm_george',
     slots: ['23:05'],
     description: 'Real estate wisdom in 60 seconds — mortgages, first homes, rental math, and the property rules banks hope you never question. New Shorts daily. Own land, sleep well. Subscribe for daily property wisdom.',
-    themeBank: ['first home mistakes that cost six figures', 'mortgage truths banks soften', 'rent vs buy decided by one number', 'signs a property is a money pit', 'questions to ask before signing', 'house rules rich buyers follow', 'red flags at an open house', 'how location quietly sets your net worth', 'renting can make you rich if', 'closing costs nobody warns you about', 'property inspection secrets', 'what appraisers actually look for']
   },
   {
     slug: 'policy-brief',
@@ -125,7 +120,6 @@ export const BRANDS = [
     voice: 'am_michael',
     slots: ['02:35'],
     description: 'Insurance explained in 60 seconds — coverage gaps, claim secrets, and the fine print that saves families. Life, health, auto and home, one policy rule at a time. New Shorts daily. Subscribe before you need it.',
-    themeBank: ['insurance mistakes that void your claim', 'what life insurance really covers', 'claims adjusters hope you never ask', 'coverage gaps that bankrupt families', 'term vs whole life made simple', 'car insurance rules after a crash', 'health insurance terms decoded', 'when to increase your coverage', 'denied claim next moves', 'hidden perks already in your policy', 'renters insurance myths', 'disability insurance the quiet essential']
   },
   {
     slug: 'old-money-code',
@@ -143,7 +137,6 @@ export const BRANDS = [
     voice: 'af_heart',
     slots: ['13:05'],
     description: 'Old money habits, quiet luxury, and the rules of understated wealth — in 60 seconds. How generational wealth thinks, spends, and stays silent. New Shorts daily. Subscribe and learn why wealth whispers.',
-    themeBank: ['old money rules for spending', 'habits of generational wealth', 'why the rich buy boring things', 'quiet luxury is a behavior', 'things old money never flaunt', 'how heirs are raised differently', 'old money morning rituals', 'signs of new money vs old money', 'the asset first rule', 'elegance is restraint explained', 'old money rules for dressing', 'family rules that preserve fortunes']
   },
   {
     slug: 'founders-margin',
@@ -161,7 +154,6 @@ export const BRANDS = [
     voice: 'am_adam',
     slots: ['21:35'],
     description: 'Founder lessons in 60 seconds — pricing, first customers, cash flow, and the startup mistakes that kill good ideas. Business wisdom for people who build. New Shorts daily. Subscribe and protect your margin.',
-    themeBank: ['founder mistakes that kill startups', 'rules for your first customer', 'pricing mistakes that bleed margin', 'bootstrap rules that force profit', 'signs your business model is broken', 'cash flow truths nobody teaches', 'why boring businesses win', 'when to quit your job numbers', 'marketing on a zero budget', 'lessons from failed founders', 'one product beats ten ideas', 'hire slow rules for founders']
   },
   {
     slug: 'closing-table',
@@ -179,7 +171,6 @@ export const BRANDS = [
     voice: 'am_onyx',
     slots: ['22:35'],
     description: 'Negotiation psychology in 60 seconds — the moves, the silences, and the frames that close deals at work, in business, and in life. New Shorts daily. Subscribe and never accept the first number again.',
-    themeBank: ['negotiation moves that flip leverage', 'silence as a weapon explained', 'phrases that kill a deal', 'salary negotiation scripts that work', 'anchors decide the outcome', 'how to read a buyer real intent', 'objection handling in three steps', 'power questions that close', 'signs you are being manipulated in a deal', 'the flinch and other classics', 'win-win is a trap sometimes', 'walk away like a professional']
   },
   {
     slug: 'corner-office',
@@ -197,7 +188,6 @@ export const BRANDS = [
     voice: 'bm_daniel',
     slots: ['23:35'],
     description: 'Leadership wisdom in 60 seconds — managing up, running meetings, earning respect, and the quiet moves that get people promoted. New Shorts daily. Subscribe and lead without the noise.',
-    themeBank: ['boss mistakes that lose the team', 'rules for managing your manager', 'meeting moves that show authority', 'how leaders say no gracefully', 'signs of a weak leader', 'promotion habits nobody notices', 'delegation without losing control', 'feedback that actually changes people', 'office politics without the games', 'first 90 days as a new manager', 'quiet authority is a skill', 'why great leaders hire people who argue']
   },
   {
     slug: 'tax-shield',
@@ -215,7 +205,6 @@ export const BRANDS = [
     voice: 'am_michael',
     slots: ['00:05'],
     description: 'Tax principles in 60 seconds — deductions, LLC basics, bookkeeping habits, and the rules that help earners keep more of what they make. Education, not advice. New Shorts daily. Subscribe and build your shield.',
-    themeBank: ['deduction myths that trigger audits', 'LLC truths simplified', 'bookkeeping habits that save tax season', 'expenses people forget to track', 'self employed money rules', 'quarterly taxes explained simply', 'records the tax office loves', 'home office rules decoded', 'why the rich hire accountants early', 'receipts rule everything', 'entity choice in plain english', 'legal writes offs vs myths']
   },
   {
     slug: 'ai-observer',
@@ -233,7 +222,6 @@ export const BRANDS = [
     voice: 'af_heart',
     slots: ['21:05'],
     description: 'AI explained in 60 seconds — the tools, the shifts, and the jobs changing first. Understand the future before it replaces the unprepared. New Shorts daily. Subscribe and stay future proof.',
-    themeBank: ['jobs ai changes first', 'ai tools that feel illegal to know', 'signs a task will be automated', 'how to future proof your career', 'ai myths everyone still believes', 'prompts that feel like cheating', 'what agentic ai really means', 'skills ai makes more valuable', 'the last jobs to be automated', 'ai red flags to spot fake content', 'small businesses winning with ai', 'questions to ask before trusting ai']
   },
   {
     slug: 'deep-work-os',
@@ -251,7 +239,6 @@ export const BRANDS = [
     voice: 'am_onyx',
     slots: ['00:35'],
     description: 'Deep work in 60 seconds — focus systems, anti-distraction rules, and the habits of people who produce more by doing less. New Shorts daily. Subscribe and install your focus operating system.',
-    themeBank: ['focus rules that beat willpower', 'phone habits destroying your attention', 'morning systems of high performers', 'how to start when you overdistracted', 'deep work blocks explained', 'signs you are busy not productive', 'rules for your first deep work hour', 'distraction detox weekend', 'why multitasking is a scam', 'shutdown rituals that end the day', 'environment beats discipline', 'procrastination decoded in 60 seconds']
   },
   {
     slug: 'longevity-code',
@@ -269,7 +256,6 @@ export const BRANDS = [
     voice: 'af_heart',
     slots: ['01:05'],
     description: 'Longevity habits in 60 seconds — sleep, movement, food, and the small daily choices that add decades. Science made simple, one habit at a time. New Shorts daily. Subscribe and play the long game.',
-    themeBank: ['daily habits that add years', 'what blue zones actually do', 'strength training after 40 rules', 'sleep is the cheapest medicine', 'food rules longevity doctors follow', 'signs your body is asking for help', 'walking is underrated science', 'stress aging you faster', 'morning light and your body clock', 'metabolic health decoded', 'habits quietly stealing your energy', ' screenings worth doing yearly']
   },
   {
     slug: 'iron-discipline',
@@ -287,7 +273,6 @@ export const BRANDS = [
     voice: 'am_fenrir',
     slots: ['02:05'],
     description: 'Gym motivation with a spine — discipline over motivation, consistency over hype, one rep at a time. New Shorts daily. The iron never lies. Subscribe and show up anyway.',
-    themeBank: ['rules of showing up daily', 'excuses the gym deletes', 'training when nobody claps', 'discipline is a muscle too', 'what six months of consistency does', 'hard truths about transformation', 'the two day rule explained', 'training the mind first', 'why slow reps build strong men', 'rest is part of the program', 'motivation follows action', 'become the person who never skips']
   },
   {
     slug: 'sleep-architect',
@@ -305,7 +290,6 @@ export const BRANDS = [
     voice: 'af_heart',
     slots: ['01:35'],
     description: 'Sleep science in 60 seconds — evening rules, deep sleep triggers, and the recovery habits that rebuild your brain and body. New Shorts daily, right before bed. Subscribe and win tomorrow tonight.',
-    themeBank: ['evening habits that wreck deep sleep', 'rules for falling asleep faster', 'caffeine math nobody does', 'your phone and your melatonin', 'the wind down hour protocol', 'why you wake at 3am', 'naps that help vs hurt', 'sleep debt is real science', 'bedroom design for deep sleep', 'what one bad night really does', 'temperature is the sleep switch', 'morning light sets your night']
   }
 ];
 

@@ -19,7 +19,9 @@ export async function GET() {
       fb: fbRow ? { name: fbRow.name, username: fbRow.username, followers: fbRow.followers } : null,
       ig: ig ? { username: ig.username, followers: ig.followers, posts: ig.posts } : null,
       lastRun: s.lastRunDate || null, imageDate: s.imageDate || null,
-      deepdiveDate: s.deepdiveDate || null, todayVideos: (s.lastVideos || []).length
+      deepdiveDate: s.deepdiveDate || null, todayVideos: (s.lastVideos || []).length,
+      todayTopics: Array.isArray(s.todayTopics) ? s.todayTopics.map(t => t.topic) : null,
+      episodeTopic: s.todayTopic?.topic || null
     };
   });
   const totals = {

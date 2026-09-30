@@ -198,15 +198,27 @@ if (state[slug]?.deepdiveDate === today() && !FORCE) {
 function today() { return new Date().toISOString().slice(0, 10); }
 
 console.log(`[long] ${b.label} — premium daily episode`);
-// 09-30 DUP FIX: was day % bank.length — a 12-theme bank repeated every
-// 12 days per channel. Skip anything used in the recorded episode history.
-const usedLong = Array.isArray(state[slug]?.usedLongThemes) ? state[slug].usedLongThemes : [];
+// 09-30: episode topics are RESEARCH-LED too (static banks removed). The
+// topic comes from the strongest current story in the niche; seeds already
+// used are skipped so episodes never circle the same subject.
 let theme = null;
-for (let off = 0; off < b.themeBank.length; off++) {
-  const cand = b.themeBank[(Math.floor(Date.now() / 86400000) + off) % b.themeBank.length];
-  if (!usedLong.includes(cand)) { theme = cand; break; }
+let longSeed = null;
+try {
+  const { researchTrend } = await import('./trend-research.mjs');
+  const tokLong = JSON.parse(process.env[`YT_TOKEN_${slug.toUpperCase().replace(/-/g, '_')}`] || fs.readFileSync(path.resolve(HERE, `yt-mcp/channels/${slug}/token.json`), 'utf8'));
+  const oauthLong = new google.auth.OAuth2(process.env.YOUTUBE_CLIENT_ID, process.env.YOUTUBE_CLIENT_SECRET);
+  oauthLong.setCredentials({ refresh_token: tokLong.refresh_token });
+  const trend = await researchTrend(slug, oauthLong, [...b.niches, ...b.tags.slice(0, 2)]);
+  const usedLong = Array.isArray(state[slug]?.usedLongSeeds) ? state[slug].usedLongSeeds : [];
+  longSeed = trend.videos.find((v) => !usedLong.includes(v.title)) || trend.videos[0] || null;
+  if (longSeed) {
+    theme = `Build today's documentary around the THEME of this proven viral video in the niche: "${longSeed.title}" (${longSeed.views.toLocaleString('en-US')} views in the last 14 days). Reimagine it as a deep, original ${b.label} episode — do NOT copy its title or content; go much deeper with a fresh angle. What is working right now: ${trend.hotKeywords.slice(0, 8).join(', ')}.`;
+  }
+} catch (e) { console.log(`[long] trend research failed: ${String(e.message).slice(0, 70)} — using evergreen niche angle`); }
+if (!theme) {
+  // Last-resort evergreen angle (not a static list — derived from the niche).
+  theme = `The most searched, most argued-about question in ${b.niche} right now, told as a story-driven documentary for ${b.label}.`;
 }
-if (!theme) theme = b.themeBank[Math.floor(Date.now() / 86400000) % b.themeBank.length];
 const script = await llmScript(LONG_PROMPT(b, theme));
 
 fs.mkdirSync(`demos/deepdive-${slug}`, { recursive: true });
@@ -300,7 +312,10 @@ await yt.thumbnails.set({ videoId: res.data.id, media: { body: Readable.from(thu
 const st = loadState();
 st[slug] = st[slug] || {};
 st[slug].deepdiveDate = today();
-st[slug].usedLongThemes = [...usedLong, theme].slice(-(b.themeBank.length * 2));
+if (longSeed) {
+  st[slug].usedLongSeeds = [...(st[slug].usedLongSeeds || []), longSeed.title].slice(-40);
+  st[slug].todayTopic = { at: today(), topic: longSeed.title };
+}
 st[slug].deepdiveVideo = { videoId: res.data.id, publishAt, title: `${script.title} | ${b.authority}` };
 saveChannelState(slug, st[slug]);
 

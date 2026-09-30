@@ -208,6 +208,41 @@ export default function Overview() {
         </div>
       </Card>
 
+      {/* researched topics */}
+      {active.some((c) => c.todayTopics || c.episodeTopic) ? (
+        <Card className="mb-5 overflow-hidden">
+          <CardHead
+            title="Today's researched topics"
+            sub="Picked by the machine from what is provably getting views in each niche right now — no fixed lists"
+            icon={Radar}
+          />
+          <div className="px-4 pb-4 grid md:grid-cols-2 gap-2.5">
+            {active.filter((c) => c.todayTopics || c.episodeTopic).map((c) => (
+              <div key={c.slug} className="inset-tile p-3.5">
+                <div className="flex items-center gap-2 mb-2">
+                  <BrandMark short={BRAND_META[c.slug]?.short || '•'} accent={c.accent} size={22} />
+                  <span className="text-[12px] font-semibold text-ink">{c.label}</span>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {(c.todayTopics || []).map((t, i) => (
+                    <span key={i} className="text-[11.5px] text-muted leading-snug flex gap-1.5">
+                      <span style={{ color: c.accent }}>▸</span>
+                      <span className="line-clamp-2">from viral wave: “{t}”</span>
+                    </span>
+                  ))}
+                  {c.episodeTopic ? (
+                    <span className="text-[11.5px] text-muted leading-snug flex gap-1.5">
+                      <span className="text-accent">▸</span>
+                      <span className="line-clamp-2">episode: “{c.episodeTopic}”</span>
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
+
       {/* uploads + trends */}
       <div className="grid lg:grid-cols-2 gap-4">
         <Card>

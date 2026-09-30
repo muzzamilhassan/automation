@@ -2,6 +2,8 @@
 // search.list (own 100-calls/day bucket) over the last 14 days, ordered by
 // views, US region -> pulls full stats/tags -> extracts hot keywords.
 // Cached ~3 days per slug to conserve quota.
+// 09-30: topics are now RESEARCH-LED (static theme banks removed) — so this
+// must not fail lightly. Tries several seed combinations before giving up.
 // Usage (from yt-daily): const trend = await researchTrend(slug, auth, seeds);
 import fs from 'node:fs';
 import { google } from 'googleapis';
@@ -17,13 +19,32 @@ export async function researchTrend(slug, auth, seeds, cacheDays = 3) {
 
   const yt = google.youtube({ version: 'v3', auth });
   const after = new Date(Date.now() - 14 * 86400000).toISOString();
-  const q = seeds.slice(0, 2).join(' ');
-  const search = await yt.search.list({
-    part: 'snippet', q, order: 'viewCount', publishedAfter: after,
-    maxResults: 10, type: 'video', regionCode: 'US', relevanceLanguage: 'en'
-  });
-  const ids = search.data.items.map(i => i.id.videoId).filter(Boolean);
-  if (!ids.length) throw new Error('no trend results');
+
+  // Try a few query shapes — combined seeds, then singles — first one with
+  // results wins. A blank trend now means NO video for that channel, so this
+  // must be resilient.
+  const queries = [
+    seeds.slice(0, 2).join(' '),
+    seeds[0],
+    seeds[1] || seeds[0],
+    seeds.slice(0, 2).join(' ') + ' explained',
+  ].filter(Boolean);
+
+  let ids = null;
+  let usedQuery = '';
+  let lastErr = null;
+  for (const q of queries) {
+    try {
+      const search = await yt.search.list({
+        part: 'snippet', q, order: 'viewCount', publishedAfter: after,
+        maxResults: 10, type: 'video', regionCode: 'US', relevanceLanguage: 'en'
+      });
+      const found = search.data.items.map(i => i.id.videoId).filter(Boolean);
+      if (found.length >= 3) { ids = found; usedQuery = q; break; }
+      if (found.length && !ids) { ids = found; usedQuery = q; } // keep best-effort
+    } catch (e) { lastErr = e; console.log(`[trend] q="${q}" failed: ${String(e.message).slice(0, 60)}`); }
+  }
+  if (!ids?.length) throw new Error(lastErr ? `trend search failed: ${String(lastErr.message).slice(0, 60)}` : 'no trend results for any seed');
 
   const vids = await yt.videos.list({ part: 'snippet,statistics', id: ids.join(',') });
   const videos = vids.data.items.map(v => ({
@@ -47,7 +68,7 @@ export async function researchTrend(slug, auth, seeds, cacheDays = 3) {
   const hotKeywords = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 12).map(e => e[0]);
 
   const trend = {
-    at: Date.now(), seed: q, hotKeywords,
+    at: Date.now(), seed: usedQuery, hotKeywords,
     viralChannels: [...new Set(videos.map(v => v.channel))].slice(0, 8),
     videos: videos.slice(0, 8).map(v => ({ title: v.title, channel: v.channel, views: v.views, videoId: v.videoId }))
   };

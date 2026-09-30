@@ -95,39 +95,52 @@ const themes = [];
 const page = { id: 'yt-' + slug, ytSlug: slug, name: b.label, niche: b.niche };
 
 if (RUN_SHORTS) {
+  // 09-30: topics are RESEARCH-LED. The static theme banks are gone — each
+  // slot's topic comes from what is provably getting views in this niche
+  // right now (top-viewed videos of the last 14 days, one viral wave per
+  // slot, skipping seeds used recently). If research fails, slots skip
+  // (fail-closed — same rule as the recycle removal).
   try {
     page.trend = await researchTrend(slug, channelAuth(slug), [...b.niches, ...b.tags.slice(0, 2)]);
     console.log(`[trend] 🔥 hot: ${page.trend.hotKeywords.slice(0, 6).join(', ')}`);
-  } catch (e) { console.log('[trend] skipped:', String(e.message).slice(0, 60)); }
+  } catch (e) {
+    console.log(`[trend] FAILED: ${String(e.message).slice(0, 80)} — slots skipped (fail-closed, no static fallback)`);
+  }
 
   const yt = google.youtube({ version: 'v3', auth: channelAuth(slug) });
-  // 09-30 DUP FIX: the old picker was (dayIdx*3+k) % bank.length — a 12-theme
-  // bank with 3 slots/day mathematically repeated every theme every 4 days
-  // (same titles on YouTube + FB/IG reels). Now: keep the rotation order but
-  // skip anything already used in the recorded history, and PERSIST that
-  // history (rolling window of 2× bank size) instead of overwriting it daily.
-  const used = Array.isArray(state[slug]?.usedThemes) ? state[slug].usedThemes : [];
+  const usedSeeds = Array.isArray(state[slug]?.usedTrendSeeds) ? state[slug].usedTrendSeeds : [];
   const dayIdx = Math.floor(Date.now() / 86400000);
+  const waves = page.trend?.videos || [];
   const themesToday = [];
-  for (let k = 0; k < b.slots.length; k++) {
-    let t = null;
-    for (let off = 0; off < b.themeBank.length; off++) {
-      const cand = b.themeBank[(dayIdx * b.slots.length + k + off) % b.themeBank.length];
-      if (!used.includes(cand) && !themesToday.includes(cand)) { t = cand; break; }
+  if (waves.length) {
+    for (let k = 0; k < b.slots.length; k++) {
+      let seed = null;
+      for (let off = 0; off < waves.length; off++) {
+        const cand = waves[(dayIdx * b.slots.length + k + off) % waves.length];
+        if (!usedSeeds.includes(cand.title) && !themesToday.some((t) => t.seed === cand.title)) { seed = cand; break; }
+      }
+      if (!seed) seed = waves[(dayIdx * b.slots.length + k) % waves.length];
+      themesToday.push({
+        seed: seed.title,
+        topic: `Build today's video around the THEME of this proven viral video in the niche right now: "${seed.title}" (${seed.views.toLocaleString('en-US')} views in the last 14 days). Reimagine it natively for ${b.label} — do NOT copy its title or wording; bring a fresh angle. Weave in what is currently working: ${(page.trend.hotKeywords.slice(0, 6)).join(', ')}.`
+      });
     }
-    // Bank fully used → least-bad fallback: continue rotation (old behavior).
-    themesToday.push(t || b.themeBank[(dayIdx * b.slots.length + k) % b.themeBank.length]);
   }
+  console.log(`[topics] ${themesToday.map(t => '← ' + t.seed.slice(0, 48)).join(' | ') || 'none — research unavailable'}`);
   const OFF_NICHE = /\bstoic\w*|manipulat\w*|toxic|calm your mind|dark psychology\b/i;
 
   const slotLimit = TOPUP_N > 0 ? Math.min(TOPUP_N, b.slots.length) : b.slots.length;
   for (let i = 0; i < slotLimit; i++) {
     const publishAt = nextSlotISO(b.slots[i]);
     console.log(`\n[${slug}] short ${i + 1}/${b.slots.length} → goes public ${publishAt}`);
-    let script = await generateYouTubeScript(page, themesToday[i]);
+    if (!themesToday[i]) {
+      console.log('  ✗ no researched topic (trend research failed) — slot skipped (fail-closed, no static fallback)');
+      continue;
+    }
+    let script = await generateYouTubeScript(page, themesToday[i].topic);
     for (let t = 0; t < 2 && OFF_NICHE.test(JSON.stringify(script.points)); t++) {
       console.log('  off-niche drift — regenerating');
-      script = await generateYouTubeScript(page, themesToday[i]);
+      script = await generateYouTubeScript(page, themesToday[i].topic);
     }
     if (script.source === 'fallback') {
       // Quota out → the slot SKIPS. Recycle was REMOVED 09-18: re-uploading the
@@ -207,7 +220,9 @@ if (RUN_SHORTS) {
       ...(state[slug] || {}),
       lastRunDate: suppressNext ? new Date(Date.now() + 86400000).toISOString().slice(0, 10) : today,
       ...(TOPUP_N > 0 ? { healedDate: today, healedCount: results.length } : {}),
-      usedThemes: [...used, ...themesToday].slice(-(b.themeBank.length * 2)), lastVideos: results, deepdiveDate: state[slug]?.deepdiveDate || null
+      usedTrendSeeds: [...usedSeeds, ...themesToday.map(t => t.seed)].slice(-40),
+      todayTopics: themesToday.map(t => ({ at: today, topic: t.seed })),
+      lastVideos: results, deepdiveDate: state[slug]?.deepdiveDate || null
     };
     saveState(state);
   }
