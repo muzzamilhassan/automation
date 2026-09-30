@@ -72,25 +72,30 @@
     "healedCount": 3
   },
   "debt-free-doctrine": {
-    "lastRunDate": "2026-09-29",
+    "lastRunDate": "2026-09-30",
     "usedThemes": [
-      "what debt collectors can actually do to you",
-      "the true cost of a $5,000 loan",
-      "3 credit moves that raise your score 100 points"
+      "why minimum payments keep you broke",
+      "the snowball vs avalanche race",
+      "signs your loan is a trap"
     ],
     "lastVideos": [
       {
-        "videoId": "hxxiQaKzlMU",
-        "publishAt": "2026-09-29T17:05:00Z",
-        "title": "The $5k Loan Trap | Debt Freedom"
+        "videoId": "ZKBUtqbr9ZU",
+        "publishAt": "2026-09-30T13:05:00Z",
+        "title": "The Minimum Payment Trap | Debt Freedom"
       },
       {
-        "videoId": "wIpZfygtS3U",
-        "publishAt": "2026-09-30T00:35:00Z",
-        "title": "3 Credit Moves For 100 Points | Debt Freedom"
+        "videoId": "v21d7s0IvdU",
+        "publishAt": "2026-09-30T17:05:00Z",
+        "title": "Snowball Vs Avalanche Mistake | Debt Freedom"
+      },
+      {
+        "videoId": "dDn6b-P6baM",
+        "publishAt": "2026-10-01T00:35:00Z",
+        "title": "The 30000 Loan Trap Mistake | Debt Freedom"
       }
     ],
-    "imageDate": "2026-09-29",
+    "imageDate": "2026-09-30",
     "deepdiveDate": "2026-09-07",
     "deepdiveVideo": {
       "videoId": "INCR7ceFCOA",
