@@ -1,9 +1,8 @@
 {
-  "at": 1790585974256,
+  "at": 1790846852942,
   "seed": "investing psychology stock market wisdom",
   "hotKeywords": [
     "discipline",
-    "market",
     "tradingpsychology",
     "tradingmindset",
     "soulngoal",
@@ -13,29 +12,25 @@
     "improvement",
     "personal",
     "growth",
-    "success"
+    "success",
+    "productivity"
   ],
   "viralChannels": [
     "Let's Learn Stock Market & Finance",
-    "Soul N Goal"
+    "Soul N Goal",
+    "농부의 경제학"
   ],
   "videos": [
     {
       "title": "Stock Market ( 17 Year Experience in Just 17 Minutes )✅",
       "channel": "Let's Learn Stock Market & Finance",
-      "views": 22779,
+      "views": 39302,
       "videoId": "5W0nh4gP02w"
-    },
-    {
-      "title": "Your emotion can turn a good strategy into a bad trade #TradingPsychology #TradingMindset #SoulNGoal",
-      "channel": "Soul N Goal",
-      "views": 1147,
-      "videoId": "herCxWeKnrI"
     },
     {
       "title": "Discipline means respecting your own rules #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 982,
+      "views": 989,
       "videoId": "YfKZSlxZKcs"
     },
     {
@@ -43,6 +38,12 @@
       "channel": "Soul N Goal",
       "views": 979,
       "videoId": "yyB0-jt6dhU"
+    },
+    {
+      "title": "부자들의 서재에서 찾은 '투자 심리학'",
+      "channel": "농부의 경제학",
+      "views": 896,
+      "videoId": "dcp-0839kU4"
     },
     {
       "title": "Risk should be small enough to think clearly #TradingPsychology #TradingMindset #SoulNGoal",
@@ -53,20 +54,20 @@
     {
       "title": "One losing trade doesn't invalidate a tested strategy #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 787,
+      "views": 786,
       "videoId": "d8HLgD5S62Q"
     },
     {
-      "title": "The market can take more than you planned  #TradingPsychology #TradingMindset #SoulNGoal",
+      "title": "Successful trading is often boring by design #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 698,
-      "videoId": "aXRb1DrIyos"
+      "views": 393,
+      "videoId": "vBrfjB3guLw"
     },
     {
-      "title": "The market doesn't reward broken rules #TradingPsychology #TradingMindset #SoulNGoal",
+      "title": "Emotional trading usually start wit emotional thinking #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 442,
-      "videoId": "MIVKomG7Q2Y"
+      "views": 381,
+      "videoId": "sToOxLjefBA"
     }
   ]
 }

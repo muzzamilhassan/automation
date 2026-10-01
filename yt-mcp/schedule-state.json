@@ -1,6 +1,6 @@
 {
   "investors-compass": {
-    "lastRunDate": "2026-09-30",
+    "lastRunDate": "2026-10-01",
     "usedThemes": [
       "how the rich buy the crash",
       "the 90-year rule that beats day trading",
@@ -8,22 +8,22 @@
     ],
     "lastVideos": [
       {
-        "videoId": "yYeePEl9enk",
-        "publishAt": "2026-09-30T12:05:00Z",
-        "title": "How The Rich Buy Crashes | Investing Psychology"
+        "videoId": "z5bDZEMC9e0",
+        "publishAt": "2026-10-01T12:05:00Z",
+        "title": "One Losing Trade Doesn't Lie | Investing Psychology"
       },
       {
-        "videoId": "6yQcr6yZ-Gg",
-        "publishAt": "2026-09-30T16:05:00Z",
-        "title": "The 90 Year Rule | Investing Psychology"
+        "videoId": "ME1MlLbunAY",
+        "publishAt": "2026-10-01T16:05:00Z",
+        "title": "The 1% Trading Rule | Investing Psychology"
       },
       {
-        "videoId": "toaEKlIAEmM",
-        "publishAt": "2026-09-30T23:35:00Z",
-        "title": "The 60 Year Compounding Trap | Investing Psychology"
+        "videoId": "GxVS_ejCleg",
+        "publishAt": "2026-10-01T23:35:00Z",
+        "title": "Warren Buffett's Unbroken Rule | Investing Psychology"
       }
     ],
-    "imageDate": "2026-09-30",
+    "imageDate": "2026-10-01",
     "deepdiveDate": "2026-09-07",
     "deepdiveVideo": {
       "videoId": "dOJgBHpJgwQ",
@@ -31,7 +31,26 @@
       "title": "The Patient Investor's Edge: 8 Unconventional Habits | Investing Psychology"
     },
     "healedDate": "2026-09-19",
-    "healedCount": 3
+    "healedCount": 3,
+    "usedTrendSeeds": [
+      "One losing trade doesn't invalidate a tested strategy #TradingPsychology #TradingMindset #SoulNGoal",
+      "Successful trading is often boring by design #TradingPsychology #TradingMindset #SoulNGoal",
+      "Emotional trading usually start wit emotional thinking #TradingPsychology #TradingMindset #SoulNGoal"
+    ],
+    "todayTopics": [
+      {
+        "at": "2026-10-01",
+        "topic": "One losing trade doesn't invalidate a tested strategy #TradingPsychology #TradingMindset #SoulNGoal"
+      },
+      {
+        "at": "2026-10-01",
+        "topic": "Successful trading is often boring by design #TradingPsychology #TradingMindset #SoulNGoal"
+      },
+      {
+        "at": "2026-10-01",
+        "topic": "Emotional trading usually start wit emotional thinking #TradingPsychology #TradingMindset #SoulNGoal"
+      }
+    ]
   },
   "money-rulebook": {
     "lastRunDate": "2026-09-30",
