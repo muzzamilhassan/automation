@@ -1,5 +1,5 @@
 {
-  "at": "2026-10-01T18:14:33.635Z",
+  "at": "2026-10-01T23:51:14.821Z",
   "problems": 1,
   "results": [
     {
@@ -11,7 +11,7 @@
       "slug": "investors-compass",
       "channel": "Investor's Compass",
       "subs": "8",
-      "totalVideos": "133",
+      "totalVideos": "134",
       "status": "OK"
     },
     {
@@ -32,7 +32,7 @@
       "slug": "quotequarry",
       "channel": "QuoteQuarry",
       "subs": "187",
-      "totalVideos": "333",
+      "totalVideos": "334",
       "status": "OK"
     }
   ]
