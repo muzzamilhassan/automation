@@ -60,11 +60,34 @@ export function brands() {
   return JSON.parse(fs.readFileSync(path.join(LIB, 'brands.json'), 'utf8'));
 }
 
+// Per-channel state files (yt-mcp/state/<slug>.json) are the source of truth
+// since 09-20 — the legacy schedule-state.json is a best-effort mirror. Merge
+// both, per-channel file wins, so episodes + QQ videos always show.
 export async function state() {
-  if (!CLOUD) {
-    try { return JSON.parse(fs.readFileSync(path.resolve(ROOT, 'yt-mcp/schedule-state.json'), 'utf8')); } catch { return {}; }
+  const merged = {};
+  const legacy = await (async () => {
+    if (!CLOUD) {
+      try { return JSON.parse(fs.readFileSync(path.resolve(ROOT, 'yt-mcp/schedule-state.json'), 'utf8')); } catch { return {}; }
+    }
+    try { return (await ghFile('yt-mcp/schedule-state.json')) || {}; } catch { return {}; }
+  })();
+  Object.assign(merged, legacy);
+
+  const slugs = ['quotequarry', 'investors-compass', 'money-rulebook', 'debt-free-doctrine'];
+  for (const slug of slugs) {
+    try {
+      const per = CLOUD
+        ? await ghFile(`yt-mcp/state/${slug}.json`)
+        : JSON.parse(fs.readFileSync(path.resolve(ROOT, `yt-mcp/state/${slug}.json`), 'utf8'));
+      merged[slug] = { ...(merged[slug] || {}), ...(per || {}) };
+    } catch { }
   }
-  try { return (await ghFile('yt-mcp/schedule-state.json')) || {}; } catch { return {}; }
+  return merged;
+}
+
+// Refresh button support: drop memoized data so the next fetch is truly fresh.
+export function bustCache() {
+  cache = {};
 }
 
 export async function trend(slug) {

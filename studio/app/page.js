@@ -26,16 +26,21 @@ export default function Overview() {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(false);
   const [tick, setTick] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshedAt, setRefreshedAt] = useState(null);
 
-  const load = () =>
-    fetch('/api/overview')
+  const load = (fresh = false) => {
+    if (fresh) setRefreshing(true);
+    return fetch('/api/overview' + (fresh ? '?fresh=1' : ''))
       .then((r) => r.json())
-      .then(setData)
-      .catch(() => setErr(true));
+      .then((d) => { setData(d); setErr(false); if (fresh) setRefreshedAt(new Date()); })
+      .catch(() => setErr(true))
+      .finally(() => setRefreshing(false));
+  };
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 60000);
+    const t = setInterval(() => load(), 60000);
     return () => clearInterval(t);
   }, [tick]);
 
@@ -70,7 +75,7 @@ export default function Overview() {
   const prev = series.reduce((a, s) => a + s.data[12], 0);
   const viewsDelta = prev ? Math.round(((last - prev) / prev) * 100) : 0;
 
-  const upcoming = logs.filter((l) => l.at).slice(0, 8);
+  const upcoming = logs.filter((l) => l.at && (l.kind === "Short" || l.kind === "Episode")).slice(0, 8);
 
   return (
     <div>
@@ -85,8 +90,8 @@ export default function Overview() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="btn btn-outline" onClick={() => setTick((t) => t + 1)}>
-            <RefreshCw size={14} /> Refresh
+          <button className="btn btn-outline" onClick={() => load(true)} disabled={refreshing}>
+            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} /> {refreshing ? 'Refreshing…' : 'Refresh'}
           </button>
           <Link href="/production" className="btn btn-primary">
             <Zap size={14} /> Production
@@ -134,7 +139,7 @@ export default function Overview() {
                 <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: ALERT_ICON[a.level] }} />
                 <span className="min-w-0">
                   <span className="block text-[12.5px] font-semibold text-ink leading-snug">{a.title}</span>
-                  <span className="block text-[11px] text-faint mt-0.5 leading-snug line-clamp-2">{a.body}</span>
+                  <span className="block text-[11px] text-faint mt-0.5 leading-snug ">{a.body}</span>
                 </span>
               </Link>
             ))}
@@ -153,9 +158,7 @@ export default function Overview() {
               <ActionButton small action="yt-daily" slug="investors-compass" label="IC Shorts" />
               <ActionButton small action="yt-daily" slug="money-rulebook" label="MR Shorts" />
               <ActionButton small action="yt-daily" slug="debt-free-doctrine" label="DFD Shorts" />
-              <ActionButton small action="fb-crosspost" label="FB Reels" />
-              <ActionButton small action="ig-crosspost" label="IG Reels" />
-              <ActionButton small action="fb-images" label="FB posters" />
+              <ActionButton small action="tiktok" label="TikTok" />
             </div>
           }
         />
@@ -227,13 +230,13 @@ export default function Overview() {
                   {(c.todayTopics || []).map((t, i) => (
                     <span key={i} className="text-[11.5px] text-muted leading-snug flex gap-1.5">
                       <span style={{ color: c.accent }}>▸</span>
-                      <span className="line-clamp-2">from viral wave: “{t}”</span>
+                      <span>from viral wave: “{t}”</span>
                     </span>
                   ))}
                   {c.episodeTopic ? (
                     <span className="text-[11.5px] text-muted leading-snug flex gap-1.5">
                       <span className="text-accent">▸</span>
-                      <span className="line-clamp-2">episode: “{c.episodeTopic}”</span>
+                      <span>episode: “{c.episodeTopic}”</span>
                     </span>
                   ) : null}
                 </div>

@@ -14,6 +14,9 @@ concurrency:
   group: channel-quotequarry
   cancel-in-progress: false
 
+permissions:
+  contents: write
+
 jobs:
   produce:
     name: 🏭 Quote Quarry — Shorts + FB (IG = slot poster)
@@ -92,4 +95,5 @@ jobs:
           git config user.email "bot@quotequarry.local"
           git add yt-mcp/state/ yt-mcp/schedule-state.json yt-mcp/trends-*.json || true
           git diff --cached --quiet || git commit -m "quotequarry daily state [skip ci]"
-          git push || true
+          git pull --rebase origin main || true
+          git push || true || echo "::warning::state push failed for quotequarry — state stays local to this run"

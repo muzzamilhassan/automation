@@ -1,10 +1,12 @@
-import { brands, state, trend, fbPages, ytChannels, allLogs, MODE } from '../../../lib/data.mjs';
+import { brands, state, trend, fbPages, ytChannels, allLogs, MODE, bustCache } from '../../../lib/data.mjs';
 
 export const dynamic = 'force-dynamic';
 
 const FB_MAP = { 'investors-compass': '116157974886564', 'money-rulebook': '1077306835630491', 'debt-free-doctrine': '106473735839651', quotequarry: '108044922375174' };
 
-export async function GET() {
+export async function GET(req) {
+  const fresh = new URL(req.url).searchParams.get('fresh') === '1';
+  if (fresh) bustCache();
   const [fb, yt, st, logs] = await Promise.all([fbPages(), ytChannels(), state(), allLogs()]);
   const b = brands();
   const channels = Object.entries(b).map(([slug, k]) => {

@@ -110,39 +110,6 @@ export const PIPELINES = [
     actions: [{ action: 'tiktok', label: 'Post TikTok now' }],
     stages: ['Source video', 'Cut parts', 'Caption align', 'Post via Zernio'],
   },
-  {
-    id: 'crosspost',
-    name: 'FB + IG reels',
-    desc: 'Every YT Short cross-posted to Facebook pages and Instagram accounts',
-    icon: 'share2',
-    engine: 'fb-crosspost.mjs · ig-crosspost.mjs',
-    schedule: 'US-anchored slots · IG 7:20 AM / 11:20 AM / 6:20 PM ET',
-    actions: [
-      { action: 'fb-crosspost', label: 'Run FB now' },
-      { action: 'ig-crosspost', label: 'Run IG now' },
-    ],
-    stages: ['Outbox', 'FB reels', 'IG reels', 'Verify'],
-  },
-  {
-    id: 'posters',
-    name: 'FB brand posters',
-    desc: 'One niche poster image per page per day (doc-thumbnail style)',
-    icon: 'image',
-    engine: 'fb-images.mjs',
-    schedule: 'Daily after longform upload',
-    actions: [{ action: 'fb-images', label: 'Run posters now' }],
-    stages: ['Quote pick', 'Style render', 'QA', 'Post'],
-  },
-  {
-    id: 'threads',
-    name: 'Threads daily reel',
-    desc: '1 QQ reel per day to @quotequarry8',
-    icon: 'at-sign',
-    engine: 'threads-daily.mjs · inside ig-slot-poster',
-    schedule: 'Daily · 1 slot',
-    actions: [],
-    stages: ['Pick reel', 'Host file', 'Post'],
-  },
 ];
 
 // 14-day views sample series per channel (labels: D-13..today). Sample data —

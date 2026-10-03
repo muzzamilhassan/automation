@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { Film, Search, ArrowUpRight, Info } from 'lucide-react';
-import { YoutubeIcon, FacebookIcon, InstagramIcon } from '@/components/BrandIcons';
+import { Film, Search, ArrowUpRight } from 'lucide-react';
+import { YoutubeIcon } from '@/components/BrandIcons';
 import { Card, Chip, PageHeader, PageSkeleton, EmptyState, BrandMark, Segmented } from '@/components/ui';
 import { BRAND_META } from '@/lib/site-data';
 import { timeAgo, when } from '@/lib/utils';
@@ -10,11 +10,9 @@ const FILTERS = [
   { value: 'all', label: 'All' },
   { value: 'Short', label: 'Shorts' },
   { value: 'Episode', label: 'Episodes' },
-  { value: 'Cross', label: 'Cross-posts' },
-  { value: 'Image', label: 'Posters' },
 ];
 
-const PLATFORM_ICON = { YouTube: YoutubeIcon, 'FB/IG': InstagramIcon, Facebook: FacebookIcon, Instagram: InstagramIcon };
+const PLATFORM_ICON = { YouTube: YoutubeIcon };
 
 export default function Videos() {
   const [data, setData] = useState(null);
@@ -28,7 +26,7 @@ export default function Videos() {
   const logs = data?.logs || [];
   const filtered = useMemo(
     () =>
-      logs.filter((l) => {
+      logs.filter((l) => l.kind === 'Short' || l.kind === 'Episode').filter((l) => {
         if (filter === 'Short' && l.kind !== 'Short') return false;
         if (filter === 'Episode' && l.kind !== 'Episode') return false;
         if (filter === 'Image' && l.kind !== 'Image post') return false;
@@ -40,18 +38,16 @@ export default function Videos() {
   );
 
   const counts = {
-    all: logs.length,
+    all: logs.filter((l) => l.kind === 'Short' || l.kind === 'Episode').length,
     Short: logs.filter((l) => l.kind === 'Short').length,
     Episode: logs.filter((l) => l.kind === 'Episode').length,
-    Cross: logs.filter((l) => String(l.kind).startsWith('Cross')).length,
-    Image: logs.filter((l) => l.kind === 'Image post').length,
   };
 
   if (!data) return <PageSkeleton />;
 
   return (
     <div>
-      <PageHeader icon={Film} title="Videos" sub="Everything the machine published — newest first, across all platforms">
+      <PageHeader icon={Film} title="Videos" sub="Every video the machine published — shorts and episodes, newest first">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
           <input
@@ -66,21 +62,13 @@ export default function Videos() {
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <Segmented options={FILTERS} value={filter} onChange={setFilter} />
         <span className="text-[11.5px] text-faint">
-          {filtered.length} of {logs.length} · {counts.Short} shorts · {counts.Episode} episodes · {counts.Cross} cross-posts
+          {filtered.length} videos · {counts.Short} shorts · {counts.Episode} episodes
         </span>
       </div>
 
-      {data.mode === 'cloud' ? (
-        <p className="text-[11.5px] text-muted mb-4 flex items-center gap-1.5">
-          <Info size={13} className="text-faint shrink-0" />
-          Cross-post rows (FB / IG / Threads) show on your PC build. The live site tracks YouTube uploads, episodes and posters —
-          for reels see the GitHub Actions tab.
-        </p>
-      ) : null}
-
       <Card className="overflow-hidden">
         {filtered.length === 0 ? (
-          <EmptyState icon={Film} title="Nothing here" sub="No posts match this filter yet." />
+          <EmptyState icon={Film} title="Nothing here" sub="No videos match this filter yet." />
         ) : (
           <div className="overflow-x-auto">
             <table className="data">

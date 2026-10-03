@@ -70,7 +70,7 @@ export default function Channels() {
               {/* platforms */}
               <div className="inset-tile p-1 mb-4">
                 {c.yt ? (
-                  <PlatformRow icon={YoutubeIcon} color="#ff4444" label="YouTube" handle={c.yt.handle || c.yt.title} followers={fmt(c.yt.subs)} extra={`${fmt(c.yt.views)} views · ${c.yt.videos} videos`} />
+                  <PlatformRow icon={YoutubeIcon} color="#ff4444" label="YouTube" handle={c.yt.handle || c.yt.title} followers={fmt(c.yt.subs)} extra={`${fmt(c.yt.views)} views all-time · ${c.yt.videos} videos`} />
                 ) : null}
                 {c.fb ? (
                   <PlatformRow icon={FacebookIcon} color="#3b82f6" label="Facebook" handle={`@${c.fb.username || c.fb.name}`} followers={fmt(c.fb.followers)} />
