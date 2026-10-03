@@ -20,7 +20,7 @@ const envRaw = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';
 for (const m of envRaw.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
 
 const { generateYouTubeScript, renderYouTubeScriptShort, buildScriptMeta } = await import('./youtube-engine.mjs');
-const { pickMusicTrack } = await import('./music-engine.mjs');
+const { pickApprovedTrack } = await import('./music-engine.mjs');
 const { bySlug } = await import('./yt-brands/brands.mjs');
 const { researchTrend } = await import('./trend-research.mjs');
 const { archiveUpload } = await import('./yt-archive.mjs');
@@ -160,7 +160,9 @@ if (RUN_SHORTS) {
       continue;
     }
     let music = null;
-    try { music = await pickMusicTrack(i, { feels: b.musicFeels }); } catch { }
+    // 10-03: ONLY the channel's own approved tracks (music-review folders) —
+    // no catalog rotation, no other music anywhere.
+    try { music = await pickApprovedTrack(APPROVED_MUSIC[slug] || []); } catch { }
     const out = await renderYouTubeScriptShort(page, script, music);
     const meta = buildScriptMeta(page, script, music ? `${music.title} — ${music.credit}` : '');
 

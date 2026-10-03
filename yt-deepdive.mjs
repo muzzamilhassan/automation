@@ -12,7 +12,8 @@ import { google } from 'googleapis';
 import { loadAllStates, saveChannelState } from './lib/state.mjs';
 import { EMBEDDED_FONTS_CSS } from './typography-poster-engine.mjs';
 import { getTopicClip } from './youtube-clips.mjs';
-import { pickMusicTrack } from './music-engine.mjs';
+import { pickApprovedTrack } from './music-engine.mjs';
+const APPROVED_MUSIC = JSON.parse(fs.readFileSync(new URL('./yt-brands/approved-music.json', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'), 'utf8'));
 import { renderYouTubeThumbnail } from './youtube-engine.mjs';
 import { bySlug } from './yt-brands/brands.mjs';
 
@@ -263,7 +264,9 @@ fs.writeFileSync(list, segs.map(s => `file '${path.resolve(s.file).replace(/\\/g
 const joined = `${work}/joined.mp4`;
 sh(['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', joined]);
 let music = null;
-try { music = await pickMusicTrack(7, { feels: b.musicFeels }); } catch { }
+// 10-03: channel's own approved pool only. The -stream_loop -1 below already
+// restarts THIS track when it ends — never a second track (user rule).
+try { music = await pickApprovedTrack(APPROVED_MUSIC[slug] || []); } catch { }
 const final = `${work}/episode.mp4`;
 if (music) {
   sh(['-y', '-i', joined, '-stream_loop', '-1', '-i', music.file, '-filter_complex',
