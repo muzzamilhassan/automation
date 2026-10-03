@@ -181,8 +181,45 @@
     ]
   },
   "quotequarry": {
-    "lastRunDate": "2026-09-20",
+    "lastRunDate": "2026-10-03",
     "healedDate": "2026-09-19",
-    "healedCount": 3
+    "healedCount": 3,
+    "usedTrendSeeds": [
+      "“Freedom Begins When You Let Go of What You Can’t Control” — Epictetus",
+      "Stoic Philosophy | 7 Cold Behaviors That Make People Respect You Instantly #stoicism",
+      "10 Stoic Principles to Never Lose Your Calm with Anyone or Anything | Stoicism"
+    ],
+    "todayTopics": [
+      {
+        "at": "2026-10-03",
+        "topic": "“Freedom Begins When You Let Go of What You Can’t Control” — Epictetus"
+      },
+      {
+        "at": "2026-10-03",
+        "topic": "Stoic Philosophy | 7 Cold Behaviors That Make People Respect You Instantly #stoicism"
+      },
+      {
+        "at": "2026-10-03",
+        "topic": "10 Stoic Principles to Never Lose Your Calm with Anyone or Anything | Stoicism"
+      }
+    ],
+    "lastVideos": [
+      {
+        "videoId": "uwbxvCairZQ",
+        "publishAt": "2026-10-03T11:35:00Z",
+        "title": "The Stoic Fix | Stoicism Philosophy"
+      },
+      {
+        "videoId": "muhnKE9okRw",
+        "publishAt": "2026-10-03T15:35:00Z",
+        "title": "7 Cold Stoic Behaviors | Stoicism Philosophy"
+      },
+      {
+        "videoId": "kE1aptg5e_I",
+        "publishAt": "2026-10-03T22:35:00Z",
+        "title": "Never Lose Your Calm | Stoicism Philosophy"
+      }
+    ],
+    "deepdiveDate": null
   }
 }
