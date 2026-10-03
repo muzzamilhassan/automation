@@ -90,6 +90,9 @@ export default function Overview() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {refreshedAt && !refreshing ? (
+            <span className="text-[10.5px] text-faint tnum">updated {refreshedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+          ) : null}
           <button className="btn btn-outline" onClick={() => load(true)} disabled={refreshing}>
             <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} /> {refreshing ? 'Refreshing…' : 'Refresh'}
           </button>
@@ -259,7 +262,7 @@ export default function Overview() {
                   <BrandMark short={(BRAND_META[l.slug]?.short) || '•'} accent={BRAND_META[l.slug]?.accent || 'var(--faint)'} size={26} />
                   <span className="flex-1 min-w-0">
                     <span className="block text-[12.5px] font-medium text-ink truncate">{l.title}</span>
-                    <span className="block text-[11px] text-faint">{when(l.at)} · {l.kind}</span>
+                    <span className="block text-[11px] text-faint">{l.status === 'scheduled' ? 'Scheduled' : 'Published'} · {when(l.at)} · {l.kind}</span>
                   </span>
                   {l.videoId ? (
                     <a href={`https://youtube.com/shorts/${l.videoId}`} target="_blank" rel="noreferrer" className="icon-btn" style={{ width: 28, height: 28 }} aria-label="Open on YouTube">

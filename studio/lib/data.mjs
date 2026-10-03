@@ -181,14 +181,45 @@ export function outbox() {
   return out.sort((a, b) => (b.publishAt || '').localeCompare(a.publishAt || ''));
 }
 
+// Long-form episodes recorded by the CI uploader (state/longform-uploads.json,
+// written by quarry-render's upload workflow) — this is where recent episodes
+// live; the per-channel deepdiveVideo field only covers the legacy local path.
+export async function longformUploads() {
+  if (!CLOUD) {
+    try { return JSON.parse(fs.readFileSync(path.resolve(ROOT, 'state/longform-uploads.json'), 'utf8')); } catch { return {}; }
+  }
+  try { return (await ghFile('state/longform-uploads.json')) || {}; } catch { return {}; }
+}
+
 export async function allLogs() {
   const st = await state();
   const logs = [];
+  // legacy episode field (old local path) — collected first so CI records can override
+  const legacyEpisodes = [];
   for (const [slug, s] of Object.entries(st)) {
     for (const v of s.lastVideos || []) logs.push({ platform: 'YouTube', slug, title: v.title, at: v.publishAt, videoId: v.videoId, kind: 'Short' });
-    if (s.deepdiveVideo) logs.push({ platform: 'YouTube', slug, title: s.deepdiveVideo.title, at: s.deepdiveVideo.publishAt, videoId: s.deepdiveVideo.videoId, kind: 'Episode' });
-    if (s.imageDate) logs.push({ platform: 'Facebook', slug, title: 'Brand poster image', at: s.imageDate, kind: 'Image post' });
+    if (s.deepdiveVideo) legacyEpisodes.push({ platform: 'YouTube', slug, title: s.deepdiveVideo.title, at: s.deepdiveVideo.publishAt, videoId: s.deepdiveVideo.videoId, kind: 'Episode' });
   }
+  // CI long-form uploads — the real episode record
+  const lu = await longformUploads();
+  const ciEpisodeIds = new Set();
+  for (const [slug, arr] of Object.entries(lu)) {
+    for (const e of arr || []) {
+      if (!e.videoId) continue;
+      ciEpisodeIds.add(e.videoId);
+      logs.push({ platform: 'YouTube', slug, title: e.title, at: e.publishAt || (e.date ? e.date + 'T00:00:00Z' : null), videoId: e.videoId, kind: 'Episode' });
+    }
+  }
+  // keep legacy episodes only if the CI record doesn't already have that video
+  for (const l of legacyEpisodes) if (!ciEpisodeIds.has(l.videoId)) logs.push(l);
+
   for (const o of outbox()) logs.push({ platform: 'FB/IG', slug: o.slug, title: o.title, at: o.publishAt, videoId: null, kind: 'Cross-post (' + o.state + ')' });
+
+  // status: publishAt in the future = still scheduled; past = published
+  const now = Date.now();
+  for (const l of logs) {
+    const t = l.at ? Date.parse(l.at) : NaN;
+    l.status = Number.isFinite(t) && t > now ? 'scheduled' : (l.at ? 'published' : null);
+  }
   return logs.sort((a, b) => (b.at || '').localeCompare(a.at || ''));
 }

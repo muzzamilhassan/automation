@@ -4,7 +4,7 @@ import { Film, Search, ArrowUpRight } from 'lucide-react';
 import { YoutubeIcon } from '@/components/BrandIcons';
 import { Card, Chip, PageHeader, PageSkeleton, EmptyState, BrandMark, Segmented } from '@/components/ui';
 import { BRAND_META } from '@/lib/site-data';
-import { timeAgo, when } from '@/lib/utils';
+import { when } from '@/lib/utils';
 
 const FILTERS = [
   { value: 'all', label: 'All' },
@@ -103,12 +103,15 @@ export default function Videos() {
                           <Icon size={13} /> {l.platform}
                         </span>
                       </td>
-                      <td className="text-muted text-[12px] tnum whitespace-nowrap" title={when(l.at)}>
-                        {timeAgo(l.at)}
+                      <td className="whitespace-nowrap">
+                        <Chip tone={l.status === 'scheduled' ? 'info' : 'ok'} dot>
+                          {l.status === 'scheduled' ? 'Scheduled' : l.status === 'published' ? 'Published' : '—'}
+                        </Chip>
+                        <span className="block text-[10.5px] text-faint tnum mt-0.5">{when(l.at)}</span>
                       </td>
                       <td>
                         {l.videoId ? (
-                          <a href={`https://youtube.com/shorts/${l.videoId}`} target="_blank" rel="noreferrer" className="icon-btn" style={{ width: 28, height: 28 }} aria-label="Open on YouTube">
+                          <a href={`https://youtube.com/watch?v=${l.videoId}`} target="_blank" rel="noreferrer" className="icon-btn" style={{ width: 28, height: 28 }} aria-label="Open on YouTube">
                             <ArrowUpRight size={13} />
                           </a>
                         ) : null}
