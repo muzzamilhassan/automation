@@ -5,7 +5,7 @@ export const BRAND_META = {
   'quotequarry': { short: 'QQ', accent: '#F5E31C' },
   'investors-compass': { short: 'IC', accent: '#E8C15A' },
   'money-rulebook': { short: 'MR', accent: '#3DDC97' },
-  'debt-free-doctrine': { short: 'DFD', accent: '#FF5A4E' },
+  'debt-free-doctrine': { short: 'OM', accent: '#D9C7A7' },
   'escrow-estate': { short: 'EE', accent: '#D98E4A' },
   'policy-brief': { short: 'PB', accent: '#58A6C9' },
   'old-money-code': { short: 'OM', accent: '#D9C7A7' },

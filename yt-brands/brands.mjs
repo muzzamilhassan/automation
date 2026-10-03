@@ -70,22 +70,22 @@ export const BRANDS = [
   },
   {
     slug: 'debt-free-doctrine',
-    label: 'DEBT-FREE DOCTRINE',
-    handle: '@debtfreedoctrine', active: true, // renamed + clean handle + verified 2026-09-06
-    niche: 'Debt payoff & credit smarts',
-    cpmTier: '$20-40 (credit/loans advertisers)',
-    accent: '#FF5A4E', bg: '#14100E', ink: '#F6EDEA',
-    eyebrow: 'DEBT-FREE // DEBT-FREE DOCTRINE',
-    tagline: 'Owe nothing. Own everything.',
-    keyword: 'debt freedom', kwShort: 'debt freedom', theme: 'Debt',
-    niches: ['debt payoff', 'credit score', 'loan traps'],
-    authority: 'Debt Freedom',
-    tags: ['debt free', 'pay off debt', 'credit score', 'credit cards', 'debt payoff journey', 'financial freedom', 'loan tips', 'debt snowball', 'money tips', 'financial literacy', 'interest rates', 'no more debt'],
+    label: 'OLD MONEY CODE',
+    handle: '@debtfreedoctrine', active: true, // rebranded 10-03: was DEBT-FREE DOCTRINE (0 subs — dead niche); identity = parked old-money-code
+    niche: 'Old money habits & quiet wealth',
+    cpmTier: '$15-30 (finance-adjacent, huge reach)',
+    accent: '#D9C7A7', bg: '#12100C', ink: '#F3EDE2',
+    eyebrow: 'QUIET WEALTH // OLD MONEY CODE',
+    tagline: 'Wealth whispers.',
+    keyword: 'old money habits', kwShort: 'old money', theme: 'Quiet Wealth',
+    niches: ['old money habits', 'quiet luxury', 'generational wealth'],
+    authority: 'Old Money Philosophy',
+    tags: ['old money', 'old money habits', 'quiet luxury', 'old money aesthetic', 'generational wealth', 'elegance', 'classy lifestyle', 'wealth habits', 'success habits', 'old money rules', 'style', 'self improvement'],
     voice: 'am_fenrir',
-    musicFeels: ['driving', 'action', 'heroic'], // determined, no-excuses debt payoff energy
+    musicFeels: ['calming', 'bright'], // refined understated energy (approved pool is primary anyway)
     slots: ['13:05', '17:05', '00:35'], longSlot: '01:30', // long: 9:30p ET
-    description: 'Debt freedom starts with the right rules, not more hustle. Credit scores, loan traps, and payoff order — explained in 60 seconds. New Shorts daily until debt is a word you forget. Subscribe and start owing nothing.',
-    script: { targetSeconds: 32, points: 4, lineWords: '9-12', titleStyle: 'journey/stakes framing', titleExamples: '"The $30,000 Mistake Almost Everyone Makes", "Week 1 of the Debt Snowball"' }
+    description: 'Old money habits, quiet luxury, and the rules of understated wealth — in 60 seconds. How generational wealth thinks, spends, and stays silent. New Shorts daily. Subscribe and learn why wealth whispers.',
+    script: { targetSeconds: 32, points: 4, lineWords: '9-12', titleStyle: 'journey/stakes framing', titleExamples: '"POV: You Start Thinking Like Old Money", "10 Old Money Habits That Change Everything"' }
   },
   {
     slug: 'escrow-estate',
@@ -120,23 +120,6 @@ export const BRANDS = [
     voice: 'am_michael',
     slots: ['02:35'],
     description: 'Insurance explained in 60 seconds — coverage gaps, claim secrets, and the fine print that saves families. Life, health, auto and home, one policy rule at a time. New Shorts daily. Subscribe before you need it.',
-  },
-  {
-    slug: 'old-money-code',
-    label: 'OLD MONEY CODE',
-    handle: '@oldmoneycode-g2x', active: false, // fully ready (renamed+verified) — parked 09-06, add anytime
-    niche: 'Old money habits & quiet wealth',
-    cpmTier: '$15-30 (finance-adjacent, huge reach)',
-    accent: '#D9C7A7', bg: '#12100C', ink: '#F3EDE2',
-    eyebrow: 'QUIET WEALTH // OLD MONEY CODE',
-    tagline: 'Wealth whispers.',
-    keyword: 'old money habits', kwShort: 'old money', theme: 'Quiet Wealth',
-    niches: ['old money habits', 'quiet luxury', 'generational wealth'],
-    authority: 'Old Money Philosophy',
-    tags: ['old money', 'old money habits', 'quiet luxury', 'old money aesthetic', 'generational wealth', 'elegance', 'classy lifestyle', 'wealth habits', 'success habits', 'old money rules', 'style', 'self improvement'],
-    voice: 'af_heart',
-    slots: ['13:05'],
-    description: 'Old money habits, quiet luxury, and the rules of understated wealth — in 60 seconds. How generational wealth thinks, spends, and stays silent. New Shorts daily. Subscribe and learn why wealth whispers.',
   },
   {
     slug: 'founders-margin',
