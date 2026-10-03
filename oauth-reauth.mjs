@@ -16,9 +16,10 @@ const REDIRECT = 'http://localhost:3000/oauth2callback';
 const SCOPES = [
   'https://www.googleapis.com/auth/youtube.upload',
   'https://www.googleapis.com/auth/youtube.readonly',
-  'https://www.googleapis.com/auth/youtube.force-ssl'
+  'https://www.googleapis.com/auth/youtube.force-ssl',
+  'https://www.googleapis.com/auth/yt-analytics.readonly'
 ];
-const SLUGS = ['investors-compass', 'money-rulebook', 'debt-free-doctrine'];
+const SLUGS = ['investors-compass', 'money-rulebook', 'debt-free-doctrine', 'quotequarry'];
 let idx = 0;
 
 const oAuth2 = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT);
@@ -52,7 +53,7 @@ const server = http.createServer(async (req, res) => {
       console.log(`Opening next: ${SLUGS[idx]}`);
       try { execSync(`start "" "${nextUrl}"`, { shell: 'cmd.exe', timeout: 5000 }); } catch { }
     } else {
-      console.log('\n=== ALL 3 CHANNELS RE-AUTHORIZED ===');
+      console.log('\n=== ALL 4 CHANNELS RE-AUTHORIZED ===');
       server.close();
       process.exit(0);
     }
