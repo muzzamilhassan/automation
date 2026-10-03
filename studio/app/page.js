@@ -9,13 +9,16 @@ import {
   RefreshCw,
   Zap,
   Flame,
+  ArrowUpRight,
+  Clock,
   CalendarDays,
   Radar,
 } from 'lucide-react';
+import ActionButton from '@/components/ActionButton';
 import { Card, CardHead, Chip, StatCard, PageSkeleton, EmptyState, BrandMark } from '@/components/ui';
 import { MultiChart } from '@/components/charts';
-import { ALERTS, BRAND_META } from '@/lib/site-data';
-import { fmt, fmtFull } from '@/lib/utils';
+import { ALERTS, VIEWS_SERIES, BRAND_META } from '@/lib/site-data';
+import { fmt, fmtFull, timeAgo, when } from '@/lib/utils';
 
 const ALERT_ICON = { bad: 'var(--bad)', warn: 'var(--warn)', info: 'var(--info)' };
 
@@ -25,7 +28,6 @@ export default function Overview() {
   const [tick, setTick] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshedAt, setRefreshedAt] = useState(null);
-  const [real, setReal] = useState(null);
 
   const load = (fresh = false) => {
     if (fresh) setRefreshing(true);
@@ -42,14 +44,6 @@ export default function Overview() {
     return () => clearInterval(t);
   }, [tick]);
 
-  // real 28-day views (YouTube Analytics) for the dashboard chart
-  useEffect(() => {
-    fetch('/api/analytics?slug=all')
-      .then((r) => r.json())
-      .then((d) => { if (d && !d.error) setReal(d); })
-      .catch(() => { });
-  }, [tick]);
-
   if (err)
     return (
       <EmptyState
@@ -60,17 +54,28 @@ export default function Overview() {
     );
   if (!data) return <PageSkeleton />;
 
-  const { channels, totals, trends } = data;
+  const { channels, totals, logs, trends } = data;
   const active = channels.filter((c) => c.active);
 
   const hour = new Date().getHours();
   const greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
-  const dailyViews = (real?.daily || []).map((d) => d.views);
-  const last = dailyViews[dailyViews.length - 1] || 0;
-  const prev = dailyViews[dailyViews.length - 2] || 0;
+  const labels = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(Date.now() - (13 - i) * 86400000);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  });
+  const series = active.map((c) => ({
+    key: c.slug,
+    name: c.label.split(' ').map((w) => w[0]).join('').slice(0, 3),
+    color: c.accent,
+    data: VIEWS_SERIES[c.slug] || VIEWS_SERIES['quotequarry'],
+  }));
+  const last = series.reduce((a, s) => a + s.data[13], 0);
+  const prev = series.reduce((a, s) => a + s.data[12], 0);
   const viewsDelta = prev ? Math.round(((last - prev) / prev) * 100) : 0;
+
+  const upcoming = logs.filter((l) => l.at && (l.kind === "Short" || l.kind === "Episode")).slice(0, 8);
 
   return (
     <div>
@@ -100,7 +105,7 @@ export default function Overview() {
       {/* KPI row */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-5">
         <StatCard delay={0} icon={Users} label="YT subs" value={totals.ytSubs} fmt={fmt} />
-        <StatCard delay={1} icon={Eye} label="YT views" value={totals.ytViews} fmt={fmt} delta={viewsDelta} spark={dailyViews.length ? dailyViews : undefined} color="var(--info)" iconBg="color-mix(in srgb, var(--info) 12%, transparent)" />
+        <StatCard delay={1} icon={Eye} label="YT views" value={totals.ytViews} fmt={fmt} delta={viewsDelta} spark={series[0]?.data} color="var(--info)" iconBg="color-mix(in srgb, var(--info) 12%, transparent)" />
         <StatCard delay={2} icon={Film} label="Videos" value={totals.ytVideos} fmt={fmt} />
         <StatCard delay={3} icon={FacebookIcon} label="FB followers" value={totals.fbFollowers} fmt={fmt} color="#3b82f6" iconBg="color-mix(in srgb, #3b82f6 12%, transparent)" />
         <StatCard delay={4} icon={InstagramIcon} label="IG followers" value={totals.igFollowers} fmt={fmt} color="#ec4899" iconBg="color-mix(in srgb, #ec4899 12%, transparent)" />
@@ -110,23 +115,22 @@ export default function Overview() {
       <div className="grid lg:grid-cols-3 gap-4 mb-5">
         <Card className="lg:col-span-2 overflow-hidden">
           <CardHead
-            title="Views per day"
-            sub="Real numbers · last 28 days, all channels combined (YouTube Analytics)"
+            title="Views this fortnight"
+            sub="Daily views per channel · sample trend until metrics API is wired"
             icon={Radar}
-            right={<Chip tone="ok">real data</Chip>}
+            right={
+              <div className="flex items-center gap-3">
+                {active.map((c) => (
+                  <span key={c.slug} className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: c.accent }}>
+                    <span className="w-2 h-2 rounded-full" style={{ background: c.accent }} />
+                    {BRAND_META[c.slug]?.short}
+                  </span>
+                ))}
+              </div>
+            }
           />
           <div className="px-2 pb-2">
-            {realErr ? (
-              <p className="text-[12px] text-faint px-4 py-10 text-center">Analytics data unavailable right now.</p>
-            ) : !real ? (
-              <div className="px-4 py-8 space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="skeleton h-5" />)}</div>
-            ) : (
-              <MultiChart
-                series={[{ key: 'views', name: 'Views', color: 'var(--accent)', data: (real.daily || []).map((d) => d.views) }]}
-                labels={(real.daily || []).map((d) => new Date(d.date + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))}
-                height={230}
-              />
-            )}
+            <MultiChart series={series} labels={labels} />
           </div>
         </Card>
 
@@ -150,7 +154,7 @@ export default function Overview() {
       <Card className="mb-5 overflow-hidden">
         <CardHead
           title="Today's production line"
-          sub="What the machine already made today — run buttons live on the Production page"
+          sub="What the machine already made today, and each channel's upload slots"
           icon={Zap}
         />
         <div className="overflow-x-auto">
@@ -237,15 +241,10 @@ export default function Overview() {
         </Card>
       ) : null}
 
-      {/* trend radar — full width (uploads list lives on the Videos page) */}
+      {/* trend radar */}
       <Card>
-        <CardHead
-          title="Trend radar"
-          sub="Live keywords + viral videos per niche — these drive tomorrow's topics"
-          icon={Flame}
-          right={<Link href="/videos" className="text-[11.5px] text-accent hover:underline">all videos →</Link>}
-        />
-        <div className="px-5 pb-5 grid md:grid-cols-2 gap-x-6">
+        <CardHead title="Trend radar" sub="Live keywords + viral videos per niche" icon={Flame} />
+        <div className="px-5 pb-5">
           {Object.entries(trends).length === 0 ? (
             <EmptyState icon={Radar} title="No trend cache yet" sub="Trends refresh with the next production batch." />
           ) : (

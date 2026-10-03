@@ -17,7 +17,7 @@ import {
   Globe,
 } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, PageSkeleton, StatCard, BrandMark, Segmented } from '@/components/ui';
-import { MultiChart, RetentionBars, MiniBars } from '@/components/charts';
+import { RetentionBars, MiniBars } from '@/components/charts';
 import { RETENTION, RETENTION_GOAL, TRACKED_KEYWORDS, BRAND_META, DAILY_REPORTS } from '@/lib/site-data';
 import { fmt } from '@/lib/utils';
 
@@ -52,8 +52,6 @@ export default function Analytics() {
   }));
 
   // REAL daily views from the YouTube Analytics API (28 days)
-  const realLabels = (real?.daily || []).map((d) => new Date(d.date + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-  const realSeries = [{ key: 'views', name: 'Views', color: 'var(--accent)', data: (real?.daily || []).map((d) => d.views) }];
 
   const keywords = TRACKED_KEYWORDS.filter((k) => sel === 'all' || k.channel === sel);
   const platformSlices = sel === 'all'
@@ -143,7 +141,9 @@ export default function Analytics() {
             ) : !real ? (
               <div className="px-4 py-10 space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="skeleton h-5" />)}</div>
             ) : real.daily.length ? (
-              <MultiChart series={realSeries} labels={realLabels} height={230} />
+              <div className="px-3">
+                <MiniBars data={real.daily.map((d) => d.views)} labels={real.daily.map((d) => d.date.slice(5))} color="var(--accent)" height={170} />
+              </div>
             ) : (
               <p className="text-[12px] text-faint px-4 py-10 text-center">No views recorded in this period.</p>
             )}
