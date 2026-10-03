@@ -59,7 +59,7 @@
     ]
   },
   "money-rulebook": {
-    "lastRunDate": "2026-10-02",
+    "lastRunDate": "2026-10-03",
     "usedThemes": [
       "5 things rich people never buy",
       "how to automate your first $100k",
@@ -67,22 +67,22 @@
     ],
     "lastVideos": [
       {
-        "videoId": "FSUFmEYPEuk",
-        "publishAt": "2026-10-02T12:35:00Z",
-        "title": "4 Money Habits That Save Thousands | Personal Finance"
-      },
-      {
-        "videoId": "YjDR9wnLADI",
-        "publishAt": "2026-10-02T16:35:00Z",
-        "title": "7 Money Habits That Quietly Make You Rich | Personal Finance"
-      },
-      {
-        "videoId": "dJSOYuS6X2E",
-        "publishAt": "2026-10-03T00:05:00Z",
+        "videoId": "KXLp1AbPCgg",
+        "publishAt": "2026-10-03T12:35:00Z",
         "title": "6 Rules For Your First $10,000 | Personal Finance"
+      },
+      {
+        "videoId": "tMTXJor0PoY",
+        "publishAt": "2026-10-03T16:35:00Z",
+        "title": "7 Money Habits Making You Rich | Personal Finance"
+      },
+      {
+        "videoId": "38ht3Xz5xno",
+        "publishAt": "2026-10-04T00:05:00Z",
+        "title": "4 Money Habits That Save Thousands | Personal Finance"
       }
     ],
-    "imageDate": "2026-10-02",
+    "imageDate": "2026-10-03",
     "recyclePending": [
       {
         "oldVideoId": "cbclwL6k32U",
@@ -101,20 +101,23 @@
       "Why Gen Z Struggles to Save Money #genz #money #salary",
       "4 Simple Money Habits That Can Save You Thousands",
       "Money-Saving Habits That Can Transform Your Financial Life | Simple Saving Tips",
-      "The Money Habits Too Many People Skip"
+      "The Money Habits Too Many People Skip",
+      "Small Savings Build Big Security | Start Saving Before You Need It | Sindhanai Bytes",
+      "Small spending today can become a big problem tomorrow. 💸 Think before you spend. 🧠💰",
+      "Stop Wasting Money: 4 Rules for Your Future #motivation #trending #viral #healthylifestyle"
     ],
     "todayTopics": [
       {
-        "at": "2026-10-02",
-        "topic": "4 Simple Money Habits That Can Save You Thousands"
+        "at": "2026-10-03",
+        "topic": "Small Savings Build Big Security | Start Saving Before You Need It | Sindhanai Bytes"
       },
       {
-        "at": "2026-10-02",
-        "topic": "Money-Saving Habits That Can Transform Your Financial Life | Simple Saving Tips"
+        "at": "2026-10-03",
+        "topic": "Small spending today can become a big problem tomorrow. 💸 Think before you spend. 🧠💰"
       },
       {
-        "at": "2026-10-02",
-        "topic": "The Money Habits Too Many People Skip"
+        "at": "2026-10-03",
+        "topic": "Stop Wasting Money: 4 Rules for Your Future #motivation #trending #viral #healthylifestyle"
       }
     ]
   },
