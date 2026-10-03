@@ -106,6 +106,16 @@ if (RUN_SHORTS) {
   } catch (e) {
     console.log(`[trend] FAILED: ${String(e.message).slice(0, 80)} — slots skipped (fail-closed, no static fallback)`);
   }
+  // 10-03 step 3: real viewer search words (Analytics API). Best-effort —
+  // channels without the yt-analytics scope just skip this.
+  try {
+    const { viewerTerms } = await import('./viewer-terms.mjs');
+    const terms = await viewerTerms(slug, channelAuth(slug));
+    page.viewerTerms = terms.terms.slice(0, 10).map((t) => t.term);
+    console.log(`[terms] 🔎 your viewers search: ${page.viewerTerms.slice(0, 6).join(', ')}`);
+  } catch (e) {
+    console.log(`[terms] skipped: ${String(e.message).slice(0, 70)}`);
+  }
 
   const yt = google.youtube({ version: 'v3', auth: channelAuth(slug) });
   const usedSeeds = Array.isArray(state[slug]?.usedTrendSeeds) ? state[slug].usedTrendSeeds : [];
@@ -122,7 +132,7 @@ if (RUN_SHORTS) {
       if (!seed) seed = waves[(dayIdx * b.slots.length + k) % waves.length];
       themesToday.push({
         seed: seed.title,
-        topic: `Build today's video around the THEME of this proven viral video in the niche right now: "${seed.title}" (${seed.views.toLocaleString('en-US')} views in the last 14 days). Reimagine it natively for ${b.label} — do NOT copy its title or wording; bring a fresh angle. Weave in what is currently working: ${(page.trend.hotKeywords.slice(0, 6)).join(', ')}.`
+        topic: `Build today's video around the THEME of this proven viral video in the niche right now: "${seed.title}" (${seed.views.toLocaleString('en-US')} views in the last 14 days). Reimagine it natively for ${b.label} — do NOT copy its title or wording; bring a fresh angle. Weave in what is currently working: ${(page.trend.hotKeywords.slice(0, 6)).join(', ')}.${page.viewerTerms?.length ? ` Your own viewers found this channel by searching: ${page.viewerTerms.slice(0, 8).join(', ')} — work the strongest of these real search words naturally into the hook and points.` : ''}`
       });
     }
   }

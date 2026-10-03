@@ -51,6 +51,7 @@ const server = http.createServer(async (req, res) => {
         redirect_uri: REDIRECT, state: String(idx)
       });
       console.log(`Opening next: ${SLUGS[idx]}`);
+      console.log('AUTH URL: ' + nextUrl);
       try { execSync(`start "" "${nextUrl}"`, { shell: 'cmd.exe', timeout: 5000 }); } catch { }
     } else {
       console.log('\n=== ALL 4 CHANNELS RE-AUTHORIZED ===');
@@ -67,5 +68,6 @@ server.listen(3000, () => {
   });
   console.log('=== OAuth Server on :3000 ===');
   console.log('Opening browser for: ' + SLUGS[0]);
+  console.log('AUTH URL: ' + url);
   try { execSync(`start "" "${url}"`, { shell: 'cmd.exe', timeout: 5000 }); } catch { }
 });
