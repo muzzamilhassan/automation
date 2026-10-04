@@ -17,13 +17,14 @@ import {
 import ActionButton from '@/components/ActionButton';
 import { Card, CardHead, Chip, StatCard, PageSkeleton, EmptyState, BrandMark } from '@/components/ui';
 import { MultiChart } from '@/components/charts';
-import { ALERTS, VIEWS_SERIES, BRAND_META } from '@/lib/site-data';
+import { ALERTS, BRAND_META } from '@/lib/site-data';
 import { fmt, fmtFull, timeAgo, when } from '@/lib/utils';
 
 const ALERT_ICON = { bad: 'var(--bad)', warn: 'var(--warn)', info: 'var(--info)' };
 
 export default function Overview() {
   const [data, setData] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
   const [err, setErr] = useState(false);
   const [tick, setTick] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -31,11 +32,15 @@ export default function Overview() {
 
   const load = (fresh = false) => {
     if (fresh) setRefreshing(true);
-    return fetch('/api/overview' + (fresh ? '?fresh=1' : ''))
-      .then((r) => r.json())
-      .then((d) => { setData(d); setErr(false); if (fresh) setRefreshedAt(new Date()); })
-      .catch(() => setErr(true))
-      .finally(() => setRefreshing(false));
+    return Promise.allSettled([
+      fetch('/api/overview' + (fresh ? '?fresh=1' : '')).then((r) => r.json()),
+      fetch('/api/analytics?slug=all').then((r) => r.json()),
+    ]).then(([ov, an]) => {
+      if (ov.status === 'fulfilled') { setData(ov.value); setErr(false); } else setErr(true);
+      const a = an.status === 'fulfilled' ? an.value : null;
+      setAnalytics(a && !a.error ? a : null);
+      if (fresh) setRefreshedAt(new Date());
+    }).finally(() => setRefreshing(false));
   };
 
   useEffect(() => {
@@ -61,18 +66,27 @@ export default function Overview() {
   const greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
-  const labels = Array.from({ length: 14 }, (_, i) => {
-    const d = new Date(Date.now() - (13 - i) * 86400000);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  // Real daily views from the YouTube Analytics API (28-day window, cached 1h
+  // server-side). Last 14 days feed the chart; per-channel lines align by date.
+  const daily = (analytics?.daily || []).slice(-14);
+  const labels = daily.map((d) => d.date.slice(5));
+  const dateIdx = new Map(daily.map((d, i) => [d.date, i]));
+  const series = active.map((c) => {
+    const cd = analytics?.channels?.[c.slug]?.daily || [];
+    const fill = new Array(labels.length).fill(0);
+    for (const d of cd) {
+      const i = dateIdx.get(d.date);
+      if (i !== undefined) fill[i] = d.views;
+    }
+    return {
+      key: c.slug,
+      name: c.label.split(' ').map((w) => w[0]).join('').slice(0, 3),
+      color: c.accent,
+      data: fill,
+    };
   });
-  const series = active.map((c) => ({
-    key: c.slug,
-    name: c.label.split(' ').map((w) => w[0]).join('').slice(0, 3),
-    color: c.accent,
-    data: VIEWS_SERIES[c.slug] || VIEWS_SERIES['quotequarry'],
-  }));
-  const last = series.reduce((a, s) => a + s.data[13], 0);
-  const prev = series.reduce((a, s) => a + s.data[12], 0);
+  const last = daily.at(-1)?.views || 0;
+  const prev = daily.at(-2)?.views || 0;
   const viewsDelta = prev ? Math.round(((last - prev) / prev) * 100) : 0;
 
   const upcoming = logs.filter((l) => l.at && (l.kind === "Short" || l.kind === "Episode")).slice(0, 8);
@@ -105,7 +119,7 @@ export default function Overview() {
       {/* KPI row */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-5">
         <StatCard delay={0} icon={Users} label="YT subs" value={totals.ytSubs} fmt={fmt} />
-        <StatCard delay={1} icon={Eye} label="YT views" value={totals.ytViews} fmt={fmt} delta={viewsDelta} spark={series[0]?.data} color="var(--info)" iconBg="color-mix(in srgb, var(--info) 12%, transparent)" />
+        <StatCard delay={1} icon={Eye} label="YT views" value={totals.ytViews} fmt={fmt} delta={viewsDelta} spark={daily.map((d) => d.views)} color="var(--info)" iconBg="color-mix(in srgb, var(--info) 12%, transparent)" />
         <StatCard delay={2} icon={Film} label="Videos" value={totals.ytVideos} fmt={fmt} />
         <StatCard delay={3} icon={FacebookIcon} label="FB followers" value={totals.fbFollowers} fmt={fmt} color="#3b82f6" iconBg="color-mix(in srgb, #3b82f6 12%, transparent)" />
         <StatCard delay={4} icon={InstagramIcon} label="IG followers" value={totals.igFollowers} fmt={fmt} color="#ec4899" iconBg="color-mix(in srgb, #ec4899 12%, transparent)" />
@@ -115,22 +129,28 @@ export default function Overview() {
       <div className="grid lg:grid-cols-3 gap-4 mb-5">
         <Card className="lg:col-span-2 overflow-hidden">
           <CardHead
-            title="Views this fortnight"
-            sub="Daily views per channel · sample trend until metrics API is wired"
+            title="Views per day"
+            sub={analytics ? 'Real YouTube Analytics · last 14 of 28 days · per channel' : 'Loading real YouTube Analytics…'}
             icon={Radar}
             right={
-              <div className="flex items-center gap-3">
-                {active.map((c) => (
-                  <span key={c.slug} className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: c.accent }}>
-                    <span className="w-2 h-2 rounded-full" style={{ background: c.accent }} />
-                    {BRAND_META[c.slug]?.short}
-                  </span>
-                ))}
-              </div>
+              analytics ? (
+                <div className="flex items-center gap-3">
+                  {active.map((c) => (
+                    <span key={c.slug} className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: c.accent }}>
+                      <span className="w-2 h-2 rounded-full" style={{ background: c.accent }} />
+                      {BRAND_META[c.slug]?.short}
+                    </span>
+                  ))}
+                </div>
+              ) : null
             }
           />
           <div className="px-2 pb-2">
-            <MultiChart series={series} labels={labels} />
+            {analytics ? (
+              <MultiChart series={series} labels={labels.length ? labels : ['-']} />
+            ) : (
+              <div className="px-4 py-10 space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="skeleton h-5" />)}</div>
+            )}
           </div>
         </Card>
 

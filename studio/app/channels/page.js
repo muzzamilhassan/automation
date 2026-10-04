@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Tv, Music2, RefreshCw, Mic, Music, Clock, Archive } from 'lucide-react';
+import Link from 'next/link';
+import { Tv, Music2, RefreshCw, Mic, Music, Clock, Archive, Plus } from 'lucide-react';
 import { YoutubeIcon, FacebookIcon, InstagramIcon } from '@/components/BrandIcons';
 import { Card, CardHead, Chip, PageHeader, BrandMark, PageSkeleton, EmptyState } from '@/components/ui';
 import { BRAND_META, MUSIC_MOODS } from '@/lib/site-data';
@@ -36,6 +37,9 @@ export default function Channels() {
   return (
     <div>
       <PageHeader icon={Tv} title="Channels" sub={`${active.length} live channels + ${parked.length} parked brands · every platform account in one place`}>
+        <Link className="btn btn-primary" href="/channels/add">
+          <Plus size={14} /> New channel
+        </Link>
         <button className="btn btn-outline" onClick={load}>
           <RefreshCw size={14} /> Refresh
         </button>

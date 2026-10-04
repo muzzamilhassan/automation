@@ -55,8 +55,8 @@ async function channelAnalytics(slug, auth) {
   const start = new Date(Date.now() - 28 * 86400000).toISOString().slice(0, 10);
   const base = { startDate: start, endDate: end };
 
-  const totalsRows = await report(auth, { ...base, metrics: 'views,estimatedMinutesWatched,subscribersGained' });
-  const [views = 0, watchMinutes = 0, subsGained = 0] = (totalsRows[0] || []).map(Number);
+  const totalsRows = await report(auth, { ...base, metrics: 'views,estimatedMinutesWatched,subscribersGained,averageViewPercentage' });
+  const [views = 0, watchMinutes = 0, subsGained = 0, avgWatched = 0] = (totalsRows[0] || []).map(Number);
 
   let daily = [];
   try {
@@ -96,7 +96,7 @@ async function channelAnalytics(slug, auth) {
   };
   const [gender, age, countries] = await Promise.all([dim('gender'), dim('ageGroup'), dim('country')]);
 
-  return { slug, range: 28, totals: { views, watchHours: Math.round((watchMinutes / 60) * 10) / 10, subsGained }, daily, split: { shortsViews, longViews }, audience: { gender, age, countries } };
+  return { slug, range: 28, totals: { views, watchHours: Math.round((watchMinutes / 60) * 10) / 10, subsGained }, avgWatched: Math.round(avgWatched * 10) / 10, daily, split: { shortsViews, longViews }, audience: { gender, age, countries } };
 }
 
 export async function GET(req) {
@@ -138,6 +138,19 @@ export async function GET(req) {
   };
   all.audience = { gender: agg('gender'), age: agg('age'), countries: agg('countries') };
   all.totals.watchHours = Math.round(all.totals.watchHours * 10) / 10;
+  // per-channel slim map so one request can feed per-channel charts (Overview)
+  const slim = {};
+  for (const c of Object.values(channels)) {
+    if (c.error) continue;
+    slim[c.slug] = { totals: c.totals, avgWatched: c.avgWatched, daily: c.daily };
+  }
+  all.channels = slim;
+  // view-weighted average-watched across channels
+  const wv = Object.values(slim);
+  const wViews = wv.reduce((a, c) => a + c.totals.views, 0);
+  all.avgWatched = wViews
+    ? Math.round((wv.reduce((a, c) => a + c.avgWatched * c.totals.views, 0) / wViews) * 10) / 10
+    : 0;
 
   cache.at = Date.now();
   cache.data = { channels, all };

@@ -5,8 +5,6 @@ import {
   Target,
   Search,
   FileSpreadsheet,
-  ArrowUpRight,
-  ArrowDownRight,
   Info,
   Eye,
   Users,
@@ -18,7 +16,7 @@ import {
 } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, PageSkeleton, StatCard, BrandMark, Segmented } from '@/components/ui';
 import { RetentionBars, MiniBars } from '@/components/charts';
-import { RETENTION, RETENTION_GOAL, TRACKED_KEYWORDS, BRAND_META, DAILY_REPORTS } from '@/lib/site-data';
+import { RETENTION, RETENTION_GOAL, BRAND_META } from '@/lib/site-data';
 import { fmt } from '@/lib/utils';
 
 export default function Analytics() {
@@ -26,17 +24,25 @@ export default function Analytics() {
   const [sel, setSel] = useState('all');
   const [real, setReal] = useState(null);
   const [realErr, setRealErr] = useState(false);
+  const [terms, setTerms] = useState(null);
+  const [reports, setReports] = useState([]);
 
   useEffect(() => {
     fetch('/api/overview').then((r) => r.json()).then(setData).catch(() => setData({ totals: {}, channels: [] }));
+    fetch('/api/reports').then((r) => r.json()).then((d) => setReports(d.reports || [])).catch(() => {});
   }, []);
   useEffect(() => {
     setReal(null);
     setRealErr(false);
+    setTerms(null);
     fetch('/api/analytics?slug=' + sel)
       .then((r) => r.json())
       .then((d) => (d && !d.error ? setReal(d) : setRealErr(true)))
       .catch(() => setRealErr(true));
+    fetch('/api/terms?slug=' + sel)
+      .then((r) => r.json())
+      .then((d) => setTerms(d.terms || []))
+      .catch(() => setTerms([]));
   }, [sel]);
 
   if (!data) return <PageSkeleton />;
@@ -45,15 +51,29 @@ export default function Analytics() {
   const active = channels.filter((c) => c.active);
   const selChannel = sel === 'all' ? null : active.find((c) => c.slug === sel);
 
-  const retentionRows = RETENTION.filter((r) => sel === 'all' || r.slug === sel).map((r) => ({
-    ...r,
-    name: active.find((c) => c.slug === r.slug)?.label || r.slug,
-    accent: BRAND_META[r.slug]?.accent || 'var(--accent)',
-  }));
+  // Live average-watched % from the YouTube Analytics API overlays the Sep-19
+  // audit numbers — the API value wins whenever it exists.
+  const avgFor = (slug) => {
+    if (sel === 'all') return real?.channels?.[slug]?.avgWatched;
+    if (sel === slug) return real?.avgWatched;
+    return undefined;
+  };
+  const retentionRows = RETENTION.filter((r) => sel === 'all' || r.slug === sel).map((r) => {
+    const live = Number(avgFor(r.slug));
+    const hasLive = Number.isFinite(live) && live > 0;
+    return {
+      ...r,
+      pct: hasLive ? Math.round(live) : r.pct,
+      live: hasLive,
+      name: active.find((c) => c.slug === r.slug)?.label || r.slug,
+      accent: BRAND_META[r.slug]?.accent || 'var(--accent)',
+    };
+  });
+  const retentionLive = retentionRows.length > 0 && retentionRows.every((r) => r.live);
 
   // REAL daily views from the YouTube Analytics API (28 days)
 
-  const keywords = TRACKED_KEYWORDS.filter((k) => sel === 'all' || k.channel === sel);
+  const keywords = (sel === 'all' ? terms : terms || []).filter((k) => k && k.term);
   const platformSlices = sel === 'all'
     ? [
         { name: 'YouTube', value: totals.ytSubs || 0, color: '#ff4444' },
@@ -103,7 +123,12 @@ export default function Analytics() {
       <div className="grid lg:grid-cols-3 gap-4 mb-5">
         {/* retention */}
         <Card>
-          <CardHead title="Average watched" sub="Audit of Sep 19 · % of each Short people actually watch" icon={Target} />
+          <CardHead
+            title="Average watched"
+            sub={retentionLive ? 'Live from YouTube Analytics · last 28 days' : 'Live where available · baseline audit Sep 19'}
+            icon={Target}
+            right={<Chip tone={retentionLive ? 'ok' : 'warn'}>{retentionLive ? 'live data' : 'partly live'}</Chip>}
+          />
           <div className="px-5 pb-5">
             <RetentionBars rows={retentionRows} goal={RETENTION_GOAL} />
             {sel === 'all' && worst ? (
@@ -248,31 +273,25 @@ export default function Analytics() {
           </div>
         </Card>
 
-        {/* SEO */}
+        {/* viewer search terms (real, from the Analytics API via the CI engine) */}
         <Card className="overflow-hidden">
-          <CardHead title="Keyword radar" sub="US rankings from the in-pipeline checker" icon={Search} right={<Chip tone="accent">SEO pack live</Chip>} />
+          <CardHead
+            title="Viewer search terms"
+            sub="What viewers typed into YouTube before finding you · last 28 days"
+            icon={Search}
+            right={<Chip tone="ok">real data</Chip>}
+          />
           <div className="px-2 pb-2">
-            {keywords.length === 0 ? (
-              <p className="text-[12px] text-faint px-3 py-6 text-center">No tracked keywords for this channel yet.</p>
+            {terms === null ? (
+              <div className="px-3 py-6 space-y-2">{[...Array(5)].map((_, i) => <div key={i} className="skeleton h-5" />)}</div>
+            ) : keywords.length === 0 ? (
+              <p className="text-[12px] text-faint px-3 py-6 text-center">No search terms yet — YouTube needs a few days of search traffic first.</p>
             ) : (
-              keywords.map((k) => (
-                <div key={k.kw} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-2 transition-colors">
-                  <span className="tnum font-display font-bold text-[13px] w-7 text-center shrink-0" style={{ color: k.pos <= 10 ? 'var(--ok)' : 'var(--ink)' }}>
-                    #{k.pos}
-                  </span>
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-[12px] font-medium text-ink truncate">{k.kw}</span>
-                    {sel === 'all' ? <span className="block text-[10.5px] text-faint">{BRAND_META[k.channel]?.short || k.channel}</span> : null}
-                  </span>
-                  {k.delta >= 0 ? (
-                    <span className="flex items-center gap-0.5 text-[11px] font-bold" style={{ color: 'var(--ok)' }}>
-                      <ArrowUpRight size={12} /> {k.delta}
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-0.5 text-[11px] font-bold" style={{ color: 'var(--bad)' }}>
-                      <ArrowDownRight size={12} /> {Math.abs(k.delta)}
-                    </span>
-                  )}
+              keywords.slice(0, 10).map((k) => (
+                <div key={k.term} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-2 transition-colors">
+                  <Search size={12} className="text-faint shrink-0" />
+                  <span className="flex-1 min-w-0 text-[12px] font-medium text-ink truncate">{k.term}</span>
+                  <span className="tnum font-bold text-[12px] text-ink shrink-0">{fmt(k.views)} views</span>
                 </div>
               ))
             )}
@@ -283,18 +302,22 @@ export default function Analytics() {
         <Card>
           <CardHead title="Reports" sub="Daily Excel reports from the reporting pipeline" icon={FileSpreadsheet} />
           <div className="px-3 pb-3">
-            {DAILY_REPORTS.map((r) => (
-              <div key={r.name} className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-surface-2 transition-colors">
-                <span className="flex items-center justify-center w-8 h-8 rounded-lg" style={{ background: 'color-mix(in srgb, var(--ok) 12%, transparent)', color: 'var(--ok)' }}>
-                  <FileSpreadsheet size={15} />
-                </span>
-                <span className="flex-1 min-w-0">
-                  <span className="block text-[12px] font-medium text-ink truncate font-mono">{r.name}</span>
-                  <span className="block text-[10.5px] text-faint">{r.when}</span>
-                </span>
-                <Chip>repo /reports</Chip>
-              </div>
-            ))}
+            {reports.length === 0 ? (
+              <p className="text-[12px] text-faint py-6 text-center">No reports in the repo yet — the reporting pipeline drops them here.</p>
+            ) : (
+              reports.slice(0, 8).map((r) => (
+                <div key={r.name} className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-surface-2 transition-colors">
+                  <span className="flex items-center justify-center w-8 h-8 rounded-lg" style={{ background: 'color-mix(in srgb, var(--ok) 12%, transparent)', color: 'var(--ok)' }}>
+                    <FileSpreadsheet size={15} />
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-[12px] font-medium text-ink truncate font-mono">{r.name}</span>
+                    <span className="block text-[10.5px] text-faint">{r.when}{r.size ? ` · ${Math.round(r.size / 1024)} KB` : ''}</span>
+                  </span>
+                  <Chip>repo /reports</Chip>
+                </div>
+              ))
+            )}
           </div>
         </Card>
       </div>

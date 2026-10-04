@@ -9,6 +9,7 @@ import {
   ScrollText,
   SquareKanban,
   Settings,
+  Palette,
 } from 'lucide-react';
 
 export const NAV = [
@@ -25,6 +26,7 @@ export const NAV = [
     group: 'Network',
     items: [
       { href: '/channels', label: 'Channels', icon: Tv, desc: '16 brands, 4 live' },
+      { href: '/styles', label: 'Styles', icon: Palette, desc: 'Video styles the engine makes' },
       { href: '/social', label: 'Social', icon: Share2, desc: 'FB · IG · TikTok · Threads' },
       { href: '/music', label: 'Music', icon: Music, desc: 'Locked pool + moods' },
     ],

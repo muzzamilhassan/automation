@@ -97,6 +97,15 @@ export async function trend(slug) {
   try { return await ghFile(`yt-mcp/trends-${slug}.json`); } catch { return null; }
 }
 
+// Real viewer search terms (insightTrafficSourceDetail==YT_SEARCH, 28 days,
+// written by viewer-terms.mjs in the CI engine). Cached 3 days by the writer.
+export async function terms(slug) {
+  if (!CLOUD) {
+    try { return JSON.parse(fs.readFileSync(path.resolve(ROOT, `yt-mcp/terms-${slug}.json`), 'utf8')); } catch { return null; }
+  }
+  try { return await ghFile(`yt-mcp/terms-${slug}.json`); } catch { return null; }
+}
+
 export async function fbPages() {
   return cached('fb', 5 * 60000, async () => {
     const res = await fetch(`https://graph.facebook.com/v20.0/me/accounts?fields=id,name,username,fan_count,followers_count,about,instagram_business_account{username,name,followers_count,media_count,biography,profile_picture_url}&access_token=${encodeURIComponent(ENV.FB_PAGE_TOKEN || '')}`);
