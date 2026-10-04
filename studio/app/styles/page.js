@@ -1,6 +1,8 @@
+'use client';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Clapperboard, CheckCircle2, FlaskConical, Plus } from 'lucide-react';
-import { Card, Chip, PageHeader } from '@/components/ui';
+import { Card, Chip, PageHeader, PageSkeleton } from '@/components/ui';
 import { STYLE_CATALOG } from '@/lib/styles-catalog';
 
 function StyleCard({ s }) {
@@ -53,6 +55,15 @@ function StyleCard({ s }) {
 }
 
 export default function Styles() {
+  // rAF defers the setState out of the effect body (react-hooks lint rule) —
+  // first paint is the skeleton on both server and client, so no mismatch.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  if (!mounted) return <PageSkeleton />;
+
   const live = STYLE_CATALOG.filter((s) => s.status === 'live');
   return (
     <div>

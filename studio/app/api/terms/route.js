@@ -1,7 +1,7 @@
 // Real "what viewers typed into YouTube search" terms, per channel — the data
 // the Analytics page's search card renders. Written to yt-mcp/terms-<slug>.json
 // by the CI engine (viewer-terms.mjs, verified 10-03). No dummy fallbacks.
-import { terms } from '../../../../lib/data.mjs';
+import { terms } from '../../../lib/data.mjs';
 
 export const dynamic = 'force-dynamic';
 
