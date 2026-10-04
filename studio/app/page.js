@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import ActionButton from '@/components/ActionButton';
 import { Card, CardHead, Chip, StatCard, PageSkeleton, EmptyState, BrandMark } from '@/components/ui';
-import { MultiChart } from '@/components/charts';
+import { MiniBars } from '@/components/charts';
 import { ALERTS, BRAND_META } from '@/lib/site-data';
 import { fmt, fmtFull, timeAgo, when } from '@/lib/utils';
 
@@ -67,24 +67,9 @@ export default function Overview() {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
   // Real daily views from the YouTube Analytics API (28-day window, cached 1h
-  // server-side). Last 14 days feed the chart; per-channel lines align by date.
+  // server-side). Last 14 days feed the chart; per-channel totals in tiles.
   const daily = (analytics?.daily || []).slice(-14);
   const labels = daily.map((d) => d.date.slice(5));
-  const dateIdx = new Map(daily.map((d, i) => [d.date, i]));
-  const series = active.map((c) => {
-    const cd = analytics?.channels?.[c.slug]?.daily || [];
-    const fill = new Array(labels.length).fill(0);
-    for (const d of cd) {
-      const i = dateIdx.get(d.date);
-      if (i !== undefined) fill[i] = d.views;
-    }
-    return {
-      key: c.slug,
-      name: c.label.split(' ').map((w) => w[0]).join('').slice(0, 3),
-      color: c.accent,
-      data: fill,
-    };
-  });
   const last = daily.at(-1)?.views || 0;
   const prev = daily.at(-2)?.views || 0;
   const viewsDelta = prev ? Math.round(((last - prev) / prev) * 100) : 0;
@@ -130,24 +115,32 @@ export default function Overview() {
         <Card className="lg:col-span-2 overflow-hidden">
           <CardHead
             title="Views per day"
-            sub={analytics ? 'Real YouTube Analytics · last 14 of 28 days · per channel' : 'Loading real YouTube Analytics…'}
+            sub={analytics ? 'Real YouTube Analytics · all channels · last 14 of 28 days' : 'Loading real YouTube Analytics…'}
             icon={Radar}
-            right={
-              analytics ? (
-                <div className="flex items-center gap-3">
-                  {active.map((c) => (
-                    <span key={c.slug} className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: c.accent }}>
-                      <span className="w-2 h-2 rounded-full" style={{ background: c.accent }} />
-                      {BRAND_META[c.slug]?.short}
-                    </span>
-                  ))}
-                </div>
-              ) : null
-            }
+            right={<Chip tone="ok">real data</Chip>}
           />
-          <div className="px-2 pb-2">
+          <div className="px-3 pb-3">
             {analytics ? (
-              <MultiChart series={series} labels={labels.length ? labels : ['-']} />
+              <>
+                {/* div-based bars ONLY — the SVG MultiChart + real data combo crashed
+                    tabs before (a7c4a8c); do not reintroduce it here */}
+                <MiniBars data={daily.map((d) => d.views)} labels={labels.length ? labels : ['-']} color="var(--accent)" height={170} />
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+                  {active.map((c) => {
+                    const t = analytics.channels?.[c.slug]?.totals;
+                    return (
+                      <div key={c.slug} className="inset-tile p-2.5">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="w-2 h-2 rounded-full" style={{ background: c.accent }} />
+                          <span className="overline truncate">{BRAND_META[c.slug]?.short}</span>
+                        </div>
+                        <div className="tnum text-[13px] font-bold text-ink">{fmt(t?.views || 0)}</div>
+                        <div className="text-[10px] text-faint">views · 28d</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             ) : (
               <div className="px-4 py-10 space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="skeleton h-5" />)}</div>
             )}
