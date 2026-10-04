@@ -1,5 +1,5 @@
 {
-  "at": "2026-10-04T16:39:55.369Z",
+  "at": "2026-10-04T23:00:27.033Z",
   "problems": 1,
   "results": [
     {
@@ -25,14 +25,14 @@
       "slug": "debt-free-doctrine",
       "channel": "Debt-Free Doctrine",
       "subs": "0",
-      "totalVideos": "132",
+      "totalVideos": "133",
       "status": "OK"
     },
     {
       "slug": "quotequarry",
       "channel": "QuoteQuarry",
       "subs": "192",
-      "totalVideos": "345",
+      "totalVideos": "346",
       "status": "OK"
     }
   ]
