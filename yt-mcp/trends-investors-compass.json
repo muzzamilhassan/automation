@@ -1,8 +1,10 @@
 {
-  "at": 1790846852942,
+  "at": 1791193145756,
   "seed": "investing psychology stock market wisdom",
   "hotKeywords": [
+    "market",
     "discipline",
+    "stock",
     "tradingpsychology",
     "tradingmindset",
     "soulngoal",
@@ -11,21 +13,26 @@
     "self",
     "improvement",
     "personal",
-    "growth",
-    "success",
-    "productivity"
+    "growth"
   ],
   "viralChannels": [
     "Let's Learn Stock Market & Finance",
+    "농부의 경제학",
     "Soul N Goal",
-    "농부의 경제학"
+    "Anshul Dhakate"
   ],
   "videos": [
     {
       "title": "Stock Market ( 17 Year Experience in Just 17 Minutes )✅",
       "channel": "Let's Learn Stock Market & Finance",
-      "views": 39302,
+      "views": 46624,
       "videoId": "5W0nh4gP02w"
+    },
+    {
+      "title": "부자들의 서재에서 찾은 '투자 심리학'",
+      "channel": "농부의 경제학",
+      "views": 4964,
+      "videoId": "dcp-0839kU4"
     },
     {
       "title": "Discipline means respecting your own rules #TradingPsychology #TradingMindset #SoulNGoal",
@@ -34,40 +41,34 @@
       "videoId": "YfKZSlxZKcs"
     },
     {
-      "title": "Your strategy cannot protect you from yourself #TradingPsychology #TradingMindset #SoulNGoal",
-      "channel": "Soul N Goal",
-      "views": 979,
-      "videoId": "yyB0-jt6dhU"
-    },
-    {
-      "title": "부자들의 서재에서 찾은 '투자 심리학'",
-      "channel": "농부의 경제학",
-      "views": 896,
-      "videoId": "dcp-0839kU4"
-    },
-    {
-      "title": "Risk should be small enough to think clearly #TradingPsychology #TradingMindset #SoulNGoal",
-      "channel": "Soul N Goal",
-      "views": 827,
-      "videoId": "o9z2hZdzwpA"
-    },
-    {
       "title": "One losing trade doesn't invalidate a tested strategy #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
       "views": 786,
       "videoId": "d8HLgD5S62Q"
     },
     {
-      "title": "Successful trading is often boring by design #TradingPsychology #TradingMindset #SoulNGoal",
+      "title": "Financial goal should never dictate market behavior #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 393,
-      "videoId": "vBrfjB3guLw"
+      "views": 397,
+      "videoId": "8Du1GphIPDk"
     },
     {
       "title": "Emotional trading usually start wit emotional thinking #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
       "views": 381,
       "videoId": "sToOxLjefBA"
+    },
+    {
+      "title": "Position sizing is discipline before the trade begins #TradingPsychology #TradingMindset #SoulNGoal",
+      "channel": "Soul N Goal",
+      "views": 288,
+      "videoId": "lCDRD2CgRXU"
+    },
+    {
+      "title": "Discipline turns knowledge into execution #TradingPsychology #TradingMindset #SoulNGoal",
+      "channel": "Soul N Goal",
+      "views": 275,
+      "videoId": "IoGJGgGiZ4k"
     }
   ]
 }
