@@ -48,6 +48,15 @@ function goesLiveToday(v) {
 for (const slug of CHANNEL_SLUGS) {
   const b = brands[slug];
   const want = (b.slots || []).length;
+  // 10-05: respect pausedUntil (feed-collapse cooldown — Quote Quarry Oct-1
+  // recovery). A paused channel must NOT be healed behind the pause.
+  try {
+    const stPause = JSON.parse(fs.readFileSync(path.join('yt-mcp', 'state', `${slug}.json`), 'utf8'));
+    if ((stPause.pausedUntil || '') >= todayUTC) {
+      log(`⏸ [${slug}] paused until ${stPause.pausedUntil} — not healing`);
+      continue;
+    }
+  } catch { }
   try {
     const y = google.youtube({ version: 'v3', auth: channelAuth(slug) });
     const ch = await y.channels.list({ part: 'snippet,contentDetails', mine: true });

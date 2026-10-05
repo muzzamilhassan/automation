@@ -24,6 +24,7 @@ const { pickApprovedTrack } = await import('./music-engine.mjs');
 const { bySlug } = await import('./yt-brands/brands.mjs');
 const { researchTrend } = await import('./trend-research.mjs');
 const { archiveUpload } = await import('./yt-archive.mjs');
+const { recentUploadTitles, findDup } = await import('./lib/dup-gate.mjs');
 
 const slug = process.argv[2];
 const FORCE = process.argv.includes('--force');
@@ -85,6 +86,13 @@ function nextSlotISO(hhmm, now = new Date()) {
 
 const state = loadState();
 const today = new Date().toISOString().slice(0, 10);
+// 10-05 PAUSE GUARD — feed-collapse cooldown: state.pausedUntil (YYYY-MM-DD)
+// stops shorts AND the episode for this channel; daily-sweeper respects the
+// same field. Used for the Quote Quarry Oct-1 recovery window.
+if ((state[slug]?.pausedUntil || '') >= today) {
+  console.log(`[${slug}] paused until ${state[slug].pausedUntil} (feed-collapse cooldown) — nothing produced`);
+  process.exit(0);
+}
 const shortsDone = state[slug]?.lastRunDate === today;
 const episodeDone = state[slug]?.deepdiveDate === today;
 const RUN_SHORTS = !EPISODE_ONLY && (TOPUP_N > 0 || !shortsDone || FORCE);
@@ -118,6 +126,10 @@ if (RUN_SHORTS) {
   }
 
   const yt = google.youtube({ version: 'v3', auth: channelAuth(slug) });
+  // 10-05 DUPLICATE TITLE GATE — live titles from YouTube (state can be days
+  // thin), plus this run's own titles so one run can never repeat itself.
+  const recentTitles = await recentUploadTitles(yt);
+  const seenThisRun = [];
   const usedSeeds = Array.isArray(state[slug]?.usedTrendSeeds) ? state[slug].usedTrendSeeds : [];
   const dayIdx = Math.floor(Date.now() / 86400000);
   const waves = page.trend?.videos || [];
@@ -152,6 +164,13 @@ if (RUN_SHORTS) {
       console.log('  off-niche drift — regenerating');
       script = await generateYouTubeScript(page, themesToday[i].topic);
     }
+    // GATE: near-duplicate of anything already on the channel (or made earlier
+    // in this run) — skip BEFORE rendering, this is what fed the Oct-1 collapse
+    const preDup = findDup(script.title, recentTitles, seenThisRun);
+    if (preDup) {
+      console.log(`  GATE: duplicate title "${script.title}" ≈ "${preDup}" — slot skipped before render`);
+      continue;
+    }
     if (script.source === 'fallback') {
       // Quota out → the slot SKIPS. Recycle was REMOVED 09-18: re-uploading the
       // same file reads as reused content to YouTube and suppresses the channel
@@ -175,6 +194,14 @@ if (RUN_SHORTS) {
       results.push({ videoId: null, publishAt, title: meta.title, gateRejected: true });
       continue;
     }
+    // GATE: final check on the exact upload title (meta can reword script.title)
+    const metaDup = findDup(meta.title, recentTitles, seenThisRun);
+    if (metaDup) {
+      console.log(`  GATE: duplicate upload title "${meta.title}" ≈ "${metaDup}" — upload skipped`);
+      results.push({ videoId: null, publishAt, title: meta.title, gateRejected: true });
+      continue;
+    }
+    seenThisRun.push(meta.title);
     const res = await yt.videos.insert({
       part: ['snippet', 'status'],
       requestBody: {
@@ -234,6 +261,9 @@ if (RUN_SHORTS) {
       ...(TOPUP_N > 0 ? { healedDate: today, healedCount: results.length } : {}),
       usedTrendSeeds: [...usedSeeds, ...themesToday.map(t => t.seed)].slice(-40),
       todayTopics: themesToday.map(t => ({ at: today, topic: t.seed })),
+      // 10-05: durable title history — lastVideos alone only ever held the last
+      // run, which is why cross-day duplicates went unnoticed for weeks
+      titleHistory: [...(state[slug]?.titleHistory || []), ...results.filter(r => r.videoId).map(r => ({ t: r.title, at: r.publishAt }))].slice(-60),
       lastVideos: results, deepdiveDate: state[slug]?.deepdiveDate || null
     };
     saveState(state);

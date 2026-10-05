@@ -16,6 +16,7 @@ import { pickApprovedTrack } from './music-engine.mjs';
 const APPROVED_MUSIC = JSON.parse(fs.readFileSync(new URL('./yt-brands/approved-music.json', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'), 'utf8'));
 import { renderYouTubeThumbnail } from './youtube-engine.mjs';
 import { bySlug } from './yt-brands/brands.mjs';
+const { recentUploadTitles, findDup } = await import('./lib/dup-gate.mjs');
 
 const FF = process.env.FFMPEG_PATH || (fs.existsSync('ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe')
   ? 'ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' : 'ffmpeg');
@@ -192,6 +193,11 @@ function segment(cardPng, clipFile, audioFile, outFile, dur, drift = false) {
 
 // ---------- main ----------
 const state = loadState();
+// 10-05 PAUSE GUARD — feed-collapse cooldown (same field yt-daily/sweeper use)
+if ((state[slug]?.pausedUntil || '') >= today()) {
+  console.log(`[${slug}] paused until ${state[slug].pausedUntil} — episode skipped`);
+  process.exit(0);
+}
 if (state[slug]?.deepdiveDate === today() && !FORCE) {
   console.log(`[${slug}] deep-dive already produced today — skipping (--force to override)`);
   process.exit(0);
@@ -301,6 +307,15 @@ const chapters = script.chapters.map((c, i) => {
   return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')} ${c.title}`;
 });
 const description = [`"${script.title}" — a daily ${b.kwShort} episode from ${b.label}.`, '', script.intro, '', ...chapters, '', script.outro, `New episodes every day. ${b.hashtags || ''}`, ...(music ? [`🎵 ${music.credit}`] : [])].join('\n').slice(0, 4900);
+
+// 10-05 DUPLICATE TITLE GATE — the "Musonius Rufus" doc went out twice in two
+// days; a near-dup episode must never upload. Skip WITHOUT marking
+// deepdiveDate so tomorrow's fresh topic can go out cleanly.
+const docDup = findDup(script.title, await recentUploadTitles(yt));
+if (docDup) {
+  console.log(`GATE: duplicate episode title "${script.title}" ≈ "${docDup}" — upload skipped`);
+  process.exit(0);
+}
 
 const res = await yt.videos.insert({
   part: ['snippet', 'status'],
