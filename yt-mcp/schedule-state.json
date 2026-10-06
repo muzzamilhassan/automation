@@ -1,6 +1,6 @@
 {
   "investors-compass": {
-    "lastRunDate": "2026-10-05",
+    "lastRunDate": "2026-10-06",
     "usedThemes": [
       "how the rich buy the crash",
       "the 90-year rule that beats day trading",
@@ -8,22 +8,24 @@
     ],
     "lastVideos": [
       {
-        "videoId": "jMKecGlFjMU",
-        "publishAt": "2026-10-05T12:05:00Z",
-        "title": "The Warren Buffett Psychology Trap | Investing Psychology"
+        "videoId": "CkIQMTTLkRE",
+        "publishAt": "2026-10-06T12:05:00Z",
+        "title": "The Wealth Trap Nobody Sees | Investing Psychology"
       },
       {
-        "videoId": "jKi2cP57Jfk",
-        "publishAt": "2026-10-05T16:05:00Z",
-        "title": "Warren Buffett's Position Sizing Rule | Investing Psychology"
+        "videoId": null,
+        "publishAt": "2026-10-06T16:05:00Z",
+        "title": "Rule #1 Warren Buffett Never Breaks | Investing Psychology",
+        "gateRejected": true
       },
       {
-        "videoId": "oT83HDfxQe0",
-        "publishAt": "2026-10-05T23:35:00Z",
-        "title": "Warren Buffett's Ultimate Rule | Investing Psychology"
+        "videoId": null,
+        "publishAt": "2026-10-06T23:35:00Z",
+        "title": "Rule #1 Warren Buffett Never Breaks | Investing Psychology",
+        "gateRejected": true
       }
     ],
-    "imageDate": "2026-10-05",
+    "imageDate": "2026-10-06",
     "deepdiveDate": "2026-09-07",
     "deepdiveVideo": {
       "videoId": "dOJgBHpJgwQ",
@@ -47,20 +49,29 @@
       "Stock Market ( 17 Year Experience in Just 17 Minutes )✅",
       "Financial goal should never dictate market behavior #TradingPsychology #TradingMindset #SoulNGoal",
       "Position sizing is discipline before the trade begins #TradingPsychology #TradingMindset #SoulNGoal",
-      "Discipline turns knowledge into execution #TradingPsychology #TradingMindset #SoulNGoal"
+      "Discipline turns knowledge into execution #TradingPsychology #TradingMindset #SoulNGoal",
+      "Financial goal should never dictate market behavior #TradingPsychology #TradingMindset #SoulNGoal",
+      "Emotional trading usually start wit emotional thinking #TradingPsychology #TradingMindset #SoulNGoal",
+      "Position sizing is discipline before the trade begins #TradingPsychology #TradingMindset #SoulNGoal"
     ],
     "todayTopics": [
       {
-        "at": "2026-10-05",
+        "at": "2026-10-06",
         "topic": "Financial goal should never dictate market behavior #TradingPsychology #TradingMindset #SoulNGoal"
       },
       {
-        "at": "2026-10-05",
-        "topic": "Position sizing is discipline before the trade begins #TradingPsychology #TradingMindset #SoulNGoal"
+        "at": "2026-10-06",
+        "topic": "Emotional trading usually start wit emotional thinking #TradingPsychology #TradingMindset #SoulNGoal"
       },
       {
-        "at": "2026-10-05",
-        "topic": "Discipline turns knowledge into execution #TradingPsychology #TradingMindset #SoulNGoal"
+        "at": "2026-10-06",
+        "topic": "Position sizing is discipline before the trade begins #TradingPsychology #TradingMindset #SoulNGoal"
+      }
+    ],
+    "titleHistory": [
+      {
+        "t": "The Wealth Trap Nobody Sees | Investing Psychology",
+        "at": "2026-10-06T12:05:00Z"
       }
     ]
   },
@@ -208,35 +219,35 @@
     ]
   },
   "quotequarry": {
-    "lastRunDate": "2026-10-05",
+    "lastRunDate": "2026-10-04",
     "todayTopics": [
       {
-        "at": "2026-10-05",
-        "topic": "Stoicism for Women: 12 Ancient Lessons Every Woman Needs to Transform Her Life "
+        "at": "2026-10-04",
+        "topic": "Stoic Philosophy | 7 Cold Behaviors That Make People Respect You Instantly #stoicism"
       },
       {
-        "at": "2026-10-05",
-        "topic": "99% of Women Love This, But They’ll Never Ask You | Stoicism"
+        "at": "2026-10-04",
+        "topic": "10 Stoic Lessons to Become Emotionally Untouchable |Stoicism Philosophy"
       },
       {
-        "at": "2026-10-05",
-        "topic": "“Freedom Begins When You Let Go of What You Can’t Control” — Epictetus"
+        "at": "2026-10-04",
+        "topic": "​Stop begging for respect.❌ Earn it with these 4 habits.👑#selfimprovement #discipline #growth #power"
       }
     ],
     "lastVideos": [
       {
-        "videoId": "WJtnvx6rXFs",
-        "publishAt": "2026-10-05T11:35:00Z",
-        "title": "Stop Begging For Respect | Stoicism Philosophy"
+        "videoId": "QALczHgCVVI",
+        "publishAt": "2026-10-04T11:35:00Z",
+        "title": "Command Instant Respect | Stoicism Philosophy"
       },
       {
-        "videoId": "XbYN6pljLt4",
-        "publishAt": "2026-10-05T15:35:00Z",
-        "title": "The Stoic Attraction Code | Stoicism Philosophy"
+        "videoId": "YCFp6BZrNLM",
+        "publishAt": "2026-10-04T15:35:00Z",
+        "title": "Become Emotionally Untouchable | Stoicism Philosophy"
       },
       {
-        "videoId": "OZ24Hlbpu-o",
-        "publishAt": "2026-10-05T22:35:00Z",
+        "videoId": "xxyZon3Nu1E",
+        "publishAt": "2026-10-04T22:35:00Z",
         "title": "Stop Begging For Respect | Stoicism Philosophy"
       }
     ],
@@ -244,11 +255,9 @@
     "usedTrendSeeds": [
       "Stoic Philosophy | 7 Cold Behaviors That Make People Respect You Instantly #stoicism",
       "10 Stoic Lessons to Become Emotionally Untouchable |Stoicism Philosophy",
-      "​Stop begging for respect.❌ Earn it with these 4 habits.👑#selfimprovement #discipline #growth #power",
-      "Stoicism for Women: 12 Ancient Lessons Every Woman Needs to Transform Her Life ",
-      "99% of Women Love This, But They’ll Never Ask You | Stoicism",
-      "“Freedom Begins When You Let Go of What You Can’t Control” — Epictetus"
+      "​Stop begging for respect.❌ Earn it with these 4 habits.👑#selfimprovement #discipline #growth #power"
     ],
-    "imageDate": "2026-10-05"
+    "imageDate": "2026-10-04",
+    "pausedUntil": "2026-10-08"
   }
 }
