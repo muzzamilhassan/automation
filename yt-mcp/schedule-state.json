@@ -152,7 +152,7 @@
     "titleHistory": []
   },
   "debt-free-doctrine": {
-    "lastRunDate": "2026-10-05",
+    "lastRunDate": "2026-10-06",
     "usedThemes": [
       "why minimum payments keep you broke",
       "the snowball vs avalanche race",
@@ -160,22 +160,24 @@
     ],
     "lastVideos": [
       {
-        "videoId": "dekpeRkQiWU",
-        "publishAt": "2026-10-05T13:05:00Z",
-        "title": "Old Money Watch Secrets | Old Money Philosophy"
+        "videoId": null,
+        "publishAt": "2026-10-06T13:05:00Z",
+        "title": "Old Money Habits Change Everything | Old Money Philosophy",
+        "gateRejected": true
       },
       {
-        "videoId": "H-6RnXXqPs0",
-        "publishAt": "2026-10-05T17:05:00Z",
-        "title": "Pov: You Start Thinking Like Old Money | Old Money Philosophy"
+        "videoId": null,
+        "publishAt": "2026-10-06T17:05:00Z",
+        "title": "Pov: Old Money Thinking Changed Everything | Old Money Philosophy",
+        "gateRejected": true
       },
       {
-        "videoId": "pKOBq1vr9KQ",
-        "publishAt": "2026-10-06T00:35:00Z",
-        "title": "Pov: Old Money Thinking Changed Everything | Old Money Philosophy"
+        "videoId": "SKKZWhhlwes",
+        "publishAt": "2026-10-07T00:35:00Z",
+        "title": "Pov: You Think Like Old Money | Old Money Philosophy"
       }
     ],
-    "imageDate": "2026-10-05",
+    "imageDate": "2026-10-06",
     "deepdiveDate": "2026-09-07",
     "deepdiveVideo": {
       "videoId": "INCR7ceFCOA",
@@ -208,20 +210,29 @@
       "POV: You adopted old money habits — And everything changed",
       "Rich vs. looks rich: the watch.",
       "POV: You Stopped Trying to Impress People — Old Money Never Does.",
-      "POV: You Started Thinking Like Old Money… And Suddenly Everything Changed"
+      "POV: You Started Thinking Like Old Money… And Suddenly Everything Changed",
+      "POV: You Started Thinking Like Old Money — Nothing Was Ever the Same",
+      "POV: You Started Making Decisions Like Old Money",
+      "6 Quiet Signals That Separate Old Money From New Rich"
     ],
     "todayTopics": [
       {
-        "at": "2026-10-05",
-        "topic": "Rich vs. looks rich: the watch."
+        "at": "2026-10-06",
+        "topic": "POV: You Started Thinking Like Old Money — Nothing Was Ever the Same"
       },
       {
-        "at": "2026-10-05",
-        "topic": "POV: You Stopped Trying to Impress People — Old Money Never Does."
+        "at": "2026-10-06",
+        "topic": "POV: You Started Making Decisions Like Old Money"
       },
       {
-        "at": "2026-10-05",
-        "topic": "POV: You Started Thinking Like Old Money… And Suddenly Everything Changed"
+        "at": "2026-10-06",
+        "topic": "6 Quiet Signals That Separate Old Money From New Rich"
+      }
+    ],
+    "titleHistory": [
+      {
+        "t": "Pov: You Think Like Old Money | Old Money Philosophy",
+        "at": "2026-10-07T00:35:00Z"
       }
     ]
   },
