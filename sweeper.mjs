@@ -45,9 +45,13 @@ function goesLiveToday(v) {
 }
 
 // ---- 1. Per-channel reel count + top-up ------------------------------------
+// 10-05 CADENCE: Sunday is the break day — nothing is produced or healed.
+const sundayBreak = new Date(todayUTC + 'T00:00:00Z').getUTCDay() === 0;
+if (sundayBreak) log(`🛌 Sunday break day — shorts production and healing paused network-wide`);
 for (const slug of CHANNEL_SLUGS) {
   const b = brands[slug];
   const want = (b.slots || []).length;
+  if (sundayBreak) continue;
   // 10-05: respect pausedUntil (feed-collapse cooldown — Quote Quarry Oct-1
   // recovery). A paused channel must NOT be healed behind the pause.
   try {

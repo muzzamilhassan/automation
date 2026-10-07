@@ -71,10 +71,10 @@ export const PIPELINES = [
   {
     id: 'yt-daily',
     name: 'Daily Shorts',
-    desc: 'AI script → voice → render → upload, 3 slots per channel',
+    desc: 'AI script → voice → render → upload — 1 quality short per channel, best ET-prime slot only',
     icon: 'clapperboard',
     engine: 'GitHub Actions · yt-daily.yml',
-    schedule: 'QQ 02:13 · IC 02:47 · MR 03:21 · DFD 03:53 (UTC)',
+    schedule: 'QQ 22:35 · IC 23:35 · MR 00:05 · OMC 00:35 (UTC) · Sunday break',
     actions: [
       { action: 'yt-daily', slug: 'quotequarry', label: 'QQ Shorts' },
       { action: 'yt-daily', slug: 'investors-compass', label: 'IC Shorts' },
@@ -85,12 +85,12 @@ export const PIPELINES = [
   },
   {
     id: 'deepdive',
-    name: 'Long-form episodes',
-    desc: '10+ min documentary per channel, rendered on quarry-render, uploaded at ET prime',
+    name: 'Weekly episode',
+    desc: '10+ min documentary per channel — ONE fixed day a week, appointment viewing',
     icon: 'film',
-    engine: 'quarry-render repo · render + upload yml',
-    schedule: 'Render 18:00 UTC · Upload IC 7PM · MR 7:45 · DFD 8:30 · QQ 9:15 (ET)',
-    note: 'Safe to press anytime — days that already uploaded are skipped automatically, never double-posted.',
+    engine: 'yt-deepdive in the daily channel run',
+    schedule: 'QQ Tue · IC Wed · MR Thu · OMC Fri (each at its ET-prime slot)',
+    note: 'Docs are weekly since Oct 05 (cadence research). The manual uploader workflow is disabled during the Oct-1 recovery — the daily run produces the episode on each channel\'s doc day.',
     actions: [
       { action: 'deepdive', slug: 'quotequarry', label: 'QQ episode' },
       { action: 'deepdive', slug: 'investors-compass', label: 'IC episode' },

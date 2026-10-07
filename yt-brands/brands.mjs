@@ -26,8 +26,9 @@ export const BRANDS = [
     tags: ['stoicism', 'stoic wisdom', 'motivation', 'discipline', 'mindset', 'self improvement', 'mental strength', 'philosophy', 'success mindset', 'inner peace'],
     musicFeels: ['epic', 'inspir', 'heroic'],
     voice: 'am_michael',
-    slots: ['11:35', '15:35', '22:35'], longSlot: '20:30',
-    longSlot: '14:30',
+    // 10-05 CADENCE: 1 short/day (best ET-prime slot only) + 1 doc/week.
+    // Sunday is the network break day. research/upload-cadence-research-2026-10-05.md
+    slots: ['22:35'], longSlot: '14:30', docDay: 'Tue',
     active: true,
   },
   {
@@ -45,7 +46,7 @@ export const BRANDS = [
     tags: ['investing', 'stock market', 'warren buffett', 'financial education', 'money mindset', 'compounding', 'value investing', 'market psychology', 'wealth building', 'finance', 'investment strategy', 'stock market for beginners'],
     voice: 'bm_george',
     musicFeels: ['calming', 'inspir', 'mystical'], // premium, calm-confident market wisdom
-    slots: ['12:05', '16:05', '23:35'], longSlot: '21:30', // long: 5:30p ET
+    slots: ['23:35'], longSlot: '21:30', docDay: 'Wed', // long: 5:30p ET
     description: 'Investing wisdom and stock market psychology in 60 seconds. Timeless principles from Buffett, Munger and Bogle — patience, compounding, and buying fear instead of selling it. New Shorts daily. Build conviction, not panic. Subscribe for daily investing wisdom.',
     script: { targetSeconds: 32, points: 4, lineWords: '9-12', titleStyle: 'authority + market-story', titleExamples: '"Rule #1 Warren Buffett Never Breaks", "The Day the Market Lost $1 Trillion"' }
   },
@@ -64,7 +65,7 @@ export const BRANDS = [
     tags: ['personal finance', 'money tips', 'saving money', 'financial freedom', 'budgeting', 'wealth habits', 'money management', 'financial literacy', 'pay yourself first', 'money mindset', 'financial planning', 'build wealth'],
     voice: 'bm_daniel',
     musicFeels: ['bright', 'uplifting', 'grooving'], // clean, confident money-rules energy
-    slots: ['12:35', '16:35', '00:05'], longSlot: '22:30', // long: 6:30p ET
+    slots: ['00:05'], longSlot: '22:30', docDay: 'Thu', // long: 6:30p ET
     description: 'Money rules that quietly build wealth — one principle per Short. Pay yourself first, automate savings, kill lifestyle creep. Personal finance in 60 seconds, new rule every day. Subscribe and let the rules compound.',
     script: { targetSeconds: 32, points: 4, lineWords: '9-12', titleStyle: 'numbered money listicle with a $ figure', titleExamples: '"7 Money Habits That Quietly Make You Rich", "6 Rules for Your First $10,000"' }
   },
@@ -83,7 +84,7 @@ export const BRANDS = [
     tags: ['old money', 'old money habits', 'quiet luxury', 'old money aesthetic', 'generational wealth', 'elegance', 'classy lifestyle', 'wealth habits', 'success habits', 'old money rules', 'style', 'self improvement'],
     voice: 'am_fenrir',
     musicFeels: ['calming', 'bright'], // refined understated energy (approved pool is primary anyway)
-    slots: ['13:05', '17:05', '00:35'], longSlot: '01:30', // long: 9:30p ET
+    slots: ['00:35'], longSlot: '01:30', docDay: 'Fri', // long: 9:30p ET
     description: 'Old money habits, quiet luxury, and the rules of understated wealth — in 60 seconds. How generational wealth thinks, spends, and stays silent. New Shorts daily. Subscribe and learn why wealth whispers.',
     script: { targetSeconds: 32, points: 4, lineWords: '9-12', titleStyle: 'journey/stakes framing', titleExamples: '"POV: You Start Thinking Like Old Money", "10 Old Money Habits That Change Everything"' }
   },

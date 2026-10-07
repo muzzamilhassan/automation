@@ -93,6 +93,14 @@ if ((state[slug]?.pausedUntil || '') >= today) {
   console.log(`[${slug}] paused until ${state[slug].pausedUntil} (feed-collapse cooldown) — nothing produced`);
   process.exit(0);
 }
+// 10-05 CADENCE — Sunday is the network-wide break day: no new renders.
+// Shorts come from the feed, not a subscription calendar, so a dark Sunday is
+// free; it buys the weekly review that keeps quality up (research/
+// upload-cadence-research-2026-10-05.md). --force overrides.
+if (!FORCE && !TOPUP_N && new Date().getUTCDay() === 0) {
+  console.log(`[${slug}] Sunday break day — no shorts produced`);
+  process.exit(0);
+}
 const shortsDone = state[slug]?.lastRunDate === today;
 const episodeDone = state[slug]?.deepdiveDate === today;
 const RUN_SHORTS = !EPISODE_ONLY && (TOPUP_N > 0 || !shortsDone || FORCE);

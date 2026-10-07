@@ -7,8 +7,6 @@
     "bg": "#0A0A0A",
     "voice": "am_michael",
     "slots": [
-      "11:35",
-      "15:35",
       "22:35"
     ],
     "longSlot": "14:30",
@@ -30,7 +28,8 @@
       "success mindset",
       "inner peace"
     ],
-    "hashtags": null
+    "hashtags": null,
+    "docDay": "Tue"
   },
   "investors-compass": {
     "label": "INVESTOR'S COMPASS",
@@ -40,8 +39,6 @@
     "bg": "#0A1128",
     "voice": "bm_george",
     "slots": [
-      "12:05",
-      "16:05",
       "23:35"
     ],
     "longSlot": "21:30",
@@ -65,7 +62,8 @@
       "investment strategy",
       "stock market for beginners"
     ],
-    "hashtags": null
+    "hashtags": null,
+    "docDay": "Wed"
   },
   "money-rulebook": {
     "label": "THE MONEY RULEBOOK",
@@ -75,8 +73,6 @@
     "bg": "#101314",
     "voice": "bm_daniel",
     "slots": [
-      "12:35",
-      "16:35",
       "00:05"
     ],
     "longSlot": "22:30",
@@ -100,7 +96,8 @@
       "financial planning",
       "build wealth"
     ],
-    "hashtags": null
+    "hashtags": null,
+    "docDay": "Thu"
   },
   "debt-free-doctrine": {
     "label": "DEBT-FREE DOCTRINE",
@@ -110,8 +107,6 @@
     "bg": "#14100E",
     "voice": "am_fenrir",
     "slots": [
-      "13:05",
-      "17:05",
       "00:35"
     ],
     "longSlot": "01:30",
@@ -135,7 +130,8 @@
       "interest rates",
       "no more debt"
     ],
-    "hashtags": null
+    "hashtags": null,
+    "docDay": "Fri"
   },
   "escrow-estate": {
     "label": "ESCROW & ESTATE",

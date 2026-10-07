@@ -198,6 +198,14 @@ if ((state[slug]?.pausedUntil || '') >= today()) {
   console.log(`[${slug}] paused until ${state[slug].pausedUntil} — episode skipped`);
   process.exit(0);
 }
+// 10-05 CADENCE — docs are WEEKLY: each channel has a fixed docDay (brands).
+// Daily 10-min docs got 0-37 views and read as mass-production; one weekly
+// episode at a fixed slot is appointment viewing. --force overrides.
+const DOC_DAY_NAME = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date().getUTCDay()];
+if (b.docDay && DOC_DAY_NAME !== b.docDay && !FORCE) {
+  console.log(`[${slug}] doc day is ${b.docDay} (today is ${DOC_DAY_NAME}) — episode skipped`);
+  process.exit(0);
+}
 if (state[slug]?.deepdiveDate === today() && !FORCE) {
   console.log(`[${slug}] deep-dive already produced today — skipping (--force to override)`);
   process.exit(0);
