@@ -10,6 +10,7 @@ import {
   SquareKanban,
   Settings,
   Palette,
+  ListChecks,
 } from 'lucide-react';
 
 export const NAV = [
@@ -20,6 +21,7 @@ export const NAV = [
       { href: '/production', label: 'Production', icon: Clapperboard, desc: 'Pipelines and one-click runs' },
       { href: '/videos', label: 'Videos', icon: Film, desc: 'Everything published' },
       { href: '/analytics', label: 'Analytics', icon: TrendingUp, desc: 'Retention, growth, SEO' },
+      { href: '/topics', label: 'Topic Desk', icon: ListChecks, desc: 'Approve what gets made' },
     ],
   },
   {

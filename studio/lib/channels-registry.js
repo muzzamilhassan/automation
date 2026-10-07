@@ -30,6 +30,50 @@ export function hasGithubToken() {
   return Boolean(TOKEN);
 }
 
+// ---------- generic repo JSON (10-05 PHASE B: Topic Desk queues live here) ----------
+
+export async function readRepoJSON(repoPath) {
+  if (!CLOUD) {
+    try {
+      return JSON.parse(fs.readFileSync(path.join(ROOT, repoPath), 'utf8'));
+    } catch {
+      return null;
+    }
+  }
+  if (!TOKEN) throw new Error('no GITHUB_TOKEN on the server');
+  const res = await fetch(`https://api.github.com/repos/${REPO}/contents/${repoPath}?ref=main`, {
+    headers: ghHeaders({ Accept: 'application/vnd.github.raw' }),
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`github ${res.status} reading ${repoPath}`);
+  return JSON.parse(await res.text());
+}
+
+export async function writeRepoJSON(repoPath, data, message) {
+  const body = JSON.stringify(data, null, 2) + '\n';
+  if (!CLOUD) {
+    fs.mkdirSync(path.dirname(path.join(ROOT, repoPath)), { recursive: true });
+    fs.writeFileSync(path.join(ROOT, repoPath), body);
+    return { ok: true, mode: 'local' };
+  }
+  const cur = await fetch(`https://api.github.com/repos/${REPO}/contents/${repoPath}?ref=main`, {
+    headers: ghHeaders(),
+  });
+  const sha = cur.ok ? (await cur.json()).sha : undefined;
+  const res = await fetch(`https://api.github.com/repos/${REPO}/contents/${repoPath}`, {
+    method: 'PUT',
+    headers: ghHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({
+      message,
+      content: Buffer.from(body, 'utf8').toString('base64'),
+      branch: 'main',
+      ...(sha ? { sha } : {}),
+    }),
+  });
+  if (!res.ok) throw new Error(`github ${res.status} committing ${repoPath}: ${(await res.text()).slice(0, 120)}`);
+  return { ok: true, mode: 'cloud' };
+}
+
 export async function readRegistry() {
   if (!CLOUD) {
     try {

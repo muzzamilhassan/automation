@@ -146,8 +146,29 @@ if (RUN_SHORTS) {
   const dayIdx = Math.floor(Date.now() / 86400000);
   const waves = page.trend?.videos || [];
   const themesToday = [];
+  // 10-05 PHASE B — TOPIC DESK: user-approved topics (Studio → Topic Desk,
+  // stored in yt-mcp/topics-<slug>.json) are consumed FIRST — one per slot.
+  // When the queue empties, auto-research fills the remaining slots.
+  const deskPath = `yt-mcp/topics-${slug}.json`;
+  let deskQueue = [];
+  try { deskQueue = JSON.parse(fs.readFileSync(deskPath, 'utf8')).queue || []; } catch { }
+  let deskUsed = 0;
+  for (let k = 0; k < b.slots.length && deskQueue.length; k++) {
+    const t = deskQueue.shift();
+    deskUsed++;
+    const topic = t.kind === 'search'
+      ? `Make today's video for what your viewers actually searched: "${t.text}". Answer it natively for ${b.label} with a fresh angle and work the search words naturally into the hook and points.${page.viewerTerms?.length ? ` Related real searches: ${page.viewerTerms.slice(0, 6).join(', ')}.` : ''}`
+      : t.kind === 'seed'
+        ? `Build today's video around the THEME of this proven viral video in the niche right now: "${t.text}". Reimagine it natively for ${b.label} — do NOT copy its title or wording; bring a fresh angle.${page.trend?.hotKeywords?.length ? ` Weave in what is currently working: ${page.trend.hotKeywords.slice(0, 6).join(', ')}.` : ''}`
+        : t.text; // 'custom' — the user's own full instruction
+    themesToday.push({ seed: `desk:${t.id || String(t.text).slice(0, 24)}`, topic });
+  }
+  if (deskUsed) {
+    fs.writeFileSync(deskPath, JSON.stringify({ at: Date.now(), queue: deskQueue }, null, 2) + '\n');
+    console.log(`[desk] used ${deskUsed} user-approved topic(s) — ${deskQueue.length} left in the queue`);
+  }
   if (waves.length) {
-    for (let k = 0; k < b.slots.length; k++) {
+    for (let k = themesToday.length; k < b.slots.length; k++) {
       let seed = null;
       for (let off = 0; off < waves.length; off++) {
         const cand = waves[(dayIdx * b.slots.length + k + off) % waves.length];
