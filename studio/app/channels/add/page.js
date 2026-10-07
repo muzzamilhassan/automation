@@ -1,11 +1,12 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { UserPlus, ShieldCheck, CheckCircle2, AlertTriangle, ArrowRight, Layers, Settings2, Plus } from 'lucide-react';
+import { UserPlus, ShieldCheck, CheckCircle2, AlertTriangle, ArrowRight, Layers, Settings2, Plus, Sparkles } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, EmptyState, PageSkeleton } from '@/components/ui';
 import { STYLE_CATALOG, STYLE_BY_ID } from '@/lib/styles-catalog';
 
 const VOICE_SUGGESTIONS = ['am_michael', 'bm_george', 'bm_daniel', 'am_onyx', 'bf_emma'];
+const DOC_DAYS = ['Tue', 'Wed', 'Thu', 'Fri'];
 
 function originNow() {
   if (typeof window === 'undefined') return '';
@@ -21,7 +22,12 @@ export default function AddChannel() {
   const [showSetup, setShowSetup] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ label: '', niche: '', style: 'cinematic', voice: 'am_michael', accent: '#38BDF8', slots: '11:35, 15:35, 22:35' });
+  const [fillingKit, setFillingKit] = useState(false);
+  const [kitMood, setKitMood] = useState('');
+  const [form, setForm] = useState({
+    label: '', niche: '', style: 'cinematic', voice: 'am_michael', accent: '#38BDF8', slots: '22:35',
+    docDay: 'Tue', eyebrow: '', tagline: '', tags: '', description: '',
+  });
 
   const loadReg = () => fetch('/api/channels/registry').then((r) => r.json()).then(setReg).catch(() => setReg({ channels: [] }));
 
@@ -39,13 +45,53 @@ export default function AddChannel() {
       if (q.get('connected')) {
         setConnectedSlug(q.get('connected'));
         const entry = (r?.channels || []).find((c) => c.slug === q.get('connected'));
-        if (entry) setForm((f) => ({ ...f, label: entry.label || '', niche: entry.niche || '' }));
+        if (entry) prefill(entry);
       }
     })();
     return () => {
       alive = false;
     };
   }, []);
+
+  const prefill = (entry) => setForm((f) => ({
+    ...f,
+    label: entry.label || '',
+    niche: entry.niche || '',
+    docDay: entry.docDay || entry.kit?.docDay || 'Tue',
+    eyebrow: entry.kit?.eyebrow || '',
+    tagline: entry.kit?.tagline || '',
+    tags: (entry.kit?.tags || []).join(', '),
+    description: entry.kit?.description || '',
+  }));
+
+  const autoFillKit = async () => {
+    if (!form.niche.trim()) {
+      setError('Type a niche first — the kit generator drafts from it.');
+      return;
+    }
+    setFillingKit(true);
+    setError('');
+    try {
+      const r = await fetch('/api/channels/kit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: connectedSlug, niche: form.niche, label: form.label }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Kit generation failed');
+      setKitMood(d.kit.mood || '');
+      setForm((f) => ({
+        ...f,
+        eyebrow: d.kit.eyebrow || f.eyebrow,
+        tagline: d.kit.tagline || f.tagline,
+        tags: (d.kit.tags || []).join(', '),
+        description: d.kit.description || f.description,
+      }));
+    } catch (e) {
+      setError(e.message);
+    }
+    setFillingKit(false);
+  };
 
   const connect = async () => {
     setConnecting(true);
@@ -73,7 +119,23 @@ export default function AddChannel() {
       const r = await fetch('/api/channels/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug: connectedSlug, ...form }),
+        body: JSON.stringify({
+          slug: connectedSlug,
+          label: form.label,
+          niche: form.niche,
+          style: form.style,
+          voice: form.voice,
+          accent: form.accent,
+          slots: form.slots,
+          docDay: form.docDay,
+          kit: {
+            eyebrow: form.eyebrow,
+            tagline: form.tagline,
+            tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
+            niches: form.niche ? [form.niche.toLowerCase()] : [],
+            description: form.description,
+          },
+        }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Save failed');
@@ -91,7 +153,7 @@ export default function AddChannel() {
 
   return (
     <div className="max-w-3xl">
-      <PageHeader icon={UserPlus} title="Add Channel" sub="Log in with Google → pick the channel → choose niche + style. One login connects ONE YouTube channel." />
+      <PageHeader icon={UserPlus} title="Add Channel" sub="Log in with Google → pick the channel → pick niche + template. One login connects ONE YouTube channel." />
 
       {error ? (
         <Card className="p-4 mb-4" style={{ borderColor: '#ef444455' }}>
@@ -159,7 +221,7 @@ export default function AddChannel() {
               <input className="input w-full" value={form.niche} onChange={(e) => setForm({ ...form, niche: e.target.value })} placeholder="Old money & quiet luxury" />
             </label>
             <label className="block">
-              <span className="overline block mb-1.5">Video style</span>
+              <span className="overline block mb-1.5">Video template</span>
               <select className="input w-full" value={form.style} onChange={(e) => setForm({ ...form, style: e.target.value })}>
                 {STYLE_CATALOG.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -182,13 +244,43 @@ export default function AddChannel() {
               <input type="color" className="input w-full h-[38px] p-1" value={form.accent} onChange={(e) => setForm({ ...form, accent: e.target.value })} />
             </label>
             <label className="block">
-              <span className="overline block mb-1.5">Post slots UTC (comma separated)</span>
+              <span className="overline block mb-1.5">Short slot UTC (evening is best)</span>
               <input className="input w-full font-mono" value={form.slots} onChange={(e) => setForm({ ...form, slots: e.target.value })} />
+            </label>
+            <label className="block">
+              <span className="overline block mb-1.5">Weekly episode day</span>
+              <select className="input w-full" value={form.docDay} onChange={(e) => setForm({ ...form, docDay: e.target.value })}>
+                {DOC_DAYS.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </label>
+            <div className="sm:col-span-2">
+              <button className="btn btn-outline w-full sm:w-auto" onClick={autoFillKit} disabled={fillingKit}>
+                <Sparkles size={14} /> {fillingKit ? 'Drafting…' : 'Auto-fill brand kit from niche'}
+              </button>
+              {kitMood ? <span className="text-[11px] text-faint ml-2">music mood: {kitMood}</span> : null}
+            </div>
+            <label className="block sm:col-span-2">
+              <span className="overline block mb-1.5">Eyebrow (on-video label)</span>
+              <input className="input w-full font-mono" value={form.eyebrow} onChange={(e) => setForm({ ...form, eyebrow: e.target.value })} placeholder="OLD MONEY HABITS // OLD MONEY CODE" />
+            </label>
+            <label className="block">
+              <span className="overline block mb-1.5">Tagline</span>
+              <input className="input w-full" value={form.tagline} onChange={(e) => setForm({ ...form, tagline: e.target.value })} placeholder="Wealth whispers." />
+            </label>
+            <label className="block">
+              <span className="overline block mb-1.5">SEO tags (comma separated)</span>
+              <input className="input w-full" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="old money, quiet luxury, wealth habits" />
+            </label>
+            <label className="block sm:col-span-2">
+              <span className="overline block mb-1.5">Channel description</span>
+              <textarea className="input w-full" rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </label>
           </div>
           {form.style && STYLE_BY_ID[form.style] ? (
             <p className="text-[11.5px] text-faint mt-3">
-              Style preview: <b className="text-muted">{STYLE_BY_ID[form.style].name}</b> — {STYLE_BY_ID[form.style].desc}
+              Template: <b className="text-muted">{STYLE_BY_ID[form.style].name}</b> — {STYLE_BY_ID[form.style].desc}
             </p>
           ) : null}
           <div className="flex gap-2 mt-4">
@@ -196,7 +288,7 @@ export default function AddChannel() {
               {saving ? 'Saving…' : 'Save channel'}
             </button>
             <Link className="btn btn-outline" href="/styles">
-              Browse styles
+              Browse templates
             </Link>
           </div>
         </Card>
@@ -210,9 +302,9 @@ export default function AddChannel() {
             <div>
               <p className="text-[14px] font-bold text-ink">Channel connected ✓</p>
               <p className="text-[12.5px] text-muted mt-1 leading-relaxed">
-                <b className="text-ink">{form.label || connectedSlug}</b> is logged in and its access key is stored. The style, niche and voice you chose
-                are saved on the channel profile. Daily video automation for this channel needs its engine wiring (workflow slot) — that&apos;s the next
-                step, done in the repo&apos;s CI setup.
+                <b className="text-ink">{form.label || connectedSlug}</b> is linked, its key is stored, and its brand kit is saved. The nightly
+                <b className="text-ink"> Channel Autopilot</b> picks it up automatically: 1 short per day at your slot, your weekly episode on{' '}
+                {form.docDay}, Sunday off. Duplicate protection and all safety rails apply.
               </p>
               <div className="flex gap-2 mt-3">
                 <Link className="btn btn-primary" href="/channels">
@@ -223,7 +315,8 @@ export default function AddChannel() {
                   onClick={() => {
                     setSaved(false);
                     setConnectedSlug('');
-                    setForm({ label: '', niche: '', style: 'cinematic', voice: 'am_michael', accent: '#38BDF8', slots: '11:35, 15:35, 22:35' });
+                    setKitMood('');
+                    setForm({ label: '', niche: '', style: 'cinematic', voice: 'am_michael', accent: '#38BDF8', slots: '22:35', docDay: 'Tue', eyebrow: '', tagline: '', tags: '', description: '' });
                   }}
                 >
                   <Plus size={14} /> Connect another channel
@@ -236,7 +329,7 @@ export default function AddChannel() {
 
       {/* Connected list */}
       <Card className="mt-5 overflow-hidden">
-        <CardHead title="Connected via Studio" sub="Channels this wizard linked — engine wiring pending unless noted" icon={Layers} />
+        <CardHead title="Connected via Studio" sub="Channels this wizard linked — they run on the nightly Channel Autopilot" icon={Layers} />
         {!reg ? (
           <PageSkeleton />
         ) : reg.channels?.length ? (
@@ -254,6 +347,7 @@ export default function AddChannel() {
                 </div>
                 <div className="flex flex-wrap gap-1 justify-end shrink-0">
                   {c.style ? <Chip tone="accent">{STYLE_BY_ID[c.style]?.name || c.style}</Chip> : null}
+                  {c.kit?.tags?.length ? <Chip tone="ok">kit saved</Chip> : null}
                   <Chip tone={c.tokenSecretSaved === false ? 'warn' : 'ok'}>{c.tokenSecretSaved === false ? 'secret missing' : 'key saved'}</Chip>
                 </div>
               </div>
@@ -273,7 +367,7 @@ export default function AddChannel() {
           <div className="px-4 pb-4 text-[12px] text-muted leading-relaxed">
             <ol className="list-decimal ml-4 space-y-1.5">
               <li>
-                Open <span className="font-mono text-ink">console.cloud.google.com → APIs & Services → Credentials</span> and open the OAuth client whose
+                Open <span className="font-mono text-ink">console.cloud.google.com → APIs &amp; Services → Credentials</span> and open the OAuth client whose
                 ID matches <span className="font-mono text-ink">YOUTUBE_CLIENT_ID</span>.
               </li>
               <li>

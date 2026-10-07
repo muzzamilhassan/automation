@@ -28,12 +28,36 @@ export async function POST(req) {
   if (body.style != null) entry.style = STYLE_BY_ID[body.style] ? body.style : '';
   if (body.voice != null) entry.voice = String(body.voice).slice(0, 40);
   if (body.accent != null) entry.accent = /^#[0-9a-fA-F]{6}$/.test(body.accent) ? body.accent : entry.accent;
+  if (body.docDay != null) {
+    entry.docDay = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(body.docDay) ? body.docDay : (entry.docDay || 'Tue');
+  }
   if (body.slots != null) {
     entry.slots = String(body.slots)
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean)
       .slice(0, 6);
+  }
+  // 10-05 CHANNEL FACTORY — the brand kit (identity + SEO tags + script rules
+  // + music mood) drafted by the generator, edited and approved by the user.
+  if (body.kit && typeof body.kit === 'object') {
+    const k = body.kit;
+    const s = (v, n) => (v != null ? String(v).slice(0, n) : undefined);
+    entry.kit = {
+      ...(entry.kit || {}),
+      ...(s(k.eyebrow, 70) != null ? { eyebrow: s(k.eyebrow, 70) } : {}),
+      ...(s(k.tagline, 90) != null ? { tagline: s(k.tagline, 90) } : {}),
+      ...(s(k.keyword, 60) != null ? { keyword: s(k.keyword, 60) } : {}),
+      ...(s(k.kwShort, 40) != null ? { kwShort: s(k.kwShort, 40) } : {}),
+      ...(s(k.theme, 80) != null ? { theme: s(k.theme, 80) } : {}),
+      ...(Array.isArray(k.niches) ? { niches: k.niches.slice(0, 6).map((x) => String(x).slice(0, 60)) } : {}),
+      ...(s(k.authority, 80) != null ? { authority: s(k.authority, 80) } : {}),
+      ...(Array.isArray(k.tags) ? { tags: k.tags.slice(0, 15).map((x) => String(x).slice(0, 50)) } : {}),
+      ...(Array.isArray(k.musicFeels) ? { musicFeels: k.musicFeels.slice(0, 5).map((x) => String(x).slice(0, 30)) } : {}),
+      ...(s(k.description, 900) != null ? { description: s(k.description, 900) } : {}),
+      ...(k.script && typeof k.script === 'object' ? { script: k.script } : {}),
+      ...(s(k.longSlot, 5) != null ? { longSlot: s(k.longSlot, 5) } : {}),
+    };
   }
   entry.profileSavedAt = new Date().toISOString();
 

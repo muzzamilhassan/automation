@@ -17,7 +17,10 @@ const SKIP_EPISODE = process.argv.includes('--no-episode');
 const topupArg = process.argv.find(a => a.startsWith('--topup'));
 const TOPUP_N = topupArg ? Math.max(0, Number(topupArg.split('=')[1]) || 0) : 0;
 const brands = JSON.parse(fs.readFileSync('lib/brands.json', 'utf8'));
-const b = brands[slug];
+// 10-05 CHANNEL FACTORY: registry channels (Studio wizard) resolve from
+// yt-mcp/studio-channels.json when lib/brands.json has no entry.
+const { resolveBrand } = await import('./lib/brand-resolve.mjs');
+let b = brands[slug] || await resolveBrand(slug);
 if (!b) { console.error(`[pipeline] unknown slug: ${slug}`); process.exit(0); }
 
 const today = new Date().toISOString().slice(0, 10);

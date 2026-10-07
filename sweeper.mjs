@@ -17,6 +17,19 @@ const DRY = process.argv.includes('--dry-run');
 const todayUTC = new Date().toISOString().slice(0, 10);
 const CHANNEL_SLUGS = ['quotequarry', 'investors-compass', 'money-rulebook', 'debt-free-doctrine'];
 const brands = JSON.parse(fs.readFileSync('lib/brands.json', 'utf8'));
+// 10-05 CHANNEL FACTORY: Studio-wizard channels join the sweep — they heal
+// from their registry entry (slots/handle) instead of lib/brands.json.
+let REG = {};
+try {
+  const reg = JSON.parse(fs.readFileSync(path.join('yt-mcp', 'studio-channels.json'), 'utf8'));
+  for (const c of reg.channels || []) {
+    if (c.active !== false && !CHANNEL_SLUGS.includes(c.slug)) {
+      CHANNEL_SLUGS.push(c.slug);
+      REG[c.slug] = c;
+    }
+  }
+  if (Object.keys(REG).length) log(`[registry] ${Object.keys(REG).length} wizard channel(s) in the sweep: ${Object.keys(REG).join(', ')}`);
+} catch { }
 
 const log = (m) => console.log(m);
 const healed = [];
@@ -49,7 +62,8 @@ function goesLiveToday(v) {
 const sundayBreak = new Date(todayUTC + 'T00:00:00Z').getUTCDay() === 0;
 if (sundayBreak) log(`🛌 Sunday break day — shorts production and healing paused network-wide`);
 for (const slug of CHANNEL_SLUGS) {
-  const b = brands[slug];
+  const b = brands[slug] || (REG[slug] ? { slots: REG[slug].slots || ['22:35'], handle: REG[slug].handle || '', label: REG[slug].label || slug } : null);
+  if (!b) { log(`✗ [${slug}] no brand kit found — skipped`); continue; }
   const want = (b.slots || []).length;
   if (sundayBreak) continue;
   // 10-05: respect pausedUntil (feed-collapse cooldown — Quote Quarry Oct-1

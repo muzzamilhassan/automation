@@ -20,8 +20,8 @@ const envRaw = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';
 for (const m of envRaw.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
 
 const { generateYouTubeScript, renderYouTubeScriptShort, buildScriptMeta } = await import('./youtube-engine.mjs');
-const { pickApprovedTrack } = await import('./music-engine.mjs');
-const { bySlug } = await import('./yt-brands/brands.mjs');
+const { pickApprovedTrack, pickMusicTrack } = await import('./music-engine.mjs');
+const { resolveBrand } = await import('./lib/brand-resolve.mjs');
 const { researchTrend } = await import('./trend-research.mjs');
 const { archiveUpload } = await import('./yt-archive.mjs');
 const { recentUploadTitles, findDup } = await import('./lib/dup-gate.mjs');
@@ -35,12 +35,16 @@ const EPISODE_ONLY = process.argv.includes('--episode-only');
 // the healed reels. Never touches the episode step.
 const topupArg = process.argv.find(a => a.startsWith('--topup'));
 const TOPUP_N = topupArg ? Math.max(0, Number(topupArg.split('=')[1]) || 0) : 0;
-const b = bySlug[slug];
-if (!b) { console.error('unknown slug', slug); process.exit(1); }
+const b = await resolveBrand(slug);
+if (!b) { console.error('unknown slug (no legacy kit and no registry entry):', slug); process.exit(1); }
 
 const CLIENT_ID = process.env.YOUTUBE_CLIENT_ID || envRaw.match(/^YOUTUBE_CLIENT_ID=(.+)$/m)?.[1]?.trim() || '';
 const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET || envRaw.match(/^YOUTUBE_CLIENT_SECRET=(.+)$/m)?.[1]?.trim() || '';
 if (!CLIENT_ID || !CLIENT_SECRET) { console.error('YouTube OAuth client credentials missing (env or .env)'); process.exit(1); }
+// 10-05 FIX: this was referenced but never defined in this file since the
+// 10-03 music-lock commit — the ReferenceError was swallowed by try/catch and
+// every daily short rendered WITHOUT music. Defined here (same as yt-deepdive).
+const APPROVED_MUSIC = JSON.parse(fs.readFileSync(new URL('./yt-brands/approved-music.json', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'), 'utf8'));
 const FF = process.env.FFMPEG_PATH || 'ffmpeg';
 
 function channelAuth(forSlug) {
@@ -157,7 +161,9 @@ if (RUN_SHORTS) {
     }
   }
   console.log(`[topics] ${themesToday.map(t => '← ' + t.seed.slice(0, 48)).join(' | ') || 'none — research unavailable'}`);
-  const OFF_NICHE = /\bstoic\w*|manipulat\w*|toxic|calm your mind|dark psychology\b/i;
+  // off-niche drift guard is a Quote Quarry lesson ( Stoicism words leaking in) —
+  // registry channels define their own niche, so the check stays legacy-only
+  const OFF_NICHE = b.fromRegistry ? null : /\bstoic\w*|manipulat\w*|toxic|calm your mind|dark psychology\b/i;
 
   const slotLimit = TOPUP_N > 0 ? Math.min(TOPUP_N, b.slots.length) : b.slots.length;
   for (let i = 0; i < slotLimit; i++) {
@@ -168,7 +174,7 @@ if (RUN_SHORTS) {
       continue;
     }
     let script = await generateYouTubeScript(page, themesToday[i].topic);
-    for (let t = 0; t < 2 && OFF_NICHE.test(JSON.stringify(script.points)); t++) {
+    for (let t = 0; OFF_NICHE && t < 2 && OFF_NICHE.test(JSON.stringify(script.points)); t++) {
       console.log('  off-niche drift — regenerating');
       script = await generateYouTubeScript(page, themesToday[i].topic);
     }
@@ -188,8 +194,17 @@ if (RUN_SHORTS) {
     }
     let music = null;
     // 10-03: ONLY the channel's own approved tracks (music-review folders) —
-    // no catalog rotation, no other music anywhere.
-    try { music = await pickApprovedTrack(APPROVED_MUSIC[slug] || []); } catch { }
+    // no catalog rotation, no other music anywhere. 10-05: registry channels
+    // (Studio wizard) have no keeper pool yet → mood-matched catalog rotation
+    // until the user picks keepers (the original music-engine behavior).
+    try {
+      const pool = APPROVED_MUSIC[slug];
+      music = pool?.length
+        ? await pickApprovedTrack(pool)
+        : (b.musicFeels?.length ? await pickMusicTrack(0, { feels: b.musicFeels }) : null);
+      if (music) console.log(`  ♫ ${music.title} (${music.feel || 'mood'})`);
+      else if (!pool?.length && !b.musicFeels?.length) console.log('  [music] no pool and no musicFeels — rendering without music');
+    } catch (e) { console.log(`  [music] skipped: ${String(e.message).slice(0, 60)}`); }
     const out = await renderYouTubeScriptShort(page, script, music);
     const meta = buildScriptMeta(page, script, music ? `${music.title} — ${music.credit}` : '');
 

@@ -1,0 +1,148 @@
+# 10-05 CHANNEL FACTORY — ONE workflow for every Studio-wizard channel.
+# The registry (yt-mcp/studio-channels.json) is the source of truth: this cron
+# discovers active registry channels and runs channel-pipeline for each in a
+# matrix. A new channel connected in the wizard starts producing with ZERO new
+# YAML. The 4 legacy channels stay on their own channel-<slug>.yml workflows.
+#
+# Tokens: each wizard channel stores its token in secret YT_TOKEN_<SLUG> where
+# <SLUG> = slug uppercased with dashes -> underscores (quote-quarry -> QUOTE_QUARRY).
+# Docs are produced by yt-deepdive on each channel's docDay INSIDE the pipeline
+# run (cadence: 1 short/day, weekly doc, Sunday break — enforced in the engine).
+
+name: 🏭 Channel Autopilot — wizard channels
+
+on:
+  schedule:
+    - cron: '33 2 * * *'
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "one slug (blank = all registry channels)"
+        required: false
+        default: ""
+      topup:
+        description: "heal N slots (blank = normal daily run)"
+        required: false
+        default: ""
+
+concurrency:
+  group: channel-autopilot
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      channels: ${{ steps.disc.outputs.channels }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🔎 Read the channel registry
+        id: disc
+        run: |
+          node -e "
+            const fs = require('fs');
+            let chans = [];
+            try {
+              const reg = JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8'));
+              chans = (reg.channels || [])
+                .filter(c => c.active !== false && c.tokenSecretSaved !== false)
+                .map(c => ({ slug: c.slug, envSlug: c.slug.toUpperCase().replace(/-/g, '_') }));
+            } catch (e) { console.log('registry unreadable:', e.message); }
+            console.log(JSON.stringify(chans));
+            fs.writeFileSync(process.env.GITHUB_OUTPUT, 'channels=' + JSON.stringify(chans));
+          "
+
+  produce:
+    needs: discover
+    if: ${{ needs.discover.outputs.channels != '[]' && needs.discover.outputs.channels != '' }}
+    strategy:
+      matrix:
+        slug: ${{ fromJSON(needs.discover.outputs.channels) }}
+      max-parallel: 3
+      fail-fast: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SLUG: ${{ matrix.slug.slug }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 💾 Restore Pixabay 4K clip pool
+        uses: actions/cache@v4
+        with:
+          path: pixabay-pool
+          key: pixabay-pool-v1
+
+      - name: ⚙️ Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 📦 Install Node Dependencies
+        run: npm install
+
+      - name: 🔊 Install & Verify FFmpeg
+        run: |
+          if ! command -v ffmpeg > /dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          ffmpeg -version | head -n 1
+
+      - name: 🔤 Install Fonts
+        run: |
+          sudo apt-get install -y -qq fonts-liberation fonts-dejavu-core fontconfig >/dev/null 2>&1 || true
+          mkdir -p ~/.local/share/fonts ~/.fonts
+          cp image-tools/fonts/* ~/.local/share/fonts/ 2>/dev/null || true
+          cp image-tools/fonts/* ~/.fonts/ 2>/dev/null || true
+          fc-cache -fv
+
+      - name: 🗣️ Install TTS engines (edge-tts + Kokoro-82M)
+        run: |
+          python3 -m pip install --quiet edge-tts kokoro-onnx soundfile || true
+          python3 -c "import edge_tts; print('edge-tts ready.')"
+          python3 -c "import kokoro_onnx; print('kokoro ready.')" || echo "kokoro unavailable — edge fallback."
+
+      - name: 🎨 Start Image & Video Engine
+        run: |
+          node image-tools/server.js &
+          sleep 3
+
+      - name: 🔑 Resolve this channel's token
+        env:
+          DYN_TOKEN: ${{ secrets[format('YT_TOKEN_{0}', matrix.slug.envSlug)] }}
+        run: |
+          ENV_NAME="YT_TOKEN_$(echo "$SLUG" | tr '[:lower:]' '[:upper:]' | tr -d '-')"
+          if [ -z "$DYN_TOKEN" ]; then
+            echo "::error::secret ${ENV_NAME} is missing — connect the channel in Studio first"
+            exit 1
+          fi
+          echo "${ENV_NAME}=${DYN_TOKEN}" >> "$GITHUB_ENV"
+
+      - name: 🚀 Channel Pipeline — Shorts (+ weekly episode on docDay)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node channel-pipeline.mjs "$SLUG" --no-episode ${{ inputs.topup && format('--topup={0}', inputs.topup) || '' }}
+
+      - name: 💾 Commit publishing state
+        run: |
+          git config user.name "quarry-bot"
+          git config user.email "bot@quotequarry.local"
+          git add yt-mcp/state/ yt-mcp/schedule-state.json yt-mcp/studio-channels.json || true
+          git diff --cached --quiet || git commit -m "autopilot ${SLUG} daily state [skip ci]"
+          git pull --rebase origin main || true
+          git push || true || echo "::warning::state push failed for ${SLUG} — state stays local to this run"

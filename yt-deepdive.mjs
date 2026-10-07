@@ -17,6 +17,7 @@ const APPROVED_MUSIC = JSON.parse(fs.readFileSync(new URL('./yt-brands/approved-
 import { renderYouTubeThumbnail } from './youtube-engine.mjs';
 import { bySlug } from './yt-brands/brands.mjs';
 const { recentUploadTitles, findDup } = await import('./lib/dup-gate.mjs');
+const { resolveBrand } = await import('./lib/brand-resolve.mjs');
 
 const FF = process.env.FFMPEG_PATH || (fs.existsSync('ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe')
   ? 'ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' : 'ffmpeg');
@@ -28,8 +29,8 @@ const envRaw = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';
 for (const m of envRaw.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
 const slug = process.argv[2];
 const FORCE = process.argv.includes('--force');
-const b = bySlug[slug];
-if (!b) { console.error('unknown slug', slug); process.exit(1); }
+const b = (await resolveBrand(slug)) || bySlug[slug];
+if (!b) { console.error('unknown slug (no legacy kit and no registry entry):', slug); process.exit(1); }
 
 // 09-20: per-channel state files are the source of truth (lib/state.mjs)
 const loadState = () => loadAllStates();
