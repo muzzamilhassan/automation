@@ -179,11 +179,12 @@ export default function AddChannel() {
             <div className="flex items-start gap-2.5">
               <Layers size={15} className="text-accent shrink-0 mt-0.5" />
               <div>
-                <p className="text-[12.5px] font-semibold text-ink">One Gmail, several channels? That works.</p>
+                <p className="text-[12.5px] font-semibold text-ink">Multiple Gmails, multiple channels — all fine.</p>
                 <p className="text-[12px] text-muted mt-1 leading-relaxed">
-                  Google will first ask which Google account to use, then ask <b>which of its YouTube channels</b> to allow. Pick ONE channel and click
-                  Allow. To connect another channel from the same Gmail, run this wizard again and pick a different channel — each channel gets its own
-                  key. Your Gmail address is never stored; only the channel&apos;s ID and name are saved.
+                  Every connect is a fresh Google login: choose <b>any of your Gmail accounts</b>, then <b>any of its YouTube channels</b>, and Allow.
+                  Connect Mail A&apos;s channel today, Mail B&apos;s tomorrow — they all land in the same registry and run on the same autopilot, each
+                  with its own key, niche, template and schedule. To add another channel on the same Gmail, run this wizard again and pick a different
+                  channel. Your Gmail address is never stored; only each channel&apos;s ID and name are saved.
                 </p>
               </div>
             </div>
