@@ -31,6 +31,17 @@ export default function AddChannel() {
 
   const loadReg = () => fetch('/api/channels/registry').then((r) => r.json()).then(setReg).catch(() => setReg({ channels: [] }));
 
+  const prefill = (entry) => setForm((f) => ({
+    ...f,
+    label: entry.label || '',
+    niche: entry.niche || '',
+    docDay: entry.docDay || entry.kit?.docDay || 'Tue',
+    eyebrow: entry.kit?.eyebrow || '',
+    tagline: entry.kit?.tagline || '',
+    tags: (entry.kit?.tags || []).join(', '),
+    description: entry.kit?.description || '',
+  }));
+
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -52,17 +63,6 @@ export default function AddChannel() {
       alive = false;
     };
   }, []);
-
-  const prefill = (entry) => setForm((f) => ({
-    ...f,
-    label: entry.label || '',
-    niche: entry.niche || '',
-    docDay: entry.docDay || entry.kit?.docDay || 'Tue',
-    eyebrow: entry.kit?.eyebrow || '',
-    tagline: entry.kit?.tagline || '',
-    tags: (entry.kit?.tags || []).join(', '),
-    description: entry.kit?.description || '',
-  }));
 
   const autoFillKit = async () => {
     if (!form.niche.trim()) {
