@@ -1,5 +1,5 @@
 {
-  "lastRunDate": "2026-10-06",
+  "lastRunDate": "2026-10-07",
   "usedThemes": [
     "how the rich buy the crash",
     "the 90-year rule that beats day trading",
@@ -7,24 +7,25 @@
   ],
   "lastVideos": [
     {
-      "videoId": "CkIQMTTLkRE",
-      "publishAt": "2026-10-06T12:05:00Z",
-      "title": "The Wealth Trap Nobody Sees | Investing Psychology"
-    },
-    {
       "videoId": null,
-      "publishAt": "2026-10-06T16:05:00Z",
+      "publishAt": "2026-10-07T12:05:00Z",
       "title": "Rule #1 Warren Buffett Never Breaks | Investing Psychology",
       "gateRejected": true
     },
     {
       "videoId": null,
-      "publishAt": "2026-10-06T23:35:00Z",
-      "title": "Rule #1 Warren Buffett Never Breaks | Investing Psychology",
+      "publishAt": "2026-10-07T16:05:00Z",
+      "title": "The 17-Year Market Lesson | Investing Psychology",
+      "gateRejected": true
+    },
+    {
+      "videoId": null,
+      "publishAt": "2026-10-07T23:35:00Z",
+      "title": "Warren Buffett's Unbroken Market Rule | Investing Psychology",
       "gateRejected": true
     }
   ],
-  "imageDate": "2026-10-06",
+  "imageDate": "2026-10-07",
   "deepdiveDate": "2026-09-07",
   "deepdiveVideo": {
     "videoId": "dOJgBHpJgwQ",
@@ -51,20 +52,23 @@
     "Discipline turns knowledge into execution #TradingPsychology #TradingMindset #SoulNGoal",
     "Financial goal should never dictate market behavior #TradingPsychology #TradingMindset #SoulNGoal",
     "Emotional trading usually start wit emotional thinking #TradingPsychology #TradingMindset #SoulNGoal",
-    "Position sizing is discipline before the trade begins #TradingPsychology #TradingMindset #SoulNGoal"
+    "Position sizing is discipline before the trade begins #TradingPsychology #TradingMindset #SoulNGoal",
+    "Discipline turns knowledge into execution #TradingPsychology #TradingMindset #SoulNGoal",
+    "Stock Market ( 17 Year Experience in Just 17 Minutes )✅",
+    "부자들의 서재에서 찾은 '투자 심리학'"
   ],
   "todayTopics": [
     {
-      "at": "2026-10-06",
-      "topic": "Financial goal should never dictate market behavior #TradingPsychology #TradingMindset #SoulNGoal"
+      "at": "2026-10-07",
+      "topic": "Discipline turns knowledge into execution #TradingPsychology #TradingMindset #SoulNGoal"
     },
     {
-      "at": "2026-10-06",
-      "topic": "Emotional trading usually start wit emotional thinking #TradingPsychology #TradingMindset #SoulNGoal"
+      "at": "2026-10-07",
+      "topic": "Stock Market ( 17 Year Experience in Just 17 Minutes )✅"
     },
     {
-      "at": "2026-10-06",
-      "topic": "Position sizing is discipline before the trade begins #TradingPsychology #TradingMindset #SoulNGoal"
+      "at": "2026-10-07",
+      "topic": "부자들의 서재에서 찾은 '투자 심리학'"
     }
   ],
   "titleHistory": [
