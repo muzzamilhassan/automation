@@ -1,5 +1,5 @@
 {
-  "lastRunDate": "2026-10-06",
+  "lastRunDate": "2026-10-07",
   "usedThemes": [
     "why minimum payments keep you broke",
     "the snowball vs avalanche race",
@@ -8,23 +8,22 @@
   "lastVideos": [
     {
       "videoId": null,
-      "publishAt": "2026-10-06T13:05:00Z",
-      "title": "Old Money Habits Change Everything | Old Money Philosophy",
+      "publishAt": "2026-10-07T13:05:00Z",
+      "title": "Pov: Old Money Secrets | Old Money Philosophy",
       "gateRejected": true
     },
     {
-      "videoId": null,
-      "publishAt": "2026-10-06T17:05:00Z",
-      "title": "Pov: Old Money Thinking Changed Everything | Old Money Philosophy",
-      "gateRejected": true
+      "videoId": "36kmGxl8VTY",
+      "publishAt": "2026-10-07T17:05:00Z",
+      "title": "7 Boring Habits Of Old Money | Old Money Philosophy"
     },
     {
-      "videoId": "SKKZWhhlwes",
-      "publishAt": "2026-10-07T00:35:00Z",
-      "title": "Pov: You Think Like Old Money | Old Money Philosophy"
+      "videoId": "xLSk4II77zs",
+      "publishAt": "2026-10-08T00:35:00Z",
+      "title": "Pov: You Adopted Old Money Habits | Old Money Philosophy"
     }
   ],
-  "imageDate": "2026-10-06",
+  "imageDate": "2026-10-07",
   "deepdiveDate": "2026-09-07",
   "deepdiveVideo": {
     "videoId": "INCR7ceFCOA",
@@ -60,26 +59,37 @@
     "POV: You Started Thinking Like Old Money… And Suddenly Everything Changed",
     "POV: You Started Thinking Like Old Money — Nothing Was Ever the Same",
     "POV: You Started Making Decisions Like Old Money",
-    "6 Quiet Signals That Separate Old Money From New Rich"
+    "6 Quiet Signals That Separate Old Money From New Rich",
+    "POV: You Found Out What Old Money Never Buys, No Matter How Rich They Get",
+    "7 Boring Habits That Quietly Mark You as Old Money",
+    "The Old Money Habit of Strategic Forgetting: Why You Should Never Point Out Mistakes"
   ],
   "todayTopics": [
     {
-      "at": "2026-10-06",
-      "topic": "POV: You Started Thinking Like Old Money — Nothing Was Ever the Same"
+      "at": "2026-10-07",
+      "topic": "POV: You Found Out What Old Money Never Buys, No Matter How Rich They Get"
     },
     {
-      "at": "2026-10-06",
-      "topic": "POV: You Started Making Decisions Like Old Money"
+      "at": "2026-10-07",
+      "topic": "7 Boring Habits That Quietly Mark You as Old Money"
     },
     {
-      "at": "2026-10-06",
-      "topic": "6 Quiet Signals That Separate Old Money From New Rich"
+      "at": "2026-10-07",
+      "topic": "The Old Money Habit of Strategic Forgetting: Why You Should Never Point Out Mistakes"
     }
   ],
   "titleHistory": [
     {
       "t": "Pov: You Think Like Old Money | Old Money Philosophy",
       "at": "2026-10-07T00:35:00Z"
+    },
+    {
+      "t": "7 Boring Habits Of Old Money | Old Money Philosophy",
+      "at": "2026-10-07T17:05:00Z"
+    },
+    {
+      "t": "Pov: You Adopted Old Money Habits | Old Money Philosophy",
+      "at": "2026-10-08T00:35:00Z"
     }
   ]
 }
