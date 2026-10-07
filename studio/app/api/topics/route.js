@@ -5,7 +5,7 @@
 // The queue (yt-mcp/topics-<slug>.json, committed to the repo) is consumed by
 // yt-daily BEFORE auto-research — one approved topic per slot per day.
 import { isAuthed } from '@/lib/route-auth';
-import { trend, terms } from '../../../../lib/data.mjs';
+import { trend, terms } from '../../../lib/data.mjs';
 import { readRepoJSON, writeRepoJSON } from '@/lib/channels-registry';
 
 export const dynamic = 'force-dynamic';
