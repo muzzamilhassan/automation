@@ -85,8 +85,9 @@ async function handle(req) {
     return fail(req, `Token exchange failed: ${(tokens.error_description || tokens.error || 'no refresh token').slice(0, 120)}`);
   }
 
-  // 2. identify the channel this token belongs to
-  const chRes = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true', {
+  // 2. identify the channel this token belongs to (+ fetch its existing
+  // branding so the wizard can prefill description/keywords from YouTube)
+  const chRes = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,brandingSettings&mine=true', {
     headers: { Authorization: `Bearer ${tokens.access_token}` },
   });
   const chData = await chRes.json();
@@ -96,6 +97,8 @@ async function handle(req) {
   const handle = (ch.snippet?.customUrl || '').toLowerCase();
   const channelId = ch.id;
   const subs = Number(ch.statistics?.subscriberCount || 0);
+  const ytDescription = String(ch.brandingSettings?.channel?.description || ch.snippet?.description || '').slice(0, 900);
+  const ytKeywords = String(ch.brandingSettings?.channel?.keywords || '').slice(0, 500);
 
   // 3. slug — unique; reconnecting the SAME channel just updates its entry
   let slug = slugify(handle || title);
@@ -152,6 +155,10 @@ async function handle(req) {
     status: secretWarning ? 'connected · token secret FAILED (see note)' : 'connected · automation wiring pending',
     ...(secretWarning ? { tokenSecretError: secretWarning } : {}),
   };
+  // 10-08: fetch what the channel ALREADY has on YouTube — description and
+  // keywords prefill the wizard so the user doesn't retype their own channel
+  entry.ytDescription = ytDescription;
+  entry.ytKeywords = ytKeywords;
   // 10-08: encrypted copy of the token (AES-GCM, STUDIO_PASSWORD key) — the
   // ONLY way the dashboard can read wizard-channel stats (GitHub secrets are
   // write-only). Registry stays private-repo-only. Non-fatal: if encryption

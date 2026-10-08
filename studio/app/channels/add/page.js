@@ -41,8 +41,8 @@ export default function AddChannel() {
     docDay: entry.docDay || entry.kit?.docDay || 'Tue',
     eyebrow: entry.kit?.eyebrow || '',
     tagline: entry.kit?.tagline || '',
-    tags: (entry.kit?.tags || []).join(', '),
-    description: entry.kit?.description || '',
+    tags: entry.kit?.tags?.length ? entry.kit.tags.join(', ') : (entry.ytKeywords || ''),
+    description: entry.kit?.description || entry.ytDescription || '',
   }));
 
   useEffect(() => {
