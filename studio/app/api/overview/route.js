@@ -9,6 +9,7 @@ export async function GET(req) {
   if (fresh) bustCache();
   const [fb, yt, st, logs] = await Promise.all([fbPages(), ytChannels(), state(), allLogs()]);
   const b = brands();
+  const todayStr = new Date().toISOString().slice(0, 10);
   const channels = Object.entries(b).map(([slug, k]) => {
     const ytRow = yt.find(c => c.slug === slug) || null;
     const fbRow = fb.find(f => f.id === FB_MAP[slug]) || null;
@@ -23,7 +24,8 @@ export async function GET(req) {
       lastRun: s.lastRunDate || null, imageDate: s.imageDate || null,
       deepdiveDate: s.deepdiveDate || null, todayVideos: (s.lastVideos || []).length,
       todayTopics: Array.isArray(s.todayTopics) ? s.todayTopics.map(t => t.topic) : null,
-      episodeTopic: s.todayTopic?.topic || null
+      episodeTopic: s.todayTopic?.topic || null,
+      flowPaused: (s.pausedUntil || '') >= todayStr,
     };
   });
   // 10-08 CHANNEL FACTORY: wizard channels appear after the legacy brands
@@ -49,6 +51,7 @@ export async function GET(req) {
         deepdiveDate: s.deepdiveDate || null, todayVideos: (s.lastVideos || []).length,
         todayTopics: Array.isArray(s.todayTopics) ? s.todayTopics.map((t) => t.topic) : null,
         episodeTopic: s.todayTopic?.topic || null,
+        flowPaused: e.autopilot === false || (s.pausedUntil || '') >= todayStr,
       });
     }
   } catch { }

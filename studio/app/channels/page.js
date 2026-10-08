@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Tv, Music2, RefreshCw, Mic, Music, Clock, Archive, Plus, PenLine } from 'lucide-react';
+import { Tv, Music2, RefreshCw, Mic, Music, Clock, Archive, Plus, PenLine, Pause, Play } from 'lucide-react';
 import { YoutubeIcon, FacebookIcon, InstagramIcon } from '@/components/BrandIcons';
 import { Card, CardHead, Chip, PageHeader, BrandMark, PageSkeleton, EmptyState } from '@/components/ui';
 import { BRAND_META, MUSIC_MOODS } from '@/lib/site-data';
@@ -26,6 +26,16 @@ function PlatformRow({ icon: Icon, color, label, handle, followers, extra }) {
 export default function Channels() {
   const [data, setData] = useState(null);
   const load = () => fetch('/api/overview').then((r) => r.json()).then(setData).catch(() => setData({ channels: [] }));
+
+  // 10-08 FLOW CONTROL — per-channel autopilot ON/OFF
+  const toggleFlow = async (slug, currentlyPaused) => {
+    await fetch('/api/channels/flow', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, on: Boolean(currentlyPaused) }),
+    });
+    load();
+  };
   useEffect(() => {
     load();
   }, []);
@@ -58,7 +68,14 @@ export default function Channels() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="font-display text-[17px] font-bold tracking-tight text-ink">{c.label}</h2>
-                      <Chip tone="ok" dot>ACTIVE</Chip>
+                      {c.flowPaused ? <Chip tone="warn">PAUSED</Chip> : <Chip tone="ok" dot>ACTIVE</Chip>}
+                      <button
+                        className="btn btn-ghost shrink-0"
+                        title={c.flowPaused ? 'Resume autopilot — the nightly run produces again' : 'Pause autopilot — nothing new is produced; already-scheduled videos still publish'}
+                        onClick={() => toggleFlow(c.slug, c.flowPaused)}
+                      >
+                        {c.flowPaused ? <Play size={13} /> : <Pause size={13} />}
+                      </button>
                       {c.fromRegistry ? (
                         <Link className="btn btn-ghost shrink-0" title="Edit this channel (niche, template, key, schedule)" href={`/channels/add?edit=${c.slug}`}>
                           <PenLine size={13} />

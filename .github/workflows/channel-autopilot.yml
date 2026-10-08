@@ -49,7 +49,7 @@ jobs:
             try {
               const reg = JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8'));
               chans = (reg.channels || [])
-                .filter(c => c.active !== false && c.tokenSecretSaved !== false)
+                .filter(c => c.autopilot !== false && c.active !== false && c.tokenSecretSaved !== false)
                 .map(c => ({ slug: c.slug, envSlug: c.slug.toUpperCase().replace(/-/g, '_') }));
             } catch (e) { console.log('registry unreadable:', e.message); }
             console.log(JSON.stringify(chans));

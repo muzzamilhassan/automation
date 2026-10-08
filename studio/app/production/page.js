@@ -1,4 +1,5 @@
 'use client';
+import { useEffect, useState } from 'react';
 import {
   Zap,
   Clapperboard,
@@ -10,6 +11,8 @@ import {
   ArrowRight,
   FileText,
   Clock,
+  Pause,
+  Play,
 } from 'lucide-react';
 import ActionButton from '@/components/ActionButton';
 import { Card, CardHead, Chip, PageHeader, EmptyState } from '@/components/ui';
@@ -18,6 +21,44 @@ import { PIPELINES } from '@/lib/site-data';
 const ICONS = { clapperboard: Clapperboard, film: Film, music2: Music2, share2: Share2, image: ImageIcon, 'at-sign': AtSign };
 
 export default function Production() {
+  // 10-08 FLOW CONTROL — network master switch (Hootsuite-style suspend):
+  // one button pauses/resumes EVERY channel's autopilot at once.
+  const [slugs, setSlugs] = useState([]);
+  const [netPaused, setNetPaused] = useState(null); // null = unknown yet
+  const [netBusy, setNetBusy] = useState(false);
+  const [netError, setNetError] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      await Promise.resolve();
+      const d = await fetch('/api/overview').then((r) => r.json()).catch(() => null);
+      if (!alive || !d?.channels?.length) return;
+      setSlugs(d.channels.map((c) => c.slug));
+      setNetPaused(d.channels.every((c) => c.flowPaused));
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const setAll = async (on) => {
+    setNetBusy(true);
+    setNetError('');
+    let fails = 0;
+    for (const slug of slugs) {
+      try {
+        const r = await fetch('/api/channels/flow', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug, on }),
+        });
+        if (!r.ok) fails += 1;
+      } catch { fails += 1; }
+    }
+    setNetPaused(on ? false : true);
+    if (fails) setNetError(`${fails} channel(s) failed — try again or check the logs.`);
+    setNetBusy(false);
+  };
+
   return (
     <div>
       <PageHeader
@@ -29,6 +70,34 @@ export default function Production() {
           <FileText size={14} /> Open logs
         </a>
       </PageHeader>
+
+      {/* master flow switch */}
+      {slugs.length ? (
+        <Card className="p-4 mb-5 flex items-center gap-4 flex-wrap" style={netPaused ? { borderColor: '#f59e0b66' } : undefined}>
+          <div className="flex-1 min-w-[240px]">
+            <div className="flex items-center gap-2">
+              <h3 className="font-display text-[14px] font-bold text-ink">Master flow</h3>
+              <Chip tone={netPaused === false ? 'ok' : netPaused === true ? 'warn' : ''} dot={netPaused === false}>
+                {netPaused === true ? 'ALL CHANNELS PAUSED' : netPaused === false ? 'RUNNING' : '…'}
+              </Chip>
+            </div>
+            <p className="text-[11.5px] text-muted mt-1 leading-relaxed">
+              {netPaused
+                ? 'Every channel is paused — nothing new is produced. Already-scheduled videos still publish. Topics, settings and keys are kept.'
+                : 'Pause stops ALL channels at once: no new videos are made until you resume. Already-scheduled videos still publish; nothing is deleted.'}
+              {netError ? <span className="block mt-1" style={{ color: 'var(--bad)' }}>{netError}</span> : null}
+            </p>
+          </div>
+          <button
+            className={netPaused ? 'btn btn-primary' : 'btn btn-outline'}
+            style={netPaused ? undefined : { borderColor: '#f59e0b', color: '#b45309' }}
+            onClick={() => setAll(!netPaused)}
+            disabled={netBusy}
+          >
+            {netBusy ? 'Working…' : netPaused ? (<><Play size={14} /> Resume everything</>) : (<><Pause size={14} /> Pause everything</>)}
+          </button>
+        </Card>
+      ) : null}
 
       <div className="grid md:grid-cols-2 gap-4">
         {PIPELINES.map((p) => {
