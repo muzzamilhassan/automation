@@ -129,6 +129,27 @@ async function ytAccessToken(refreshToken) {
   return d.access_token;
 }
 
+// 10-08 CHANNEL FACTORY: one token source for any slug — Vercel env (legacy 4)
+// → local gitignored token file (local dev) → encrypted registry token (wizard
+// channels; AES-GCM with the STUDIO_PASSWORD key, private repo only).
+export async function ytTokenRaw(slug) {
+  let raw = ENV[`YT_TOKEN_${slug.toUpperCase().replace(/-/g, '_')}`] || '';
+  if (!raw) {
+    try { raw = fs.readFileSync(path.resolve(ROOT, `yt-mcp/channels/${slug}/token.json`), 'utf8'); } catch { }
+  }
+  if (!raw) {
+    try {
+      const { registryChannels, decryptJSON } = await import('./channels-registry.js');
+      const e = (await registryChannels()).find((c) => c.slug === slug);
+      if (e?.tokenEnc) {
+        const t = decryptJSON(e.tokenEnc);
+        if (t?.refresh_token) raw = JSON.stringify(t);
+      }
+    } catch { }
+  }
+  return raw || '';
+}
+
 // The four live channels (cloud mode fetches their token files from the repo).
 const LIVE_SLUGS = ['quotequarry', 'investors-compass', 'money-rulebook', 'debt-free-doctrine'];
 
@@ -155,9 +176,8 @@ export async function ytChannels() {
       try {
         // Cloud: per-channel tokens come from env (same YT_TOKEN_* secrets the
         // GitHub Actions workflows use). Repo token files are local-only.
-        const envName = `YT_TOKEN_${slug.toUpperCase().replace(/-/g, '_')}`;
-        const raw = ENV[envName] || (await ghFile(`yt-mcp/channels/${slug}/token.json`).catch(() => null));
-        if (!raw) throw new Error(`no ${envName} on the server`);
+        const raw = await ytTokenRaw(slug);
+        if (!raw) throw new Error('no token on the server');
         const t = typeof raw === 'string' ? JSON.parse(raw) : raw;
         const at = await ytAccessToken(t.refresh_token);
         const res = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true', { headers: { Authorization: `Bearer ${at}` } });
@@ -166,6 +186,23 @@ export async function ytChannels() {
         out.push({ slug, ytTitle: c?.snippet?.title || '?', ytCustomUrl: c?.snippet?.customUrl || '', subs: Number(c?.statistics?.subscriberCount || 0), views: Number(c?.statistics?.viewCount || 0), videos: Number(c?.statistics?.videoCount || 0) });
       } catch (e) { out.push({ slug, error: e.message.slice(0, 60) }); }
     }
+    // 10-08 CHANNEL FACTORY: wizard channels appended (token = encrypted registry copy)
+    try {
+      const { registryChannels, decryptJSON } = await import('./channels-registry.js');
+      for (const e of await registryChannels()) {
+        if (LIVE_SLUGS.includes(e.slug)) continue;
+        try {
+          if (!e.tokenEnc) throw new Error('no encrypted token — re-connect once in Studio to upgrade');
+          const t = decryptJSON(e.tokenEnc);
+          if (!t?.refresh_token) throw new Error('token undecryptable on this server');
+          const at = await ytAccessToken(t.refresh_token);
+          const res = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true', { headers: { Authorization: `Bearer ${at}` } });
+          const d = await res.json();
+          const c = d.items?.[0];
+          out.push({ slug: e.slug, registry: true, ytTitle: c?.snippet?.title || e.label, ytCustomUrl: c?.snippet?.customUrl || e.handle || '', subs: Number(c?.statistics?.subscriberCount || e.subs || 0), views: Number(c?.statistics?.viewCount || 0), videos: Number(c?.statistics?.videoCount || 0) });
+        } catch (err) { out.push({ slug: e.slug, registry: true, error: err.message.slice(0, 60) }); }
+      }
+    } catch { }
     return out;
   });
 }

@@ -9,7 +9,7 @@
 import { ENV } from '@/lib/data.mjs';
 import { isAuthed } from '@/lib/route-auth';
 import { hmacToken } from '@/lib/auth-token';
-import { readRegistry, upsertChannel, writeTokenSecret, writeLocalTokenFile, hasGithubToken } from '@/lib/channels-registry';
+import { readRegistry, upsertChannel, writeTokenSecret, writeLocalTokenFile, hasGithubToken, encryptJSON } from '@/lib/channels-registry';
 
 export const dynamic = 'force-dynamic';
 
@@ -141,6 +141,10 @@ export async function GET(req) {
     status: secretWarning ? 'connected · token secret FAILED (see note)' : 'connected · automation wiring pending',
     ...(secretWarning ? { tokenSecretError: secretWarning } : {}),
   };
+  // 10-08: encrypted copy of the token (AES-GCM, STUDIO_PASSWORD key) — the
+  // ONLY way the dashboard can read wizard-channel stats (GitHub secrets are
+  // write-only). Registry stays private-repo-only.
+  entry.tokenEnc = encryptJSON({ access_token: tokens.access_token, refresh_token: tokens.refresh_token, scope: tokens.scope, expiry_date: Date.now() + 3650 * 86400000 });
   try {
     await upsertChannel(entry);
   } catch (e) {

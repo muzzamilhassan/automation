@@ -63,7 +63,7 @@ export default function Channels() {
                     <p className="text-[12px] text-muted mt-0.5">{c.niche}</p>
                   </div>
                 </div>
-                {c.yt ? (
+                {c.yt && !c.yt.error ? (
                   <div className="text-right shrink-0">
                     <div className="stat-num text-[20px] text-ink leading-none">{fmt(c.yt.subs)}</div>
                     <div className="overline mt-1">subs</div>
@@ -73,8 +73,10 @@ export default function Channels() {
 
               {/* platforms */}
               <div className="inset-tile p-1 mb-4">
-                {c.yt ? (
+                {c.yt && !c.yt.error ? (
                   <PlatformRow icon={YoutubeIcon} color="#ff4444" label="YouTube" handle={c.yt.handle || c.yt.title} followers={fmt(c.yt.subs)} extra={`${fmt(c.yt.views)} views all-time · ${c.yt.videos} videos`} />
+                ) : c.yt?.error ? (
+                  <PlatformRow icon={YoutubeIcon} color="#ff4444" label="YouTube" handle={c.yt.error} followers="—" />
                 ) : null}
                 {c.fb ? (
                   <PlatformRow icon={FacebookIcon} color="#3b82f6" label="Facebook" handle={`@${c.fb.username || c.fb.name}`} followers={fmt(c.fb.followers)} />

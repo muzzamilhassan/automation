@@ -4,7 +4,7 @@
 // Cached 1 hour — analytics data updates daily anyway.
 import fs from 'node:fs';
 import path from 'node:path';
-import { ENV } from '../../../lib/data.mjs';
+import { ENV, ytTokenRaw } from '../../../lib/data.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,13 +12,9 @@ const SLUGS = ['quotequarry', 'investors-compass', 'money-rulebook', 'debt-free-
 const cache = { at: 0, data: null };
 
 async function accessToken(slug) {
-  let raw = ENV[`YT_TOKEN_${slug.toUpperCase().replace(/-/g, '_')}`] || '';
-  if (!raw) {
-    // local dev fallback: repo token file (Vercel uses the env vars)
-    try {
-      raw = fs.readFileSync(path.resolve(process.cwd(), '..', `yt-mcp/channels/${slug}/token.json`), 'utf8');
-    } catch { }
-  }
+  // 10-08: env (legacy) → local file → encrypted registry token (wizard channels)
+  const raw = await ytTokenRaw(slug);
+  if (!raw) throw new Error(`no token for ${slug}`);
   const t = JSON.parse(raw);
   const r = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -105,9 +101,15 @@ export async function GET(req) {
     const d = cache.data;
     return Response.json(slug === 'all' ? d.all : d.channels[slug] || null);
   }
+  // 10-08 CHANNEL FACTORY: wizard channels join the analytics panel
+  let allSlugs = [...SLUGS];
+  try {
+    const { registryChannels } = await import('../../../lib/channels-registry.js');
+    for (const e of await registryChannels()) if (!SLUGS.includes(e.slug)) allSlugs.push(e.slug);
+  } catch { }
   const channels = {};
   const all = { slug: 'all', range: 28, totals: { views: 0, watchHours: 0, subsGained: 0 }, daily: [], split: { shortsViews: 0, longViews: 0 }, audience: { gender: [], age: [], countries: [] } };
-  for (const s of SLUGS) {
+  for (const s of allSlugs) {
     try {
       const at = await accessToken(s);
       const c = await channelAnalytics(s, at);

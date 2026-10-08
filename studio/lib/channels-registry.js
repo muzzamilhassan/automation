@@ -30,6 +30,35 @@ export function hasGithubToken() {
   return Boolean(TOKEN);
 }
 
+// ---------- encrypted token at rest (dashboard read-back for wizard channels) ----------
+
+function encKey() {
+  return crypto.createHash('sha256').update(String(process.env.STUDIO_PASSWORD || ENV.YOUTUBE_CLIENT_SECRET || 'quarry-connect')).digest();
+}
+
+export function encryptJSON(obj) {
+  const iv = crypto.randomBytes(12);
+  const c = crypto.createCipheriv('aes-256-gcm', encKey(), iv);
+  const ct = Buffer.concat([c.update(JSON.stringify(obj), 'utf8'), c.final()]);
+  return [iv.toString('base64'), c.getAuthTag().toString('base64'), ct.toString('base64')].join('.');
+}
+
+export function decryptJSON(s) {
+  try {
+    const [iv, tag, ct] = String(s).split('.').map((p) => Buffer.from(p, 'base64'));
+    const d = crypto.createDecipheriv('aes-256-gcm', encKey(), iv);
+    d.setAuthTag(tag);
+    return JSON.parse(Buffer.concat([d.update(ct), d.final()]).toString('utf8'));
+  } catch {
+    return null;
+  }
+}
+
+export async function registryChannels() {
+  const reg = await readRegistry().catch(() => null);
+  return (reg?.channels || []).filter((c) => c.active !== false);
+}
+
 // ---------- generic repo JSON (10-05 PHASE B: Topic Desk queues live here) ----------
 
 export async function readRepoJSON(repoPath) {

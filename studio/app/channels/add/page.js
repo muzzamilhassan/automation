@@ -404,6 +404,18 @@ export default function AddChannel() {
                   {c.style ? <Chip tone="accent">{STYLE_BY_ID[c.style]?.name || c.style}</Chip> : null}
                   {c.kit?.tags?.length ? <Chip tone="ok">kit saved</Chip> : null}
                   <Chip tone={c.tokenSecretSaved === false ? 'warn' : 'ok'}>{c.tokenSecretSaved === false ? 'secret missing' : 'key saved'}</Chip>
+                  <button
+                    className="btn btn-ghost shrink-0"
+                    title="Open the setup form for this channel (also use this to re-connect and upgrade its dashboard data)"
+                    onClick={() => {
+                      setSaved(false);
+                      setConnectedSlug(c.slug);
+                      prefill(c);
+                      setError('');
+                    }}
+                  >
+                    <Settings2 size={14} />
+                  </button>
                 </div>
               </div>
             ))}

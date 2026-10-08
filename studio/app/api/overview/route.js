@@ -17,7 +17,7 @@ export async function GET(req) {
     return {
       slug, ...k,
       active: slug === 'quotequarry' ? true : k.active,
-      yt: ytRow ? { title: ytRow.ytTitle, handle: ytRow.ytCustomUrl, subs: ytRow.subs, views: ytRow.views, videos: ytRow.videos, error: ytRow.error || null } : null,
+        yt: ytRow ? (ytRow.error ? { error: ytRow.error } : { title: ytRow.ytTitle, handle: ytRow.ytCustomUrl, subs: ytRow.subs, views: ytRow.views, videos: ytRow.videos, error: null }) : null,
       fb: fbRow ? { name: fbRow.name, username: fbRow.username, followers: fbRow.followers } : null,
       ig: ig ? { username: ig.username, followers: ig.followers, posts: ig.posts } : null,
       lastRun: s.lastRunDate || null, imageDate: s.imageDate || null,
@@ -26,6 +26,32 @@ export async function GET(req) {
       episodeTopic: s.todayTopic?.topic || null
     };
   });
+  // 10-08 CHANNEL FACTORY: wizard channels appear after the legacy brands
+  try {
+    const { registryChannels } = await import('../../../lib/channels-registry.js');
+    for (const e of await registryChannels()) {
+      if (b[e.slug]) continue;
+      const ytRow = yt.find((c) => c.slug === e.slug) || null;
+      const s = st[e.slug] || {};
+      channels.push({
+        slug: e.slug,
+        short: (e.label || e.slug).slice(0, 2).toUpperCase(),
+        label: e.label || e.slug,
+        niche: e.niche || 'wizard channel — finish setup',
+        accent: e.accent || '#38BDF8',
+        active: true,
+        fromRegistry: true,
+        slots: e.slots || [],
+        voice: e.voice || '',
+        yt: ytRow ? { title: ytRow.ytTitle, handle: ytRow.ytCustomUrl, subs: ytRow.subs, views: ytRow.views, videos: ytRow.videos, error: ytRow.error || null } : (ytRow === null ? { error: 're-connect once in Studio to show live stats' } : null),
+        fb: null, ig: null,
+        lastRun: s.lastRunDate || null, imageDate: null,
+        deepdiveDate: s.deepdiveDate || null, todayVideos: (s.lastVideos || []).length,
+        todayTopics: Array.isArray(s.todayTopics) ? s.todayTopics.map((t) => t.topic) : null,
+        episodeTopic: s.todayTopic?.topic || null,
+      });
+    }
+  } catch { }
   const totals = {
     ytSubs: channels.reduce((a, c) => a + (c.yt?.subs || 0), 0),
     ytViews: channels.reduce((a, c) => a + (c.yt?.views || 0), 0),
