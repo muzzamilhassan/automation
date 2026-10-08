@@ -351,10 +351,36 @@ export default function AddChannel() {
             <button className="btn btn-outline" onClick={connect} disabled={connecting} title="Refresh this channel's stored key (fixes 're-connect once' notices)">
               {connecting ? 'Opening Google…' : 'Re-connect key with Google'}
             </button>
+            <button className="btn btn-outline" onClick={makeLink} disabled={makingLink} title="Paste this in the browser where this Gmail is logged in">
+              {makingLink ? 'Creating…' : 'Copy re-connect link (other browser)'}
+            </button>
             <Link className="btn btn-outline" href="/styles">
               Browse templates
             </Link>
           </div>
+          {linkUrl ? (
+            <div className="mt-3 space-y-2">
+              <div className="flex gap-2">
+                <input readOnly value={linkUrl} onFocus={(e) => e.target.select()} className="input flex-1 font-mono text-[11px]" />
+                <button
+                  className="btn btn-primary shrink-0"
+                  onClick={async () => {
+                    try { await navigator.clipboard.writeText(linkUrl); } catch { }
+                    setCopied(true);
+                  }}
+                >
+                  {copied ? 'Copied ✓' : 'Copy link'}
+                </button>
+                <button className="btn btn-ghost shrink-0" onClick={() => { setLinkUrl(''); setCopied(false); }}>
+                  <X size={14} />
+                </button>
+              </div>
+              <p className="text-[11px] text-faint leading-relaxed">
+                Paste this in the browser where <b>{entry?.handle || 'this channel'}</b>&apos;s Gmail is logged in → choose that account → choose the same
+                channel → Allow. Works once · 15 minutes. This upgrades the stored key — your settings here are kept.
+              </p>
+            </div>
+          ) : null}
         </Card>
       ) : null}
 
