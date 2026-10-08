@@ -5,7 +5,7 @@
 import crypto from 'node:crypto';
 import { db, dbReady } from './db.mjs';
 
-const DAY = 30 * 86400000;
+const DAY_MS = 86400000;
 
 function sha256(s) {
   return crypto.createHash('sha256').update(String(s)).digest('hex');
@@ -18,8 +18,8 @@ export function newSessionToken() {
 // returns the opaque token for the cookie (hash stored server-side)
 export async function createSession({ email, role, name = '', userAgent = '', ip = '', days = 30 }) {
   const token = newSessionToken();
-  const expires = new Date(Date.now() + days * DAY);
-  if (!dbReady) return { token, fallback: { email, role, name, exp: Date.now() + days * DAY } };
+  const expires = new Date(Date.now() + days * DAY_MS);
+  if (!dbReady) return { token, fallback: { email, role, name, exp: Date.now() + days * DAY_MS } };
   await db`
     INSERT INTO sessions (token_hash, email, role, name, user_agent, ip, expires_at)
     VALUES (${sha256(token)}, ${email}, ${role}, ${name}, ${String(userAgent).slice(0, 200)}, ${String(ip).slice(0, 60)}, ${expires})`.catch(() => { });
