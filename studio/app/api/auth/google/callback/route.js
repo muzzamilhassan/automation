@@ -3,8 +3,8 @@
 // issues a signed per-person session cookie (qs_session) with the user's role.
 // Unknown emails are refused ("not invited").
 import { ENV } from '@/lib/data.mjs';
-import { roleForEmail, verifyGoogleIdToken } from '../../../../lib/access.js';
-import { signSession } from '../../../../lib/session.js';
+import { roleForEmail, verifyGoogleIdToken } from '../../../../../lib/access.js';
+import { signSession } from '../../../../../lib/session.js';
 
 export const dynamic = 'force-dynamic';
 
