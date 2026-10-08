@@ -61,33 +61,14 @@
     ]
   },
   "money-rulebook": {
-    "lastRunDate": "2026-10-07",
+    "lastRunDate": "2026-10-08",
     "usedThemes": [
       "5 things rich people never buy",
       "how to automate your first $100k",
       "7 budget rules the rich actually follow"
     ],
-    "lastVideos": [
-      {
-        "videoId": null,
-        "publishAt": "2026-10-07T12:35:00Z",
-        "title": "6 Rules For Your First $10,000 | Personal Finance",
-        "gateRejected": true
-      },
-      {
-        "videoId": null,
-        "publishAt": "2026-10-07T16:35:00Z",
-        "title": "6 Rules For Your First $10,000 | Personal Finance",
-        "gateRejected": true
-      },
-      {
-        "videoId": null,
-        "publishAt": "2026-10-08T00:05:00Z",
-        "title": "6 Rules For Your First $10,000 | Personal Finance",
-        "gateRejected": true
-      }
-    ],
-    "imageDate": "2026-10-07",
+    "lastVideos": [],
+    "imageDate": "2026-10-08",
     "recyclePending": [
       {
         "oldVideoId": "cbclwL6k32U",
@@ -123,20 +104,7 @@
       "4 Simple Money Habits That Can Save You Thousands",
       "Bill Gates’ 8 Powerful Money & Career Rules That Can Change Your Life | Financial Success Tips 💰"
     ],
-    "todayTopics": [
-      {
-        "at": "2026-10-07",
-        "topic": "Money-Saving Habits That Can Transform Your Financial Life | Simple Saving Tips"
-      },
-      {
-        "at": "2026-10-07",
-        "topic": "4 Simple Money Habits That Can Save You Thousands"
-      },
-      {
-        "at": "2026-10-07",
-        "topic": "Bill Gates’ 8 Powerful Money & Career Rules That Can Change Your Life | Financial Success Tips 💰"
-      }
-    ],
+    "todayTopics": [],
     "titleHistory": []
   },
   "debt-free-doctrine": {
