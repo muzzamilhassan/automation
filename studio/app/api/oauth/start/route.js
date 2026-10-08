@@ -3,8 +3,11 @@
 // comes back to Studio instead of localhost. Google's own chooser handles the
 // "several YouTube channels on one Gmail" case: the user picks ONE channel
 // per login; run the wizard again for each extra channel.
+// ?mode=link → mints a COPYABLE connect link (signed, expires in 15 min)
+// whose callback works in ANY browser — even one without a Studio session.
 import { ENV } from '@/lib/data.mjs';
 import { isAuthed } from '@/lib/route-auth';
+import { hmacToken } from '@/lib/auth-token';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,7 +33,13 @@ export async function GET(req) {
 
   const origin = new URL(req.url).origin;
   const redirectUri = `${origin}/api/oauth/callback`;
-  const state = crypto.randomUUID().replace(/-/g, '');
+  const linkMode = new URL(req.url).searchParams.get('mode') === 'link';
+
+  // link mode: signed expiring state (L.<expiry>.<hmac>) — the callback can
+  // verify it in ANY browser; no cookie, no server-side storage.
+  const state = linkMode
+    ? `L.${Date.now() + 15 * 60 * 1000}.${await hmacToken(String(Date.now() + 15 * 60 * 1000), process.env.STUDIO_PASSWORD || clientSecret)}`
+    : crypto.randomUUID().replace(/-/g, '');
 
   const params = new URLSearchParams({
     client_id: clientId,
@@ -45,8 +54,10 @@ export async function GET(req) {
     state,
   });
 
-  const res = Response.json({ url: `https://accounts.google.com/o/oauth2/v2/auth?${params}`, redirectUri });
-  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  res.headers.append('Set-Cookie', `qs_oauth=${state}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600${secure}`);
+  const res = Response.json({ url: `https://accounts.google.com/o/oauth2/v2/auth?${params}`, redirectUri, mode: linkMode ? 'link' : 'session' });
+  if (!linkMode) {
+    const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+    res.headers.append('Set-Cookie', `qs_oauth=${state}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600${secure}`);
+  }
   return res;
 }

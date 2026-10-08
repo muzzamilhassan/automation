@@ -7,3 +7,17 @@ export async function authToken(password) {
   const digest = await crypto.subtle.digest('SHA-256', data);
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
+
+// 10-05: HMAC for connect links — state the callback can verify in ANY browser
+// without a Studio session (only Studio can mint these; they expire).
+export async function hmacToken(payload, keyMaterial) {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(keyMaterial || 'quarry-connect'),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(String(payload)));
+  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}

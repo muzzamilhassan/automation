@@ -8,6 +8,7 @@
 //   5. redirects back to /channels/add?connected=<slug>.
 import { ENV } from '@/lib/data.mjs';
 import { isAuthed } from '@/lib/route-auth';
+import { hmacToken } from '@/lib/auth-token';
 import { readRegistry, upsertChannel, writeTokenSecret, writeLocalTokenFile, hasGithubToken } from '@/lib/channels-registry';
 
 export const dynamic = 'force-dynamic';
@@ -30,15 +31,31 @@ function slugify(text) {
 }
 
 export async function GET(req) {
-  if (!(await isAuthed(req))) return fail(req, 'Studio session expired — sign in again.');
-
   const url = new URL(req.url);
   const code = url.searchParams.get('code');
-  const state = url.searchParams.get('state');
-  const cookies = req.headers.get('cookie') || '';
-  const cookieState = cookies.match(/qs_oauth=([a-f0-9]+)/)?.[1];
+  const state = url.searchParams.get('state') || '';
+
   if (!code) return fail(req, 'Google did not return a code (login cancelled?)');
-  if (!state || !cookieState || state !== cookieState) return fail(req, 'Login state mismatch — start the connect again.');
+
+  // Two ways in:
+  //  LINK mode — state is a signed expiring token (L.<expiry>.<hmac>) minted by
+  //  /api/oauth/start?mode=link. Works in ANY browser; no Studio session there.
+  //  SESSION mode — state must match the start cookie AND the user must be
+  //  signed in to Studio.
+  let linkMode = false;
+  const m = /^L\.(\d+)\.([a-f0-9]{64})$/.exec(state);
+  if (m) {
+    const key = process.env.STUDIO_PASSWORD || ENV.YOUTUBE_CLIENT_SECRET || 'quarry-connect';
+    const want = await hmacToken(m[1], key);
+    if (want !== m[2]) return fail(req, 'Connect link invalid — generate a new one in Studio.');
+    if (Number(m[1]) < Date.now()) return fail(req, 'Connect link expired — generate a new one (links last 15 minutes).');
+    linkMode = true;
+  } else {
+    if (!(await isAuthed(req))) return fail(req, 'Studio session expired — sign in again.');
+    const cookies = req.headers.get('cookie') || '';
+    const cookieState = cookies.match(/qs_oauth=([a-f0-9]+)/)?.[1];
+    if (!cookieState || state !== cookieState) return fail(req, 'Login state mismatch — start the connect again.');
+  }
 
   // 1. exchange code → tokens
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {

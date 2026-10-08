@@ -11,6 +11,10 @@ export default async function proxy(req) {
 
   const { pathname } = req.nextUrl;
   if (pathname === '/login' || pathname === '/api/login' || pathname === '/api/logout') return NextResponse.next();
+  // 10-05: the Google OAuth callback authenticates itself (signed expiring
+  // state in lib/link-token + in-route session check) — Google's redirect from
+  // ANOTHER browser carries no Studio cookie, so the gate must let it through.
+  if (pathname === '/api/oauth/callback') return NextResponse.next();
 
   const cookie = req.cookies.get(COOKIE)?.value;
   if (cookie && cookie === (await authToken(password))) return NextResponse.next();

@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { UserPlus, ShieldCheck, CheckCircle2, AlertTriangle, ArrowRight, Layers, Settings2, Plus, Sparkles } from 'lucide-react';
+import { UserPlus, ShieldCheck, CheckCircle2, AlertTriangle, ArrowRight, Layers, Settings2, Plus, Sparkles, X } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, EmptyState, PageSkeleton } from '@/components/ui';
 import { STYLE_CATALOG, STYLE_BY_ID } from '@/lib/styles-catalog';
 
@@ -19,6 +19,9 @@ export default function AddChannel() {
   const [connectedSlug, setConnectedSlug] = useState('');
   const [secretWarning, setSecretWarning] = useState('');
   const [connecting, setConnecting] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [makingLink, setMakingLink] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -91,6 +94,25 @@ export default function AddChannel() {
       setError(e.message);
     }
     setFillingKit(false);
+  };
+
+  const makeLink = async () => {
+    setMakingLink(true);
+    setCopied(false);
+    setError('');
+    try {
+      const r = await fetch('/api/oauth/start?mode=link');
+      const d = await r.json();
+      if (!r.ok) {
+        setError(d.error || 'Could not create the connect link.');
+        setMakingLink(false);
+        return;
+      }
+      setLinkUrl(d.url);
+    } catch {
+      setError('Network error creating the link.');
+    }
+    setMakingLink(false);
   };
 
   const connect = async () => {
@@ -192,6 +214,38 @@ export default function AddChannel() {
           <button className="btn btn-primary w-full sm:w-auto" onClick={connect} disabled={connecting}>
             {connecting ? 'Opening Google…' : 'Connect with Google'} <ArrowRight size={14} />
           </button>
+
+          {/* connect from ANOTHER browser — copyable one-time link */}
+          <div className="mt-4 pt-4 border-t border-line">
+            <p className="overline mb-2">Or connect from another browser / phone</p>
+            {!linkUrl ? (
+              <button className="btn btn-outline w-full sm:w-auto" onClick={makeLink} disabled={makingLink}>
+                {makingLink ? 'Creating…' : 'Generate connect link'}
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input readOnly value={linkUrl} onFocus={(e) => e.target.select()} className="input flex-1 font-mono text-[11px]" />
+                  <button
+                    className="btn btn-primary shrink-0"
+                    onClick={async () => {
+                      try { await navigator.clipboard.writeText(linkUrl); } catch { }
+                      setCopied(true);
+                    }}
+                  >
+                    {copied ? 'Copied ✓' : 'Copy link'}
+                  </button>
+                  <button className="btn btn-ghost shrink-0" onClick={() => { setLinkUrl(''); setCopied(false); }}>
+                    <X size={14} />
+                  </button>
+                </div>
+                <p className="text-[11px] text-faint leading-relaxed">
+                  Paste this in the browser where your Gmail is logged in → choose the account → choose the channel → Allow. The link works ONCE and
+                  expires in 15 minutes — treat it like a password. After allowing, finish Step 2 (niche + template) here in this browser.
+                </p>
+              </div>
+            )}
+          </div>
         </Card>
       ) : null}
 
