@@ -1,4 +1,5 @@
 import { authToken } from '@/lib/auth-token';
+import { signSessionCookie } from '@/lib/session';
 import { createSession, recentFailures, recordLoginAttempt } from '@/lib/session-db';
 
 export const dynamic = 'force-dynamic';
@@ -36,6 +37,12 @@ export async function POST(req) {
   const maxAge = 60 * 60 * 24 * 30;
   // legacy cookie kept for backward compatibility; A1 opaque session is primary
   res.headers.append('Set-Cookie', `qs_key=${legacy}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`);
-  if (token) res.headers.append('Set-Cookie', `qs_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`);
+  if (token) {
+    // signed claims wrapper: the Edge gate verifies cheaply, the routes
+    // resolve the real (revocable) session from the opaque token inside
+    const expMs = Date.now() + maxAge * 1000;
+    const cookieValue = await signSessionCookie({ t: token, e: 'owner', r: 'owner', n: 'Owner', x: expMs });
+    res.headers.append('Set-Cookie', `qs_session=${cookieValue}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`);
+  }
   return res;
 }

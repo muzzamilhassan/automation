@@ -40,11 +40,14 @@ export async function GET(req) {
   const ua = (req.headers.get('user-agent') || '').slice(0, 200);
   const ip = ((req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || '').slice(0, 60);
   const { token } = await createSession({ email: who.email, role, name: who.name || who.email, userAgent: ua, ip });
+  const expMs = Date.now() + 30 * 86400000;
+  const { signSessionCookie } = await import('../../../../../lib/session.js');
+  const cookieValue = await signSessionCookie({ t: token, e: who.email, r: role, n: who.name || who.email, x: expMs });
   console.log(`[audit] google sign-in: ${who.email} as ${role}`);
   await appendAudit(who.email, 'sign-in', `Google sign-in as ${role}`);
 
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
   const res = Response.redirect(`${url.origin}/`, 302);
-  res.headers.append('Set-Cookie', `qs_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 86400}${secure}`);
+  res.headers.append('Set-Cookie', `qs_session=${cookieValue}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 86400}${secure}`);
   return res;
 }

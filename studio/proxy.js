@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { authToken } from '@/lib/auth-token';
-import { parseSession } from '@/lib/session';
+import { parseSessionCookie } from '@/lib/session';
 
 // 10-08 ROLE-BASED ACCESS — the site's front door.
 // Identity: qs_session (signed per-person, Google or password login) OR the
@@ -27,8 +27,9 @@ export default async function proxy(req) {
 
   // resolve the role
   let role = null;
-  const sess = await parseSession(req.cookies.get('qs_session')?.value);
-  if (sess) role = sess.role;
+  const sessCookie = req.cookies.get('qs_session')?.value;
+  const claims = await parseSessionCookie(sessCookie);
+  if (claims && Number(claims.x) > Date.now()) role = claims.r;
   else {
     const legacy = req.cookies.get(COOKIE)?.value;
     if (legacy && legacy === (await authToken(password))) role = 'owner';

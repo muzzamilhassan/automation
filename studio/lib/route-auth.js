@@ -1,10 +1,12 @@
-import { authToken } from '@/lib/auth-token';
-import { parseSession } from '@/lib/session';
-import { userByToken } from '@/lib/session-db';
+import { authToken } from './auth-token';
+import { parseSessionCookie, parseSession } from './session';
+import { userByToken } from './session-db';
+import { dbReady } from './db.mjs';
 
 // resolves the signed-in user: { email, role, name, session_id } — or null.
-// A1: qs_session is an OPAQUE token resolved against the Neon sessions table
-// (revocable). Legacy HMAC cookies are still honored until they expire.
+// A1: qs_session carries signed claims; the opaque token inside is validated
+// against the Neon sessions table (revocation = instant). Legacy HMAC cookies
+// are still honored until their natural expiry.
 export async function getUser(req) {
   // dev convenience mirrors proxy.js: gate open outside Vercel without a password
   if (!process.env.STUDIO_PASSWORD && !process.env.VERCEL) {
@@ -14,15 +16,19 @@ export async function getUser(req) {
   const cookies = req.headers.get('cookie') || '';
   const m = cookies.match(/qs_session=([^;]+)/);
   if (m) {
-    const token = decodeURIComponent(m[1]);
-    if (!token.includes('.')) {
-      const s = await userByToken(token);
-      if (s) return s;
-    } else {
-      // legacy HMAC session (pre-A1) — still valid until its 30-day expiry
-      const s = await parseSession(token);
-      if (s) return { email: s.email, role: s.role, name: s.name || s.email, session_id: 0 };
+    const raw = decodeURIComponent(m[1]);
+    const claims = await parseSessionCookie(raw);
+    if (claims) {
+      // opaque token → the DB decides (revocation, expiry, freshest role)
+      const s = await userByToken(claims.t);
+      if (s) return { email: s.email, role: s.role, name: s.name || claims.n || s.email, session_id: s.id };
+      // DB unreachable → trust the signed claims rather than lock the owner out
+      if (dbReady) return null;
+      return { email: claims.e, role: claims.r, name: claims.n || claims.e, session_id: 0 };
     }
+    // legacy HMAC session (pre-A1) — valid until natural expiry
+    const legacy = await parseSession(raw);
+    if (legacy) return { email: legacy.email, role: legacy.role, name: legacy.name || legacy.email, session_id: 0 };
   }
   if (process.env.STUDIO_PASSWORD) {
     const legacy = await authToken(process.env.STUDIO_PASSWORD);
