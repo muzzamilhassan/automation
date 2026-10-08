@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
-import { Settings, Sun, Moon, Monitor, Check, Plug, Bell, Server, ShieldAlert, Users, Trash2, Plus } from 'lucide-react';
+import { Settings, Sun, Moon, Monitor, Check, Plug, Bell, Server, ShieldAlert, Users, Trash2, Plus, MonitorSmartphone } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, Switch } from '@/components/ui';
 import { INTEGRATIONS } from '@/lib/site-data';
 import { cn } from '@/lib/utils';
@@ -73,6 +73,10 @@ export default function SettingsPage() {
   const [teamBusy, setTeamBusy] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [newRole, setNewRole] = useState('staff');
+  // 10-09 A1 — SECURITY (active sign-ins)
+  const [sessions, setSessions] = useState(null);
+  const [secBusy, setSecBusy] = useState(false);
+  const [secErr, setSecErr] = useState('');
   useEffect(() => setMounted(true), []);
   useEffect(() => {
     let alive = true;
@@ -88,10 +92,32 @@ export default function SettingsPage() {
           if (alive) setTeam('forbidden');
         });
       });
+    fetch('/api/sessions')
+      .then((r) => r.json())
+      .then((d) => {
+        if (alive) setSessions(d.sessions || []);
+      })
+      .catch(() => { });
     return () => {
       alive = false;
     };
   }, []);
+
+  const revokeAll = async () => {
+    if (!window.confirm('Sign out EVERYWHERE? All devices (including this one) lose access and must sign in again.')) return;
+    setSecBusy(true);
+    setSecErr('');
+    try {
+      const r = await fetch('/api/sessions', { method: 'DELETE' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Could not revoke');
+      setSessions([]);
+      window.location.href = '/login';
+    } catch (e) {
+      setSecErr(e.message);
+      setSecBusy(false);
+    }
+  };
 
   const addMember = async () => {
     setTeamBusy(true);
@@ -310,6 +336,38 @@ export default function SettingsPage() {
             </p>
           </>
         )}
+      </Card>
+
+      {/* security — A1 sessions (10-09) */}
+      <Card className="p-5 mt-4">
+        <CardHead
+          title="Security — active sign-ins"
+          sub="Every device signed in with your account. Revocable instantly — this is the A1 session upgrade."
+          icon={MonitorSmartphone}
+          right={
+            <button className="btn btn-outline" onClick={revokeAll} disabled={secBusy || !sessions.length}>
+              Sign out everywhere
+            </button>
+          }
+        />
+        {secErr ? <p className="text-[12px] px-1 mb-2" style={{ color: 'var(--bad)' }}>{secErr}</p> : null}
+        <div className="space-y-1.5">
+          {(sessions || []).map((s) => (
+            <div key={s.id} className="flex items-center gap-3 inset-tile px-3 py-2.5">
+              <MonitorSmartphone size={14} className="text-faint shrink-0" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[12px] font-medium text-ink truncate">{s.device || 'Unknown device'}</span>
+                <span className="block text-[10.5px] text-faint">
+                  signed in {s.created ? new Date(s.created).toLocaleDateString() : '—'} · last used {s.lastUsed ? new Date(s.lastUsed).toLocaleString() : '—'}
+                  {s.ip ? ` · ${s.ip}` : ''}
+                </span>
+              </span>
+            </div>
+          ))}
+          {sessions && !sessions.length ? (
+            <p className="text-[12px] text-faint px-1 py-2">No active sessions found for your account yet — sign out and back in once to register this device.</p>
+          ) : null}
+        </div>
       </Card>
     </div>
   );

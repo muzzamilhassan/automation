@@ -1,49 +1,41 @@
 import { authToken } from '@/lib/auth-token';
-import { signSession } from '@/lib/session';
+import { createSession, recentFailures, recordLoginAttempt } from '@/lib/session-db';
 
 export const dynamic = 'force-dynamic';
 
-// 10-08: password login = OWNER session (backward-compatible) + brute-force
-// throttle (5 wrong tries per IP → 10-minute lockout). Google login is the
-// per-person path (roles from access.json).
-const attempts = new Map(); // ip → { n, until }
-
-function throttled(ip) {
-  const a = attempts.get(ip);
-  return Boolean(a && a.until > Date.now() && a.n >= 5);
-}
-function recordFail(ip) {
-  const a = attempts.get(ip) || { n: 0, until: 0 };
-  a.n += 1;
-  if (a.n >= 5) a.until = Date.now() + 10 * 60 * 1000;
-  attempts.set(ip, a);
-}
-
+// 10-09 A1: password login = OWNER session. Throttle is now SHARED (Neon
+// login_attempts table) — 5 wrong tries per IP in 15 minutes locks the IP for
+// 10 minutes across all servers.
 export async function POST(req) {
-  const ip = (req.headers.get('x-forwarded-for') || 'local').split(',')[0].trim();
-  if (throttled(ip)) {
-    return Response.json({ error: 'Too many attempts — locked for 10 minutes.' }, { status: 429 });
-  }
-
-  const { password } = await req.json().catch(() => ({}));
+  const ip = ((req.headers.get('x-forwarded-for') || 'local').split(',')[0].trim() || 'local').slice(0, 60);
   const expected = process.env.STUDIO_PASSWORD;
   if (!expected) {
     return Response.json({ error: 'Server has no STUDIO_PASSWORD set — add it in the hosting dashboard.' }, { status: 500 });
   }
+
+  const fails = await recentFailures(ip);
+  if (fails >= 5) {
+    return Response.json({ error: 'Too many attempts — locked for 10 minutes.' }, { status: 429 });
+  }
+
+  const { password } = await req.json().catch(() => ({}));
   if (!password || password !== expected) {
-    recordFail(ip);
-    const left = Math.max(0, 5 - (attempts.get(ip)?.n || 0));
+    await recordLoginAttempt(ip, false);
+    const left = Math.max(0, 5 - (fails + 1));
     return Response.json({ error: `Wrong password.${left ? ` ${left} tries left this window.` : ' Locked for 10 minutes.'}` }, { status: 401 });
   }
-  attempts.delete(ip);
+  await recordLoginAttempt(ip, true);
 
-  const token = await authToken(expected);
-  const session = await signSession({ email: 'owner', role: 'owner', name: 'Owner', exp: Date.now() + 30 * 86400000 });
+  const ua = (req.headers.get('user-agent') || '').slice(0, 200);
+  const { token } = await createSession({ email: 'owner', role: 'owner', name: 'Owner', userAgent: ua, ip });
+  const legacy = await authToken(expected);
   console.log('[audit] password sign-in: owner');
 
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
   const res = Response.json({ ok: true, role: 'owner' });
-  res.headers.append('Set-Cookie', `qs_key=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}${secure}`);
-  res.headers.append('Set-Cookie', `qs_session=${session}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}${secure}`);
+  const maxAge = 60 * 60 * 24 * 30;
+  // legacy cookie kept for backward compatibility; A1 opaque session is primary
+  res.headers.append('Set-Cookie', `qs_key=${legacy}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`);
+  if (token) res.headers.append('Set-Cookie', `qs_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`);
   return res;
 }

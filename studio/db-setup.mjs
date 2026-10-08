@@ -62,6 +62,32 @@ await sql`CREATE INDEX IF NOT EXISTS topics_slug_idx ON topics_queue (slug, adde
 await sql`CREATE INDEX IF NOT EXISTS audit_at_idx ON audit_log (at DESC)`;
 console.log('   tables ready: users, channels, topics_queue, audit_log');
 
+console.log('1a. A1 sessions + login throttle tables…');
+await sql`
+  CREATE TABLE IF NOT EXISTS sessions (
+    id SERIAL PRIMARY KEY,
+    token_hash TEXT UNIQUE NOT NULL,
+    email TEXT NOT NULL,
+    role TEXT NOT NULL,
+    name TEXT DEFAULT '',
+    user_agent TEXT DEFAULT '',
+    ip TEXT DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_used TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked BOOLEAN NOT NULL DEFAULT FALSE
+  )`;
+await sql`CREATE INDEX IF NOT EXISTS sessions_hash_idx ON sessions (token_hash)`;
+await sql`CREATE INDEX IF NOT EXISTS sessions_email_idx ON sessions (email)`;
+await sql`
+  CREATE TABLE IF NOT EXISTS login_attempts (
+    ip TEXT NOT NULL,
+    at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    ok BOOLEAN NOT NULL DEFAULT FALSE
+  )`;
+await sql`CREATE INDEX IF NOT EXISTS login_attempts_ip_idx ON login_attempts (ip, at)`;
+console.log('   sessions + login_attempts ready');
+
 console.log('1b. seeding audit_log from yt-mcp/audit.json (if table empty)…');
 const existing = await sql`SELECT count(*) AS n FROM audit_log`;
 if (Number(existing[0].n) === 0) {

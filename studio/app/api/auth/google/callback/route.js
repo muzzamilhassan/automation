@@ -4,7 +4,7 @@
 // Unknown emails are refused ("not invited").
 import { ENV } from '@/lib/data.mjs';
 import { roleForEmail, verifyGoogleIdToken } from '../../../../../lib/access.js';
-import { signSession } from '../../../../../lib/session.js';
+import { createSession } from '../../../../../lib/session-db.js';
 import { appendAudit } from '../../../../../lib/audit.js';
 
 export const dynamic = 'force-dynamic';
@@ -37,13 +37,14 @@ export async function GET(req) {
   const role = await roleForEmail(who.email);
   if (!role) return back(`This email (${who.email}) is not invited. Ask the owner to add it to the team list.`);
 
-  const exp = Date.now() + 30 * 86400000;
-  const session = await signSession({ email: who.email, role, name: who.name || who.email, exp });
+  const ua = (req.headers.get('user-agent') || '').slice(0, 200);
+  const ip = ((req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || '').slice(0, 60);
+  const { token } = await createSession({ email: who.email, role, name: who.name || who.email, userAgent: ua, ip });
   console.log(`[audit] google sign-in: ${who.email} as ${role}`);
   await appendAudit(who.email, 'sign-in', `Google sign-in as ${role}`);
 
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
   const res = Response.redirect(`${url.origin}/`, 302);
-  res.headers.append('Set-Cookie', `qs_session=${session}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 86400}${secure}`);
+  res.headers.append('Set-Cookie', `qs_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 86400}${secure}`);
   return res;
 }
