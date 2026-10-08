@@ -1,6 +1,6 @@
 {
-  "at": "2026-10-08T00:07:58.333Z",
-  "problems": 1,
+  "at": "2026-10-08T10:18:21.328Z",
+  "problems": 2,
   "results": [
     {
       "slug": "workflows",
@@ -16,16 +16,14 @@
     },
     {
       "slug": "money-rulebook",
-      "channel": "The Money Rulebook",
-      "subs": "10",
-      "totalVideos": "137",
-      "status": "OK"
+      "status": "ERROR",
+      "error": "Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other"
     },
     {
       "slug": "debt-free-doctrine",
       "channel": "Debt-Free Doctrine",
       "subs": "2",
-      "totalVideos": "142",
+      "totalVideos": "143",
       "status": "OK"
     },
     {
