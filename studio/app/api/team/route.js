@@ -1,7 +1,8 @@
 // 10-08 P1 — TEAM management (owner only): the invite list lives in
 // yt-mcp/access.json (committed) and gates Google sign-in roles.
 import { requireRole } from '@/lib/route-auth';
-import { accessList, readRepoJSON, writeRepoJSON } from '@/lib/channels-registry';
+import { accessList } from '@/lib/access';
+import { readRepoJSON, writeRepoJSON } from '@/lib/channels-registry';
 import { appendAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
