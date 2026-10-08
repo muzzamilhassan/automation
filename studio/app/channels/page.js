@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Tv, Music2, RefreshCw, Mic, Music, Clock, Archive, Plus } from 'lucide-react';
+import { Tv, Music2, RefreshCw, Mic, Music, Clock, Archive, Plus, PenLine } from 'lucide-react';
 import { YoutubeIcon, FacebookIcon, InstagramIcon } from '@/components/BrandIcons';
 import { Card, CardHead, Chip, PageHeader, BrandMark, PageSkeleton, EmptyState } from '@/components/ui';
 import { BRAND_META, MUSIC_MOODS } from '@/lib/site-data';
@@ -59,6 +59,11 @@ export default function Channels() {
                     <div className="flex items-center gap-2">
                       <h2 className="font-display text-[17px] font-bold tracking-tight text-ink">{c.label}</h2>
                       <Chip tone="ok" dot>ACTIVE</Chip>
+                      {c.fromRegistry ? (
+                        <Link className="btn btn-ghost shrink-0" title="Edit this channel (niche, template, key, schedule)" href={`/channels/add?edit=${c.slug}`}>
+                          <PenLine size={13} />
+                        </Link>
+                      ) : null}
                     </div>
                     <p className="text-[12px] text-muted mt-0.5">{c.niche}</p>
                   </div>

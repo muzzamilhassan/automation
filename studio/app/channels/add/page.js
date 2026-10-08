@@ -61,6 +61,12 @@ export default function AddChannel() {
         const entry = (r?.channels || []).find((c) => c.slug === q.get('connected'));
         if (entry) prefill(entry);
       }
+      // edit mode: ?edit=slug opens the setup form for an ALREADY-connected channel
+      if (q.get('edit')) {
+        setConnectedSlug(q.get('edit'));
+        const entry = (r?.channels || []).find((c) => c.slug === q.get('edit'));
+        if (entry) prefill(entry);
+      }
     })();
     return () => {
       alive = false;
@@ -338,9 +344,12 @@ export default function AddChannel() {
               Template: <b className="text-muted">{STYLE_BY_ID[form.style].name}</b> — {STYLE_BY_ID[form.style].desc}
             </p>
           ) : null}
-          <div className="flex gap-2 mt-4">
+          <div className="flex gap-2 mt-4 flex-wrap">
             <button className="btn btn-primary" onClick={saveProfile} disabled={saving}>
               {saving ? 'Saving…' : 'Save channel'}
+            </button>
+            <button className="btn btn-outline" onClick={connect} disabled={connecting} title="Refresh this channel's stored key (fixes 're-connect once' notices)">
+              {connecting ? 'Opening Google…' : 'Re-connect key with Google'}
             </button>
             <Link className="btn btn-outline" href="/styles">
               Browse templates
