@@ -6,7 +6,7 @@
 // (they live on YouTube) — pause never recalls anything.
 import { getUser } from '@/lib/route-auth';
 import { slugsForUser } from '@/lib/access';
-import { readRepoJSON, setChannelAutopilot } from '@/lib/channels-registry';
+import { readRepoJSON, writeRepoJSON, setChannelAutopilot } from '@/lib/channels-registry';
 import { appendAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
