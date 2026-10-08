@@ -5,21 +5,29 @@
 import { authToken } from './auth-token';
 import { parseSession } from './session';
 
-export async function getRole(req) {
+// resolves the signed-in user: { email, role, name } — or null
+export async function getUser(req) {
   // dev convenience mirrors proxy.js: gate open outside Vercel without a password
-  if (!process.env.STUDIO_PASSWORD && !process.env.VERCEL) return 'owner';
+  if (!process.env.STUDIO_PASSWORD && !process.env.VERCEL) {
+    return { email: 'owner', role: 'owner', name: 'Owner (dev)' };
+  }
 
   const cookies = req.headers.get('cookie') || '';
   const m = cookies.match(/qs_session=([^;]+)/);
   if (m) {
     const s = await parseSession(m[1]);
-    if (s) return s.role;
+    if (s) return { email: s.email, role: s.role, name: s.name || s.email };
   }
   if (process.env.STUDIO_PASSWORD) {
     const legacy = await authToken(process.env.STUDIO_PASSWORD);
-    if (cookies.includes(`qs_key=${legacy}`)) return 'owner';
+    if (cookies.includes(`qs_key=${legacy}`)) return { email: 'owner', role: 'owner', name: 'Owner' };
   }
   return null;
+}
+
+export async function getRole(req) {
+  const u = await getUser(req);
+  return u?.role || null;
 }
 
 export async function requireRole(req, roles) {

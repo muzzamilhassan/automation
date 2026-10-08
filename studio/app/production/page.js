@@ -23,10 +23,11 @@ const ICONS = { clapperboard: Clapperboard, film: Film, music2: Music2, share2: 
 export default function Production() {
   // 10-08 FLOW CONTROL — network master switch (Hootsuite-style suspend):
   // one button pauses/resumes EVERY channel's autopilot at once.
-  const [slugs, setSlugs] = useState([]);
+  const [chans, setChans] = useState([]); // {slug, label, fromRegistry}
   const [netPaused, setNetPaused] = useState(null); // null = unknown yet
   const [netBusy, setNetBusy] = useState(false);
   const [netError, setNetError] = useState('');
+  const [runs, setRuns] = useState({});
 
   useEffect(() => {
     let alive = true;
@@ -34,7 +35,7 @@ export default function Production() {
       await Promise.resolve();
       const d = await fetch('/api/overview').then((r) => r.json()).catch(() => null);
       if (!alive || !d?.channels?.length) return;
-      setSlugs(d.channels.map((c) => c.slug));
+      setChans(d.channels.map((c) => ({ slug: c.slug, label: c.label || c.slug, fromRegistry: Boolean(c.fromRegistry) })));
       setNetPaused(d.channels.every((c) => c.flowPaused));
     })();
     return () => { alive = false; };
@@ -44,12 +45,12 @@ export default function Production() {
     setNetBusy(true);
     setNetError('');
     let fails = 0;
-    for (const slug of slugs) {
+    for (const c of chans) {
       try {
         const r = await fetch('/api/channels/flow', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ slug, on }),
+          body: JSON.stringify({ slug: c.slug, on }),
         });
         if (!r.ok) fails += 1;
       } catch { fails += 1; }
@@ -57,6 +58,23 @@ export default function Production() {
     setNetPaused(on ? false : true);
     if (fails) setNetError(`${fails} channel(s) failed — try again or check the logs.`);
     setNetBusy(false);
+  };
+
+  // 10-08 P1: "produce now" for ANY channel — legacy dispatch their own
+  // workflow, wizard channels dispatch the autopilot with their slug
+  const produce = async (slug) => {
+    setRuns((r) => ({ ...r, [slug]: 'busy' }));
+    try {
+      const r = await fetch('/api/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'yt-daily', slug }),
+      });
+      const d = await r.json().catch(() => ({}));
+      setRuns((x) => ({ ...x, [slug]: r.ok && d.started ? 'started' : 'error' }));
+    } catch {
+      setRuns((x) => ({ ...x, [slug]: 'error' }));
+    }
   };
 
   return (
@@ -72,7 +90,7 @@ export default function Production() {
       </PageHeader>
 
       {/* master flow switch */}
-      {slugs.length ? (
+      {chans.length ? (
         <Card className="p-4 mb-5 flex items-center gap-4 flex-wrap" style={netPaused ? { borderColor: '#f59e0b66' } : undefined}>
           <div className="flex-1 min-w-[240px]">
             <div className="flex items-center gap-2">
@@ -96,6 +114,28 @@ export default function Production() {
           >
             {netBusy ? 'Working…' : netPaused ? (<><Play size={14} /> Resume everything</>) : (<><Pause size={14} /> Pause everything</>)}
           </button>
+        </Card>
+      ) : null}
+
+      {/* channel runs — produce now for ANY channel */}
+      {chans.length ? (
+        <Card className="p-4 mb-5 overflow-hidden">
+          <CardHead title="Channel runs" sub="Run the nightly pipeline now for any channel — research, script, voice, render, upload (all gates apply). Already-done steps skip automatically." />
+          <div className="px-2 pb-2 space-y-1.5">
+            {chans.map((c) => (
+              <div key={c.slug} className="flex items-center gap-3 inset-tile px-3 py-2.5">
+                <span className="text-[12.5px] font-semibold text-ink truncate flex-1">{c.label}</span>
+                <Chip>{c.fromRegistry ? 'wizard' : 'legacy'}</Chip>
+                <button
+                  className="btn btn-outline shrink-0"
+                  onClick={() => produce(c.slug)}
+                  disabled={runs[c.slug] === 'busy' || runs[c.slug] === 'started'}
+                >
+                  {runs[c.slug] === 'busy' ? 'Starting…' : runs[c.slug] === 'started' ? 'Started ✓' : runs[c.slug] === 'error' ? 'Failed — retry' : 'Produce now'}
+                </button>
+              </div>
+            ))}
+          </div>
         </Card>
       ) : null}
 

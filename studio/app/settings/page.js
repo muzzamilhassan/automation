@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
-import { Settings, Sun, Moon, Monitor, Check, Plug, Bell, Server, ShieldAlert } from 'lucide-react';
+import { Settings, Sun, Moon, Monitor, Check, Plug, Bell, Server, ShieldAlert, Users, Trash2, Plus } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, Switch } from '@/components/ui';
 import { INTEGRATIONS } from '@/lib/site-data';
 import { cn } from '@/lib/utils';
@@ -67,7 +67,65 @@ export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [notifs, setNotifs] = useState({ ntfy: true, fails: true, weekly: false });
+  // 10-08 P1 — TEAM (owner only)
+  const [team, setTeam] = useState(null);
+  const [teamErr, setTeamErr] = useState('');
+  const [teamBusy, setTeamBusy] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [newRole, setNewRole] = useState('staff');
   useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/team')
+      .then((r) => (r.status === 403 ? { users: 'forbidden' } : r.json()))
+      .then((d) => {
+        requestAnimationFrame(() => {
+          if (alive) setTeam(d?.users || 'forbidden');
+        });
+      })
+      .catch(() => {
+        requestAnimationFrame(() => {
+          if (alive) setTeam('forbidden');
+        });
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const addMember = async () => {
+    setTeamBusy(true);
+    setTeamErr('');
+    try {
+      const r = await fetch('/api/team', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: newEmail, role: newRole }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Could not add');
+      setTeam(d.users || team);
+      setNewEmail('');
+    } catch (e) {
+      setTeamErr(e.message);
+    }
+    setTeamBusy(false);
+  };
+
+  const removeMember = async (email) => {
+    if (!window.confirm(`Remove ${email} from the team? They lose dashboard access immediately.`)) return;
+    setTeamBusy(true);
+    setTeamErr('');
+    try {
+      const r = await fetch('/api/team?email=' + encodeURIComponent(email), { method: 'DELETE' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Could not remove');
+      setTeam(d.users || team);
+    } catch (e) {
+      setTeamErr(e.message);
+    }
+    setTeamBusy(false);
+  };
 
   return (
     <div>
@@ -200,6 +258,59 @@ export default function SettingsPage() {
           </Card>
         </div>
       </div>
+
+      {/* team (10-08 P1) */}
+      <Card className="p-5 mt-4">
+        <CardHead
+          title="Team"
+          sub="Who can sign in with Google — roles decide what they see and can do. Owner = everything · staff = dashboard + run buttons · client = their own channels only (coming)."
+          icon={Users}
+        />
+        {team === 'forbidden' ? (
+          <p className="text-[12px] text-faint px-1">Team management is owner-only.</p>
+        ) : (
+          <>
+            <div className="space-y-1.5 mb-4">
+              {(Array.isArray(team) ? team : []).map((u) => (
+                <div key={u.email} className="flex items-center gap-3 inset-tile px-3 py-2.5">
+                  <span className="flex items-center justify-center w-7 h-7 rounded-lg text-[11px] font-bold shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                    {(u.name || u.email).slice(0, 2).toUpperCase()}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[12.5px] font-semibold text-ink truncate">{u.name || u.email}</span>
+                    <span className="block text-[10.5px] text-faint truncate">{u.email}</span>
+                  </span>
+                  <Chip tone={u.role === 'owner' ? 'ok' : 'accent'}>{u.role}</Chip>
+                  {u.role !== 'owner' ? (
+                    <button className="btn btn-ghost shrink-0" title="Remove from team" onClick={() => removeMember(u.email)} disabled={teamBusy}>
+                      <Trash2 size={13} />
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                className="input flex-1 min-w-[220px]"
+                placeholder="new.member@gmail.com"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+              />
+              <select className="input w-auto" value={newRole} onChange={(e) => setNewRole(e.target.value)}>
+                <option value="staff">staff</option>
+                <option value="client">client</option>
+              </select>
+              <button className="btn btn-primary" onClick={addMember} disabled={teamBusy || !newEmail.trim()}>
+                <Plus size={14} /> Add
+              </button>
+            </div>
+            {teamErr ? <p className="text-[11.5px] mt-2" style={{ color: 'var(--bad)' }}>{teamErr}</p> : null}
+            <p className="text-[11px] text-faint mt-3">
+              New members sign in with Google on the login page — their email must match exactly. Owners are added by editing the invite file in the repo.
+            </p>
+          </>
+        )}
+      </Card>
     </div>
   );
 }

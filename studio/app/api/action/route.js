@@ -3,7 +3,8 @@
 // The workflows are the same ones the daily crons use, so dedupe/state rules apply.
 import { ENV } from '../../../lib/data.mjs';
 import { registryChannels } from '../../../lib/channels-registry.js';
-import { requireRole } from '@/lib/route-auth';
+import { getUser } from '@/lib/route-auth';
+import { appendAudit } from '../../../lib/audit.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,15 +25,16 @@ const MAP = {
 
 export async function POST(req) {
   // 10-08 RBAC: run buttons = owner + staff; the actor goes to the audit log
-  const actor = await requireRole(req, ['owner', 'staff']);
-  if (!actor) return Response.json({ error: 'not signed in' }, { status: 401 });
+  const user = await getUser(req);
+  if (!user || !['owner', 'staff'].includes(user.role)) return Response.json({ error: 'not signed in' }, { status: 401 });
+  const actor = user.email;
   let body = {};
   try { body = await req.json(); } catch { }
   const fn = MAP[body.action];
   if (!fn) return Response.json({ error: 'unknown action' }, { status: 400 });
   const slug = body.slug || '';
   if (!TOKEN) return Response.json({ error: 'server has no GITHUB_TOKEN' }, { status: 500 });
-  console.log(`[audit] ${actor} → dispatch ${body.action}${slug ? ' ' + slug : ''}`);
+  await appendAudit(actor, 'produce', `${body.action}${slug ? ' · ' + slug : ''}`);
 
   // 10-08 CHANNEL FACTORY: wizard channels dispatch the generic autopilot
   // workflow with a channel input; legacy 4 keep their own workflows. The

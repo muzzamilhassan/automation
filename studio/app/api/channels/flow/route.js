@@ -4,16 +4,18 @@
 // skip) AND state pausedUntil=2099-12-31 (yt-daily/yt-deepdive hard-stop even
 // if invoked directly). ON clears both. Already-scheduled videos still publish
 // (they live on YouTube) — pause never recalls anything.
-import { requireRole } from '@/lib/route-auth';
+import { getUser } from '@/lib/route-auth';
 import { readRepoJSON, writeRepoJSON } from '@/lib/channels-registry';
+import { appendAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
 const FAR = '2099-12-31';
 
 export async function PATCH(req) {
-  const actor = await requireRole(req, ['owner', 'staff']);
-  if (!actor) return Response.json({ error: 'not signed in' }, { status: 401 });
+  const user = await getUser(req);
+  if (!user || !['owner', 'staff'].includes(user.role)) return Response.json({ error: 'not signed in' }, { status: 401 });
+  const actor = user.email;
 
   const body = await req.json().catch(() => ({}));
   const { slug, on } = body;
@@ -46,5 +48,6 @@ export async function PATCH(req) {
   }
 
   console.log(`[audit] ${actor} → autopilot ${on ? 'ON' : 'OFF'} for ${slug}${registryTouched ? '' : ' (legacy channel)'}`);
+  await appendAudit(actor, on ? 'flow-resume' : 'flow-pause', slug);
   return Response.json({ ok: true, slug, on });
 }

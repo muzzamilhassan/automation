@@ -4,9 +4,10 @@
 // POST /api/topics        → { slug, action: 'add'|'remove', ... }
 // The queue (yt-mcp/topics-<slug>.json, committed to the repo) is consumed by
 // yt-daily BEFORE auto-research — one approved topic per slot per day.
-import { isAuthed } from '@/lib/route-auth';
+import { getUser } from '@/lib/route-auth';
 import { trend, terms } from '../../../lib/data.mjs';
 import { readRepoJSON, writeRepoJSON } from '@/lib/channels-registry';
+import { appendAudit } from '../../../lib/audit.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +35,8 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
-  if (!(await isAuthed(req))) return Response.json({ error: 'not signed in' }, { status: 401 });
+  const user = await getUser(req);
+  if (!user || !['owner', 'staff'].includes(user.role)) return Response.json({ error: 'not signed in' }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const { slug, action } = body;
   if (!slug) return Response.json({ error: 'missing slug' }, { status: 400 });
@@ -57,12 +59,14 @@ export async function POST(req) {
     const seen = new Set(queue.map((t) => t.text.toLowerCase()));
     const fresh = items.filter((t) => !seen.has(t.text.toLowerCase()));
     await writeRepoJSON(file, { at: Date.now(), queue: [...queue, ...fresh] }, `topic desk: +${fresh.length} for ${slug}`);
+    await appendAudit(user.email, 'topic-approve', fresh.map((t) => t.text.slice(0, 40)).join(' | ').slice(0, 140) + ` → ${slug}`);
     return Response.json({ ok: true, added: fresh.length, queue: [...queue, ...fresh] });
   }
 
   if (action === 'remove') {
     const next = queue.filter((t) => t.id !== body.id);
     await writeRepoJSON(file, { at: Date.now(), queue: next }, `topic desk: -1 for ${slug}`);
+    await appendAudit(user.email, 'topic-remove', `${slug}`);
     return Response.json({ ok: true, queue: next });
   }
 

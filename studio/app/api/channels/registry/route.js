@@ -1,6 +1,7 @@
 // Channels connected through the Studio wizard (yt-mcp/studio-channels.json).
-import { isAuthed, requireRole } from '@/lib/route-auth';
+import { requireRole, getUser } from '@/lib/route-auth';
 import { readRegistry, writeRepoJSON, REGISTRY_MODE, hasGithubToken, registryChannels, decryptJSON } from '@/lib/channels-registry';
+import { appendAudit } from '@/lib/audit';
 import { ENV } from '@/lib/data.mjs';
 export const dynamic = 'force-dynamic';
 
@@ -19,8 +20,9 @@ export async function GET(req) {
 // revokes the Google token (machine loses access immediately), deletes the
 // GitHub secret, and removes the registry entry. Videos on the channel stay.
 export async function DELETE(req) {
-  const actor = await requireRole(req, ['owner']);
-  if (!actor) return Response.json({ error: 'not signed in' }, { status: 401 });
+  const user = await getUser(req);
+  if (!user || user.role !== 'owner') return Response.json({ error: 'owner only' }, { status: 403 });
+  const actor = user.email;
   const slug = new URL(req.url).searchParams.get('slug');
   if (!slug) return Response.json({ error: 'missing slug' }, { status: 400 });
 
@@ -64,5 +66,6 @@ export async function DELETE(req) {
   await writeRepoJSON('yt-mcp/studio-channels.json', { channels }, `flow: disconnected ${slug} (${actor})`);
 
   console.log(`[audit] ${actor} → disconnected ${slug} (revoked: ${revoked}, secret deleted: ${secretDeleted})`);
+  await appendAudit(actor, 'disconnect', `${slug}${revoked ? ' · key revoked' : ''}`);
   return Response.json({ ok: true, revoked, secretDeleted });
 }

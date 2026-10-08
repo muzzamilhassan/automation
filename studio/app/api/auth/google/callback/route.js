@@ -5,6 +5,7 @@
 import { ENV } from '@/lib/data.mjs';
 import { roleForEmail, verifyGoogleIdToken } from '../../../../../lib/access.js';
 import { signSession } from '../../../../../lib/session.js';
+import { appendAudit } from '../../../../../lib/audit.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,12 +34,13 @@ export async function GET(req) {
   const who = await verifyGoogleIdToken(d.id_token);
   if (!who?.email) return back('Google sign-in failed — try again.');
 
-  const role = roleForEmail(who.email);
-  if (!role) return back(`This email (${who.email}) is not invited. Ask the owner to add it to access.json.`);
+  const role = await roleForEmail(who.email);
+  if (!role) return back(`This email (${who.email}) is not invited. Ask the owner to add it to the team list.`);
 
   const exp = Date.now() + 30 * 86400000;
   const session = await signSession({ email: who.email, role, name: who.name || who.email, exp });
   console.log(`[audit] google sign-in: ${who.email} as ${role}`);
+  await appendAudit(who.email, 'sign-in', `Google sign-in as ${role}`);
 
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
   const res = Response.redirect(`${url.origin}/`, 302);

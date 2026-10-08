@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { ScrollText, RefreshCw, ArrowUpRight, FolderOpen, Terminal } from 'lucide-react';
+import { ScrollText, RefreshCw, ArrowUpRight, FolderOpen, Terminal, ListChecks } from 'lucide-react';
 import { Card, Chip, PageHeader, PageSkeleton, EmptyState, BrandMark, Segmented } from '@/components/ui';
 import { BRAND_META } from '@/lib/site-data';
 import { timeAgo, when } from '@/lib/utils';
@@ -16,9 +16,11 @@ export default function Logs() {
   const [data, setData] = useState(null);
   const [filter, setFilter] = useState('all');
   const [tick, setTick] = useState(0);
+  const [audit, setAudit] = useState([]);
 
   useEffect(() => {
     fetch('/api/overview').then((r) => r.json()).then(setData).catch(() => setData({ logs: [] }));
+    fetch('/api/audit').then((r) => r.json()).then((d) => setAudit(d.events || [])).catch(() => setAudit([]));
   }, [tick]);
 
   useEffect(() => {
@@ -41,6 +43,27 @@ export default function Logs() {
         <Segmented options={FILTERS} value={filter} onChange={setFilter} />
         <span className="text-[11.5px] text-faint">{logs.length} entries</span>
       </div>
+
+      {/* team activity (audit trail) */}
+      {audit.length ? (
+        <Card className="overflow-hidden mb-4">
+          <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+            <ListChecks size={15} className="text-faint" />
+            <span className="section-title">Team activity</span>
+            <span className="text-[10.5px] text-faint ml-auto">who did what · newest first</span>
+          </div>
+          <div className="px-4 pb-4 space-y-1.5">
+            {audit.slice(0, 12).map((e, i) => (
+              <div key={i} className="flex items-center gap-3 inset-tile px-3 py-2">
+                <span className="text-[11.5px] font-semibold text-ink truncate w-44 shrink-0">{e.actor}</span>
+                <Chip tone="accent">{e.action}</Chip>
+                <span className="text-[11.5px] text-muted truncate flex-1">{e.detail}</span>
+                <span className="text-[10.5px] text-faint tnum shrink-0">{timeAgo(e.at)}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
 
       <Card className="overflow-hidden">
         {logs.length === 0 ? (
