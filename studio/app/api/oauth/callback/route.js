@@ -31,6 +31,17 @@ function slugify(text) {
 }
 
 export async function GET(req) {
+  // safety net: a connect must NEVER end in a raw 500 — any unexpected error
+  // becomes a readable message back on the wizard page
+  try {
+    return await handle(req);
+  } catch (e) {
+    console.error('[oauth/callback] unexpected:', e);
+    return fail(req, 'Connect failed unexpectedly: ' + String(e.message || e).slice(0, 140));
+  }
+}
+
+async function handle(req) {
   const url = new URL(req.url);
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state') || '';
@@ -143,8 +154,13 @@ export async function GET(req) {
   };
   // 10-08: encrypted copy of the token (AES-GCM, STUDIO_PASSWORD key) — the
   // ONLY way the dashboard can read wizard-channel stats (GitHub secrets are
-  // write-only). Registry stays private-repo-only.
-  entry.tokenEnc = encryptJSON({ access_token: tokens.access_token, refresh_token: tokens.refresh_token, scope: tokens.scope, expiry_date: Date.now() + 3650 * 86400000 });
+  // write-only). Registry stays private-repo-only. Non-fatal: if encryption
+  // fails the channel is still connected, the dashboard just can't read it.
+  try {
+    entry.tokenEnc = encryptJSON({ access_token: tokens.access_token, refresh_token: tokens.refresh_token, scope: tokens.scope, expiry_date: Date.now() + 3650 * 86400000 });
+  } catch (e) {
+    entry.tokenEncError = 'encrypt failed: ' + String(e.message || e).slice(0, 80);
+  }
   try {
     await upsertChannel(entry);
   } catch (e) {

@@ -8,6 +8,7 @@
 //      the gitignored yt-mcp/channels/<slug>/token.json like oauth-reauth.mjs.
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { ENV } from './data.mjs';
 
 const REG_PATH = 'yt-mcp/studio-channels.json';
