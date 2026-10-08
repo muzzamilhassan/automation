@@ -4,6 +4,7 @@
 import { ENV } from '../../../lib/data.mjs';
 import { registryChannels } from '../../../lib/channels-registry.js';
 import { getUser } from '@/lib/route-auth';
+import { slugsForUser } from '@/lib/access';
 import { appendAudit } from '../../../lib/audit.js';
 
 export const dynamic = 'force-dynamic';
@@ -24,12 +25,24 @@ const MAP = {
 };
 
 export async function POST(req) {
-  // 10-08 RBAC: run buttons = owner + staff; the actor goes to the audit log
+  // 10-08 RBAC: run buttons = owner + staff; the actor goes to the audit log.
+  // 10-08 P2 CLIENT ROLE: clients may run ONLY their own channel's pipeline.
   const user = await getUser(req);
-  if (!user || !['owner', 'staff'].includes(user.role)) return Response.json({ error: 'not signed in' }, { status: 401 });
-  const actor = user.email;
+  if (!user) return Response.json({ error: 'not signed in' }, { status: 401 });
   let body = {};
   try { body = await req.json(); } catch { }
+  if (user.role === 'client') {
+    if (!['yt-daily', 'deepdive'].includes(body.action || '')) {
+      return Response.json({ error: 'your role does not allow this' }, { status: 403 });
+    }
+    const owned = await slugsForUser(user).catch(() => null);
+    if (!owned || !owned.includes(body.slug || '')) {
+      return Response.json({ error: 'not your channel' }, { status: 403 });
+    }
+  } else if (!['owner', 'staff'].includes(user.role)) {
+    return Response.json({ error: 'not signed in' }, { status: 401 });
+  }
+  const actor = user.email;
   const fn = MAP[body.action];
   if (!fn) return Response.json({ error: 'unknown action' }, { status: 400 });
   const slug = body.slug || '';

@@ -5,6 +5,7 @@
 // if invoked directly). ON clears both. Already-scheduled videos still publish
 // (they live on YouTube) — pause never recalls anything.
 import { getUser } from '@/lib/route-auth';
+import { slugsForUser } from '@/lib/access';
 import { readRepoJSON, writeRepoJSON } from '@/lib/channels-registry';
 import { appendAudit } from '@/lib/audit';
 
@@ -14,8 +15,15 @@ const FAR = '2099-12-31';
 
 export async function PATCH(req) {
   const user = await getUser(req);
-  if (!user || !['owner', 'staff'].includes(user.role)) return Response.json({ error: 'not signed in' }, { status: 401 });
+  if (!user) return Response.json({ error: 'not signed in' }, { status: 401 });
   const actor = user.email;
+  // 10-08 P2 CLIENT ROLE: clients may pause/resume ONLY their own channels
+  if (user.role === 'client') {
+    const owned = await slugsForUser(user).catch(() => null);
+    if (!owned || !owned.includes(slug)) return Response.json({ error: 'not your channel' }, { status: 403 });
+  } else if (!['owner', 'staff'].includes(user.role)) {
+    return Response.json({ error: 'not signed in' }, { status: 401 });
+  }
 
   const body = await req.json().catch(() => ({}));
   const { slug, on } = body;

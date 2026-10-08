@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { UserPlus, ShieldCheck, CheckCircle2, AlertTriangle, ArrowRight, Layers, Settings2, Plus, Sparkles, X } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, EmptyState, PageSkeleton } from '@/components/ui';
 import { STYLE_CATALOG, STYLE_BY_ID } from '@/lib/styles-catalog';
+import { NICHE_CATALOG } from '@/lib/niches';
 
 const VOICE_SUGGESTIONS = ['am_michael', 'bm_george', 'bm_daniel', 'am_onyx', 'bf_emma'];
 const DOC_DAYS = ['Tue', 'Wed', 'Thu', 'Fri'];
@@ -281,6 +282,22 @@ export default function AddChannel() {
               <span className="overline block mb-1.5">Niche</span>
               <input className="input w-full" value={form.niche} onChange={(e) => setForm({ ...form, niche: e.target.value })} placeholder="Old money & quiet luxury" />
             </label>
+            <div className="sm:col-span-2 -mt-1">
+              <div className="flex flex-wrap gap-1.5">
+                {NICHE_CATALOG.map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className="inset-tile px-2.5 py-1 text-[11px] font-semibold text-muted hover:text-ink transition-colors"
+                    style={form.niche === n ? { color: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
+                    onClick={() => setForm({ ...form, niche: n })}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10.5px] text-faint mt-1.5">One tap = niche filled. Or type your own — free text always wins.</p>
+            </div>
             <label className="block">
               <span className="overline block mb-1.5">Video template</span>
               <select className="input w-full" value={form.style} onChange={(e) => setForm({ ...form, style: e.target.value })}>

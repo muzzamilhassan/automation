@@ -1,4 +1,6 @@
 import { brands, state, trend, fbPages, ytChannels, allLogs, MODE, bustCache } from '../../../lib/data.mjs';
+import { getUser } from '@/lib/route-auth';
+import { slugsForUser } from '@/lib/access';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,17 +57,23 @@ export async function GET(req) {
       });
     }
   } catch { }
+  // 10-08 P2 CLIENT ROLE: clients see only their own channels
+  const user = await getUser(req).catch(() => null);
+  const owned = user ? await slugsForUser(user).catch(() => null) : null;
+  const visible = owned ? channels.filter((c) => owned.includes(c.slug)) : channels;
+  const visibleLogs = owned ? logs.filter((l) => owned.includes(l.slug)) : logs;
+
   const totals = {
-    ytSubs: channels.reduce((a, c) => a + (c.yt?.subs || 0), 0),
-    ytViews: channels.reduce((a, c) => a + (c.yt?.views || 0), 0),
-    ytVideos: channels.reduce((a, c) => a + (c.yt?.videos || 0), 0),
-    fbFollowers: channels.reduce((a, c) => a + (c.fb?.followers || 0), 0),
-    igFollowers: channels.reduce((a, c) => a + (c.ig?.followers || 0), 0)
+    ytSubs: visible.reduce((a, c) => a + (c.yt?.subs || 0), 0),
+    ytViews: visible.reduce((a, c) => a + (c.yt?.views || 0), 0),
+    ytVideos: visible.reduce((a, c) => a + (c.yt?.videos || 0), 0),
+    fbFollowers: visible.reduce((a, c) => a + (c.fb?.followers || 0), 0),
+    igFollowers: visible.reduce((a, c) => a + (c.ig?.followers || 0), 0),
   };
   const trends = {};
-  for (const slug of Object.keys(b)) {
-    const t = await trend(slug);
-    if (t) trends[slug] = { keywords: t.hotKeywords.slice(0, 8), viral: t.videos.slice(0, 3) };
+  for (const c of visible) {
+    const t = await trend(c.slug);
+    if (t) trends[c.slug] = { keywords: t.hotKeywords.slice(0, 8), viral: t.videos.slice(0, 3) };
   }
-  return Response.json({ channels, totals, logs: logs.slice(0, 40), trends, mode: MODE });
+  return Response.json({ channels: visible, totals, logs: visibleLogs.slice(0, 40), trends, mode: MODE });
 }

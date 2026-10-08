@@ -7,16 +7,29 @@
 import { getUser } from '@/lib/route-auth';
 import { trend, terms } from '../../../lib/data.mjs';
 import { readRepoJSON, writeRepoJSON } from '@/lib/channels-registry';
+import { slugsForUser } from '@/lib/access';
 import { appendAudit } from '../../../lib/audit.js';
 
 export const dynamic = 'force-dynamic';
 
 const queuePath = (slug) => `yt-mcp/topics-${slug}.json`;
 
+// 10-08 P2 CLIENT ROLE: clients may only touch their own channels' queues
+async function guard(req, slug) {
+  const user = await getUser(req);
+  if (!user) return 'not signed in';
+  const owned = await slugsForUser(user).catch(() => null);
+  if (owned && !owned.includes(slug)) return 'not your channel';
+  return null;
+}
+
 export async function GET(req) {
-  if (!(await isAuthed(req))) return Response.json({ error: 'not signed in' }, { status: 401 });
+  const user = await getUser(req);
+  if (!user) return Response.json({ error: 'not signed in' }, { status: 401 });
   const slug = new URL(req.url).searchParams.get('slug') || '';
   if (!slug) return Response.json({ error: 'missing slug' }, { status: 400 });
+  const denied = await guard(req, slug);
+  if (denied) return Response.json({ error: denied, trends: [], terms: [], queue: [] }, { status: 403 });
 
   const [tr, tm, queueFile] = await Promise.all([
     trend(slug).catch(() => null),
@@ -36,10 +49,12 @@ export async function GET(req) {
 
 export async function POST(req) {
   const user = await getUser(req);
-  if (!user || !['owner', 'staff'].includes(user.role)) return Response.json({ error: 'not signed in' }, { status: 401 });
+  if (!user || !['owner', 'staff', 'client'].includes(user.role)) return Response.json({ error: 'not signed in' }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const { slug, action } = body;
   if (!slug) return Response.json({ error: 'missing slug' }, { status: 400 });
+  const denied = await guard(req, slug);
+  if (denied) return Response.json({ error: denied }, { status: 403 });
 
   const file = queuePath(slug);
   const q = (await readRepoJSON(file).catch(() => null)) || { at: 0, queue: [] };

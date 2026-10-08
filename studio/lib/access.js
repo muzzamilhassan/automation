@@ -8,7 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ENV } from './data.mjs';
-import { readRepoJSON } from './channels-registry.js';
+import { readRepoJSON, registryChannels } from './channels-registry.js';
 
 const FALLBACK = path.join(process.cwd(), 'lib', 'access.json');
 
@@ -34,6 +34,19 @@ export async function roleForEmail(email) {
   const users = await accessList();
   const u = users.find((u) => String(u.email || '').toLowerCase() === e);
   return u ? (u.role || 'staff') : null;
+}
+
+// 10-08 P2 CLIENT ROLE: which channel slugs may this dashboard user see?
+// owner/staff → null (= everything). client → only channels whose ownerEmail
+// matches their login (ownership recorded at connect time). Legacy channels
+// have no ownerEmail → owner/staff only.
+export async function slugsForUser(user) {
+  if (!user) return [];
+  if (user.role !== 'client') return null;
+  const list = await registryChannels();
+  return list
+    .filter((e) => (e.ownerEmail || '').toLowerCase() === String(user.email || '').toLowerCase())
+    .map((e) => e.slug);
 }
 
 // Verifies a Google id_token server-side via Google's tokeninfo endpoint

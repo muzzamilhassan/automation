@@ -5,6 +5,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ENV, ytTokenRaw } from '../../../lib/data.mjs';
+import { getUser } from '@/lib/route-auth';
+import { slugsForUser } from '@/lib/access';
 
 export const dynamic = 'force-dynamic';
 
@@ -109,6 +111,10 @@ export async function GET(req) {
     const { registryChannels } = await import('../../../lib/channels-registry.js');
     for (const e of await registryChannels()) if (!SLUGS.includes(e.slug)) allSlugs.push(e.slug);
   } catch { }
+  // 10-08 P2 CLIENT ROLE: clients only ever get their own channels' numbers
+  const user = await getUser(req).catch(() => null);
+  const owned = user ? await slugsForUser(user).catch(() => null) : null;
+  if (owned) allSlugs = allSlugs.filter((s) => owned.includes(s));
   const channels = {};
   const all = { slug: 'all', range: 28, totals: { views: 0, watchHours: 0, subsGained: 0 }, daily: [], split: { shortsViews: 0, longViews: 0 }, audience: { gender: [], age: [], countries: [] } };
   for (const s of allSlugs) {

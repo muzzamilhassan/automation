@@ -7,7 +7,7 @@
 //   4. registers the channel in yt-mcp/studio-channels.json (no token in it),
 //   5. redirects back to /channels/add?connected=<slug>.
 import { ENV } from '@/lib/data.mjs';
-import { isAuthed } from '@/lib/route-auth';
+import { isAuthed, getUser } from '@/lib/route-auth';
 import { hmacToken } from '@/lib/auth-token';
 import { readRegistry, upsertChannel, writeTokenSecret, writeLocalTokenFile, hasGithubToken, encryptJSON } from '@/lib/channels-registry';
 
@@ -138,8 +138,13 @@ async function handle(req) {
   writeLocalTokenFile(slug, tokenJson);
 
   // 4. registry entry (never contains the token)
+  // 10-08 P2: record WHO connected this channel (the dashboard account that
+  // minted the link / pressed connect). Client-role users only ever see
+  // channels whose ownerEmail matches their own email.
+  const connector = await getUser(req);
   const entry = {
     slug,
+    ownerEmail: connector?.email?.includes('@') ? connector.email : '',
     label: title.toUpperCase(),
     channelId,
     handle,
