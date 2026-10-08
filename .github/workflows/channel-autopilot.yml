@@ -136,7 +136,7 @@ jobs:
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: node channel-pipeline.mjs "$SLUG" --no-episode ${{ inputs.topup && format('--topup={0}', inputs.topup) || '' }}
+        run: node channel-pipeline.mjs "$SLUG" ${{ inputs.topup && format('--topup={0}', inputs.topup) || '' }}
 
       - name: 💾 Commit publishing state
         run: |

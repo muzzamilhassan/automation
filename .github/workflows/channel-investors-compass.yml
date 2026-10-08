@@ -82,7 +82,7 @@ jobs:
           YT_TOKEN_INVESTORS_COMPASS: ${{ secrets.YT_TOKEN_INVESTORS_COMPASS }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: node channel-pipeline.mjs investors-compass --no-episode ${{ inputs.topup && format('--topup={0}', inputs.topup) || '' }}
+        run: node channel-pipeline.mjs investors-compass ${{ inputs.topup && format('--topup={0}', inputs.topup) || '' }}
       - name: 📦 Keep reels for IG slot poster
         if: ${{ hashFiles('fb-outbox/investors-compass/*.json*') != '' }}
         uses: actions/cache/save@v4
