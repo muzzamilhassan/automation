@@ -1,6 +1,7 @@
 import { authToken } from '@/lib/auth-token';
 import { signSessionCookie } from '@/lib/session';
 import { createSession, recentFailures, recordLoginAttempt } from '@/lib/session-db';
+import { accessList } from '@/lib/access';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,9 +29,12 @@ export async function POST(req) {
   await recordLoginAttempt(ip, true);
 
   const ua = (req.headers.get('user-agent') || '').slice(0, 200);
-  const { token } = await createSession({ email: 'owner', role: 'owner', name: 'Owner', userAgent: ua, ip });
+  // the owner's REAL email comes from the invite list (sessions/audit show it;
+  // the email='owner' placeholder broke the sessions list guard)
+  const ownerUser = (await accessList().catch(() => [])).find((u) => u.role === 'owner') || { email: 'owner', role: 'owner', name: 'Owner' };
+  const { token } = await createSession({ email: ownerUser.email, role: 'owner', name: ownerUser.name || 'Owner', userAgent: ua, ip });
   const legacy = await authToken(expected);
-  console.log('[audit] password sign-in: owner');
+  console.log(`[audit] password sign-in: ${ownerUser.email} (owner)`);
 
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
   const res = Response.json({ ok: true, role: 'owner' });
@@ -41,7 +45,7 @@ export async function POST(req) {
     // signed claims wrapper: the Edge gate verifies cheaply, the routes
     // resolve the real (revocable) session from the opaque token inside
     const expMs = Date.now() + maxAge * 1000;
-    const cookieValue = await signSessionCookie({ t: token, e: 'owner', r: 'owner', n: 'Owner', x: expMs });
+    const cookieValue = await signSessionCookie({ t: token, e: ownerUser.email, r: 'owner', n: ownerUser.name || 'Owner', x: expMs });
     res.headers.append('Set-Cookie', `qs_session=${cookieValue}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`);
   }
   return res;
