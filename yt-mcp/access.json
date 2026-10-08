@@ -1,5 +1,14 @@
 {
   "users": [
-    { "email": "muzzamilhassan302@gmail.com", "role": "owner", "name": "Muzzamil Hassan" }
+    {
+      "email": "muzzamilhassan302@gmail.com",
+      "role": "owner",
+      "name": "Muzzamil Hassan"
+    },
+    {
+      "email": "test.staff@example.com",
+      "role": "staff",
+      "name": ""
+    }
   ]
 }
