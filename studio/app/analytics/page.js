@@ -13,6 +13,7 @@ import {
   Scissors,
   Film,
   Globe,
+  RefreshCw,
 } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, PageSkeleton, StatCard, BrandMark, Segmented } from '@/components/ui';
 import { RetentionBars, MiniBars } from '@/components/charts';
@@ -31,11 +32,12 @@ export default function Analytics() {
     fetch('/api/overview').then((r) => r.json()).then(setData).catch(() => setData({ totals: {}, channels: [] }));
     fetch('/api/reports').then((r) => r.json()).then((d) => setReports(d.reports || [])).catch(() => {});
   }, []);
-  useEffect(() => {
+  const load = (fresh = false) => {
     setReal(null);
     setRealErr(false);
     setTerms(null);
-    fetch('/api/analytics?slug=' + sel)
+    const q = fresh ? '?fresh=1' : '';
+    fetch('/api/analytics?slug=' + sel + q)
       .then((r) => r.json())
       .then((d) => (d && !d.error ? setReal(d) : setRealErr(true)))
       .catch(() => setRealErr(true));
@@ -43,7 +45,10 @@ export default function Analytics() {
       .then((r) => r.json())
       .then((d) => setTerms(d.terms || []))
       .catch(() => setTerms([]));
-  }, [sel]);
+  };
+  useEffect(() => {
+    load();
+  }, [sel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!data) return <PageSkeleton />;
 
@@ -104,6 +109,9 @@ export default function Analytics() {
           value={sel}
           onChange={setSel}
         />
+        <button className="btn btn-outline" onClick={() => load(true)} title="Force-refresh from YouTube (bypasses the 1-hour cache)">
+          <RefreshCw size={14} /> Refresh
+        </button>
         {selChannel ? (
           <span className="flex items-center gap-2 text-[12px] text-muted">
             <BrandMark short={BRAND_META[sel]?.short} accent={selChannel.accent} size={20} />

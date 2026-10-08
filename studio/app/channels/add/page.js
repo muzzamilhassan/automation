@@ -451,6 +451,19 @@ export default function AddChannel() {
                   >
                     <Settings2 size={14} />
                   </button>
+                  <button
+                    className="btn btn-ghost shrink-0"
+                    title="Disconnect: revoke access, delete the key, remove from Studio. Videos on the channel stay."
+                    onClick={async () => {
+                      if (!window.confirm(`Disconnect ${c.label || c.slug}? The machine loses access immediately (key revoked) and it leaves the dashboard. Videos on the channel stay. Continue?`)) return;
+                      const r = await fetch('/api/channels/registry?slug=' + c.slug, { method: 'DELETE' });
+                      const d = await r.json().catch(() => ({}));
+                      if (!r.ok) { setError(d.error || 'Disconnect failed'); return; }
+                      loadReg();
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
                 </div>
               </div>
             ))}

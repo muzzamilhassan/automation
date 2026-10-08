@@ -96,8 +96,10 @@ async function channelAnalytics(slug, auth) {
 }
 
 export async function GET(req) {
-  const slug = new URL(req.url).searchParams.get('slug') || 'all';
-  if (cache.data && Date.now() - cache.at < 3600_000) {
+  const url = new URL(req.url);
+  const slug = url.searchParams.get('slug') || 'all';
+  const fresh = url.searchParams.get('fresh') === '1';
+  if (!fresh && cache.data && Date.now() - cache.at < 3600_000) {
     const d = cache.data;
     return Response.json(slug === 'all' ? d.all : d.channels[slug] || null);
   }

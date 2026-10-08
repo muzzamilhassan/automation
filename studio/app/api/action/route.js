@@ -2,6 +2,7 @@
 // Works the same locally and on Vercel — nothing runs on the web server itself.
 // The workflows are the same ones the daily crons use, so dedupe/state rules apply.
 import { ENV } from '../../../lib/data.mjs';
+import { registryChannels } from '../../../lib/channels-registry.js';
 import { requireRole } from '@/lib/route-auth';
 
 export const dynamic = 'force-dynamic';
@@ -14,7 +15,7 @@ const SLUGS = ['quotequarry', 'investors-compass', 'money-rulebook', 'debt-free-
 // action (+ optional slug) → workflow file + inputs
 const MAP = {
   'yt-daily': (slug) => ({ workflow: `channel-${slug}.yml`, inputs: {} }),
-  'deepdive': (slug) => ({ workflow: 'longform-upload.yml', inputs: { channel: slug } }),
+  'deepdive': (slug) => ({ workflow: `channel-${slug}.yml`, inputs: {} }), // episodes follow docDay inside the channel run; legacy uploader disabled 10-05
   'ig-crosspost': () => ({ workflow: 'ig-slot-poster.yml', inputs: {} }),
   'tiktok': () => ({ workflow: 'tiktok-post.yml', inputs: {} }),
   'fb-crosspost': () => ({ workflow: 'fb-now.yml', inputs: { job: 'reels' } }),
@@ -30,13 +31,26 @@ export async function POST(req) {
   const fn = MAP[body.action];
   if (!fn) return Response.json({ error: 'unknown action' }, { status: 400 });
   const slug = body.slug || '';
-  if (['yt-daily', 'deepdive'].includes(body.action) && !SLUGS.includes(slug)) {
-    return Response.json({ error: 'unknown channel' }, { status: 400 });
-  }
   if (!TOKEN) return Response.json({ error: 'server has no GITHUB_TOKEN' }, { status: 500 });
   console.log(`[audit] ${actor} → dispatch ${body.action}${slug ? ' ' + slug : ''}`);
 
-  const { workflow, inputs } = fn(slug);
+  // 10-08 CHANNEL FACTORY: wizard channels dispatch the generic autopilot
+  // workflow with a channel input; legacy 4 keep their own workflows. The
+  // episode buttons now dispatch the CHANNEL run (episodes follow docDay).
+  let workflow, inputs;
+  if ((body.action === 'yt-daily' || body.action === 'deepdive') && !SLUGS.includes(slug)) {
+    const inRegistry = await registryChannels()
+      .then((l) => l.some((c) => c.slug === slug))
+      .catch(() => false);
+    if (!inRegistry) return Response.json({ error: 'unknown channel' }, { status: 400 });
+    workflow = 'channel-autopilot.yml';
+    inputs = { channel: slug };
+  } else {
+    if (['yt-daily', 'deepdive'].includes(body.action) && !SLUGS.includes(slug)) {
+      return Response.json({ error: 'unknown channel' }, { status: 400 });
+    }
+    ({ workflow, inputs } = fn(slug));
+  }
   const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${workflow}/dispatches`, {
     method: 'POST',
     headers: {

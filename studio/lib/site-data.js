@@ -31,9 +31,16 @@ export const RETENTION_GOAL = 70;
 
 export const ALERTS = [
   {
+    level: 'warn',
+    title: 'Quote Quarry recovery — pause lifts tonight (Oct 8)',
+    body: 'QQ was paused Oct 5 for the feed-collapse recovery. The scheduled task re-enables it tonight (~23:30 PKT) and the 1/day clean test begins.',
+    when: 'Oct 5',
+    href: '/production',
+  },
+  {
     level: 'bad',
-    title: 'Script brain failing ~1 channel/day',
-    body: 'Groq 429 rate limits + Gemini 403 on quota. Fix is planned — waiting for your go.',
+    title: 'Script brain still fragile',
+    body: 'Groq 429 + Gemini 403 still cause ~1 channel/day to skip. Fix is planned — waiting for your go.',
     when: 'Sep 27',
     href: '/production',
   },
@@ -45,25 +52,11 @@ export const ALERTS = [
     href: '/social',
   },
   {
-    level: 'warn',
-    title: 'Repo flips back to private Oct 1',
-    body: 'Auto-task restores private mode. Longform rendering stays on the public quarry-render repo.',
-    when: 'Oct 1',
-    href: '/settings',
-  },
-  {
     level: 'info',
-    title: 'Facebook reels blackout',
-    body: 'About 60 reels across 4 pages got 2 views total. Fix plan (native re-render + rename pages) is waiting for your go.',
+    title: 'Facebook reels blackout plan waiting',
+    body: '~60 reels across 4 pages got 2 views total. Native re-render + page rename plan awaits your go.',
     when: 'Sep 20',
     href: '/social',
-  },
-  {
-    level: 'info',
-    title: 'Music keeper picks pending',
-    body: 'You are still picking favorite tracks. The 40-track shorts menu is waiting for your replies.',
-    when: 'Sep 16',
-    href: '/music',
   },
 ];
 
@@ -181,23 +174,28 @@ export const ROADMAP = [
     group: 'Running live',
     icon: 'zap',
     items: [
-      { t: 'Daily Shorts — 4 channels × 3/day on GitHub Actions', state: 'live' },
-      { t: 'Daily 10+ min doc episode per channel (quarry-render → ET prime upload)', state: 'live' },
-      { t: 'TikTok via Zernio — 4 slots/day + 1 clip part/day', state: 'live' },
-      { t: 'FB reels + posters, IG reels ×4 accounts, Threads ×1/day', state: 'live' },
+      { t: 'Daily Shorts — 1 quality short per channel (best ET slot), Sunday break', state: 'live' },
+      { t: 'Weekly doc episode per channel (QQ Tue · IC Wed · MR Thu · OMC Fri)', state: 'live' },
+      { t: 'Channel Factory — wizard channels run on the nightly Autopilot automatically', state: 'live' },
+      { t: 'Topic Desk — research proposes, you approve, machine runs your picks first', state: 'live' },
+      { t: 'Flow switches — per-channel pause/resume + network master switch', state: 'live' },
+      { t: 'TikTok via Zernio — 4 slots/day + 1 clip part/day (QQ)', state: 'live' },
+      { t: 'FB reels + posters, IG reels ×4 accounts, Threads ×1/day (legacy channels)', state: 'live' },
       { t: 'SEO pack live + in-pipeline US keyword checker', state: 'live' },
       { t: 'Photo-poster thumbnails live + 34 old videos backfilled', state: 'live' },
+      { t: 'Role-based access — Google sign-in, owner/staff/client roles', state: 'live' },
     ],
   },
   {
     group: 'Waiting on you',
     icon: 'user',
     items: [
-      { t: 'Music keeper picks — 40-track shorts menu', state: 'pending' },
-      { t: 'Pinterest — paste App ID + secret to finish OAuth', state: 'pending' },
+      { t: 'Check YouTube Studio on QQ for any recovery/policy notice', state: 'pending' },
+      { t: 'Refresh Threads token before ~Oct 29', state: 'pending' },
+      { t: 'FB reels blackout plan — native re-render + page renames', state: 'pending' },
+      { t: 'Premium upgrade groups 1–3 (SFX, ducking, loudnorm) — plan ready', state: 'waiting-you' },
       { t: 'Affiliate money — Payoneer KYC + network signups', state: 'pending' },
       { t: 'Buy blog domain (~$10/yr) for AdSense route', state: 'pending' },
-      { t: 'Rename FB pages to match channels (Silent Wealth → Investor\'s Compass…)', state: 'pending' },
     ],
   },
   {
@@ -223,15 +221,15 @@ export const ROADMAP = [
 ];
 
 export const INTEGRATIONS = [
-  { name: 'YouTube Data API', status: 'ok', note: '4 channels · uploads bucket ~100/day', icon: 'youtube' },
-  { name: 'Facebook Pages', status: 'ok', note: '4 pages wired · reels + posters', icon: 'facebook' },
-  { name: 'Instagram Graph', status: 'ok', note: '4 accounts · reels daily', icon: 'instagram' },
-  { name: 'TikTok (Zernio)', status: 'ok', note: '@arzo22345 · 4 slots/day + clips', icon: 'music2' },
+  { name: 'YouTube Data API', status: 'ok', note: '5 channels linked (4 legacy + FAJR OF QUR\'AN) · uploads own bucket', icon: 'youtube' },
+  { name: 'Channel Autopilot', status: 'ok', note: 'nightly 02:33 UTC · wizard channels run automatically', icon: 'cloud' },
+  { name: 'Weekly docs', status: 'ok', note: 'docDay per channel: QQ Tue · IC Wed · MR Thu · OMC Fri', icon: 'film' },
+  { name: 'Facebook Pages', status: 'ok', note: '4 legacy pages wired · reels + posters', icon: 'facebook' },
+  { name: 'Instagram Graph', status: 'ok', note: '4 legacy accounts · reels daily', icon: 'instagram' },
+  { name: 'TikTok (Zernio)', status: 'ok', note: '@arzo22345 · 4 slots/day + clips (QQ)', icon: 'music2' },
   { name: 'Threads', status: 'warn', note: 'Token valid until ~Oct 29', icon: 'at-sign' },
-  { name: 'Pinterest', status: 'pending', note: 'Code pushed — waiting for App ID + secret', icon: 'pin' },
-  { name: 'Groq (script brain)', status: 'bad', note: '429 bursts — fallback fix pending', icon: 'zap' },
-  { name: 'Gemini (script brain)', status: 'warn', note: 'Free quota · 403s near midnight PT', icon: 'sparkles' },
-  { name: 'quarry-render (CI)', status: 'ok', note: '4 docs/day · unlimited minutes', icon: 'cloud' },
+  { name: 'Roles (Google sign-in)', status: 'ok', note: 'owner: muzzamilhassan302 · staff/client via access.json', icon: 'zap' },
+  { name: 'Script brain', status: 'bad', note: 'Groq 429 bursts — fallback fix pending', icon: 'sparkles' },
   { name: 'ntfy alerts', status: 'ok', note: 'quarry-x7f2k-reports topic', icon: 'bell' },
 ];
 

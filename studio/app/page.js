@@ -34,7 +34,7 @@ export default function Overview() {
     if (fresh) setRefreshing(true);
     return Promise.allSettled([
       fetch('/api/overview' + (fresh ? '?fresh=1' : '')).then((r) => r.json()),
-      fetch('/api/analytics?slug=all').then((r) => r.json()),
+      fetch('/api/analytics?slug=all' + (fresh ? '&fresh=1' : '?fresh=1')).then((r) => r.json()),
     ]).then(([ov, an]) => {
       if (ov.status === 'fulfilled') { setData(ov.value); setErr(false); } else setErr(true);
       const a = an.status === 'fulfilled' ? an.value : null;
