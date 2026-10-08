@@ -8,8 +8,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ENV } from './data.mjs';
+import { db, dbReady } from './db.mjs';
 import { readRepoJSON, registryChannels } from './channels-registry.js';
-
 const FALLBACK = path.join(process.cwd(), 'lib', 'access.json');
 
 function accessListSync() {
@@ -21,6 +21,13 @@ function accessListSync() {
 }
 
 export async function accessList() {
+  // R2: Neon users table is the source of truth; repo file + bundled file are fallbacks
+  if (dbReady) {
+    try {
+      const rows = await db`SELECT email, role, name FROM users`;
+      if (rows.length) return rows.map((r) => ({ email: r.email, role: r.role, name: r.name || '' }));
+    } catch { }
+  }
   try {
     const repo = await readRepoJSON('yt-mcp/access.json');
     if (repo?.users?.length) return repo.users;

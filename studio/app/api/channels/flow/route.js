@@ -6,7 +6,7 @@
 // (they live on YouTube) — pause never recalls anything.
 import { getUser } from '@/lib/route-auth';
 import { slugsForUser } from '@/lib/access';
-import { readRepoJSON, writeRepoJSON } from '@/lib/channels-registry';
+import { readRepoJSON, setChannelAutopilot } from '@/lib/channels-registry';
 import { appendAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
@@ -29,14 +29,13 @@ export async function PATCH(req) {
   const { slug, on } = body;
   if (!slug || typeof on !== 'boolean') return Response.json({ error: 'need slug + on(boolean)' }, { status: 400 });
 
-  // 1. registry flag (wizard channels; legacy 4 simply have no entry)
+  // 1. registry flag (wizard channels; legacy 4 simply have no entry) —
+  // setChannelAutopilot updates the DB and syncs the engine's discovery file
   let registryTouched = false;
   try {
     const reg = (await readRepoJSON('yt-mcp/studio-channels.json')) || { channels: [] };
-    const entry = (reg.channels || []).find((c) => c.slug === slug);
-    if (entry) {
-      entry.autopilot = on;
-      await writeRepoJSON('yt-mcp/studio-channels.json', reg, `flow: autopilot ${on ? 'ON' : 'OFF'} for ${slug} (${actor})`);
+    if ((reg.channels || []).some((c) => c.slug === slug)) {
+      await setChannelAutopilot(slug, on);
       registryTouched = true;
     }
   } catch (e) {

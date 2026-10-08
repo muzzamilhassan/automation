@@ -62,6 +62,20 @@ await sql`CREATE INDEX IF NOT EXISTS topics_slug_idx ON topics_queue (slug, adde
 await sql`CREATE INDEX IF NOT EXISTS audit_at_idx ON audit_log (at DESC)`;
 console.log('   tables ready: users, channels, topics_queue, audit_log');
 
+console.log('1b. seeding audit_log from yt-mcp/audit.json (if table empty)…');
+const existing = await sql`SELECT count(*) AS n FROM audit_log`;
+if (Number(existing[0].n) === 0) {
+  try {
+    const auditFile = JSON.parse(fs.readFileSync(path.join(HERE, '..', 'yt-mcp', 'audit.json'), 'utf8'));
+    for (const e of (auditFile.events || []).slice(0, 150)) {
+      await sql`INSERT INTO audit_log (at, actor, action, detail) VALUES (${e.at ? new Date(e.at) : new Date()}, ${e.actor || 'unknown'}, ${e.action || ''}, ${e.detail || ''})`;
+    }
+    console.log('   audit events seeded:', (auditFile.events || []).length);
+  } catch { console.log('   no audit.json to seed'); }
+} else {
+  console.log('   audit_log already has rows — skip');
+}
+
 console.log('2. seeding users from access.json…');
 const access = JSON.parse(fs.readFileSync(path.join(HERE, '..', 'yt-mcp', 'access.json'), 'utf8'));
 for (const u of access.users || []) {
