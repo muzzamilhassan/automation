@@ -2,6 +2,7 @@
 // Works the same locally and on Vercel — nothing runs on the web server itself.
 // The workflows are the same ones the daily crons use, so dedupe/state rules apply.
 import { ENV } from '../../../lib/data.mjs';
+import { requireRole } from '@/lib/route-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,9 @@ const MAP = {
 };
 
 export async function POST(req) {
+  // 10-08 RBAC: run buttons = owner + staff; the actor goes to the audit log
+  const actor = await requireRole(req, ['owner', 'staff']);
+  if (!actor) return Response.json({ error: 'not signed in' }, { status: 401 });
   let body = {};
   try { body = await req.json(); } catch { }
   const fn = MAP[body.action];
@@ -30,6 +34,7 @@ export async function POST(req) {
     return Response.json({ error: 'unknown channel' }, { status: 400 });
   }
   if (!TOKEN) return Response.json({ error: 'server has no GITHUB_TOKEN' }, { status: 500 });
+  console.log(`[audit] ${actor} → dispatch ${body.action}${slug ? ' ' + slug : ''}`);
 
   const { workflow, inputs } = fn(slug);
   const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${workflow}/dispatches`, {

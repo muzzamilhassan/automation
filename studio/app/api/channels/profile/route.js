@@ -1,14 +1,14 @@
 // Saves/updates the profile of a connected channel (label, niche, style,
 // voice, slots). This is step 2 of the Add Channel wizard — the token was
 // already stored during the Google login.
-import { isAuthed } from '@/lib/route-auth';
+import { requireRole } from '@/lib/route-auth';
 import { readRegistry, upsertChannel } from '@/lib/channels-registry';
 import { STYLE_BY_ID } from '@/lib/styles-catalog';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req) {
-  if (!(await isAuthed(req))) return Response.json({ error: 'not signed in' }, { status: 401 });
+  if (!(await requireRole(req, ['owner']))) return Response.json({ error: 'not signed in' }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
   const { slug } = body;

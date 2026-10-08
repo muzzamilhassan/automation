@@ -3,7 +3,7 @@
 // script rules, music mood. Fully editable by the user in the wizard before
 // saving — the machine drafts, the human approves. (No LLM key needed on the
 // server; the fields are plain templates.)
-import { isAuthed } from '@/lib/route-auth';
+import { requireRole } from '@/lib/route-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +29,7 @@ function detectMood(low) {
 }
 
 export async function POST(req) {
-  if (!(await isAuthed(req))) return Response.json({ error: 'not signed in' }, { status: 401 });
+  if (!(await requireRole(req, ['owner']))) return Response.json({ error: 'not signed in' }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const { slug, niche, label } = body;
   const nick = String(niche || '').trim();

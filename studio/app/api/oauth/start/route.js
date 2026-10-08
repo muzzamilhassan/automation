@@ -6,7 +6,7 @@
 // ?mode=link → mints a COPYABLE connect link (signed, expires in 15 min)
 // whose callback works in ANY browser — even one without a Studio session.
 import { ENV } from '@/lib/data.mjs';
-import { isAuthed } from '@/lib/route-auth';
+import { requireRole } from '@/lib/route-auth';
 import { hmacToken } from '@/lib/auth-token';
 
 export const dynamic = 'force-dynamic';
@@ -19,7 +19,8 @@ export const YT_SCOPES = [
 ];
 
 export async function GET(req) {
-  if (!(await isAuthed(req))) {
+  // minting connect links touches channel keys — owner only
+  if (!(await requireRole(req, ['owner']))) {
     return Response.json({ error: 'not signed in' }, { status: 401 });
   }
   const clientId = ENV.YOUTUBE_CLIENT_ID;
