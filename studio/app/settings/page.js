@@ -345,7 +345,7 @@ export default function SettingsPage() {
           sub="Every device signed in with your account. Revocable instantly — this is the A1 session upgrade."
           icon={MonitorSmartphone}
           right={
-            <button className="btn btn-outline" onClick={revokeAll} disabled={secBusy || !sessions.length}>
+            <button className="btn btn-outline" onClick={revokeAll} disabled={secBusy || !sessions?.length}>
               Sign out everywhere
             </button>
           }
