@@ -25,6 +25,7 @@ export default function AddChannel() {
   const [copied, setCopied] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [started, setStarted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [fillingKit, setFillingKit] = useState(false);
   const [kitMood, setKitMood] = useState('');
@@ -141,7 +142,9 @@ export default function AddChannel() {
     }
   };
 
-  const saveProfile = async () => {
+  // start=false saves settings with autopilot OFF; start=true records consent
+  // and flips the autopilot on (YouTube API express-consent requirement)
+  const saveProfile = async (start = false) => {
     setSaving(true);
     setError('');
     try {
@@ -157,6 +160,7 @@ export default function AddChannel() {
           accent: form.accent,
           slots: form.slots,
           docDay: form.docDay,
+          startAutopilot: start,
           kit: {
             eyebrow: form.eyebrow,
             tagline: form.tagline,
@@ -166,9 +170,10 @@ export default function AddChannel() {
           },
         }),
       });
-      const d = await r.json();
+      const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'Save failed');
       setSaved(true);
+      setStarted(start);
       loadReg();
     } catch (e) {
       setError(e.message);
@@ -362,8 +367,8 @@ export default function AddChannel() {
             </p>
           ) : null}
           <div className="flex gap-2 mt-4 flex-wrap">
-            <button className="btn btn-primary" onClick={saveProfile} disabled={saving}>
-              {saving ? 'Saving…' : 'Save channel'}
+            <button className="btn btn-primary" onClick={() => saveProfile(false)} disabled={saving || !form.niche.trim()}>
+              {saving ? 'Saving…' : 'Save & review'}
             </button>
             <button className="btn btn-outline" onClick={connect} disabled={connecting} title="Refresh this channel's stored key (fixes 're-connect once' notices)">
               {connecting ? 'Opening Google…' : 'Re-connect key with Google'}
@@ -407,11 +412,20 @@ export default function AddChannel() {
           <div className="flex items-start gap-3">
             <CheckCircle2 size={20} className="text-emerald-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-[14px] font-bold text-ink">Channel connected ✓</p>
+              <p className="text-[14px] font-bold text-ink">{started ? 'Autopilot started ✓' : 'Settings saved ✓ — autopilot OFF'}</p>
               <p className="text-[12.5px] text-muted mt-1 leading-relaxed">
-                <b className="text-ink">{form.label || connectedSlug}</b> is linked, its key is stored, and its brand kit is saved. The nightly
-                <b className="text-ink"> Channel Autopilot</b> picks it up automatically: 1 short per day at your slot, your weekly episode on{' '}
-                {form.docDay}, Sunday off. Duplicate protection and all safety rails apply.
+                {started ? (
+                  <>
+                    <b className="text-ink">{form.label || connectedSlug}</b> is live: 1 short per day at your slot, weekly episode on {form.docDay},
+                    Sunday off. Your explicit consent for automated publishing was recorded {new Date().toLocaleDateString()} (YouTube API policy). Pause
+                    anytime from the Channels page.
+                  </>
+                ) : (
+                  <>
+                    <b className="text-ink">{form.label || connectedSlug}</b> settings are saved but the autopilot is OFF — nothing publishes until you
+                    resume it from the Channels page (pencil → Resume).
+                  </>
+                )}
               </p>
               <div className="flex gap-2 mt-3">
                 <Link className="btn btn-primary" href="/channels">
@@ -421,6 +435,7 @@ export default function AddChannel() {
                   className="btn btn-outline"
                   onClick={() => {
                     setSaved(false);
+                    setStarted(false);
                     setConnectedSlug('');
                     setKitMood('');
                     setForm({ label: '', niche: '', style: 'cinematic', voice: 'am_michael', accent: '#38BDF8', slots: '22:35', docDay: 'Tue', eyebrow: '', tagline: '', tags: '', description: '' });

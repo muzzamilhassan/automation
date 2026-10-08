@@ -28,6 +28,23 @@ export async function POST(req) {
   if (body.style != null) entry.style = STYLE_BY_ID[body.style] ? body.style : '';
   if (body.voice != null) entry.voice = String(body.voice).slice(0, 40);
   if (body.accent != null) entry.accent = /^#[0-9a-fA-F]{6}$/.test(body.accent) ? body.accent : entry.accent;
+  // 10-09 ACTIVATION CONSENT: autopilot starts ONLY on explicit consent —
+  // recorded with the settings snapshot (compliance: YouTube API Developer
+  // Policies require express pre-execution consent for automated uploads).
+  if (body.startAutopilot === true) {
+    entry.autopilot = true;
+    entry.autopilotStartedAt = new Date().toISOString();
+    entry.consentedAt = entry.autopilotStartedAt;
+    entry.consent = {
+      at: entry.autopilotStartedAt,
+      niche: String(body.niche || entry.niche || '').slice(0, 120),
+      style: entry.style || '',
+      slots: entry.slots || [],
+      docDay: entry.docDay || '',
+    };
+  } else if (body.startAutopilot === false) {
+    entry.autopilot = false;
+  }
   if (body.docDay != null) {
     entry.docDay = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(body.docDay) ? body.docDay : (entry.docDay || 'Tue');
   }

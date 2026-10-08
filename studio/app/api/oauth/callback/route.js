@@ -164,6 +164,12 @@ async function handle(req) {
   // keywords prefill the wizard so the user doesn't retype their own channel
   entry.ytDescription = ytDescription;
   entry.ytKeywords = ytKeywords;
+  // 10-09 ACTIVATION FLOW: connect ≠ publish. New channels start with the
+  // autopilot explicitly OFF — production begins only when the user reviews
+  // their setup and presses "Start Autopilot" (YouTube API Developer Policies
+  // require express pre-execution consent for automated uploads).
+  entry.autopilot = false;
+  entry.autopilotStartedAt = null;
   // 10-08: encrypted copy of the token (AES-GCM, STUDIO_PASSWORD key) — the
   // ONLY way the dashboard can read wizard-channel stats (GitHub secrets are
   // write-only). Registry stays private-repo-only. Non-fatal: if encryption
