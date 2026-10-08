@@ -1,3 +1,20 @@
 {
-  "channels": []
+  "channels": [
+    {
+      "slug": "fajrofquran",
+      "label": "FAJR OF QUR’AN",
+      "channelId": "UCi0Qztn9WEYLvh7uPEEdAZw",
+      "handle": "@fajrofquran",
+      "subs": 1340,
+      "accent": "#38BDF8",
+      "niche": "",
+      "style": "",
+      "voice": "",
+      "slots": [],
+      "tokenSecret": "YT_TOKEN_FAJROFQURAN",
+      "tokenSecretSaved": true,
+      "connectedAt": "2026-10-08T05:25:09.761Z",
+      "status": "connected · automation wiring pending"
+    }
+  ]
 }
