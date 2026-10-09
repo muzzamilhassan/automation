@@ -143,8 +143,13 @@ body {
 
 .inset-tile {
   background: var(--surface-2);
-  border: 1px solid var(--line);
+  border: none;
   border-radius: 12px;
+}
+
+/* 10-09: box main values read as near-black (light) / near-white (dark) */
+.inset-tile .text-muted {
+  color: var(--ink);
 }
 
 /* -------------------------------- chips ---------------------------------- */
@@ -406,7 +411,7 @@ table.data tbody tr:hover {
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--ink);
 }
 
 /* ------------------------------ animation -------------------------------- */
