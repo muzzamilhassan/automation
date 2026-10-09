@@ -186,45 +186,36 @@
     ]
   },
   "quotequarry": {
-    "lastRunDate": "2026-10-04",
+    "lastRunDate": "2026-10-09",
     "todayTopics": [
       {
-        "at": "2026-10-04",
-        "topic": "Stoic Philosophy | 7 Cold Behaviors That Make People Respect You Instantly #stoicism"
-      },
-      {
-        "at": "2026-10-04",
-        "topic": "10 Stoic Lessons to Become Emotionally Untouchable |Stoicism Philosophy"
-      },
-      {
-        "at": "2026-10-04",
-        "topic": "​Stop begging for respect.❌ Earn it with these 4 habits.👑#selfimprovement #discipline #growth #power"
+        "at": "2026-10-09",
+        "topic": "3 leyes de séneca para el auto dominio #estoicismo #filosofia #desarrollopersonal"
       }
     ],
     "lastVideos": [
       {
-        "videoId": "QALczHgCVVI",
-        "publishAt": "2026-10-04T11:35:00Z",
-        "title": "Command Instant Respect | Stoicism Philosophy"
-      },
-      {
-        "videoId": "YCFp6BZrNLM",
-        "publishAt": "2026-10-04T15:35:00Z",
-        "title": "Become Emotionally Untouchable | Stoicism Philosophy"
-      },
-      {
-        "videoId": "xxyZon3Nu1E",
-        "publishAt": "2026-10-04T22:35:00Z",
-        "title": "Stop Begging For Respect | Stoicism Philosophy"
+        "videoId": "y_nZVmKT91c",
+        "publishAt": "2026-10-09T22:35:00Z",
+        "title": "Seneca's 3 Laws Of Control | Stoicism Philosophy"
       }
     ],
     "deepdiveDate": null,
     "usedTrendSeeds": [
       "Stoic Philosophy | 7 Cold Behaviors That Make People Respect You Instantly #stoicism",
       "10 Stoic Lessons to Become Emotionally Untouchable |Stoicism Philosophy",
-      "​Stop begging for respect.❌ Earn it with these 4 habits.👑#selfimprovement #discipline #growth #power"
+      "​Stop begging for respect.❌ Earn it with these 4 habits.👑#selfimprovement #discipline #growth #power",
+      "3 leyes de séneca para el auto dominio #estoicismo #filosofia #desarrollopersonal"
     ],
-    "imageDate": "2026-10-04",
-    "pausedUntil": "2026-10-08"
+    "imageDate": "2026-10-09",
+    "titleHistory": [
+      {
+        "t": "Seneca's 3 Laws Of Control | Stoicism Philosophy",
+        "at": "2026-10-09T22:35:00Z"
+      }
+    ]
+  },
+  "fajrofquran": {
+    "pausedUntil": "2099-12-31"
   }
 }
