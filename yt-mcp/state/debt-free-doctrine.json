@@ -1,5 +1,5 @@
 {
-  "lastRunDate": "2026-10-08",
+  "lastRunDate": "2026-10-09",
   "usedThemes": [
     "why minimum payments keep you broke",
     "the snowball vs avalanche race",
@@ -8,17 +8,17 @@
   "lastVideos": [
     {
       "videoId": null,
-      "publishAt": "2026-10-09T00:35:00Z",
-      "title": "Old Money Wardrobe Secrets | Old Money Philosophy",
+      "publishAt": "2026-10-10T00:35:00Z",
+      "title": "Pov: You Stop Chasing Status | Old Money Philosophy",
       "gateRejected": true
     }
   ],
-  "imageDate": "2026-10-08",
-  "deepdiveDate": "2026-09-07",
+  "imageDate": "2026-10-09",
+  "deepdiveDate": "2026-10-09",
   "deepdiveVideo": {
-    "videoId": "INCR7ceFCOA",
-    "publishAt": "2026-09-08T01:30:00Z",
-    "title": "7 Rules for Your First Credit Card | Debt Freedom"
+    "videoId": "s4tuh0MyVKw",
+    "publishAt": "2026-10-10T01:30:00Z",
+    "title": "The Invisible Code: Habits That Quietly Build Millions | Old Money Philosophy"
   },
   "recyclePending": [
     {
@@ -53,12 +53,13 @@
     "POV: You Found Out What Old Money Never Buys, No Matter How Rich They Get",
     "7 Boring Habits That Quietly Mark You as Old Money",
     "The Old Money Habit of Strategic Forgetting: Why You Should Never Point Out Mistakes",
-    "5 Things Rich Women NEVER Wear! #oldmoney #quietluxury #classy #elegant"
+    "5 Things Rich Women NEVER Wear! #oldmoney #quietluxury #classy #elegant",
+    "POV: You Stop Chasing Status and Start Living Like Old Money"
   ],
   "todayTopics": [
     {
-      "at": "2026-10-08",
-      "topic": "5 Things Rich Women NEVER Wear! #oldmoney #quietluxury #classy #elegant"
+      "at": "2026-10-09",
+      "topic": "POV: You Stop Chasing Status and Start Living Like Old Money"
     }
   ],
   "titleHistory": [
@@ -74,5 +75,12 @@
       "t": "Pov: You Adopted Old Money Habits | Old Money Philosophy",
       "at": "2026-10-08T00:35:00Z"
     }
-  ]
+  ],
+  "usedLongSeeds": [
+    "POV: You adopted old money habits — And everything changed"
+  ],
+  "todayTopic": {
+    "at": "2026-10-09",
+    "topic": "POV: You adopted old money habits — And everything changed"
+  }
 }
