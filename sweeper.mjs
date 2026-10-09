@@ -104,9 +104,11 @@ for (const slug of CHANNEL_SLUGS) {
       continue;
     }
     log(`⚠ [${slug}] ${count}/${want} reels go live today — re-producing ${missing}...`);
-    const r = execFileSync('node', ['yt-daily.mjs', slug, '--no-episode', `--topup=${missing}`], { stdio: 'inherit', timeout: 40 * 60 * 1000 });
-    if (r.status === 0) healed.push(`${b.label} +${missing}`);
-    else warnings.push(`${slug}: top-up exited ${r.status}`);
+    // execFileSync throws on non-zero exit (caught below) — never check .status:
+    // with stdio:'inherit' the return value is undefined and r.status crashed
+    // the sweeper AFTER a successful heal (10-09).
+    execFileSync('node', ['yt-daily.mjs', slug, '--no-episode', `--topup=${missing}`], { stdio: 'inherit', timeout: 40 * 60 * 1000 });
+    healed.push(`${b.label} +${missing}`);
   } catch (e) {
     warnings.push(`${slug}: ${String(e.message).slice(0, 100)}`);
     log(`✗ [${slug}] sweep failed: ${String(e.message).slice(0, 100)}`);

@@ -105,7 +105,7 @@ if (!FORCE && !TOPUP_N && new Date().getUTCDay() === 0) {
   console.log(`[${slug}] Sunday break day — no shorts produced`);
   process.exit(0);
 }
-const shortsDone = state[slug]?.lastRunDate === today;
+const shortsDone = state[slug]?.lastRunDate === today || state[slug]?.healedDate === today;
 const episodeDone = state[slug]?.deepdiveDate === today;
 const RUN_SHORTS = !EPISODE_ONLY && (TOPUP_N > 0 || !shortsDone || FORCE);
 const RUN_EPISODE = !NO_EPISODE && TOPUP_N === 0 && (!episodeDone || (FORCE && !EPISODE_ONLY));

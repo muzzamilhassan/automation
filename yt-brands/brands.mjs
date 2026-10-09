@@ -34,7 +34,7 @@ export const BRANDS = [
   {
     slug: 'investors-compass',
     label: "INVESTOR'S COMPASS",
-    handle: '@InvestorsCompass-c7h', active: true,
+    handle: '@investorscompasshq', active: true,
     niche: 'Investing psychology & market wisdom',
     cpmTier: '$30-50 (finance #1 niche)',
     accent: '#E8C15A', bg: '#0A1128', ink: '#F2EEE3',

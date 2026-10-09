@@ -144,5 +144,5 @@ jobs:
           git config user.email "bot@quotequarry.local"
           git add yt-mcp/state/ yt-mcp/schedule-state.json yt-mcp/studio-channels.json || true
           git diff --cached --quiet || git commit -m "autopilot ${SLUG} daily state [skip ci]"
-          git pull --rebase origin main || true
+          git pull --rebase --autostash origin main || true
           git push || true || echo "::warning::state push failed for ${SLUG} — state stays local to this run"

@@ -9,7 +9,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { publishToTikTok } from "./zernio-tiktok-publisher.mjs";
+import { publishToTikTok } from "../zernio-tiktok-publisher.mjs";
 
 const DIR = import.meta.dirname;
 const ROOT = path.resolve(DIR, "..");
