@@ -168,8 +168,9 @@ export default function AppShell({ children }) {
   }, []);
   useEffect(() => setMobileOpen(false), [pathname]);
 
-  // The login page renders bare — no sidebar, no topbar.
-  if (pathname === '/login') return <>{children}</>;
+  // Bare pages — no sidebar, no topbar: login, the public /proof sales page,
+  // and the DFY client workspace (it has its own minimal chrome).
+  if (pathname === '/login' || pathname === '/proof' || pathname === '/client') return <>{children}</>;
 
   const logout = async () => {
     setLoggingOut(true);

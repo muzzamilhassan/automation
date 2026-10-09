@@ -22,7 +22,10 @@ export default async function proxy(req) {
     pathname === '/api/login' ||
     pathname === '/api/logout' ||
     pathname === '/api/oauth/callback' || // self-authenticating (signed link / session)
-    pathname.startsWith('/api/auth/google/');
+    pathname.startsWith('/api/auth/google/') ||
+    pathname === '/proof' || // public sales page (stats only, no revenue data)
+    pathname === '/api/proof' ||
+    pathname === '/client'; // DFY client workspace (page gate itself; APIs still auth)
   if (isPublic) return NextResponse.next();
 
   // resolve the role

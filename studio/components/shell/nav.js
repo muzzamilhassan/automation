@@ -11,6 +11,7 @@ import {
   Settings,
   Palette,
   ListChecks,
+  UserCheck,
 } from 'lucide-react';
 
 export const NAV = [
@@ -22,6 +23,7 @@ export const NAV = [
       { href: '/videos', label: 'Videos', icon: Film, desc: 'Everything published' },
       { href: '/analytics', label: 'Analytics', icon: TrendingUp, desc: 'Retention, growth, SEO' },
       { href: '/topics', label: 'Topic Desk', icon: ListChecks, desc: 'Approve what gets made' },
+      { href: '/client', label: 'Client View', icon: UserCheck, desc: 'DFY client workspace' },
     ],
   },
   {
