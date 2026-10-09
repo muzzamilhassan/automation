@@ -62,14 +62,21 @@
     ]
   },
   "money-rulebook": {
-    "lastRunDate": "2026-10-08",
+    "lastRunDate": "2026-10-09",
     "usedThemes": [
       "5 things rich people never buy",
       "how to automate your first $100k",
       "7 budget rules the rich actually follow"
     ],
-    "lastVideos": [],
-    "imageDate": "2026-10-08",
+    "lastVideos": [
+      {
+        "videoId": null,
+        "publishAt": "2026-10-10T00:05:00Z",
+        "title": "6 Rules For Your First $10,000 | Personal Finance",
+        "gateRejected": true
+      }
+    ],
+    "imageDate": "2026-10-09",
     "recyclePending": [
       {
         "oldVideoId": "cbclwL6k32U",
@@ -103,9 +110,15 @@
       "The Money Habits Too Many People Skip",
       "Money-Saving Habits That Can Transform Your Financial Life | Simple Saving Tips",
       "4 Simple Money Habits That Can Save You Thousands",
-      "Bill Gates’ 8 Powerful Money & Career Rules That Can Change Your Life | Financial Success Tips 💰"
+      "Bill Gates’ 8 Powerful Money & Career Rules That Can Change Your Life | Financial Success Tips 💰",
+      "₹30,000 Salary: Spend It or Build Your Future?"
     ],
-    "todayTopics": [],
+    "todayTopics": [
+      {
+        "at": "2026-10-09",
+        "topic": "₹30,000 Salary: Spend It or Build Your Future?"
+      }
+    ],
     "titleHistory": []
   },
   "debt-free-doctrine": {
