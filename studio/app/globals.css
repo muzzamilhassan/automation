@@ -412,6 +412,10 @@ table.data tbody tr:hover {
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--ink);
+  /* 10-09 FIX: Tailwind's built-in `overline` utility draws a line ABOVE the
+     text — our label class shares that name, so every label got the line.
+     Kill the decoration everywhere. */
+  text-decoration: none;
 }
 
 /* ------------------------------ animation -------------------------------- */
