@@ -1,6 +1,6 @@
 {
-  "at": "2026-10-08T18:39:02.224Z",
-  "problems": 2,
+  "at": "2026-10-09T00:15:39.412Z",
+  "problems": 1,
   "results": [
     {
       "slug": "workflows",
@@ -16,8 +16,10 @@
     },
     {
       "slug": "money-rulebook",
-      "status": "ERROR",
-      "error": "Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other"
+      "channel": "The Money Rulebook",
+      "subs": "10",
+      "totalVideos": "137",
+      "status": "OK"
     },
     {
       "slug": "debt-free-doctrine",
