@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { google } from 'googleapis';
+import { applyChannelKeys } from './lib/channel-keys.mjs';
 
 const envStr = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
 for (const m of envStr.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
@@ -104,10 +105,8 @@ for (const slug of CHANNEL_SLUGS) {
       continue;
     }
     log(`⚠ [${slug}] ${count}/${want} reels go live today — re-producing ${missing}...`);
-    // execFileSync throws on non-zero exit (caught below) — never check .status:
-    // with stdio:'inherit' the return value is undefined and r.status crashed
-    // the sweeper AFTER a successful heal (10-09).
-    execFileSync('node', ['yt-daily.mjs', slug, '--no-episode', `--topup=${missing}`], { stdio: 'inherit', timeout: 40 * 60 * 1000 });
+    applyChannelKeys(slug); // BYOK: this channel's own provider keys for the heal run
+    const r = execFileSync('node', ['yt-daily.mjs', slug, '--no-episode', `--topup=${missing}`], { stdio: 'inherit', timeout: 40 * 60 * 1000 });
     healed.push(`${b.label} +${missing}`);
   } catch (e) {
     warnings.push(`${slug}: ${String(e.message).slice(0, 100)}`);

@@ -12,6 +12,7 @@ import {
   Palette,
   ListChecks,
   UserCheck,
+  KeyRound,
 } from 'lucide-react';
 
 export const NAV = [
@@ -40,6 +41,7 @@ export const NAV = [
     items: [
       { href: '/logs', label: 'Logs', icon: ScrollText, desc: 'Every post, newest first' },
       { href: '/tasks', label: 'Tasks', icon: SquareKanban, desc: 'Roadmap board' },
+      { href: '/keys', label: 'API Keys', icon: KeyRound, desc: 'Per-channel provider keys' },
       { href: '/settings', label: 'Settings', icon: Settings, desc: 'Theme, engine, integrations' },
     ],
   },

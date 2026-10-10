@@ -18,7 +18,11 @@ import { getTopicClip } from './youtube-clips.mjs';
 const FF = process.env.FFMPEG_PATH || (fs.existsSync('ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe')
   ? 'ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' : 'ffmpeg');
 const POOL_DIR = 'pixabay-pool';
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || (fs.existsSync('.env') ? (fs.readFileSync('.env', 'utf8').match(/^GEMINI_API_KEY=(.+)$/m) || [])[1]?.trim() : '') || '';
+// BYOK: read lazily (NOT at import) so per-channel keys injected by
+// lib/channel-keys.mjs before the brain runs are always picked up.
+function geminiKey() {
+  return process.env.GEMINI_API_KEY || (fs.existsSync('.env') ? (fs.readFileSync('.env', 'utf8').match(/^GEMINI_API_KEY=(.+)$/m) || [])[1]?.trim() : '') || '';
+}
 import { BRANDS as YT_BRAND_KITS } from './yt-brands/brands.mjs';
 
 // Resolve the brand for a page. New multi-channel kits (yt-brands/brands.mjs)
@@ -516,7 +520,7 @@ const FALLBACK_SCRIPTS = {
 export async function generateYouTubeScript(page, forcedTheme = null) {
   const brand = resolveBrand(page);
   const fallback = FALLBACK_SCRIPTS[page?.id] || FALLBACK_SCRIPTS['114550268199751'];
-  if (!GEMINI_API_KEY) return { ...fallback, source: 'fallback' };
+  if (!geminiKey()) return { ...fallback, source: 'fallback' };
   // 09-30: static theme lists are gone. The caller passes a research-derived
   // topic directive; without one, the model chooses from the live trend
   // signals (or the niche itself as last resort).
@@ -549,7 +553,7 @@ ${structureLine}
 Return ONLY valid JSON:
 {"hook":"<=12 words","thumb_headline":"<=6 word ALL CAPS thumbnail headline","points":[{"title":"2-5 word ALL CAPS title","line":"1-2 short sentences"},{"title":"...","line":"..."},{"title":"...","line":"..."},{"title":"...","line":"..."}],"closing":"<=12 words"}`;
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${geminiKey()}`;
     const res = await fetch(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.9, responseMimeType: 'application/json' } })

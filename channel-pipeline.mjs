@@ -26,6 +26,9 @@ if (!b) { console.error(`[pipeline] unknown slug: ${slug}`); process.exit(0); }
 const today = new Date().toISOString().slice(0, 10);
 // 09-20: per-channel state files are the source of truth (lib/state.mjs)
 import { loadAllStates } from './lib/state.mjs';
+// 10-09 BYOK: this channel's own provider keys (encrypted yt-mcp/channel-keys.json)
+// replace the shared keys for the rest of the run — children inherit process.env.
+import { applyChannelKeys } from './lib/channel-keys.mjs';
 const loadState = () => loadAllStates();
 
 const log = (msg) => console.log(`[${slug}] ${msg}`);
@@ -42,6 +45,8 @@ function run(script, args = []) {
 
 // ---- Load state ----
 const state = loadState();
+const _keysApplied = applyChannelKeys(slug);
+log(_keysApplied ? `[keys] channel overrides active: ${_keysApplied.join(', ')}` : '[keys] using shared keys');
 const shortsDone = state[slug]?.lastRunDate === today;
 const episodeDone = state[slug]?.deepdiveDate === today;
 
