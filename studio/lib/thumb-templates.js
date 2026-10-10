@@ -1,50 +1,91 @@
-// Thumbnail template engine (Studio side) — pure sharp+SVG, 1280×720 JPEG.
-// Same proven technique as youtube-engine.mjs renderYouTubeThumbnail (base64
-// fonts embedded in SVG → sharp), generalized to multiple templates and any
-// photo (Pexels URL fetched server-side, upload dataURL, or none for paper).
+// Thumbnail template engine (Studio side) — pure sharp + SVG PATHS, 1280×720.
+// v2: text is converted to vector PATHS via opentype.js (TTFs shipped in
+// lib/fonts) — zero system-font dependency, identical output on Vercel,
+// locally and in CI. librsvg ignores data-URL @font-face (tofu boxes), which
+// is exactly why this is paths, not text.
 import fs from 'node:fs';
 import path from 'node:path';
+import opentype from 'opentype.js';
 
 const FONT_DIR = path.join(process.cwd(), 'lib', 'fonts');
-const b64 = (f) => {
-  try { return fs.readFileSync(path.join(FONT_DIR, f)).toString('base64'); } catch { return ''; }
+const TTF = {
+  anton: 'Anton-Regular.ttf',
+  oswald500: 'Oswald-500.ttf',
+  oswald700: 'Oswald-700.ttf',
+  inter600: 'Inter-SemiBold.ttf',
+  inter800: 'Inter-ExtraBold.ttf',
+  playfair: 'PlayfairDisplay-Bold.ttf',
 };
-
-let _fontsCss = null;
-function fontsCss() {
-  if (_fontsCss) return _fontsCss;
-  _fontsCss = `<style>
-@font-face{font-family:'AntonS';src:url(data:font/woff;base64,${b64('Anton-normal-400.woff')}) format('woff');font-weight:400;}
-@font-face{font-family:'OswaldS';src:url(data:font/woff;base64,${b64('Oswald-500.woff')}) format('woff');font-weight:500;}
-@font-face{font-family:'OswaldS';src:url(data:font/woff;base64,${b64('Oswald-700.woff')}) format('woff');font-weight:700;}
-@font-face{font-family:'InterS';src:url(data:font/woff;base64,${b64('Inter-normal-600.woff')}) format('woff');font-weight:600;}
-@font-face{font-family:'InterS';src:url(data:font/woff;base64,${b64('Inter-normal-800.woff')}) format('woff');font-weight:800;}
-@font-face{font-family:'PlayfairS';src:url(data:font/woff;base64,${b64('PlayfairDisplay-normal-700.woff')}) format('woff');font-weight:700;}
-</style>`;
-  return _fontsCss;
+const _fonts = {};
+function font(name) {
+  if (!_fonts[name]) {
+    const buf = fs.readFileSync(path.join(FONT_DIR, TTF[name]));
+    _fonts[name] = opentype.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
+  }
+  return _fonts[name];
 }
 
 export const escapeXml = (s) =>
   String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 
-// Greedy 3-line wrap — heuristics tuned to the Anton sizes below (same idea as
-// renderYouTubeThumbnail's char-based wrap; SVG has no DOM measuring).
-// Line 3 always absorbs ALL remaining words (never drop words silently);
-// oversized line 3 renders at a reduced size instead.
-export function wrapTitle(title, maxChars) {
-  const words = String(title || '').trim().split(/\s+/).filter(Boolean);
-  const lines = [];
-  let cur = '';
-  for (let i = 0; i < words.length; i++) {
-    const w = words[i];
-    if (!cur) { cur = w; continue; }
-    if ((cur + ' ' + w).length <= maxChars) { cur += ' ' + w; continue; }
-    lines.push(cur);
-    if (lines.length === 2) { lines.push(words.slice(i).join(' ')); return lines; }
-    cur = w;
+const adv = (f, text, size, spacing = 0) =>
+  f.getAdvanceWidth(text, size) + Math.max(0, text.length - 1) * spacing;
+
+// Whole line as ONE path (fast); spacing supported via per-char layout.
+function linePath(f, text, x, y, size, spacing = 0) {
+  if (!text) return { d: '', width: 0 };
+  if (!spacing) {
+    const p = f.getPath(text, x, y, size);
+    return { d: p.toPathData(1), width: p.getBoundingBox().x2 - p.getBoundingBox().x1 };
   }
-  if (cur) lines.push(cur);
+  let cx = x;
+  const parts = [];
+  for (const ch of text) {
+    if (ch !== ' ') parts.push(f.getPath(ch, cx, y, size).toPathData(1));
+    cx += f.getAdvanceWidth(ch, size) + spacing;
+  }
+  return { d: parts.join(' '), width: cx - x - spacing };
+}
+
+// A line with ONE highlighted word — per-word paths, exact advances.
+function accentLinePath(f, words, x, y, size, fill, accentFill, accentWord, spacing = 0) {
+  let cx = x;
+  const parts = [];
+  for (const w of words) {
+    const isAccent = accentWord && w.toLowerCase().replace(/[^a-z]/g, '') === String(accentWord).toLowerCase().replace(/[^a-z]/g, '');
+    const p = f.getPath(w, cx, y, size).toPathData(1);
+    parts.push(`<path d="${p}" fill="${isAccent ? accentFill : fill}"/>`);
+    cx += f.getAdvanceWidth(w, size) + f.getAdvanceWidth(' ', size) + spacing;
+  }
+  return parts.join('');
+}
+
+// Exact-fit greedy wrap against a PIXEL width (no char heuristics).
+export function wrapByWidth(f, text, size, maxWidth) {
+  const words = String(text || '').trim().split(/\s+/).filter(Boolean);
+  const lines = [];
+  let cur = [];
+  for (let i = 0; i < words.length; i++) {
+    const test = [...cur, words[i]].join(' ');
+    if (adv(f, test, size) <= maxWidth || cur.length === 0) cur.push(words[i]);
+    else {
+      lines.push(cur.join(' '));
+      if (lines.length === 2) { lines.push(words.slice(i).join(' ')); return lines; }
+      cur = [words[i]];
+    }
+  }
+  if (cur.length) lines.push(cur.join(' '));
   return lines.slice(0, 3);
+}
+
+// Shrink-to-fit: largest size ≤ start where the wrap fits both width & 3 lines.
+function fitLines(f, text, startSize, maxWidth, minSize) {
+  for (let size = startSize; size >= minSize; size -= 6) {
+    const lines = wrapByWidth(f, text, size, maxWidth);
+    const widest = Math.max(...lines.map((l) => adv(f, l, size)));
+    if (widest <= maxWidth) return { lines, size };
+  }
+  return { lines: wrapByWidth(f, text, minSize, maxWidth), size: minSize };
 }
 
 export const pickAccentWord = (title) => {
@@ -53,76 +94,11 @@ export const pickAccentWord = (title) => {
   return words.reduce((a, b) => (b.replace(/[^a-zA-Z]/g, '').length > a.replace(/[^a-zA-Z]/g, '').length ? b : a));
 };
 
-// Render one text line, highlighting the accent word (case-insensitive).
-// Shadow = offset blurred black copy (soft, no hard borders — owner taste).
-function lineSvg(x, y, line, size, fill, accent, accentFill, shadowRef, anchor = 'start') {
-  const words = line.split(' ');
-  const spans = words.map((w) => {
-    const isAccent = accent && w.toLowerCase().replace(/[^a-z]/g, '') === accent.toLowerCase().replace(/[^a-z]/g, '');
-    return `<tspan fill="${isAccent ? accentFill : fill}">${escapeXml(w)}</tspan>`;
-  });
-  const base = `font-family="AntonS" font-size="${size}" ${anchor !== 'start' ? `text-anchor="${anchor}"` : ''}`;
-  return `
-    <text x="${x + 4}" y="${y + 6}" ${base} fill="#000" opacity="0.5" filter="url(#${shadowRef})">${escapeXml(line)}</text>
-    <text x="${x}" y="${y}" ${base}>${spans.join(' ')}</text>`;
-}
-
-// T1 — Clean Frame: full-bleed photo, bottom scrim, centered Anton headline.
-function tplClean({ photoHref, lines, accent, accentWord, chip, eyebrow }) {
-  const sizes = lines.length === 1 ? [150] : lines.length === 2 ? [128] : [104];
-  const startY = 720 - 56 - (lines.length - 1) * (sizes[0] + 12);
-  const textEls = lines.map((l, i) => lineSvg(640, startY + i * (sizes[0] + 12), l, sizes[0], '#FFFFFF', accent, accent, 'softShadow', 'middle')).join('');
-  return `
-    <image href="${photoHref}" x="0" y="0" width="1280" height="720" preserveAspectRatio="xMidYMid slice"/>
-    <rect x="0" y="330" width="1280" height="390" fill="url(#scrimUp)"/>
-    ${chip ? `<rect x="56" y="48" rx="6" ry="6" width="${chip.length * 13 + 44}" height="42" fill="${accent}"/><text x="${56 + 22}" y="76" font-family="InterS" font-weight="800" font-size="19" letter-spacing="3" fill="#0B0B0D">${escapeXml(chip.toUpperCase())}</text>` : ''}
-    ${eyebrow ? `<text x="640" y="${startY - sizes[0] - 26}" text-anchor="middle" font-family="OswaldS" font-weight="500" font-size="24" letter-spacing="8" fill="#FFFFFF" opacity="0.92">${escapeXml(eyebrow.toUpperCase())}</text>` : ''}
-    ${textEls}
-    <rect x="0" y="712" width="1280" height="8" fill="${accent}"/>`;
-}
-
-// T2 — Bold Poster: shade panel left + photo right, huge left-aligned Anton.
-function tplPoster({ photoHref, lines, accent, accentWord, chip, eyebrow, shade, brand }) {
-  const sizes = lines.length === 1 ? [140] : lines.length === 2 ? [116] : [96];
-  const startY = 720 - 64 - (lines.length - 1) * (sizes[0] + 10);
-  const textEls = lines.map((l, i) => lineSvg(56, startY + i * (sizes[0] + 10), l, sizes[0], '#F5F2E8', accent, accent, 'softShadow')).join('');
-  return `
-    ${photoHref ? `<image href="${photoHref}" x="560" y="0" width="720" height="720" preserveAspectRatio="xMidYMid slice"/>
-    <rect x="560" y="0" width="720" height="720" fill="#000" opacity="0.18"/>` : `<rect x="560" y="0" width="720" height="720" fill="${shade}"/>`}
-    <rect x="0" y="0" width="560" height="720" fill="${shade}"/>
-    <rect x="554" y="0" width="6" height="720" fill="${accent}"/>
-    ${chip ? `<rect x="56" y="56" rx="6" ry="6" width="${chip.length * 13 + 44}" height="42" fill="${accent}"/><text x="${56 + 22}" y="84" font-family="InterS" font-weight="800" font-size="19" letter-spacing="3" fill="#0B0B0D">${escapeXml(chip.toUpperCase())}</text>` : ''}
-    ${eyebrow ? `<text x="56" y="${startY - sizes[0] - 24}" font-family="OswaldS" font-weight="500" font-size="22" letter-spacing="7" fill="#FFFFFF" opacity="0.9">${escapeXml(eyebrow.toUpperCase())}</text>` : ''}
-    ${textEls}
-    <rect x="56" y="${720 - 44}" width="26" height="4" fill="${accent}"/>
-    <text x="1224" y="676" text-anchor="end" font-family="InterS" font-weight="800" font-size="20" letter-spacing="4" fill="#FFFFFF" opacity="0.85">${escapeXml(brand || '')}</text>`;
-}
-
-// T3 — Paper Doc: warm paper, soft-masked photo left, serif + giant accent word.
-function tplPaper({ photoHref, lines, accent, accentWord, chip, eyebrow, brand }) {
-  const phrase = lines.join(' ');
-  const big = (accentWord || pickAccentWord(phrase) || 'STORY').toUpperCase();
-  const rest = phrase.replace(new RegExp(big, 'i'), '').trim().replace(/\s+/g, ' ') || phrase;
-  const restLines = wrapTitle(rest, 26);
-  const startY = 300;
-  const restEls = restLines.map((l, i) =>
-    `<text x="620" y="${startY + 70 + i * 46}" font-family="PlayfairS" font-size="38" fill="#232019">${escapeXml(l)}</text>`).join('');
-  return `
-    <rect x="0" y="0" width="1280" height="720" fill="#F3F1EC"/>
-    <rect x="0" y="0" width="1280" height="720" fill="url(#paperVignette)"/>
-    ${photoHref ? `<g clip-path="url(#photoOval)">
-      <image href="${photoHref}" x="30" y="60" width="560" height="600" preserveAspectRatio="xMidYMid slice"/>
-    </g>
-    <ellipse cx="310" cy="360" rx="286" ry="306" fill="none" stroke="#DDD8CC" stroke-width="3"/>` : ''}
-    <g clip-path="url(#frame)"><rect x="0" y="0" width="1280" height="720" fill="url(#grain)"/></g>
-    ${chip ? `<text x="620" y="150" font-family="InterS" font-weight="600" font-size="20" letter-spacing="6" fill="#8A8272">${escapeXml(chip.toUpperCase())}</text>` : ''}
-    <text x="620" y="196" font-family="InterS" font-weight="600" font-size="16" letter-spacing="8" fill="#A39A85">P R E S E N T S</text>
-    ${restEls}
-    <text x="616" y="${startY + 70 + restLines.length * 46 + 130}" font-family="AntonS" font-size="${big.length > 9 ? 120 : 150}" fill="${accent}">${escapeXml(big)}</text>
-    <circle cx="1180" cy="120" r="44" fill="none" stroke="${accent}" stroke-width="3"/>
-    <text x="1180" y="130" text-anchor="middle" font-family="PlayfairS" font-size="30" fill="#232019">${escapeXml((brand || 'QQ').slice(0, 2).toUpperCase())}</text>
-    <text x="620" y="668" font-family="InterS" font-weight="600" font-size="15" letter-spacing="2" fill="#8A8272">${escapeXml(eyebrow || '')}</text>`;
-}
+export const TEMPLATES = {
+  clean: { label: 'Clean Frame', desc: 'Full-bleed photo, bottom gradient, centered headline', needsPhoto: true },
+  poster: { label: 'Bold Poster', desc: 'Split layout: shade panel + huge left headline', needsPhoto: false },
+  paper: { label: 'Paper Doc', desc: 'Warm paper, masked photo, serif + giant accent word', needsPhoto: false },
+};
 
 const DEFS = `
 <defs>
@@ -135,33 +111,140 @@ const DEFS = `
     <stop offset="1" stop-color="#000" stop-opacity="0.16"/>
   </radialGradient>
   <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
-    <feGaussianBlur stdDeviation="10"/>
+    <feGaussianBlur stdDeviation="9"/>
   </filter>
   <clipPath id="photoOval"><ellipse cx="310" cy="360" rx="280" ry="300"/></clipPath>
-  <clipPath id="frame"><rect x="0" y="0" width="1280" height="720"/></clipPath>
 </defs>`;
 
-export const TEMPLATES = {
-  clean: { label: 'Clean Frame', desc: 'Full-bleed photo, bottom gradient, centered headline — Shorts staple', needsPhoto: true },
-  poster: { label: 'Bold Poster', desc: 'Split layout: shade panel + big left headline — long-form staple', needsPhoto: false },
-  paper: { label: 'Paper Doc', desc: 'Warm paper, soft-masked photo, serif + giant accent word', needsPhoto: false },
-};
+// ---- template layouts (text already converted to path elements) ----
 
-// Main entry: returns a 1280×720 SVG string.
+function tplClean({ photoHref, linesEls, accent, chipEls, eyebrowEls }) {
+  return `
+    ${photoHref ? `<image href="${photoHref}" x="0" y="0" width="1280" height="720" preserveAspectRatio="xMidYMid slice"/>` : `<rect width="1280" height="720" fill="${'#101014'}"/>`}
+    <rect x="0" y="300" width="1280" height="420" fill="url(#scrimUp)"/>
+    ${chipEls}
+    ${eyebrowEls}
+    ${linesEls}
+    <rect x="0" y="712" width="1280" height="8" fill="${accent}"/>`;
+}
+
+function tplPoster({ photoHref, linesEls, accent, chipEls, eyebrowEls, shade, brandEls }) {
+  return `
+    ${photoHref
+    ? `<image href="${photoHref}" x="560" y="0" width="720" height="720" preserveAspectRatio="xMidYMid slice"/>
+       <rect x="560" y="0" width="720" height="720" fill="#000" opacity="0.18"/>`
+    : `<rect x="560" y="0" width="720" height="720" fill="${shade}"/>`}
+    <rect x="0" y="0" width="560" height="720" fill="${shade}"/>
+    <rect x="554" y="0" width="6" height="720" fill="${accent}"/>
+    ${chipEls}
+    ${eyebrowEls}
+    ${linesEls}
+    ${brandEls}`;
+}
+
+function tplPaper({ photoHref, phraseEls, bigEls, chipEls, monoEls, eyebrowEls, accent, brand }) {
+  return `
+    <rect x="0" y="0" width="1280" height="720" fill="#F3F1EC"/>
+    <rect x="0" y="0" width="1280" height="720" fill="url(#paperVignette)"/>
+    ${photoHref ? `<g clip-path="url(#photoOval)">
+      <image href="${photoHref}" x="30" y="60" width="560" height="600" preserveAspectRatio="xMidYMid slice"/>
+    </g>
+    <ellipse cx="310" cy="360" rx="282" ry="302" fill="none" stroke="#DDD8CC" stroke-width="3"/>` : ''}
+    ${chipEls}
+    ${phraseEls}
+    ${bigEls}
+    ${monoEls}
+    ${eyebrowEls}`;
+}
+
+// ---- main entry: returns a 1280×720 SVG string ----
 export function buildThumbSvg(template, opts) {
   const o = {
-    title: String(opts.title || 'Untitled story'),
+    title: String(opts.title || 'Untitled story').trim(),
     accent: opts.accent || '#E8C15A',
     chip: String(opts.chip || '').slice(0, 24),
     eyebrow: String(opts.eyebrow || '').slice(0, 40),
     shade: opts.shade || '#0A1128',
-    brand: opts.brand || '',
+    brand: String(opts.brand || '').slice(0, 28),
     photoHref: opts.photoHref || '',
   };
-  const maxChars = template === 'poster' ? 12 : 16;
-  const lines = wrapTitle(o.title, maxChars);
-  o.lines = lines;
-  o.accentWord = opts.accentWord || pickAccentWord(o.title);
-  const tpl = template === 'poster' ? tplPoster : template === 'paper' ? tplPaper : tplClean;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">${fontsCss()}${DEFS}${tpl(o)}</svg>`;
+  const accentWord = opts.accentWord || pickAccentWord(o.title);
+  let inner = '';
+
+  if (template === 'clean') {
+    const f = font('anton');
+    const { lines, size } = fitLines(f, o.title, 150, 1160, 84);
+    const lineH = size + 12;
+    const startY = 720 - 60 - (lines.length - 1) * lineH;
+    const linesEls = lines.map((l, i) => {
+      const words = l.split(' ');
+      const w = adv(f, l, size);
+      const x = 640 - w / 2;
+      const shadow = f.getPath(l, x + 4, startY + i * lineH + 6, size).toPathData(1);
+      const main = accentLinePath(f, words, x, startY + i * lineH, size, '#FFFFFF', o.accent, accentWord);
+      return `<path d="${shadow}" fill="#000" opacity="0.5" filter="url(#softShadow)"/>${main}`;
+    }).join('');
+    const os = font('oswald500');
+    const chipEls = o.chip ? (() => {
+      const c = o.chip.toUpperCase();
+      const w = adv(os, c, 19, 3) + 40;
+      return `<rect x="56" y="48" rx="6" width="${w.toFixed(0)}" height="42" fill="${o.accent}"/>
+        <path d="${linePath(os, c, 76, 76, 19, 3).d}" fill="#0B0B0D"/>`;
+    })() : '';
+    const eyebrowEls = o.eyebrow ? (() => {
+      const e = o.eyebrow.toUpperCase();
+      const w = adv(os, e, 24, 8);
+      return `<path d="${linePath(os, e, 640 - w / 2, startY - size - 26, 24, 8).d}" fill="#FFF" opacity="0.92"/>`;
+    })() : '';
+    inner = tplClean({ photoHref: o.photoHref, linesEls, accent: o.accent, chipEls, eyebrowEls });
+
+  } else if (template === 'poster') {
+    const f = font('anton');
+    const { lines, size } = fitLines(f, o.title, 140, 468, 72);
+    const lineH = size + 10;
+    const startY = 720 - 96 - (lines.length - 1) * lineH;
+    const linesEls = lines.map((l, i) => {
+      const shadow = f.getPath(l, 60, startY + i * lineH + 6, size).toPathData(1);
+      const main = accentLinePath(f, l.split(' '), 56, startY + i * lineH, size, '#F5F2E8', o.accent, accentWord);
+      return `<path d="${shadow}" fill="#000" opacity="0.5" filter="url(#softShadow)"/>${main}`;
+    }).join('');
+    const is = font('inter800');
+    const chipEls = o.chip ? (() => {
+      const c = o.chip.toUpperCase();
+      const w = adv(is, c, 19, 3) + 40;
+      return `<rect x="56" y="56" rx="6" width="${w.toFixed(0)}" height="42" fill="${o.accent}"/>
+        <path d="${linePath(is, c, 76, 84, 19, 3).d}" fill="#0B0B0D"/>`;
+    })() : '';
+    const os = font('oswald500');
+    const eyebrowEls = o.eyebrow ? (() => {
+      const e = o.eyebrow.toUpperCase();
+      return `<path d="${linePath(os, e, 56, startY - size - 24, 22, 7).d}" fill="#FFF" opacity="0.9"/>`;
+    })() : '';
+    const brandEls = o.brand ? `<path d="${linePath(is, o.brand.toUpperCase(), 1224 - adv(is, o.brand.toUpperCase(), 20, 4), 676, 20, 4).d}" fill="#FFF" opacity="0.85"/>
+      <rect x="56" y="${720 - 48}" width="26" height="4" fill="${o.accent}"/>` : '';
+    inner = tplPoster({ photoHref: o.photoHref, linesEls, accent: o.accent, chipEls, eyebrowEls, shade: o.shade, brandEls });
+
+  } else {
+    // paper
+    const anton = font('anton');
+    const inter = font('inter600');
+    const playfair = font('playfair');
+    const big = (accentWord || pickAccentWord(o.title) || 'STORY').toUpperCase();
+    const rest = o.title.replace(new RegExp(accentWord || pickAccentWord(o.title) || '§', 'i'), '').trim().replace(/\s+/g, ' ') || o.title;
+    // serif phrase lines, fit to 600px width
+    const restFit = fitLines(playfair, rest || o.title, 42, 600, 26);
+    const chipEls = o.chip ? `<path d="${linePath(inter, o.chip.toUpperCase(), 620, 150, 20, 6).d}" fill="#8A8272"/>
+      <path d="${linePath(inter, 'P R E S E N T S', 620, 196, 15, 4).d}" fill="#A39A85"/>` : '';
+    const phraseEls = restFit.lines.map((l, i) =>
+      `<path d="${linePath(playfair, l, 620, 300 + 60 + i * (restFit.size + 14), restFit.size).d}" fill="#232019"/>`).join('');
+    const bigSize = Math.min(160, 620 / Math.max(1, adv(anton, big, 100) / 100));
+    const bigW = adv(anton, big, bigSize);
+    const bigEls = `<path d="${anton.getPath(big, 616, 300 + 60 + restFit.lines.length * (restFit.size + 14) + bigSize * 0.9, bigSize).toPathData(1)}" fill="${o.accent}"/>`;
+    const monoEls = `<circle cx="1180" cy="120" r="44" fill="none" stroke="${o.accent}" stroke-width="3"/>
+      <path d="${linePath(playfair, o.brand.slice(0, 2).toUpperCase() || 'QQ', 1180 - adv(playfair, o.brand.slice(0, 2).toUpperCase() || 'QQ', 30) / 2, 131, 30).d}" fill="#232019"/>`;
+    const eyebrowEls = o.eyebrow ? `<path d="${linePath(inter, o.eyebrow, 620, 668, 15, 2).d}" fill="#8A8272"/>` : '';
+    inner = tplPaper({ photoHref: o.photoHref, phraseEls, bigEls, chipEls, monoEls, eyebrowEls: eyebrowEls || chipEls, accent: o.accent, brand: o.brand });
+  }
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">${DEFS}${inner}</svg>`;
 }
