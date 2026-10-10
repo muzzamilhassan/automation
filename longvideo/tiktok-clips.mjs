@@ -18,7 +18,6 @@ const ROOT = path.resolve(DIR, "..");
 // channel-quotequarry.yml on docDay (Tue).
 const REPO = process.env.GH_REPO || "muzzamilhassan/automation";
 const SRC_WORKFLOW = process.env.TT_SRC_WORKFLOW || "channel-quotequarry.yml";
-const TOK = process.env.GITHUB_TOKEN || process.env.GITHUB_PAT || "";
 const SLUG = "quotequarry";
 const BRAND = "QUOTE QUARRY";
 const TAGS = "#stoicism #wisdom #mindset #discipline #fyp";
@@ -26,12 +25,15 @@ const STATE = path.join(ROOT, "state", "tiktok-clips.json");
 const FFMPEG = process.env.FFMPEG_PATH || "ffmpeg";
 const MODE = process.argv[2] || "";
 
+// .env load MUST run before TOK is read — local runs take GITHUB_PAT +
+// ZERNIO_API_KEY from .env; CI injects them as real env vars.
 let envLines = [];
 try { envLines = fs.readFileSync(path.join(ROOT, ".env"), "utf8").split("\n"); } catch { }
 for (const line of envLines) {
   const m = line.match(/^([A-Z_0-9]+)=(.*)\s*$/);
   if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim();
 }
+const TOK = process.env.GITHUB_TOKEN || process.env.GITHUB_PAT || "";
 
 const ghApi = async (pathname) => {
   const r = await fetch(`https://api.github.com/repos/${REPO}/${pathname}`, {
