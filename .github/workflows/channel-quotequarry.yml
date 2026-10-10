@@ -89,6 +89,45 @@ jobs:
           path: fb-outbox/quotequarry
           key: ig-outbox-quotequarry-${{ github.run_id }}
 
+      - name: 📦 Stage doc render for TikTok clips (docDay only)
+        if: always()
+        run: |
+          mkdir -p tt-lf
+          if [ -f demos/deepdive-quotequarry/episode.mp4 ]; then
+            cp demos/deepdive-quotequarry/episode.mp4 tt-lf/lf-quotequarry.mp4
+            TITLE=$(node -e "
+              const fs=require('fs');
+              try{
+                const files=fs.readdirSync('fb-outbox/quotequarry').filter(f=>f.endsWith('.json'));
+                for(const f of files.reverse()){
+                  const j=JSON.parse(fs.readFileSync('fb-outbox/quotequarry/'+f,'utf8'));
+                  if(j.kind==='episode'&&j.title){console.log(j.title);return;}
+                }
+              }catch(e){}
+              console.log('Quote Quarry documentary');
+            ")
+            node -e "require('fs').writeFileSync('tt-lf/lf-meta-quotequarry.json',JSON.stringify({title:process.argv[1],keyword:'stoic wisdom'},null,2))" "$TITLE"
+            echo "staged doc render: $TITLE"
+          else
+            echo "no doc rendered today (not docDay) — nothing to archive"
+          fi
+
+      - name: ⬆️ Upload doc render artifact
+        if: ${{ hashFiles('tt-lf/lf-quotequarry.mp4') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lf-quotequarry
+          path: tt-lf/lf-quotequarry.mp4
+          retention-days: 30
+
+      - name: ⬆️ Upload doc meta artifact
+        if: ${{ hashFiles('tt-lf/lf-meta-quotequarry.json') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lf-meta-quotequarry
+          path: tt-lf/lf-meta-quotequarry.json
+          retention-days: 30
+
       - name: 💾 Commit publishing state
         run: |
           git config user.name "quarry-bot"

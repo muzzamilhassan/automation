@@ -13,7 +13,11 @@ import { publishToTikTok } from "../zernio-tiktok-publisher.mjs";
 
 const DIR = import.meta.dirname;
 const ROOT = path.resolve(DIR, "..");
-const REPO = process.env.GH_REPO || "muzzamilhassan/quarry-render";
+// 10-09: longforms render INSIDE this repo now (channel workflows Phase 5,
+// quarry-render is retired). The doc render is uploaded as artifacts by
+// channel-quotequarry.yml on docDay (Tue).
+const REPO = process.env.GH_REPO || "muzzamilhassan/automation";
+const SRC_WORKFLOW = process.env.TT_SRC_WORKFLOW || "channel-quotequarry.yml";
 const TOK = process.env.GITHUB_TOKEN || process.env.GITHUB_PAT || "";
 const SLUG = "quotequarry";
 const BRAND = "QUOTE QUARRY";
@@ -80,7 +84,7 @@ function cutPoints(cues, totalMs, stepMs = 58000) {
 // ---------- ensure-queue: clip newest long-form into 1-min parts ----------
 async function ensureQueue() {
   const state = loadState();
-  const runs = await ghApi("actions/workflows/longform-render.yml/runs?status=success&per_page=6");
+  const runs = await ghApi(`actions/workflows/${SRC_WORKFLOW}/runs?status=success&per_page=14`);
   let chosen = null;
   for (const run of runs.workflow_runs || []) {
     if (String(run.id) === String(state.lastRunId)) break;
