@@ -1,5 +1,5 @@
 {
-  "lastRunDate": "2026-10-09",
+  "lastRunDate": "2026-10-10",
   "usedThemes": [
     "how the rich buy the crash",
     "the 90-year rule that beats day trading",
@@ -7,13 +7,12 @@
   ],
   "lastVideos": [
     {
-      "videoId": null,
-      "publishAt": "2026-10-09T23:35:00Z",
-      "title": "The Rule Warren Buffett Never Breaks | Investing Psychology",
-      "gateRejected": true
+      "videoId": "qWEJWUYSz2k",
+      "publishAt": "2026-10-10T23:35:00Z",
+      "title": "The 17 Year Market Truth | Investing Psychology"
     }
   ],
-  "imageDate": "2026-10-09",
+  "imageDate": "2026-10-10",
   "deepdiveDate": "2026-09-07",
   "deepdiveVideo": {
     "videoId": "dOJgBHpJgwQ",
@@ -45,18 +44,23 @@
     "Stock Market ( 17 Year Experience in Just 17 Minutes )✅",
     "부자들의 서재에서 찾은 '투자 심리학'",
     "Position sizing is discipline before the trade begins #TradingPsychology #TradingMindset #SoulNGoal",
-    "Protect your downside so your upside has time to work #TradingPsychology #TradingMindset #SoulNGoal"
+    "Protect your downside so your upside has time to work #TradingPsychology #TradingMindset #SoulNGoal",
+    "Hardest chart to master is the one inside your head #TradingPsychology #TradingMindset #SoulNGoal"
   ],
   "todayTopics": [
     {
-      "at": "2026-10-09",
-      "topic": "Protect your downside so your upside has time to work #TradingPsychology #TradingMindset #SoulNGoal"
+      "at": "2026-10-10",
+      "topic": "Hardest chart to master is the one inside your head #TradingPsychology #TradingMindset #SoulNGoal"
     }
   ],
   "titleHistory": [
     {
       "t": "The Wealth Trap Nobody Sees | Investing Psychology",
       "at": "2026-10-06T12:05:00Z"
+    },
+    {
+      "t": "The 17 Year Market Truth | Investing Psychology",
+      "at": "2026-10-10T23:35:00Z"
     }
   ]
 }
