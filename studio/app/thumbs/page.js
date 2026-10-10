@@ -3,7 +3,7 @@
 // (title, accent word, chip, eyebrow, accent color, photo) → live preview at
 // full + mobile size with a legibility checklist → attach to the video.
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, Image as ImageIcon, Smartphone as Mobile, CheckCircle2, XCircle, Search, Upload, Wand2, Paperclip } from 'lucide-react';
+import { Loader2, Image as ImageIcon, Smartphone as Mobile, CheckCircle2, XCircle, Search, Upload, Wand2, Paperclip, Sparkles, FlaskConical, Trophy, BarChart3 } from 'lucide-react';
 
 const TEMPLATES = [
   { id: 'clean', label: 'Clean Frame', desc: 'Full-bleed photo + centered headline' },
@@ -38,6 +38,16 @@ export default function ThumbsPage() {
   const [attachMsg, setAttachMsg] = useState(null);
   const debounce = useRef(null);
   const fileRef = useRef(null);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiStyle, setAiStyle] = useState('cinematic');
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiMsg, setAiMsg] = useState(null);
+  const [abVariants, setAbVariants] = useState([]); // dataURLs collected
+  const [abInterval, setAbInterval] = useState(48);
+  const [abBusy, setAbBusy] = useState('');
+  const [abMsg, setAbMsg] = useState(null);
+  const [tests, setTests] = useState(null);
+  const [perf, setPerf] = useState(null);
 
   useEffect(() => {
     fetch('/api/overview')
@@ -129,6 +139,66 @@ export default function ThumbsPage() {
     } finally {
       setAttaching(false);
     }
+  };
+
+  const generateBg = async () => {
+    setAiBusy(true);
+    setAiMsg(null);
+    try {
+      const r = await fetch('/api/thumbs/ai-bg', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: aiPrompt, style: aiStyle }),
+      });
+      const d = await r.json();
+      if (d.image) {
+        setPhotoDataUrl(d.image);
+        setPhotoUrl('');
+        setAiMsg({ ok: true, text: 'AI background ready — tweak the headline and attach.' });
+      } else setAiMsg({ ok: false, text: d.error || 'generation failed' });
+    } catch (e) {
+      setAiMsg({ ok: false, text: e.message });
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  const loadTests = () => {
+    fetch(`/api/thumbs/abresults?slug=${encodeURIComponent(slug)}`).then((r) => r.json()).then((d) => setTests(d.tests || [])).catch(() => setTests([]));
+    fetch(`/api/thumbs/performance?slug=${encodeURIComponent(slug)}`).then((r) => r.json()).then((d) => setPerf(d.videos || [])).catch(() => setPerf([]));
+  };
+
+  useEffect(() => { if (slug) loadTests(); }, [slug]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const addVariant = () => {
+    if (!preview) { setAbMsg({ ok: false, text: 'render a design first (type a headline)' }); return; }
+    setAbVariants((v) => [...v, preview.image].slice(0, 3));
+    setAbMsg({ ok: true, text: `variant ${Math.min(abVariants.length + 1, 3)} added` });
+  };
+
+  const startTest = async () => {
+    if (!video) { setAbMsg({ ok: false, text: 'pick a video first' }); return; }
+    if (abVariants.length < 2) { setAbMsg({ ok: false, text: 'add at least 2 variants' }); return; }
+    setAbBusy('start');
+    try {
+      const r = await fetch('/api/thumbs/abstart', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug, videoId: video.videoId, title: video.title, intervalHours: abInterval, variants: abVariants }),
+      });
+      const d = await r.json();
+      setAbMsg(d.ok
+        ? { ok: true, text: `Test live — variant A attached, swapping every ${abInterval}h. Results appear below within a day.` }
+        : { ok: false, text: d.error });
+      if (d.ok) { setAbVariants([]); loadTests(); }
+    } finally {
+      setAbBusy('');
+    }
+  };
+
+  const stopTest = async (vid) => {
+    setAbBusy(vid);
+    await fetch('/api/thumbs/abstop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId: vid }) });
+    loadTests();
+    setAbBusy('');
   };
 
   const words = title.trim().split(/\s+/).filter(Boolean).length;
@@ -231,6 +301,27 @@ export default function ThumbsPage() {
                 </div>
               ) : null}
               {photoDataUrl ? <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: 'var(--ok)' }}><CheckCircle2 size={11} /> uploaded photo in use</p> : null}
+              <div className="mt-3 border-t border-line pt-2.5">
+                <span className="text-[11px] text-muted flex items-center gap-1.5 mb-1.5"><Sparkles size={11} /> Or generate an AI background (no text — the template adds it)</span>
+                <div className="flex flex-wrap gap-1.5 mb-1.5">
+                  {['cinematic', 'luxury', 'statue', 'illustration'].map((s) => (
+                    <button key={s} onClick={() => setAiStyle(s)}
+                      className={`text-[11px] px-2 py-1 rounded-full border ${aiStyle === s ? 'border-accent text-ink' : 'border-line text-muted hover:border-line-strong'}`}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)}
+                    placeholder="describe the scene… e.g. marble statue in fog"
+                    className="flex-1 text-[12.5px] px-3 py-2 rounded-lg border border-line bg-bg-soft" />
+                  <button onClick={generateBg} disabled={aiBusy || !aiPrompt.trim()}
+                    className="text-[12.5px] font-medium px-3 py-2 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-50 flex items-center gap-1.5">
+                    {aiBusy ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />} Generate (~15s)
+                  </button>
+                </div>
+                {aiMsg ? <p className="text-[11px] mt-1" style={{ color: aiMsg.ok ? 'var(--ok)' : 'var(--bad)' }}>{aiMsg.text}</p> : null}
+              </div>
             </div>
           </div>
         </div>
@@ -285,6 +376,81 @@ export default function ThumbsPage() {
                 {attachMsg.ok ? <CheckCircle2 size={13} className="shrink-0 mt-0.5" /> : <XCircle size={13} className="shrink-0 mt-0.5" />} {attachMsg.text}
               </p>
             ) : null}
+          </div>
+
+          <div className="border border-line rounded-xl bg-surface p-4">
+            <div className="text-[11px] uppercase tracking-wide text-muted mb-2 flex items-center gap-1.5"><FlaskConical size={12} /> A/B test (auto-swap)</div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button onClick={addVariant} disabled={!preview} className="text-[12px] px-2.5 py-1.5 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-40">
+                + Add current design ({abVariants.length}/3)
+              </button>
+              <select value={abInterval} onChange={(e) => setAbInterval(Number(e.target.value))} className="text-[12px] px-2 py-1.5 rounded-lg border border-line bg-bg-soft">
+                <option value={24}>swap every 24h</option>
+                <option value={48}>swap every 48h</option>
+              </select>
+              <button onClick={startTest} disabled={abBusy === 'start' || abVariants.length < 2 || !video} className="text-[12px] font-semibold px-3 py-1.5 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-40 flex items-center gap-1.5">
+                {abBusy === 'start' ? <Loader2 size={12} className="animate-spin" /> : <FlaskConical size={12} />} Start test
+              </button>
+            </div>
+            {abVariants.length ? (
+              <div className="flex gap-1.5 mt-2">
+                {abVariants.map((v, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={i} src={v} alt={`variant ${i}`} className="w-16 rounded border border-line" />
+                ))}
+                <button onClick={() => setAbVariants([])} className="text-[11px] text-muted hover:text-ink self-center">clear</button>
+              </div>
+            ) : null}
+            {abMsg ? <p className="text-[11.5px] mt-2" style={{ color: abMsg.ok ? 'var(--ok)' : 'var(--bad)' }}>{abMsg.text}</p> : null}
+            {tests?.length ? (
+              <div className="mt-3 space-y-2">
+                {tests.map((t) => (
+                  <div key={t.videoId} className="inset-tile p-2.5">
+                    <div className="flex items-center gap-2 text-[12px]">
+                      <Trophy size={12} style={{ color: 'var(--accent)' }} />
+                      <span className="truncate font-medium text-ink">{t.title || t.videoId}</span>
+                      <span className="ml-auto text-[10.5px] text-faint">{t.ended ? 'ended' : `live · ${t.intervalHours}h`}</span>
+                    </div>
+                    <div className="grid gap-1 mt-1.5" style={{ gridTemplateColumns: `repeat(${t.variantMetrics.length || 1}, 1fr)` }}>
+                      {t.variantMetrics.map((v) => (
+                        <div key={v.variant} className={`text-[11px] p-1.5 rounded border ${v.variant === t.current ? 'border-accent' : 'border-line'}`}>
+                          <div className="font-semibold">{v.variant} {v.variant === t.current ? '· live' : ''}</div>
+                          <div className="text-muted">{v.viewsPerDay} views/day</div>
+                          {v.avgPct != null ? <div className="text-faint">{v.avgPct}% watch</div> : null}
+                        </div>
+                      ))}
+                    </div>
+                    {!t.ended ? (
+                      <button onClick={() => stopTest(t.videoId)} disabled={abBusy === t.videoId} className="text-[11px] text-muted hover:text-ink mt-1.5">
+                        stop test (keep current)
+                      </button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[11px] text-faint mt-2">No tests yet — add 2+ designs above and start. Views/day per variant appears within a day.</p>
+            )}
+          </div>
+
+          <div className="border border-line rounded-xl bg-surface p-4">
+            <div className="text-[11px] uppercase tracking-wide text-muted mb-2 flex items-center gap-1.5"><BarChart3 size={12} /> Performance · last 28 days</div>
+            {!perf ? (
+              <div className="flex items-center gap-2 text-muted text-[12px]"><Loader2 size={12} className="animate-spin" /> Loading…</div>
+            ) : (
+              <div className="space-y-1.5">
+                {perf.map((v) => (
+                  <div key={v.videoId} className="flex items-center gap-2 text-[11.5px]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={v.thumb} alt="" className="w-12 rounded border border-line" />
+                    <span className="truncate flex-1 text-muted">{v.title}</span>
+                    <span className="font-medium text-ink shrink-0">{v.viewsPerDay}/day</span>
+                    {v.avgPct != null ? <span className="text-faint shrink-0">{v.avgPct}%</span> : null}
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-[10.5px] text-faint mt-2">{perf ? 'Ranked by views per day · real CTR unlocks when the channel joins YPP.' : ''}</p>
           </div>
         </div>
       </div>
