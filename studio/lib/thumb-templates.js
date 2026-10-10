@@ -94,6 +94,11 @@ export const pickAccentWord = (title) => {
   return words.reduce((a, b) => (b.replace(/[^a-zA-Z]/g, '').length > a.replace(/[^a-zA-Z]/g, '').length ? b : a));
 };
 
+// Template-aware wrap (used by the preview route for metadata/checks).
+export function wrapForTemplate(template, title) {
+  return fitLines(font('anton'), String(title || '').trim(), template === 'poster' ? 140 : 150, template === 'poster' ? 468 : 1160, template === 'poster' ? 72 : 84).lines;
+}
+
 export const TEMPLATES = {
   clean: { label: 'Clean Frame', desc: 'Full-bleed photo, bottom gradient, centered headline', needsPhoto: true },
   poster: { label: 'Bold Poster', desc: 'Split layout: shade panel + huge left headline', needsPhoto: false },

@@ -3,7 +3,7 @@
 // render happens in-process via sharp, JPEG goes back as a dataURL.
 import sharp from 'sharp';
 import { getUser } from '@/lib/route-auth';
-import { buildThumbSvg, wrapTitle, pickAccentWord, TEMPLATES } from '@/lib/thumb-templates';
+import { buildThumbSvg, wrapForTemplate, pickAccentWord, TEMPLATES } from '@/lib/thumb-templates';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +35,7 @@ export async function POST(req) {
       image: `data:image/jpeg;base64,${jpeg.toString('base64')}`,
       bytes: jpeg.length,
       words,
-      lines: wrapTitle(title, template === 'poster' ? 12 : 16),
+      lines: wrapForTemplate(template, title),
       accentWordSuggested: pickAccentWord(title),
       checklist: {
         wordsOk: words > 0 && words <= 7,
