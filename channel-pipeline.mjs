@@ -28,7 +28,7 @@ const today = new Date().toISOString().slice(0, 10);
 import { loadAllStates } from './lib/state.mjs';
 // 10-09 BYOK: this channel's own provider keys (encrypted yt-mcp/channel-keys.json)
 // replace the shared keys for the rest of the run — children inherit process.env.
-import { applyChannelKeys } from './lib/channel-keys.mjs';
+import { applyChannelKeys, checkChannelKeys, dropChannelKeys } from './lib/channel-keys.mjs';
 const loadState = () => loadAllStates();
 
 const log = (msg) => console.log(`[${slug}] ${msg}`);
@@ -46,7 +46,26 @@ function run(script, args = []) {
 // ---- Load state ----
 const state = loadState();
 const _keysApplied = applyChannelKeys(slug);
-log(_keysApplied ? `[keys] channel overrides active: ${_keysApplied.join(', ')}` : '[keys] using shared keys');
+if (_keysApplied) {
+  // BYOK health check: a dead channel key must NOT silently degrade production —
+  // drop it from env (shared key takes over) and alert the owner/client.
+  const _check = await checkChannelKeys(slug);
+  if (_check.dead.length) {
+    dropChannelKeys(_check.dead.map((d) => d.provider));
+    for (const d of _check.dead) log(`[keys] WARN ${d.provider} key DEAD (${d.detail}) - dropped, shared key covering`);
+    if (process.env.NTFY_TOPIC) {
+      fetch(`https://ntfy.sh/${process.env.NTFY_TOPIC}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain', Title: `[${slug}] dead API key - shared key covering` },
+        body: `Channel keys failed validation: ${_check.dead.map((d) => `${d.provider} (${d.detail})`).join('; ')}. Replace them in Studio > API Keys.`,
+      }).catch(() => { });
+    }
+  }
+  const _alive = _check.ok.filter((x) => _keysApplied.includes(x));
+  log(_alive.length ? `[keys] channel overrides active: ${_alive.join(', ')}` : '[keys] channel keys all failed validation - using shared keys');
+} else {
+  log('[keys] using shared keys');
+}
 const shortsDone = state[slug]?.lastRunDate === today;
 const episodeDone = state[slug]?.deepdiveDate === today;
 

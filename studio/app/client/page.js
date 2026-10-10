@@ -5,7 +5,7 @@
 // payload to the caller's channels (clients = registry ownerEmail match).
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Lock, BadgeCheck, PauseCircle, Sparkles, Clock } from 'lucide-react';
+import { Loader2, Lock, BadgeCheck, PauseCircle, Sparkles, Clock, KeyRound, CheckCircle2, XCircle } from 'lucide-react';
 
 const fmt = (n) => (n == null ? '—' : Number(n).toLocaleString('en-US'));
 const day = (s) => (s ? String(s).slice(0, 10) : '—');
@@ -92,6 +92,7 @@ export default function ClientPage() {
                         {upcoming ? ' · new videos are scheduled and will go public at their slot times.' : ' · the next video is being researched and produced.'}
                       </p>
                     </div>
+                    <KeysInline slug={c.slug} />
                     {c.todayTopics?.length ? (
                       <div className="inset-tile p-3">
                         <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-faint mb-1.5"><Sparkles size={11} /> Topics in production</div>
@@ -110,5 +111,107 @@ export default function ClientPage() {
         <p className="mt-8 text-[11px] text-faint">Stats update every few minutes · questions? message your channel manager.</p>
       </div>
     </main>
+  );
+}
+
+
+// Compact per-channel key manager for DFY clients — same API the owner's
+// /keys page uses; the server only allows the channel bound to the client.
+function KeysInline({ slug }) {
+  const [open, setOpen] = useState(false);
+  const [providers, setProviders] = useState(null);
+  const [inputs, setInputs] = useState({});
+  const [busy, setBusy] = useState('');
+  const [msg, setMsg] = useState({});
+
+  const load = () => {
+    fetch(`/api/channels/keys?slug=${encodeURIComponent(slug)}`)
+      .then((r) => r.json())
+      .then((d) => setProviders(d.providers || {}))
+      .catch(() => setProviders({}));
+  };
+
+  const save = async (provider) => {
+    const key = (inputs[provider] || '').trim();
+    if (!key) { setMsg((m) => ({ ...m, [provider]: { ok: false, text: 'paste a key first' } })); return; }
+    setBusy(provider);
+    try {
+      const r = await fetch('/api/channels/keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug, provider, key }),
+      });
+      const d = await r.json();
+      setMsg((m) => ({ ...m, [provider]: d.ok ? { ok: true, text: `saved ${d.masked}` } : { ok: false, text: d.error || 'rejected' } }));
+      if (d.ok) load();
+    } catch (e) {
+      setMsg((m) => ({ ...m, [provider]: { ok: false, text: e.message } }));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const remove = async (provider) => {
+    setBusy(provider);
+    try {
+      await fetch('/api/channels/keys', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug, provider }),
+      });
+      setMsg((m) => ({ ...m, [provider]: { ok: true, text: 'removed - shared key resumes' } }));
+      load();
+    } finally {
+      setBusy('');
+    }
+  };
+
+  return (
+    <div className="border-t border-line pt-3">
+      <button onClick={() => { const n = !open; setOpen(n); if (n) load(); }} className="flex items-center gap-1.5 text-[12px] font-medium" style={{ color: 'var(--accent)' }}>
+        <KeyRound size={12} /> {open ? 'Hide API keys' : 'Manage API keys'}
+      </button>
+      {open && providers ? (
+        <div className="mt-2 space-y-2">
+          {Object.entries(providers).map(([p, v]) => (
+            <div key={p} className="inset-tile p-2.5">
+              <div className="flex items-center gap-2 text-[12px]">
+                <span className="font-medium text-ink">{v.label}</span>
+                {v.set ? (
+                  <span className="ml-auto flex items-center gap-1" style={{ color: 'var(--ok)' }}><CheckCircle2 size={11} /> {v.masked}</span>
+                ) : (
+                  <span className="ml-auto text-faint">shared key in use</span>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                <input
+                  type="password"
+                  placeholder={v.set ? 'paste a new key to replace' : 'paste your key…'}
+                  value={inputs[p] || ''}
+                  onChange={(e) => setInputs((s) => ({ ...s, [p]: e.target.value }))}
+                  className="flex-1 min-w-[180px] text-[12px] px-2.5 py-1.5 rounded-lg border border-line bg-bg-soft"
+                  autoComplete="off"
+                />
+                <button onClick={() => save(p)} disabled={busy === p} className="text-[11.5px] font-medium px-2.5 py-1.5 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-50">
+                  {busy === p ? '…' : 'Save & test'}
+                </button>
+                {v.set ? (
+                  <button onClick={() => remove(p)} disabled={busy === p} className="text-[11.5px] px-2 py-1.5 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-50" title="remove - shared key resumes">
+                    <XCircle size={12} />
+                  </button>
+                ) : null}
+              </div>
+              {msg[p] ? (
+                <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: msg[p].ok ? 'var(--ok)' : 'var(--bad)' }}>
+                  {msg[p].ok ? <CheckCircle2 size={11} /> : <XCircle size={11} />} {msg[p].text}
+                </p>
+              ) : null}
+            </div>
+          ))}
+          <p className="text-[10.5px] text-faint leading-relaxed">Your keys run before the studio&apos;s shared keys. They are encrypted and never shown again after saving. A dead key is dropped automatically and the shared key covers — you get an alert.</p>
+        </div>
+      ) : null}
+      {open && !providers ? <p className="text-[11.5px] text-muted mt-2">Loading…</p> : null}
+    </div>
   );
 }
