@@ -53,3 +53,4 @@ qa-*.jpg
 .music-cache/
 music-review/
 research/style-ref/
+studio/.studio-password.txt
