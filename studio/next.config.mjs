@@ -5,6 +5,7 @@ const nextConfig = {
   outputFileTracingIncludes: {
     '/api/overview': ['./lib/brands.json'],
     '/api/action': ['./lib/brands.json'],
+    '/api/thumbs/preview': ['./lib/fonts/**'],
   },
 };
 
