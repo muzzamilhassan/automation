@@ -1,6 +1,7 @@
 // F5/F7 — A/B results + per-video performance. Metrics: views/day and
 // average watch % (impressions CTR is YPP-only; upgrade when channels monetize).
 import { getUser } from '@/lib/route-auth';
+import { canAccessChannelSlug } from '@/lib/access';
 import { readRepoJSON } from '@/lib/channels-registry';
 import { videoDaily } from '@/lib/yt-attach';
 
@@ -8,9 +9,10 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
   const user = await getUser(req);
-  if (!user || !['owner', 'staff'].includes(user.role)) return Response.json({ error: 'not allowed' }, { status: 401 });
+  if (!user) return Response.json({ error: 'not signed in' }, { status: 401 });
   const url = new URL(req.url);
   const slug = url.searchParams.get('slug') || '';
+  if (slug && !(await canAccessChannelSlug(user, slug))) return Response.json({ error: 'this channel is not linked to your account' }, { status: 403 });
   try {
     const state = (await readRepoJSON('yt-mcp/thumb-tests.json')) || {};
     const tests = [];

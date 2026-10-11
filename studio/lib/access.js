@@ -56,6 +56,15 @@ export async function slugsForUser(user) {
     .map((e) => e.slug);
 }
 
+// Stage C (F8): can this user act on this channel slug? owner/staff = any;
+// client = only channels bound to their email (registry ownerEmail).
+export async function canAccessChannelSlug(user, slug) {
+  if (!user || !slug) return false;
+  if (['owner', 'staff'].includes(user.role)) return true;
+  if (user.role === 'client') return (await slugsForUser(user).catch(() => [])).includes(slug);
+  return false;
+}
+
 // Verifies a Google id_token server-side via Google's tokeninfo endpoint
 // (Google checks the signature for us) and confirms it was issued to OUR client.
 export async function verifyGoogleIdToken(idToken) {

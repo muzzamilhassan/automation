@@ -59,6 +59,7 @@ export default function ClientPage() {
             <div className="text-[11px] uppercase tracking-wide text-muted">Quarry Studio · done-for-you</div>
             <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight">Your channel, today</h1>
           </div>
+          <a href="/thumbs" className="text-[12px] text-muted hover:text-ink mr-3">Thumbnails →</a>
           <a href="/" className="text-[12px] text-muted hover:text-ink">Full studio →</a>
         </div>
 

@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
   const user = await getUser(req);
-  if (!user || !['owner', 'staff'].includes(user.role)) return Response.json({ error: 'not allowed' }, { status: 401 });
+  if (!user) return Response.json({ error: 'not allowed' }, { status: 401 });
   const q = (new URL(req.url).searchParams.get('q') || '').trim();
   if (!q) return Response.json({ photos: [] });
   const key = process.env.PEXELS_API_KEY || '';

@@ -2,6 +2,7 @@
 // thumbnails/tests/ + experiment state to yt-mcp/thumb-tests.json, attach
 // variant A immediately. The hourly thumb-ab.yml workflow swaps when due.
 import { getUser } from '@/lib/route-auth';
+import { canAccessChannelSlug } from '@/lib/access';
 import { appendAudit } from '@/lib/audit';
 import { readRepoJSON, writeRepoJSON } from '@/lib/channels-registry';
 import { attachThumb } from '@/lib/yt-attach';
@@ -29,10 +30,11 @@ async function putRepoFile(path, buffer, message) {
 
 export async function POST(req) {
   const user = await getUser(req);
-  if (!user || !['owner', 'staff'].includes(user.role)) return Response.json({ error: 'not allowed' }, { status: 401 });
+  if (!user) return Response.json({ error: 'not signed in' }, { status: 401 });
   try {
     const body = await req.json().catch(() => ({}));
     const { slug, videoId, title = '', intervalHours = 48, variants = [] } = body || {};
+  if (!(await canAccessChannelSlug(user, slug))) return Response.json({ error: 'this channel is not linked to your account' }, { status: 403 });
     if (!slug || !videoId) return Response.json({ error: 'slug and videoId required' }, { status: 400 });
     if (!Array.isArray(variants) || variants.length < 2 || variants.length > 3) {
       return Response.json({ error: 'need 2-3 variant dataURLs' }, { status: 400 });

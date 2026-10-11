@@ -1,6 +1,7 @@
 // Thumbnail Studio — list a channel's recent videos (attach targets).
 // Reads the per-channel YouTube token the same way the analytics route does.
 import { getUser } from '@/lib/route-auth';
+import { canAccessChannelSlug } from '@/lib/access';
 import { ENV } from '@/lib/data.mjs';
 
 export const dynamic = 'force-dynamic';
@@ -26,8 +27,9 @@ async function accessTokenForSlug(slug) {
 
 export async function GET(req) {
   const user = await getUser(req);
-  if (!user || !['owner', 'staff'].includes(user.role)) return Response.json({ error: 'not allowed' }, { status: 401 });
+  if (!user) return Response.json({ error: 'not signed in' }, { status: 401 });
   const slug = new URL(req.url).searchParams.get('slug') || '';
+  if (slug && !(await canAccessChannelSlug(user, slug))) return Response.json({ error: 'this channel is not linked to your account' }, { status: 403 });
   if (!slug) return Response.json({ error: 'slug required' }, { status: 400 });
   try {
     const at = await accessTokenForSlug(slug);

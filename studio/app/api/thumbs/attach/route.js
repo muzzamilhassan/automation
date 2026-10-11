@@ -2,6 +2,7 @@
 // Direct from Vercel: per-channel YT tokens already live in Vercel envs.
 // Quota guard: max 10 attaches per channel per day (counted from audit log).
 import { getUser } from '@/lib/route-auth';
+import { canAccessChannelSlug } from '@/lib/access';
 import { appendAudit, listAudit } from '@/lib/audit';
 import { ENV } from '@/lib/data.mjs';
 
@@ -34,6 +35,7 @@ export async function POST(req) {
   try {
     const body = await req.json().catch(() => ({}));
     const { slug, videoId, imageDataUrl } = body || {};
+  if (!(await canAccessChannelSlug(user, slug))) return Response.json({ error: 'this channel is not linked to your account' }, { status: 403 });
     if (!slug || !videoId || !/^data:image\/(jpeg|png);base64,/.test(String(imageDataUrl || ''))) {
       return Response.json({ error: 'slug, videoId and a rendered image are required' }, { status: 400 });
     }

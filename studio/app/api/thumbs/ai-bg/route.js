@@ -16,7 +16,7 @@ const STYLES = {
 
 export async function POST(req) {
   const user = await getUser(req);
-  if (!user || !['owner', 'staff'].includes(user.role)) return Response.json({ error: 'not allowed' }, { status: 401 });
+  if (!user) return Response.json({ error: 'not allowed' }, { status: 401 });
   const key = process.env.AGNES_API_KEY || '';
   if (!key) return Response.json({ error: 'AGNES_API_KEY not configured on the server' }, { status: 200 });
   try {

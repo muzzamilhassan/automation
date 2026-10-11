@@ -1,14 +1,16 @@
 // F7 — per-video performance board: 28-day views + average watch % for the
 // channel's recent uploads, ranked. (CTR unlocks at YPP — see abresults.)
 import { getUser } from '@/lib/route-auth';
+import { canAccessChannelSlug } from '@/lib/access';
 import { videoDaily } from '@/lib/yt-attach';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
   const user = await getUser(req);
-  if (!user || !['owner', 'staff'].includes(user.role)) return Response.json({ error: 'not allowed' }, { status: 401 });
+  if (!user) return Response.json({ error: 'not signed in' }, { status: 401 });
   const slug = new URL(req.url).searchParams.get('slug') || '';
+  if (slug && !(await canAccessChannelSlug(user, slug))) return Response.json({ error: 'this channel is not linked to your account' }, { status: 403 });
   if (!slug) return Response.json({ error: 'slug required' }, { status: 400 });
   try {
     const { ytTokenRaw } = await import('@/lib/data.mjs');

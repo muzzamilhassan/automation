@@ -6,7 +6,7 @@
 import { getUser } from '@/lib/route-auth';
 import { readRepoJSON, writeRepoJSON } from '@/lib/channels-registry';
 import { appendAudit } from '@/lib/audit';
-import { slugsForUser } from '@/lib/access';
+import { canAccessChannelSlug } from '@/lib/access';
 import { PROVIDERS, encryptKeys, decryptKeys, maskKey, validateKey } from '@/lib/keys-vault';
 
 export const dynamic = 'force-dynamic';
@@ -17,21 +17,14 @@ const loadFile = async () => (await readRepoJSON(FILE)) || {};
 
 const deny = (req) => getUser(req).then((u) => (!u ? Response.json({ error: 'not signed in' }, { status: 401 }) : null));
 
-// owner/staff: any channel. clients: only channels bound to their email
-// (registry ownerEmail — the same binding /api/overview uses).
-const canAccessSlug = async (user, slug) => {
-  if (!user || !slug) return false;
-  if (['owner', 'staff'].includes(user.role)) return true;
-  if (user.role === 'client') return (await slugsForUser(user).catch(() => [])).includes(slug);
-  return false;
-};
+
 
 export async function GET(req) {
   const user = await getUser(req);
   const d = await deny(req);
   if (d) return d;
   const slug = new URL(req.url).searchParams.get('slug') || '';
-  if (!(await canAccessSlug(user, slug))) return Response.json({ error: 'this channel is not linked to your account' }, { status: 403 });
+  if (!(await canAccessChannelSlug(user, slug))) return Response.json({ error: 'this channel is not linked to your account' }, { status: 403 });
   const file = await loadFile();
   const entry = slug ? file[slug] : null;
   const keys = entry?.enc ? decryptKeys(entry.enc) : null;
@@ -55,7 +48,7 @@ export async function POST(req) {
   const body = await req.json().catch(() => ({}));
   const { slug, provider, key } = body || {};
   if (!slug || !PROVIDERS[provider]) return Response.json({ error: 'channel slug and a known provider are required' }, { status: 400 });
-  if (!(await canAccessSlug(user, slug))) return Response.json({ error: 'this channel is not linked to your account' }, { status: 403 });
+  if (!(await canAccessChannelSlug(user, slug))) return Response.json({ error: 'this channel is not linked to your account' }, { status: 403 });
   const v = await validateKey(provider, key);
   if (!v.ok) return Response.json({ error: `key rejected: ${v.detail}` }, { status: 400 });
   const file = await loadFile();
@@ -77,7 +70,7 @@ export async function DELETE(req) {
   const body = await req.json().catch(() => ({}));
   const { slug, provider } = body || {};
   if (!slug || !PROVIDERS[provider]) return Response.json({ error: 'channel slug and a known provider are required' }, { status: 400 });
-  if (!(await canAccessSlug(user, slug))) return Response.json({ error: 'this channel is not linked to your account' }, { status: 403 });
+  if (!(await canAccessChannelSlug(user, slug))) return Response.json({ error: 'this channel is not linked to your account' }, { status: 403 });
   const file = await loadFile();
   const prev = file[slug]?.enc ? decryptKeys(file[slug].enc) || {} : {};
   delete prev[provider];
