@@ -3,7 +3,7 @@
 // (title, accent word, chip, eyebrow, accent color, photo) → live preview at
 // full + mobile size with a legibility checklist → attach to the video.
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, Image as ImageIcon, Smartphone as Mobile, CheckCircle2, XCircle, Search, Upload, Wand2, Paperclip, Sparkles, FlaskConical, Trophy, BarChart3 } from 'lucide-react';
+import { Loader2, Image as ImageIcon, Smartphone as Mobile, CheckCircle2, XCircle, Search, Upload, Wand2, Paperclip, Sparkles, FlaskConical, Trophy, BarChart3, Palette, Layers } from 'lucide-react';
 
 const TEMPLATES = [
   { id: 'clean', label: 'Clean Frame', desc: 'Full-bleed photo + centered headline' },
@@ -48,6 +48,12 @@ export default function ThumbsPage() {
   const [abMsg, setAbMsg] = useState(null);
   const [tests, setTests] = useState(null);
   const [perf, setPerf] = useState(null);
+  const [branding, setBranding] = useState(null);
+  const [brandMsg, setBrandMsg] = useState(null);
+  const [selMode, setSelMode] = useState(false);
+  const [selected, setSelected] = useState([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkMsg, setBulkMsg] = useState(null);
 
   useEffect(() => {
     fetch('/api/overview')
@@ -70,6 +76,53 @@ export default function ThumbsPage() {
       .then((r) => r.json())
       .then((d) => setVideos(d.videos || []))
       .catch(() => setVideos([]));
+    setSelected([]);
+    setSelMode(false);
+    fetch(`/api/thumbs/branding?slug=${encodeURIComponent(c.slug)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const b = d.branding || {};
+        setBranding(b);
+        if (b.accent) setAccent(b.accent);
+        if (b.shade) setShade(b.shade);
+        if (b.chip) setChip(b.chip);
+        if (b.eyebrow) setEyebrow(b.eyebrow);
+        if (b.template) setTemplate(b.template);
+      })
+      .catch(() => setBranding(null));
+  };
+
+  const saveBranding = async () => {
+    const r = await fetch('/api/thumbs/branding', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, accent, shade, chip, eyebrow, template }),
+    });
+    const d = await r.json();
+    setBrandMsg(d.ok ? { ok: true, text: 'brand defaults saved — the editor opens with them from now on' } : { ok: false, text: d.error || 'save failed' });
+  };
+
+  const runBulk = async () => {
+    if (!selected.length) return;
+    setBulkBusy(true);
+    setBulkMsg(null);
+    try {
+      const r = await fetch('/api/thumbs/bulk', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug, videoIds: selected, template, accent, chip, eyebrow, shade, brand }),
+      });
+      const d = await r.json();
+      if (d.error) setBulkMsg({ ok: false, text: d.error });
+      else {
+        setBulkMsg({ ok: true, text: `${d.okCount}/${d.processed} redesigned live${d.skipped ? ` · ${d.skipped} skipped (daily cap) — run again tomorrow` : ''}` });
+        setSelected([]);
+        setSelMode(false);
+        fetch(`/api/thumbs/videos?slug=${encodeURIComponent(slug)}`).then((res) => res.json()).then((res) => setVideos(res.videos || [])).catch(() => { });
+      }
+    } catch (e) {
+      setBulkMsg({ ok: false, text: e.message });
+    } finally {
+      setBulkBusy(false);
+    }
   };
 
   const pickVideo = (v) => {
@@ -224,16 +277,40 @@ export default function ThumbsPage() {
             {!videos ? (
               <div className="flex items-center gap-2 text-muted text-[12.5px] py-2"><Loader2 size={13} className="animate-spin" /> Loading videos…</div>
             ) : (
+              <div className="flex items-center gap-2 mb-2">
+                <button onClick={() => { setSelMode(!selMode); setSelected([]); }}
+                  className={`text-[11.5px] px-2 py-1 rounded-lg border flex items-center gap-1.5 ${selMode ? 'border-accent text-ink' : 'border-line text-muted hover:border-line-strong'}`}>
+                  <Layers size={11} /> {selMode ? 'Selecting for bulk redesign' : 'Bulk redesign'}
+                </button>
+                {selMode ? <span className="text-[11px] text-muted">{selected.length} selected · uses the template + colors set below</span> : null}
+                {selMode && selected.length ? (
+                  <button onClick={runBulk} disabled={bulkBusy} className="ml-auto text-[11.5px] font-semibold px-2.5 py-1 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-50 flex items-center gap-1.5">
+                    {bulkBusy ? <Loader2 size={11} className="animate-spin" /> : <Layers size={11} />} Redesign {selected.length}
+                  </button>
+                ) : null}
+              </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {(videos || []).map((v) => (
-                  <button key={v.videoId} onClick={() => pickVideo(v)}
-                    className={`text-left rounded-lg overflow-hidden border transition-colors ${video?.videoId === v.videoId ? 'border-accent' : 'border-line hover:border-line-strong'}`}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={v.thumb} alt="" className="w-full aspect-video object-cover" />
-                    <div className="p-1.5 text-[10.5px] text-muted leading-tight line-clamp-2">{v.title}</div>
-                  </button>
+                  selMode ? (
+                    <button key={v.videoId}
+                      onClick={() => setSelected((s) => (s.includes(v.videoId) ? s.filter((x) => x !== v.videoId) : [...s, v.videoId]))}
+                      className={`relative text-left rounded-lg overflow-hidden border ${selected.includes(v.videoId) ? 'border-accent ring-1' : 'border-line hover:border-line-strong'}`}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={v.thumb} alt="" className="w-full aspect-video object-cover opacity-70" />
+                      {selected.includes(v.videoId) ? <span className="absolute top-1 right-1"><CheckCircle2 size={14} style={{ color: 'var(--accent)' }} /></span> : null}
+                      <div className="p-1.5 text-[10.5px] text-muted leading-tight line-clamp-2">{v.title}</div>
+                    </button>
+                  ) : (
+                    <button key={v.videoId} onClick={() => pickVideo(v)}
+                      className={`text-left rounded-lg overflow-hidden border transition-colors ${video?.videoId === v.videoId ? 'border-accent' : 'border-line hover:border-line-strong'}`}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={v.thumb} alt="" className="w-full aspect-video object-cover" />
+                      <div className="p-1.5 text-[10.5px] text-muted leading-tight line-clamp-2">{v.title}</div>
+                    </button>
+                  )
                 ))}
               </div>
+              {bulkMsg ? <p className="text-[11.5px] mt-2" style={{ color: bulkMsg.ok ? 'var(--ok)' : 'var(--bad)' }}>{bulkMsg.text}</p> : null}
             )}
           </div>
 
@@ -323,6 +400,15 @@ export default function ThumbsPage() {
                 {aiMsg ? <p className="text-[11px] mt-1" style={{ color: aiMsg.ok ? 'var(--ok)' : 'var(--bad)' }}>{aiMsg.text}</p> : null}
               </div>
             </div>
+
+          <div className="border border-line rounded-xl bg-surface p-4">
+            <div className="text-[11px] uppercase tracking-wide text-muted mb-2 flex items-center gap-1.5"><Palette size={12} /> Brand defaults for this channel</div>
+            <p className="text-[11px] text-muted mb-2.5">Saves the current template + colors + chip as this channel&apos;s defaults — the editor opens with them every time.</p>
+            <button onClick={saveBranding} className="text-[12.5px] font-medium px-3 py-2 rounded-lg border border-line hover:bg-surface-2 flex items-center gap-1.5">
+              <Palette size={13} /> Save current look as default
+            </button>
+            {brandMsg ? <p className="text-[11.5px] mt-2" style={{ color: brandMsg.ok ? 'var(--ok)' : 'var(--bad)' }}>{brandMsg.text}</p> : null}
+          </div>
           </div>
         </div>
 
