@@ -5,10 +5,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loader2, Image as ImageIcon, Smartphone as Mobile, CheckCircle2, XCircle, Search, Upload, Wand2, Paperclip, Sparkles, FlaskConical, Trophy, BarChart3, Palette, Layers } from 'lucide-react';
 
-const TEMPLATES = [
-  { id: 'clean', label: 'Clean Frame', desc: 'Full-bleed photo + centered headline' },
-  { id: 'poster', label: 'Bold Poster', desc: 'Shade panel + huge left headline' },
-  { id: 'paper', label: 'Paper Doc', desc: 'Warm paper, masked photo, serif' },
+const CATS = [
+  { id: 'all', label: 'All' },
+  { id: 'core', label: 'Core' },
+  { id: 'photo', label: 'Photo' },
+  { id: 'type', label: 'Type' },
+  { id: 'ai', label: 'AI' },
 ];
 
 const fmtDay = (s) => (s ? String(s).slice(0, 10) : '');
@@ -54,6 +56,15 @@ export default function ThumbsPage() {
   const [selected, setSelected] = useState([]);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkMsg, setBulkMsg] = useState(null);
+  const [tpls, setTpls] = useState([]);
+  const [catTab, setCatTab] = useState('all');
+
+  useEffect(() => {
+    fetch('/api/thumbs/templates')
+      .then((r) => r.json())
+      .then((d) => setTpls(d.templates || []))
+      .catch(() => setTpls([]));
+  }, []);
 
   useEffect(() => {
     fetch('/api/overview')
@@ -122,6 +133,16 @@ export default function ThumbsPage() {
       setBulkMsg({ ok: false, text: e.message });
     } finally {
       setBulkBusy(false);
+    }
+  };
+
+  const pickTemplate = (t) => {
+    setTemplate(t.id);
+    if (t.aiPreset) {
+      const subject = (title || '').split(/\s+/).slice(0, 4).join(' ') || 'cinematic scene';
+      setAiPrompt(t.aiPreset.replace('{subject}', subject));
+      setPhotoDataUrl('');
+      setPhotoUrl('');
     }
   };
 
@@ -318,12 +339,21 @@ export default function ThumbsPage() {
 
           <div className="border border-line rounded-xl bg-surface p-4 space-y-3">
             <div className="text-[11px] uppercase tracking-wide text-muted flex items-center gap-1.5"><Wand2 size={12} /> 2 · Design</div>
-            <div className="grid grid-cols-3 gap-2">
-              {TEMPLATES.map((t) => (
-                <button key={t.id} onClick={() => setTemplate(t.id)}
-                  className={`text-left p-2.5 rounded-lg border ${template === t.id ? 'border-accent bg-bg-soft' : 'border-line hover:border-line-strong'}`}>
-                  <div className="text-[12.5px] font-semibold">{t.label}</div>
-                  <div className="text-[10.5px] text-muted leading-snug mt-0.5">{t.desc}</div>
+            <div className="flex flex-wrap gap-1.5 mb-2.5">
+              {CATS.map((c) => (
+                <button key={c.id} onClick={() => setCatTab(c.id)}
+                  className={`text-[11.5px] px-2.5 py-1 rounded-full border ${catTab === c.id ? 'border-accent text-ink' : 'border-line text-muted hover:border-line-strong'}`}>
+                  {c.label}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[240px] overflow-y-auto pr-1">
+              {tpls.filter((t) => catTab === 'all' || t.category === catTab).map((t) => (
+                <button key={t.id} onClick={() => pickTemplate(t)}
+                  className={`relative text-left p-2.5 rounded-lg border ${template === t.id ? 'border-accent bg-bg-soft' : 'border-line hover:border-line-strong'}`}>
+                  {t.aiPreset ? <span className="absolute top-1.5 right-1.5 text-[9px] px-1.5 py-0.5 rounded-full border border-line text-muted">AI</span> : null}
+                  <div className="text-[12px] font-semibold pr-7">{t.label}</div>
+                  <div className="text-[10px] text-muted leading-snug mt-0.5 line-clamp-2">{t.desc}</div>
                 </button>
               ))}
             </div>
