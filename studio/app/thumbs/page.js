@@ -277,6 +277,7 @@ export default function ThumbsPage() {
             {!videos ? (
               <div className="flex items-center gap-2 text-muted text-[12.5px] py-2"><Loader2 size={13} className="animate-spin" /> Loading videos…</div>
             ) : (
+              <>
               <div className="flex items-center gap-2 mb-2">
                 <button onClick={() => { setSelMode(!selMode); setSelected([]); }}
                   className={`text-[11.5px] px-2 py-1 rounded-lg border flex items-center gap-1.5 ${selMode ? 'border-accent text-ink' : 'border-line text-muted hover:border-line-strong'}`}>
@@ -311,6 +312,7 @@ export default function ThumbsPage() {
                 ))}
               </div>
               {bulkMsg ? <p className="text-[11.5px] mt-2" style={{ color: bulkMsg.ok ? 'var(--ok)' : 'var(--bad)' }}>{bulkMsg.text}</p> : null}
+              </>
             )}
           </div>
 
