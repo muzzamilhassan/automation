@@ -6,7 +6,9 @@
 //
 // Fallback: callers keep their local MUSIC_PRESETS if this returns null.
 import fs from 'node:fs';
+import path from 'node:path';
 import https from 'node:https';
+import http from 'node:http';
 
 const CACHE_DIR = '.music-cache';
 const CATALOG_URL = 'https://incompetech.com/music/royalty-free/pieces.json';
@@ -17,7 +19,7 @@ const BAD_FEELS = ['dark', 'somber', 'sad', 'horror', 'tense', 'eerie', 'scary',
 
 function httpsGet(url, maxBytes = 60 * 1024 * 1024) {
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
+    const req = (url.startsWith('http:') ? http : https).get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
       if (res.statusCode !== 200) {
         res.resume();
         return reject(new Error(`HTTP ${res.statusCode} for ${url}`));
@@ -82,8 +84,69 @@ function slugify(title) {
  *        match, one is chosen from that subset only (brand vibe matching)
  * @returns {null|{file:string, title:string, credit:string, feel:string}}
  */
+// ============================================================================
+// OWN-MUSIC LIBRARY (10-11) — self-produced tracks (ACE-Step, Apache 2.0),
+// stored as release assets on own-music-v1 + manifest. When the library is
+// populated, these tracks are ALWAYS picked before any third-party music;
+// credit line needs no attribution. Empty/missing library = zero behavior
+// change (MacLeod flow as before). Kill switch: OWN_MUSIC_DISABLE=1.
+const OWN_BASE = process.env.OWN_MUSIC_BASE || 'https://github.com/muzzamilhassan/automation/releases/download/own-music-v1';
+let _ownLib = undefined;
+async function ownLibrary() {
+  if (process.env.OWN_MUSIC_DISABLE) return null;
+  if (_ownLib !== undefined) return _ownLib;
+  try {
+    const m = JSON.parse((await httpsGet(`${OWN_BASE}/manifest.json`, 5 * 1024 * 1024)).toString());
+    _ownLib = (m.tracks || []).length ? m : null;
+  } catch { _ownLib = null; }
+  return _ownLib;
+}
+
+// brand feels -> library moods
+const OWN_MOOD_MAP = { calming: 'calm', calm: 'calm', mystical: 'calm', epic: 'epic', heroic: 'epic', inspir: 'epic', driving: 'driving', action: 'driving', grooving: 'driving', bright: 'bright', uplifting: 'bright', luxury: 'luxury', dark: 'dark', tense: 'dark' };
+
+async function pickOwnTrack(feels = []) {
+  const lib = await ownLibrary();
+  if (!lib) return null;
+  const moods = feels.map((f) => OWN_MOOD_MAP[f.toLowerCase()] || f.toLowerCase());
+  let pool = lib.tracks.filter((t) => !moods.length || moods.some((m) => (t.mood || '').toLowerCase().includes(m) || (t.tags || '').toLowerCase().includes(m)));
+  if (!pool.length) pool = lib.tracks;
+  if (!pool.length) return null;
+
+  const lastFile = `${CACHE_DIR}/own-last.json`;
+  let pick = pool[Math.floor(Math.random() * pool.length)];
+  try {
+    const last = JSON.parse(fs.readFileSync(lastFile, 'utf8'));
+    if (last.file === pick.file && pool.length > 1) {
+      pick = pool[(pool.indexOf(pick) + 1 + Math.floor(Math.random() * (pool.length - 1))) % pool.length];
+    }
+  } catch { }
+
+  const file = `${CACHE_DIR}/own-${path.basename(pick.file)}`;
+  if (!fs.existsSync(file) || fs.statSync(file).size < 200000) {
+    const buf = await httpsGet(`${OWN_BASE}/${pick.file}`);
+    fs.writeFileSync(file, buf);
+  }
+  const info = {
+    file,
+    title: String(pick.title || 'Quarry Original').trim(),
+    feel: pick.mood || '',
+    credit: `"${String(pick.title || 'Quarry Original').trim()}" — Quarry Studio Original (self-produced, royalty-free)`,
+  };
+  try { fs.writeFileSync(lastFile, JSON.stringify({ file: pick.file, at: Date.now() })); } catch { }
+  return info;
+}
+
 export async function pickMusicTrack(pageIndex = 0, opts = {}) {
   try {
+    const own = await pickOwnTrack((opts || {}).feels || []).catch((e) => {
+      console.warn(`      [music] own-library skip: ${e.message}`);
+      return null;
+    });
+    if (own) {
+      console.warn(`      [music] OWN track: ${own.title}`);
+      return own;
+    }
     let pool = await getCatalog();
     if (!pool.length) return null;
     const feels = (opts.feels || []).map((f) => f.toLowerCase());
@@ -143,6 +206,11 @@ export async function pickMusicTrack(pageIndex = 0, opts = {}) {
  */
 export async function pickApprovedTrack(titles) {
   try {
+    const own = await pickOwnTrack([]).catch(() => null);
+    if (own) {
+      console.warn(`      [music] OWN track (approved bypass): ${own.title}`);
+      return own;
+    }
     const want = new Set((titles || []).map((t) => t.trim().toLowerCase()));
     // RAW catalog — the approved pool bypasses the shorts feel-whitelist
     // (documentary picks are intentionally dark/tense, which GOOD_FEELS would exclude)
