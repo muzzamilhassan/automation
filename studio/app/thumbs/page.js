@@ -22,7 +22,7 @@ export default function ThumbsPage() {
   const [brand, setBrand] = useState('');
   const [videos, setVideos] = useState(null);
   const [video, setVideo] = useState(null); // {videoId,title}
-  const [template, setTemplate] = useState('clean');
+  const [template, setTemplate] = useState('poster');
   const [title, setTitle] = useState('');
   const [accentWord, setAccentWord] = useState('');
   const [chip, setChip] = useState('');
@@ -54,6 +54,8 @@ export default function ThumbsPage() {
   const [brandMsg, setBrandMsg] = useState(null);
   const [moreVariants, setMoreVariants] = useState([]); // [{image, accent}]
   const [moreBusy, setMoreBusy] = useState(false);
+  const [previewHint, setPreviewHint] = useState('');
+  const autoPhotoRef = useRef('');
   const [selMode, setSelMode] = useState(false);
   const [selected, setSelected] = useState([]);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -168,8 +170,13 @@ export default function ThumbsPage() {
     fetch('/api/thumbs/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(reqBody()) })
       .then(async (r) => {
         const d = await r.json();
-        if (!r.ok || d.error) { setPreviewErr(d.error || 'render failed'); setPreview(null); }
-        else setPreview(d);
+        if (!r.ok || d.error) {
+          if ((d.error || '').includes('needs a photo')) {
+            setPreviewErr('');
+            setPreview(null);
+            setPreviewHint('This template uses a photo — search one above, upload your own, or pick a no-photo template.');
+          } else { setPreviewErr(d.error || 'render failed'); setPreview(null); }
+        } else { setPreview(d); setPreviewHint(''); }
       })
       .catch((e) => { setPreviewErr(e.message); setPreview(null); })
       .finally(() => setPreviewing(false));
@@ -180,6 +187,29 @@ export default function ThumbsPage() {
     debounce.current = setTimeout(renderPreview, 650);
     return () => clearTimeout(debounce.current);
   }, [template, title, accentWord, accent, chip, eyebrow, shade, photoUrl, photoDataUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // FIX (audit 10-12): needs-photo templates auto-fetch a matching Pexels photo
+  // from the headline — the user should never see "needs a photo" as a first run.
+  const tplMeta = tpls.find((t) => t.id === template);
+  useEffect(() => {
+    if (!tplMeta?.needsPhoto || photoDataUrl || photoUrl || photos?.length) return;
+    if (!title.trim() || title.trim().split(/\s+/).length < 2) return;
+    const q = title.trim().split(/\s+/).slice(0, 4).join(' ');
+    const key = template + '|' + q.toLowerCase();
+    if (autoPhotoRef.current === key) return;
+    autoPhotoRef.current = key;
+    fetch(`/api/thumbs/photos?q=${encodeURIComponent(q)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.photos?.length) {
+          setPhotos(d.photos);
+          setPhotoUrl(d.photos[0].url);
+        } else {
+          setPreviewHint('This template uses a photo — search one above, upload your own, or switch to Bold Poster / Paper Doc (no photo needed).');
+        }
+      })
+      .catch(() => { });
+  }, [template, title, photoDataUrl, photoUrl, photos, tpls, tplMeta]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const searchPhotos = () => {
     if (!photoQuery.trim()) return;
@@ -481,6 +511,8 @@ export default function ThumbsPage() {
             <div className="text-[11px] uppercase tracking-wide text-muted mb-2">4 · Preview {previewing ? '· rendering…' : ''}</div>
             {previewErr ? (
               <p className="text-[12px]" style={{ color: 'var(--bad)' }}>{previewErr}</p>
+            ) : previewHint && !preview ? (
+              <p className="text-[12px] py-4 text-center" style={{ color: 'var(--muted)' }}>{previewHint}</p>
             ) : preview ? (
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}

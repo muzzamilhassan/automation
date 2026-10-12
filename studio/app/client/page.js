@@ -76,8 +76,8 @@ export default function ClientPage() {
                   <div className="px-5 pt-5 pb-4 flex items-center gap-2.5 border-b border-line">
                     <span className="w-2.5 h-2.5 rounded-full" style={{ background: c.accent }} />
                     <div className="font-semibold">{c.label}</div>
-                    <span className="ml-auto text-[10.5px] px-2 py-0.5 rounded-full border border-line flex items-center gap-1" style={{ color: c.flowPaused ? 'var(--warn)' : 'var(--ok)' }}>
-                      {c.flowPaused ? <><PauseCircle size={11} /> paused</> : <><BadgeCheck size={11} /> engine running</>}
+                    <span className="ml-auto text-[10.5px] px-2 py-0.5 rounded-full border border-line flex items-center gap-1" style={{ color: c.flowPaused ? 'var(--warn)' : (c.lastRun ? 'var(--ok)' : 'var(--muted)') }}>
+                      {c.flowPaused ? <><PauseCircle size={11} /> paused</> : (c.lastRun ? <><BadgeCheck size={11} /> engine running</> : <>standby — never run</>)}
                     </span>
                   </div>
                   <div className="px-5 py-4 grid grid-cols-3 gap-2">
@@ -187,6 +187,7 @@ function KeysInline({ slug }) {
               <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                 <input
                   type="password"
+                  autoComplete="new-password"
                   placeholder={v.set ? 'paste a new key to replace' : 'paste your key…'}
                   value={inputs[p] || ''}
                   onChange={(e) => setInputs((s) => ({ ...s, [p]: e.target.value }))}

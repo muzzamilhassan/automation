@@ -107,7 +107,7 @@ export default function Overview() {
         <StatCard delay={1} icon={Eye} label="YT views" value={totals.ytViews} fmt={fmt} delta={viewsDelta} spark={daily.map((d) => d.views)} color="var(--info)" iconBg="color-mix(in srgb, var(--info) 12%, transparent)" />
         <StatCard delay={2} icon={Film} label="Videos" value={totals.ytVideos} fmt={fmt} />
         <StatCard delay={3} icon={FacebookIcon} label="FB followers" value={totals.fbFollowers} fmt={fmt} color="#3b82f6" iconBg="color-mix(in srgb, #3b82f6 12%, transparent)" />
-        <StatCard delay={4} icon={InstagramIcon} label="IG followers" value={totals.igFollowers} fmt={fmt} color="#ec4899" iconBg="color-mix(in srgb, #ec4899 12%, transparent)" />
+        <StatCard delay={4} icon={InstagramIcon} label="IG followers" value={totals.igFollowers > 0 ? totals.igFollowers : null} fmt={fmt} color="#ec4899" iconBg="color-mix(in srgb, #ec4899 12%, transparent)" />
       </div>
 
       {/* chart + alerts */}

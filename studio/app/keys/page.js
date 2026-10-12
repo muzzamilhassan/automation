@@ -122,7 +122,7 @@ export default function KeysPage() {
                   value={inputs[p] || ''}
                   onChange={(e) => setInputs((s) => ({ ...s, [p]: e.target.value }))}
                   className="flex-1 min-w-[220px] text-[13px] px-3 py-2 rounded-lg border border-line bg-bg-soft"
-                  autoComplete="off"
+                  autoComplete="new-password"
                 />
                 <button
                   onClick={() => save(p)}

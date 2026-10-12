@@ -31,25 +31,11 @@ export const RETENTION_GOAL = 70;
 
 export const ALERTS = [
   {
-    level: 'warn',
-    title: 'Quote Quarry recovery — pause lifts tonight (Oct 8)',
-    body: 'QQ was paused Oct 5 for the feed-collapse recovery. The scheduled task re-enables it tonight (~23:30 PKT) and the 1/day clean test begins.',
-    when: 'Oct 5',
-    href: '/production',
-  },
-  {
     level: 'bad',
     title: 'Script brain still fragile',
     body: 'Groq 429 + Gemini 403 still cause ~1 channel/day to skip. Fix is planned — waiting for your go.',
     when: 'Sep 27',
     href: '/production',
-  },
-  {
-    level: 'warn',
-    title: 'Threads token expires ~Oct 29',
-    body: 'Refresh the token before that date or QQ reels stop posting.',
-    when: 'Sep 20',
-    href: '/social',
   },
   {
     level: 'info',

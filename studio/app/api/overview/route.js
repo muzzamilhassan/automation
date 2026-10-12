@@ -33,8 +33,11 @@ export async function GET(req) {
   // 10-08 CHANNEL FACTORY: wizard channels appear after the legacy brands
   try {
     const { registryChannels } = await import('../../../lib/channels-registry.js');
+    const seenLabels = new Set(channels.map((c) => (c.label || '').toLowerCase()));
     for (const e of await registryChannels()) {
       if (b[e.slug]) continue;
+      if (seenLabels.has((e.label || '').toLowerCase())) continue; // duplicate of a legacy brand (e.g. OLD MONEY CODE)
+      seenLabels.add((e.label || '').toLowerCase());
       const ytRow = yt.find((c) => c.slug === e.slug) || null;
       const s = st[e.slug] || {};
       channels.push({
