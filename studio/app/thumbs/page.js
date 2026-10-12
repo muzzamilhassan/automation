@@ -3,7 +3,7 @@
 // (title, accent word, chip, eyebrow, accent color, photo) → live preview at
 // full + mobile size with a legibility checklist → attach to the video.
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, Image as ImageIcon, Smartphone as Mobile, CheckCircle2, XCircle, Search, Upload, Wand2, Paperclip, Sparkles, FlaskConical, Trophy, BarChart3, Palette, Layers } from 'lucide-react';
+import { Loader2, Image as ImageIcon, Smartphone as Mobile, CheckCircle2, XCircle, Search, Upload, Wand2, Paperclip, Sparkles, FlaskConical, Trophy, BarChart3, Palette, Layers, Shuffle } from 'lucide-react';
 
 const CATS = [
   { id: 'all', label: 'All' },
@@ -52,6 +52,8 @@ export default function ThumbsPage() {
   const [perf, setPerf] = useState(null);
   const [branding, setBranding] = useState(null);
   const [brandMsg, setBrandMsg] = useState(null);
+  const [moreVariants, setMoreVariants] = useState([]); // [{image, accent}]
+  const [moreBusy, setMoreBusy] = useState(false);
   const [selMode, setSelMode] = useState(false);
   const [selected, setSelected] = useState([]);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -234,6 +236,35 @@ export default function ThumbsPage() {
     } finally {
       setAiBusy(false);
     }
+  };
+
+  const ACCENT_ALTS = ['#E8C15A', '#C1272D', '#3DDC97', '#5EEAD4', '#F4766F', '#D8FF3C', '#B8860B'];
+  const generateMore = async () => {
+    if (!title.trim()) { setAiMsg({ ok: false, text: 'type a headline first' }); return; }
+    setMoreBusy(true);
+    try {
+      const alts = ACCENT_ALTS.filter((a) => a.toLowerCase() !== accent.toLowerCase()).slice(0, 3);
+      const rendered = [];
+      for (const acc of alts) {
+        const r = await fetch('/api/thumbs/preview', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ template, title, accent: acc, accentWord, chip, eyebrow, shade, brand, photoDataUrl: photoDataUrl || undefined, photoUrl: !photoDataUrl && photoUrl ? photoUrl : undefined }),
+        });
+        const d = await r.json();
+        if (d.image) rendered.push({ image: d.image, accent: acc });
+      }
+      setMoreVariants(rendered);
+      if (!rendered.length) setAiMsg({ ok: false, text: 'could not render variations' });
+    } catch (e) {
+      setAiMsg({ ok: false, text: e.message });
+    } finally {
+      setMoreBusy(false);
+    }
+  };
+
+  const applyVariant = (v) => {
+    setAccent(v.accent);
+    setPreview((p) => (p ? { ...p, image: v.image } : p));
   };
 
   const loadTests = () => {
@@ -455,6 +486,21 @@ export default function ThumbsPage() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={preview.image} alt="thumbnail preview" className="w-full rounded-lg border border-line" />
                 <div className="mt-3 flex items-end gap-4">
+                  <button onClick={generateMore} disabled={moreBusy || !title.trim()}
+                    className="w-full mb-3 text-[12px] font-medium px-3 py-2 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-50 flex items-center justify-center gap-1.5">
+                    {moreBusy ? <Loader2 size={13} className="animate-spin" /> : <Shuffle size={13} />} Give me 3 more
+                  </button>
+                  {moreVariants.length ? (
+                    <div className="flex gap-2 mb-3">
+                      {moreVariants.map((v, i) => (
+                        <button key={i} onClick={() => applyVariant(v)} title={`use accent ${v.accent}`}
+                          className={`rounded-lg overflow-hidden border ${accent === v.accent ? 'border-accent' : 'border-line hover:border-line-strong'}`}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={v.image} alt={`variant ${i + 1}`} className="w-[88px]" />
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                   <div>
                     <div className="text-[10.5px] uppercase tracking-wide text-faint mb-1 flex items-center gap-1"><Mobile size={11} /> Mobile size</div>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
