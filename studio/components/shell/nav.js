@@ -14,6 +14,7 @@ import {
   UserCheck,
   KeyRound,
   Image as ImageIcon,
+  Users as UsersIcon,
 } from 'lucide-react';
 
 export const NAV = [
@@ -43,6 +44,7 @@ export const NAV = [
       { href: '/logs', label: 'Logs', icon: ScrollText, desc: 'Every post, newest first' },
       { href: '/tasks', label: 'Tasks', icon: SquareKanban, desc: 'Roadmap board' },
       { href: '/keys', label: 'API Keys', icon: KeyRound, desc: 'Per-channel provider keys' },
+      { href: '/users', label: 'Users', icon: UsersIcon, desc: 'Super admin — all user data' },
       { href: '/thumbs', label: 'Thumbnails', icon: ImageIcon, desc: 'Design, preview, attach' },
       { href: '/settings', label: 'Settings', icon: Settings, desc: 'Theme, engine, integrations' },
     ],
