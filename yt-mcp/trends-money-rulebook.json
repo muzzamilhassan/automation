@@ -1,78 +1,78 @@
 {
-  "at": 1791542703220,
+  "at": 1791803192959,
   "seed": "personal finance money habits",
   "hotKeywords": [
     "money",
+    "dave",
+    "ramsey",
     "habits",
-    "salary",
-    "mindset",
-    "personal",
     "finance",
-    "save",
-    "tips",
+    "show",
     "financial",
-    "shamani",
+    "more",
+    "live",
     "saving",
-    "more"
+    "real",
+    "everyone"
   ],
   "viralChannels": [
+    "Learn with Shaharier",
     "SUBBU FACTS",
     "ADV fashion & facts 1925",
-    "Ajay Inspiration",
+    "Finance with SKT",
     "Money Mechanics",
+    "The Ramsey Show",
     "Platypus Economics with Justin Wolfers",
-    "Rachel Cruze",
-    "Finance With Rohan",
-    "Thiru Telugu facts"
+    "Money Vs ME"
   ],
   "videos": [
     {
+      "title": "The Real Meaning of Financial Freedom",
+      "channel": "Learn with Shaharier",
+      "views": 523062,
+      "videoId": "0A12eHkZQoM"
+    },
+    {
       "title": "5 Money-Saving Habits Everyone Should Start Today  | Simple Ways to Save More Money",
       "channel": "SUBBU FACTS",
-      "views": 175343,
+      "views": 284667,
       "videoId": "qu6xcCdb4ps"
     },
     {
       "title": "7 Powerful Money-Saving Tips You Must Know | Smart Financial Habits | Telugu",
       "channel": "ADV fashion & facts 1925",
-      "views": 173599,
+      "views": 174141,
       "videoId": "r333SL38zcY"
-    },
-    {
-      "title": "7 Habits to Build Your Money Mindset | Money Mindset | Avadh Ojha x Raj Shamani ",
-      "channel": "Ajay Inspiration",
-      "views": 137059,
-      "videoId": "kVFCVSdKXpI"
     },
     {
       "title": "5 Simple Money-Saving Habits Everyone Should Follow  | Save More Money Every Day!",
       "channel": "SUBBU FACTS",
-      "views": 104693,
+      "views": 157893,
       "videoId": "ymN7gojbI8s"
+    },
+    {
+      "title": "अमीर बनने की 5 आदतें!🔥#elonmusk #fws #skt #shorts",
+      "channel": "Finance with SKT",
+      "views": 112186,
+      "videoId": "OEiAt-Zqd9M"
     },
     {
       "title": "9 Old Money Habits That Quietly Replace the Need to Show Off",
       "channel": "Money Mechanics",
-      "views": 91895,
+      "views": 104520,
       "videoId": "Cexez2OyhXw"
+    },
+    {
+      "title": "Your Money Habits Matter More Than Math | October 6, 2026",
+      "channel": "The Ramsey Show",
+      "views": 94844,
+      "videoId": "1kudHmi8-70"
     },
     {
       "title": "The Money Habits Too Many People Skip",
       "channel": "Platypus Economics with Justin Wolfers",
-      "views": 90663,
+      "views": 93225,
       "videoId": "NE9evhYa32g"
-    },
-    {
-      "title": "4 Money Habits For Couples",
-      "channel": "Rachel Cruze",
-      "views": 61228,
-      "videoId": "qnXAtyVhU44"
-    },
-    {
-      "title": "₹30,000 Salary: Spend It or Build Your Future?",
-      "channel": "Finance With Rohan",
-      "views": 52696,
-      "videoId": "4GbMxIBh6rQ"
     }
   ]
 }
