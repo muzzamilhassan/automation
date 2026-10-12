@@ -9,12 +9,12 @@
     "updatedBy": "muzzamilhassan302@gmail.com"
   },
   "money-rulebook": {
-    "accent": null,
-    "shade": null,
-    "chip": "",
+    "accent": "#C1272D",
+    "shade": "#120808",
+    "chip": "MONEY RULES",
     "eyebrow": "",
-    "template": null,
-    "updated": "2026-10-12T04:47:45.733Z",
+    "template": "poster",
+    "updated": "2026-10-12T04:48:07.005Z",
     "updatedBy": "muzzamilhassan302@gmail.com"
   }
 }
