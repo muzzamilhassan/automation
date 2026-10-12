@@ -1,6 +1,6 @@
 {
   "investors-compass": {
-    "lastRunDate": "2026-10-10",
+    "lastRunDate": "2026-10-12",
     "usedThemes": [
       "how the rich buy the crash",
       "the 90-year rule that beats day trading",
@@ -8,12 +8,12 @@
     ],
     "lastVideos": [
       {
-        "videoId": "qWEJWUYSz2k",
-        "publishAt": "2026-10-10T23:35:00Z",
-        "title": "The 17 Year Market Truth | Investing Psychology"
+        "videoId": "pGwUk88xEJw",
+        "publishAt": "2026-10-12T23:35:00Z",
+        "title": "Rule #1 Soros Never Breaks | Investing Psychology"
       }
     ],
-    "imageDate": "2026-10-11",
+    "imageDate": "2026-10-12",
     "deepdiveDate": "2026-09-07",
     "deepdiveVideo": {
       "videoId": "dOJgBHpJgwQ",
@@ -46,12 +46,13 @@
       "부자들의 서재에서 찾은 '투자 심리학'",
       "Position sizing is discipline before the trade begins #TradingPsychology #TradingMindset #SoulNGoal",
       "Protect your downside so your upside has time to work #TradingPsychology #TradingMindset #SoulNGoal",
-      "Hardest chart to master is the one inside your head #TradingPsychology #TradingMindset #SoulNGoal"
+      "Hardest chart to master is the one inside your head #TradingPsychology #TradingMindset #SoulNGoal",
+      "boom-bust processes always defeat themselves - george soros"
     ],
     "todayTopics": [
       {
-        "at": "2026-10-10",
-        "topic": "Hardest chart to master is the one inside your head #TradingPsychology #TradingMindset #SoulNGoal"
+        "at": "2026-10-12",
+        "topic": "boom-bust processes always defeat themselves - george soros"
       }
     ],
     "titleHistory": [
@@ -62,6 +63,10 @@
       {
         "t": "The 17 Year Market Truth | Investing Psychology",
         "at": "2026-10-10T23:35:00Z"
+      },
+      {
+        "t": "Rule #1 Soros Never Breaks | Investing Psychology",
+        "at": "2026-10-12T23:35:00Z"
       }
     ]
   },
