@@ -1,0 +1,96 @@
+name: hyperframes-create
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: 'Unique job id (slug-safe)'
+        required: true
+      brief_b64:
+        description: 'Base64-encoded brief JSON'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hyperframes-create
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: Decode brief
+        working-directory: hyperframes
+        run: |
+          mkdir -p "work/${{ inputs.job_id }}"
+          echo "${{ inputs.brief_b64 }}" | base64 -d > "work/${{ inputs.job_id }}/brief.json"
+          python3 -c "import json;json.load(open('work/${{ inputs.job_id }}/brief.json'))" && echo "brief JSON valid"
+
+      - name: Generate video (script -> design brain -> check gate -> render -> frame validation)
+        working-directory: hyperframes
+        run: node generate.mjs "work/${{ inputs.job_id }}/brief.json"
+
+      - name: Locate output
+        id: out
+        working-directory: hyperframes/work/${{ inputs.job_id }}
+        run: |
+          MP4=$(ls gen/renders/*.mp4 fallback/renders/*.mp4 2>/dev/null | head -1)
+          echo "mp4=$MP4" >> "$GITHUB_OUTPUT"
+          echo "rendered: $MP4"
+
+      - name: Publish result to hf-out/
+        working-directory: hyperframes/work/${{ inputs.job_id }}
+        run: |
+          ID="${{ inputs.job_id }}"
+          mkdir -p "../../hf-out/$ID"
+          cp "${{ steps.out.outputs.mp4 }}" "../../hf-out/$ID/video.mp4"
+          ffmpeg -y -v quiet -ss 1.2 -i "../../hf-out/$ID/video.mp4" -frames:v 1 -vf scale=360:-1 "../../hf-out/$ID/frame-a.jpg"
+          ffmpeg -y -v quiet -ss 8 -i "../../hf-out/$ID/video.mp4" -frames:v 1 -vf scale=360:-1 "../../hf-out/$ID/frame-b.jpg" || true
+          python3 - "$ID" <<'PY'
+          import json, sys, os, datetime
+          vid = sys.argv[1]
+          brief = json.load(open(f'work/{vid}/brief.json')) if os.path.exists(f'work/{vid}/brief.json') else {}
+          dur = json.load(open(f'work/{vid}/voice/durations.json'))['total'] if os.path.exists(f'work/{vid}/voice/durations.json') else 0
+          json.dump({
+            'id': vid, 'state': 'done', 'topic': brief.get('topic',''), 'dna': brief.get('dna',''),
+            'brand': brief.get('brand',''), 'durationSec': round(dur,1),
+            'finishedAt': datetime.datetime.utcnow().isoformat() + 'Z',
+          }, open(f'../../hf-out/{vid}/status.json','w'), indent=1)
+          PY
+          cd ../..
+          git config user.name "quarry-bot"
+          git config user.email "bot@quarry.studio"
+          git add "hf-out/$ID"
+          git pull --rebase --autostash || true
+          git commit -m "hf-out: $ID rendered" || echo "nothing to commit"
+          git push || (git pull --rebase --autostash && git push)
+
+      - name: Mark failed (if generate step failed)
+        if: failure()
+        working-directory: .
+        run: |
+          ID="${{ inputs.job_id }}"
+          mkdir -p "hf-out/$ID"
+          python3 - "$ID" <<'PY'
+          import json, sys, datetime
+          json.dump({'id': sys.argv[1], 'state': 'failed', 'finishedAt': datetime.datetime.utcnow().isoformat() + 'Z'},
+                    open(f'hf-out/{sys.argv[1]}/status.json','w'), indent=1)
+          PY
+          git config user.name "quarry-bot"
+          git config user.email "bot@quarry.studio"
+          git add "hf-out/$ID"
+          git pull --rebase --autostash || true
+          git commit -m "hf-out: $ID FAILED" || echo "nothing to commit"
+          git push || (git pull --rebase --autostash && git push)

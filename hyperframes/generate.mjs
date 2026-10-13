@@ -36,10 +36,35 @@ const GAP = 0.55;
 const work = path.join(HF_DIR, 'work', slug);
 fs.rmSync(work, { recursive: true, force: true });
 fs.mkdirSync(path.join(work, 'voice'), { recursive: true });
-console.log(`[hf] ${slug} — dna=${dnaName} ${W}x${H}, ${brief.beats.length} beats`);
+console.log(`[hf] ${slug} — dna=${dnaName} ${W}x${H}, ${brief.beats?.length || 0} beats`);
+
+// ---------- 0. auto-script: topic -> beats (when the brief has no beats) ----------
+if (!Array.isArray(brief.beats) || brief.beats.length === 0) {
+  const n = brief.beatCount || 5;
+  console.log(`[hf] no beats in brief — writing script from topic "${brief.topic}" (${n} beats)`);
+  const sp = `You write voiceover scripts for premium vertical shorts (YouTube Shorts, 9:16).
+Topic: "${brief.topic}". Brand: "${brief.brand}" (${brief.brandStyle || dna.label} style). Audience: US.
+Write EXACTLY ${n} beats. Rules:
+- Beat 1 is the HOOK: 6-12 words, curiosity gap, no greetings, no "in this video".
+- Middle beats deliver one concrete idea each, 8-16 words, spoken style, escalating.
+- Final beat lands the payoff and can end with a short punch line.
+- NO hashtags, NO emojis, NO stage directions. Plain sentences only.
+Return ONLY valid JSON: {"beats":[{"text":"...","em":"one word from text to accent"}]}
+The "em" word MUST appear in that beat's text.`;
+  let parsed = null;
+  for (const attempt of [1, 2, 3]) {
+    const out = await designBrain(sp + (attempt > 1 ? '\nReturn the raw JSON only.' : ''), attempt);
+    const m = out && (out.match(/\{[\s\S]*\}/) || [])[0];
+    if (m) { try { parsed = JSON.parse(m); if (Array.isArray(parsed.beats) && parsed.beats.length >= 3) break; } catch { } }
+    parsed = null;
+  }
+  if (!parsed) { console.error('[hf] auto-script failed — provide beats in the brief'); process.exit(1); }
+  brief.beats = parsed.beats.slice(0, n).map((b) => ({ text: String(b.text || '').trim(), em: String(b.em || '').trim() }));
+  console.log(`[hf] script written: ${brief.beats.map((b) => `"${b.text.slice(0, 32)}"`).join(' | ')}`);
+}
+const beats = brief.beats.map((b, i) => ({ ...b, i }));
 
 // ---------- 1. TTS ----------
-const beats = brief.beats.map((b, i) => ({ ...b, i }));
 let t = 0;
 for (const b of beats) {
   const mp3 = path.join(work, 'voice', `beat-${String(b.i).padStart(2, '0')}.mp3`);
