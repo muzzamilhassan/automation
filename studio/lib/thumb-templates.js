@@ -165,6 +165,28 @@ const DEFS = `
   <clipPath id="photoOval"><ellipse cx="310" cy="360" rx="280" ry="300"/></clipPath>
   <clipPath id="frameClip"><rect x="0" y="0" width="1280" height="720"/></clipPath>
   <clipPath id="glassClip"><rect x="70" y="300" width="1140" height="420" rx="18"/></clipPath>
+  <!-- premium gradients + filters -->
+  <linearGradient id="panelGrad" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#0A0E1A"/>
+    <stop offset="0.45" stop-color="#0C1224"/>
+    <stop offset="0.75" stop-color="#0E0C1E"/>
+    <stop offset="1" stop-color="#080610"/>
+  </linearGradient>
+  <linearGradient id="gradeOverlay" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#0A3A4A" stop-opacity="0.18"/>
+    <stop offset="0.5" stop-color="#000" stop-opacity="0"/>
+    <stop offset="1" stop-color="#4A2808" stop-opacity="0.22"/>
+  </linearGradient>
+  <radialGradient id="photoVignette" cx="0.5" cy="0.45" r="0.85">
+    <stop offset="0.5" stop-color="#000" stop-opacity="0"/>
+    <stop offset="1" stop-color="#000" stop-opacity="0.55"/>
+  </radialGradient>
+  <filter id="textBlur" x="-20%" y="-20%" width="140%" height="140%">
+    <feGaussianBlur stdDeviation="5"/>
+  </filter>
+  <filter id="glowBlur" x="-50%" y="-50%" width="200%" height="200%">
+    <feGaussianBlur stdDeviation="18"/>
+  </filter>
 </defs>`;
 
 // ---- renderers ----
@@ -193,23 +215,54 @@ function rPoster(o) {
   const { lines, size } = fitLines(f, o.title, 140, 468, 72);
   const lineH = size + 10;
   const startY = 720 - 96 - (lines.length - 1) * lineH;
+
+  // text: soft blurred shadow (same shape, offset, blurred) then crisp fill
   const linesEls = lines.map((l, i) => {
-    const shadow = f.getPath(l, 60, startY + i * lineH + 6, size).toPathData(1);
-    const main = accentLinePath(f, l.split(' '), 56, startY + i * lineH, size, '#F5F2E8', o.accent, o.accentWord);
-    return `<path d="${shadow}" fill="#000" opacity="0.5" filter="url(#softShadow)"/>${main}`;
+    const shadow = f.getPath(l, 62, startY + i * lineH + 7, size).toPathData(1);
+    const main = accentLinePath(f, l.split(' '), 58, startY + i * lineH, size, '#F5F2E8', o.accent, o.accentWord);
+    return `<path d="${shadow}" fill="#000" opacity="0.6" filter="url(#textBlur)"/>${main}`;
   }).join('');
+
+  // eyebrow: small, tracked, above headline
+  const os500 = font('oswald500');
+  const eyebrowEl = o.eyebrow
+    ? `<path d="${linePath(os500, o.eyebrow.toUpperCase(), 58, startY - size - 28, 20, 8).d}" fill="${o.accent}" opacity="0.85"/>`
+    : '';
+
+  // brand: bottom right on the photo, small
+  const i800 = font('inter800');
+  const brandEl = o.brand
+    ? `<path d="${linePath(i800, o.brand.toUpperCase(), 1224 - adv(i800, o.brand.toUpperCase(), 18, 3), 678, 18, 3).d}" fill="#FFF" opacity="0.75"/>`
+    : '';
+
   return `
+    <!-- photo side with cinematic grade -->
     ${o.photoHref
-    ? `<image href="${o.photoHref}" x="560" y="0" width="720" height="720" preserveAspectRatio="xMidYMid slice"/>
-       <rect x="560" y="0" width="720" height="720" fill="#000" opacity="0.18"/>`
-    : `<rect x="560" y="0" width="720" height="720" fill="${o.shade}"/>`}
-    <rect x="0" y="0" width="560" height="720" fill="${o.shade}"/>
-    <rect x="554" y="0" width="6" height="720" fill="${o.accent}"/>
+    ? `<image href="${o.photoHref}" x="540" y="0" width="740" height="720" preserveAspectRatio="xMidYMid slice"/>
+       <!-- teal-orange grade: push shadows cool, highlights warm -->
+       <rect x="540" y="0" width="740" height="720" fill="url(#gradeOverlay)"/>
+       <!-- vignette on photo edges -->
+       <rect x="540" y="0" width="740" height="720" fill="url(#photoVignette)"/>`
+    : `<rect x="540" y="0" width="740" height="720" fill="${o.shade}"/>`}
+
+    <!-- panel side: layered gradient for depth, not flat -->
+    <rect x="0" y="0" width="560" height="720" fill="url(#panelGrad)"/>
+    <!-- subtle accent glow at the panel-photo seam -->
+    <rect x="548" y="0" width="18" height="720" fill="${o.accent}" opacity="0.15" filter="url(#glowBlur)"/>
+    <rect x="556" y="0" width="3" height="720" fill="${o.accent}"/>
+
+    <!-- chip -->
     ${chipEl(o.chip, 56, 56, o.accent)}
-    ${o.eyebrow ? `<path d="${linePath(font('oswald500'), o.eyebrow.toUpperCase(), 56, startY - size - 24, 22, 7).d}" fill="#FFF" opacity="0.9"/>` : ''}
+
+    ${eyebrowEl}
     ${linesEls}
-    ${o.brand ? `<path d="${linePath(font('inter800'), o.brand.toUpperCase(), 1224 - adv(font('inter800'), o.brand.toUpperCase(), 20, 4), 676, 20, 4).d}" fill="#FFF" opacity="0.85"/>
-    <rect x="56" y="${720 - 48}" width="26" height="4" fill="${o.accent}"/>` : ''}`;
+
+    <!-- thin accent tick instead of thick bar -->
+    <rect x="58" y="${720 - 52}" width="32" height="3" fill="${o.accent}" opacity="0.8"/>
+    ${brandEl}
+
+    <!-- film grain over everything -->
+    <rect width="1280" height="720" fill="url(#filmGrain)" opacity="0.04"/>`;
 }
 
 function rPaper(o) {
