@@ -29,7 +29,10 @@ export const NAV = [
   {
     group: 'Network',
     items: [
-      { href: '/channels', label: 'Channels', icon: Tv, desc: '16 brands, 4 live' },  {
+      { href: '/channels', label: 'Channels', icon: Tv, desc: '16 brands, 4 live' },
+    ],
+  },
+  {
     group: 'System',
     items: [
       { href: '/logs', label: 'Logs', icon: ScrollText, desc: 'Every post, newest first' },
