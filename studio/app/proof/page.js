@@ -26,7 +26,7 @@ export default function ProofPage() {
         </div>
 
         <h1 className="font-[family-name:var(--font-display)] text-4xl md:text-5xl font-bold tracking-tight leading-[1.05]">
-          The machine behind{' '}<br />the channels.
+          The machine behind<br />the channels.
         </h1>
         <p className="mt-4 text-[15px] text-muted max-w-xl leading-relaxed">
           Quarry Studio runs faceless YouTube channels on autopilot — research, scripts, voice,

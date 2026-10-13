@@ -60,10 +60,15 @@ export async function GET(req) {
       });
     }
   } catch { }
+  // PRODUCTION FILTER: only show channels that are actively producing
+  // (have YouTube data + recent run). Dormant/parked channels are hidden
+  // from the default view — they clutter the dashboard and look unfinished.
+  const producing = channels.filter((c) => c.yt && !c.yt.error && (c.yt.subs > 0 || c.yt.views > 0));
+
   // 10-08 P2 CLIENT ROLE: clients see only their own channels
   const user = await getUser(req).catch(() => null);
   const owned = user ? await slugsForUser(user).catch(() => null) : null;
-  const visible = owned ? channels.filter((c) => owned.includes(c.slug)) : channels;
+  const visible = owned ? producing.filter((c) => owned.includes(c.slug)) : producing;
   const visibleLogs = owned ? logs.filter((l) => owned.includes(l.slug)) : logs;
 
   const totals = {
@@ -76,7 +81,7 @@ export async function GET(req) {
   const trends = {};
   for (const c of visible) {
     const t = await trend(c.slug);
-    if (t) trends[c.slug] = { keywords: t.hotKeywords.slice(0, 8), viral: t.videos.slice(0, 3) };
+    if (t) trends[c.slug] = { keywords: (t.hotKeywords || []).slice(0, 8), viral: (t.videos || []).slice(0, 3) };
   }
   return Response.json({ channels: visible, totals, logs: visibleLogs.slice(0, 40), trends, mode: MODE });
 }
