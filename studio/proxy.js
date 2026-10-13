@@ -55,6 +55,7 @@ export default async function proxy(req) {
     // owner + staff — the engine room (clients live on Topics/Analytics/Channels)
     { match: (p) => p === '/production' || p === '/api/action' || p === '/music' || p === '/social' || p.startsWith('/api/audit'), roles: ['owner', 'staff'] },
     { match: (p) => p === '/keys', roles: ['owner', 'staff'] },
+    { match: (p) => p === '/create' || p.startsWith('/api/create-video'), roles: ['owner', 'staff'] },
     { match: (p) => p === '/thumbs' || p.startsWith('/api/thumbs/'), roles: ['owner', 'staff', 'client'] },
     // clients join the Topic Desk for their own channels (server checks ownership)
     { match: (p) => p === '/topics' || p.startsWith('/api/topics') || p === '/api/channels/flow' || p === '/api/channels/keys', roles: ['owner', 'staff', 'client'] },

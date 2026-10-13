@@ -12,6 +12,7 @@ import {
   KeyRound,
   Image as ImageIcon,
   Users as UsersIcon,
+  Sparkles,
 } from 'lucide-react';
 
 export const NAV = [
@@ -24,6 +25,7 @@ export const NAV = [
       { href: '/analytics', label: 'Analytics', icon: TrendingUp, desc: 'Retention, growth, SEO' },
       { href: '/topics', label: 'Topic Desk', icon: ListChecks, desc: 'Approve what gets made' },
       { href: '/client', label: 'Client View', icon: UserCheck, desc: 'DFY client workspace' },
+      { href: '/create', label: 'Create Video', icon: Sparkles, desc: 'AI-designed vertical shorts' },
     ],
   },
   {

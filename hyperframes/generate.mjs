@@ -7,7 +7,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DNAS, dnaPrompt } from './dna.mjs';
+import { DNAS, dnaPrompt, GENRES, genrePrompt } from './dna.mjs';
 
 // load repo .env (keys stay out of code)
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -29,6 +29,7 @@ const slug = brief.slug || path.basename(briefPath, '.json');
 const dnaName = brief.dna || 'luxury';
 const dna = DNAS[dnaName];
 if (!dna) { console.error('unknown dna ' + dnaName); process.exit(1); }
+const genreName = GENRES[brief.genre] ? brief.genre : 'documentary';
 const W = brief.width || 1080, H = brief.height || 1920;
 const VOICE = brief.voice || 'en-US-AndrewNeural';
 const GAP = 0.55;
@@ -44,6 +45,7 @@ if (!Array.isArray(brief.beats) || brief.beats.length === 0) {
   console.log(`[hf] no beats in brief — writing script from topic "${brief.topic}" (${n} beats)`);
   const sp = `You write voiceover scripts for premium vertical shorts (YouTube Shorts, 9:16).
 Topic: "${brief.topic}". Brand: "${brief.brand}" (${brief.brandStyle || dna.label} style). Audience: US.
+Genre: ${genreName} (${GENRES[genreName].name}).
 Write EXACTLY ${n} beats. Rules:
 - Beat 1 is the HOOK: 6-12 words, curiosity gap, no greetings, no "in this video".
 - Middle beats deliver one concrete idea each, 8-16 words, spoken style, escalating.
@@ -106,6 +108,8 @@ HARD ENGINE CONTRACT (violations fail the build):
 const prompt = `${contract}
 
 ${dnaPrompt(dnaName)}
+
+${genrePrompt(genreName)}
 
 CONTENT — topic: "${brief.topic}" | brand: "${brief.brand}" | kicker label: "${brief.kicker || ''}"
 Word-level beats (voiceover audio already exists at these EXACT times — design to them):

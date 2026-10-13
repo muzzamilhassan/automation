@@ -71,3 +71,32 @@ export function dnaPrompt(name) {
     `- Feel rules: ${d.rules}`,
   ].join('\n');
 }
+
+// ---------- Genre packs: STRUCTURE rules (DNA owns the look, genre owns the shape) ----------
+export const GENRES = {
+  documentary: {
+    name: 'Documentary',
+    prompt: 'STRUCTURE — documentary narrative: hook → escalating reveals → payoff. Beats flow as one story; tension rises to the last beat.',
+  },
+  listicle: {
+    name: 'Listicle',
+    prompt: 'STRUCTURE — ranked list: the design MUST show a big index number card (1, 2, 3…) synced to each beat\'s start, with the item text beside or below it. Number styling is a first-class design element.',
+  },
+  tutorial: {
+    name: 'Tutorial',
+    prompt: 'STRUCTURE — step-by-step teaching: each beat = one visible STEP (label "STEP 1", "STEP 2"… plus progress dots showing position in the total). Final beat shows the result/payoff.',
+  },
+  news: {
+    name: 'News Recap',
+    prompt: 'STRUCTURE — newsroom recap: first beat gets a date/BREAKING stamp treatment; each following beat is one headline card. Factual tone, present tense, tight layout.',
+  },
+  fun: {
+    name: 'Fun / Social',
+    prompt: 'STRUCTURE — fast entertainment: short punchy beats, comedic rhythm, exaggerated motion personality (snappier eases, bounce on landings). Captions carry the joke.',
+  },
+};
+
+export function genrePrompt(name) {
+  const g = GENRES[name];
+  return g ? g.prompt : GENRES.documentary.prompt;
+}
