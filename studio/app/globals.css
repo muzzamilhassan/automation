@@ -487,3 +487,7 @@ table.data tbody tr:hover {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------- Untitled UI token system (MIT, untitleduico/react) ---------- */
+@import "../components/untitledui/theme.css";
+@import "../components/untitledui/typography.css";

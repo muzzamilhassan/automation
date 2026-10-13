@@ -3,12 +3,14 @@
 // topic + style -> CI renders a bespoke-designed vertical short -> watch inline.
 import { useCallback, useEffect, useState } from 'react';
 import { Sparkles, Loader2, PlayCircle, RefreshCw, CircleDot, CheckCircle2, XCircle, Download } from 'lucide-react';
+import { Button } from '@/components/untitledui/base/buttons/button';
+import { Badge, BadgeWithIcon } from '@/components/untitledui/base/badges/badges';
 
-const STATE_ICON = {
-  queued: <CircleDot className="w-4 h-4 text-amber-400" />,
-  done: <CheckCircle2 className="w-4 h-4 text-emerald-400" />,
-  failed: <XCircle className="w-4 h-4 text-rose-400" />,
-  unknown: <CircleDot className="w-4 h-4 text-zinc-500" />,
+const STATE_BADGE = {
+  queued: { color: 'warning', children: 'Rendering on CI…' },
+  done: { color: 'success', children: 'Ready' },
+  failed: { color: 'error', children: 'Failed' },
+  unknown: { color: 'gray', children: 'In progress…' },
 };
 const STATE_LABEL = { queued: 'Rendering on CI…', done: 'Ready', failed: 'Failed', unknown: 'In progress…' };
 
@@ -122,11 +124,9 @@ export default function CreatePage() {
         {err && <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{err}</div>}
         {okMsg && <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{okMsg}</div>}
 
-        <button type="submit" disabled={busy}
-          className="inline-flex items-center gap-2 rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-400 disabled:opacity-50">
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+        <Button type="submit" color="primary" isDisabled={busy} iconLeading={busy ? <Loader2 className="animate-spin" /> : <Sparkles />}>
           {busy ? 'Queueing…' : 'Generate video'}
-        </button>
+        </Button>
         {!meta?.gh && <div className="text-xs text-amber-400">⚠ No GITHUB_TOKEN on the server — queueing is disabled.</div>}
       </form>
 
@@ -161,7 +161,7 @@ export default function CreatePage() {
             )}
             <div className="flex items-center justify-between gap-2 px-4 py-3">
               <div className="min-w-0">
-                <div className="flex items-center gap-1.5 text-sm text-zinc-200">{STATE_ICON[j.state] || STATE_ICON.unknown}<span className="truncate">{j.topic || j.id}</span></div>
+                <div className="flex items-center gap-2 text-sm text-zinc-200"><Badge color={(STATE_BADGE[j.state] || STATE_BADGE.unknown).color} size="sm">{(STATE_BADGE[j.state] || STATE_BADGE.unknown).children}</Badge><span className="truncate">{j.topic || j.id}</span></div>
                 <div className="mt-0.5 text-[11px] text-zinc-500">{j.brand} · {j.dna}{j.durationSec ? ` · ${j.durationSec}s` : ''}</div>
               </div>
               {j.state === 'done' && j.videoUrl && (
