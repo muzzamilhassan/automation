@@ -17,9 +17,14 @@ const MP3_BASE = 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/';
 const GOOD_FEELS = ['epic', 'uplifting', 'driving', 'action', 'bright', 'grooving', 'calming', 'heroic', 'inspir', 'mystical'];
 const BAD_FEELS = ['dark', 'somber', 'sad', 'horror', 'tense', 'eerie', 'scary', 'ominous', 'creepy'];
 
-function httpsGet(url, maxBytes = 60 * 1024 * 1024) {
+function httpsGet(url, maxBytes = 60 * 1024 * 1024, _depth = 0) {
   return new Promise((resolve, reject) => {
+    if (_depth > 5) return reject(new Error('too many redirects'));
     const req = (url.startsWith('http:') ? http : https).get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume();
+        return resolve(httpsGet(res.headers.location, maxBytes, _depth + 1));
+      }
       if (res.statusCode !== 200) {
         res.resume();
         return reject(new Error(`HTTP ${res.statusCode} for ${url}`));
