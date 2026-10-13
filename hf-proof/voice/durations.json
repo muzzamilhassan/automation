@@ -1,0 +1,23 @@
+{
+ "beats": [
+  {
+   "i": 0,
+   "text": "The rich don't work for money.",
+   "start": 0.0,
+   "dur": 1.824
+  },
+  {
+   "i": 1,
+   "text": "They buy time, and time buys everything else.",
+   "start": 2.374,
+   "dur": 3.048
+  },
+  {
+   "i": 2,
+   "text": "One rule. No noise. Just quiet, compounding wealth.",
+   "start": 5.972,
+   "dur": 4.416
+  }
+ ],
+ "total": 10.938
+}
