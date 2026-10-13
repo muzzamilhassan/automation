@@ -60,22 +60,23 @@ jobs:
         working-directory: hyperframes/work/${{ inputs.job_id }}
         run: |
           ID="${{ inputs.job_id }}"
-          mkdir -p "../../hf-out/$ID"
-          cp "${{ steps.out.outputs.mp4 }}" "../../hf-out/$ID/video.mp4"
-          ffmpeg -y -v quiet -ss 1.2 -i "../../hf-out/$ID/video.mp4" -frames:v 1 -vf scale=360:-1 "../../hf-out/$ID/frame-a.jpg"
-          ffmpeg -y -v quiet -ss 8 -i "../../hf-out/$ID/video.mp4" -frames:v 1 -vf scale=360:-1 "../../hf-out/$ID/frame-b.jpg" || true
+          ROOT="$GITHUB_WORKSPACE"
+          mkdir -p "$ROOT/hf-out/$ID"
+          cp "${{ steps.out.outputs.mp4 }}" "$ROOT/hf-out/$ID/video.mp4"
+          ffmpeg -y -v quiet -ss 1.2 -i "$ROOT/hf-out/$ID/video.mp4" -frames:v 1 -vf scale=360:-1 "$ROOT/hf-out/$ID/frame-a.jpg"
+          ffmpeg -y -v quiet -ss 8 -i "$ROOT/hf-out/$ID/video.mp4" -frames:v 1 -vf scale=360:-1 "$ROOT/hf-out/$ID/frame-b.jpg" || true
           python3 - "$ID" <<'PY'
           import json, sys, os, datetime
           vid = sys.argv[1]
-          brief = json.load(open(f'work/{vid}/brief.json')) if os.path.exists(f'work/{vid}/brief.json') else {}
-          dur = json.load(open(f'work/{vid}/voice/durations.json'))['total'] if os.path.exists(f'work/{vid}/voice/durations.json') else 0
+          brief = json.load(open(f'brief.json')) if os.path.exists('brief.json') else {}
+          dur = json.load(open('voice/durations.json'))['total'] if os.path.exists('voice/durations.json') else 0
           json.dump({
             'id': vid, 'state': 'done', 'topic': brief.get('topic',''), 'dna': brief.get('dna',''),
             'brand': brief.get('brand',''), 'durationSec': round(dur,1),
             'finishedAt': datetime.datetime.utcnow().isoformat() + 'Z',
-          }, open(f'../../hf-out/{vid}/status.json','w'), indent=1)
+          }, open(os.path.join(os.environ['GITHUB_WORKSPACE'], f'hf-out/{vid}/status.json'),'w'), indent=1)
           PY
-          cd ../..
+          cd "$ROOT"
           git config user.name "quarry-bot"
           git config user.email "bot@quarry.studio"
           git add "hf-out/$ID"
