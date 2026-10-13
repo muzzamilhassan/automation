@@ -200,9 +200,11 @@ function rClean(o) {
     const x = 640 - adv(f, l, size) / 2;
     const shadow = f.getPath(l, x + 4, startY + i * lineH + 6, size).toPathData(1);
     const main = accentLinePath(f, l.split(' '), x, startY + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
-    return `<path d="${shadow}" fill="#000" opacity="0.5" filter="url(#softShadow)"/>${main}`;
+    return `<path d="${shadow}" fill="#000" opacity="0.5" filter="url(#textBlur)"/>${main}`;
   }).join('');
   return `${bgOrFill(o, '#101014')}
+    <rect width="1280" height="720" fill="url(#gradeOverlay)"/>
+    ${vignetteEl(0.35)}
     ${scrimEl(330)}
     ${chipEl(o.chip, 56, 48, o.accent)}
     ${o.eyebrow ? (() => { const os = font('oswald500'); const e = o.eyebrow.toUpperCase(); return `<path d="${linePath(os, e, 640 - adv(os, e, 24, 8) / 2, startY - size - 26, 24, 8).d}" fill="#FFF" opacity="0.92"/>`; })() : ''}
