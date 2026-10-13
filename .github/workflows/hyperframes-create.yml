@@ -34,9 +34,8 @@ jobs:
       - name: Decode brief
         working-directory: hyperframes
         run: |
-          mkdir -p "work/${{ inputs.job_id }}"
-          echo "${{ inputs.brief_b64 }}" | base64 -d > "work/${{ inputs.job_id }}/brief.json"
-          python3 -c "import json;json.load(open('work/${{ inputs.job_id }}/brief.json'))" && echo "brief JSON valid"
+          echo "${{ inputs.brief_b64 }}" | base64 -d > "work/${{ inputs.job_id }}.brief.json"
+          python3 -c "import json;json.load(open('work/${{ inputs.job_id }}.brief.json'))" && echo "brief JSON valid"
 
       - name: Generate video (script -> design brain -> check gate -> render -> frame validation)
         working-directory: hyperframes
@@ -46,7 +45,7 @@ jobs:
           CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: node generate.mjs "work/${{ inputs.job_id }}/brief.json"
+        run: node generate.mjs "work/${{ inputs.job_id }}.brief.json"
 
       - name: Locate output
         id: out
@@ -68,8 +67,10 @@ jobs:
           python3 - "$ID" <<'PY'
           import json, sys, os, datetime
           vid = sys.argv[1]
-          brief = json.load(open(f'brief.json')) if os.path.exists('brief.json') else {}
-          dur = json.load(open('voice/durations.json'))['total'] if os.path.exists('voice/durations.json') else 0
+          bp = os.path.join(os.environ['GITHUB_WORKSPACE'], f'hyperframes/work/{vid}.brief.json')
+          brief = json.load(open(bp)) if os.path.exists(bp) else {}
+          dp = f'voice/durations.json'
+          dur = json.load(open(dp))['total'] if os.path.exists(dp) else 0
           json.dump({
             'id': vid, 'state': 'done', 'topic': brief.get('topic',''), 'dna': brief.get('dna',''),
             'brand': brief.get('brand',''), 'durationSec': round(dur,1),
