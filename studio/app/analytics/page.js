@@ -19,6 +19,7 @@ import { Card, CardHead, Chip, PageHeader, PageSkeleton, StatCard, BrandMark, Se
 import { RetentionBars, MiniBars } from '@/components/charts';
 import { RETENTION, RETENTION_GOAL, BRAND_META } from '@/lib/site-data';
 import { fmt } from '@/lib/utils';
+import { Button } from '@/components/untitledui/base/buttons/button';
 
 export default function Analytics() {
   const [data, setData] = useState(null);
@@ -109,9 +110,7 @@ export default function Analytics() {
           value={sel}
           onChange={setSel}
         />
-        <button className="btn btn-outline" onClick={() => load(true)} title="Force-refresh from YouTube (bypasses the 1-hour cache)">
-          <RefreshCw size={14} /> Refresh
-        </button>
+        <Button color="secondary" onClick={() => load(true)} iconLeading={<RefreshCw size={16} />}>Refresh</Button>
         {selChannel ? (
           <span className="flex items-center gap-2 text-[12px] text-muted">
             <BrandMark short={BRAND_META[sel]?.short} accent={selChannel.accent} size={20} />

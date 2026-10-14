@@ -17,6 +17,7 @@ import {
 import ActionButton from '@/components/ActionButton';
 import { Card, CardHead, Chip, PageHeader, EmptyState } from '@/components/ui';
 import { PIPELINES } from '@/lib/site-data';
+import { Button } from '@/components/untitledui/base/buttons/button';
 
 const ICONS = { clapperboard: Clapperboard, film: Film, music2: Music2, share2: Share2, image: ImageIcon, 'at-sign': AtSign };
 
@@ -84,9 +85,7 @@ export default function Production() {
         title="Production"
         sub="Every pipeline that makes and ships content. Buttons start real jobs on this machine or on GitHub Actions."
       >
-        <a href="/logs" className="btn btn-outline">
-          <FileText size={14} /> Open logs
-        </a>
+        <a href="/logs"><Button color="secondary" iconLeading={<FileText size={16} />}>Open logs</Button></a>
       </PageHeader>
 
       {/* master flow switch */}
@@ -106,14 +105,13 @@ export default function Production() {
               {netError ? <span className="block mt-1" style={{ color: 'var(--bad)' }}>{netError}</span> : null}
             </p>
           </div>
-          <button
-            className={netPaused ? 'btn btn-primary' : 'btn btn-outline'}
-            style={netPaused ? undefined : { borderColor: '#f59e0b', color: '#b45309' }}
+          <Button
+            color={netPaused ? 'primary' : 'secondary'}
             onClick={() => setAll(!netPaused)}
             disabled={netBusy}
           >
             {netBusy ? 'Working…' : netPaused ? (<><Play size={14} /> Resume everything</>) : (<><Pause size={14} /> Pause everything</>)}
-          </button>
+          </Button>
         </Card>
       ) : null}
 
@@ -126,13 +124,13 @@ export default function Production() {
               <div key={c.slug} className="flex items-center gap-3 inset-tile px-3 py-2.5">
                 <span className="text-[12.5px] font-semibold text-ink truncate flex-1">{c.label}</span>
                 <Chip>{c.fromRegistry ? 'wizard' : 'legacy'}</Chip>
-                <button
-                  className="btn btn-outline shrink-0"
+                <Button
+                  color="secondary"
                   onClick={() => produce(c.slug)}
-                  disabled={runs[c.slug] === 'busy' || runs[c.slug] === 'started'}
+                  isDisabled={runs[c.slug] === 'busy' || runs[c.slug] === 'started'}
                 >
                   {runs[c.slug] === 'busy' ? 'Starting…' : runs[c.slug] === 'started' ? 'Started ✓' : runs[c.slug] === 'error' ? 'Failed — retry' : 'Produce now'}
-                </button>
+                </Button>
               </div>
             ))}
           </div>

@@ -4,6 +4,8 @@ import { ListChecks, Flame, Search, Plus, X, PenLine, RefreshCw, Clock3 } from '
 import { Card, CardHead, Chip, PageHeader, PageSkeleton, EmptyState, BrandMark, Segmented } from '@/components/ui';
 import { BRAND_META } from '@/lib/site-data';
 import { fmt } from '@/lib/utils';
+import { Button } from '@/components/untitledui/base/buttons/button';
+import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
 
 // 10-05 PHASE B — TOPIC DESK: research proposes, you approve, the nightly run
 // consumes your picks first (one per slot per day) before auto-research.
@@ -91,9 +93,9 @@ export default function TopicDesk() {
   return (
     <div>
       <PageHeader icon={ListChecks} title="Topic Desk" sub="Research proposes → you approve → the nightly run makes exactly these first. One topic = one slot.">
-        <button className="btn btn-outline" onClick={load} disabled={loading}>
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
-        </button>
+        <Button color="secondary" onClick={load} isDisabled={loading} iconLeading={<RefreshCw size={16} className={loading ? 'animate-spin' : ''} />}>
+          Refresh
+        </Button>
       </PageHeader>
 
       {options.length ? (
@@ -126,9 +128,7 @@ export default function TopicDesk() {
                         <span className="block text-[12px] font-medium text-ink truncate">{v.title}</span>
                         <span className="block text-[10.5px] text-faint">{v.channel} · {fmt(v.views)} views in 14d</span>
                       </span>
-                      <button className="btn btn-ghost shrink-0" title="Approve this theme" disabled={busy} onClick={() => addTopics([{ kind: 'seed', text: v.title }])}>
-                        <Plus size={14} />
-                      </button>
+                      <ButtonUtility size="sm" color="tertiary" tooltip="Approve this theme" isDisabled={busy} icon={Plus} onClick={() => addTopics([{ kind: 'seed', text: v.title }])} />
                     </div>
                   ))}
                   {(data?.terms || []).slice(0, 8).map((t) => (
@@ -138,9 +138,7 @@ export default function TopicDesk() {
                         <span className="block text-[12px] font-medium text-ink truncate">{t.term}</span>
                         <span className="block text-[10.5px] text-faint">real viewer search · {fmt(t.views)} views</span>
                       </span>
-                      <button className="btn btn-ghost shrink-0" title="Approve this search" disabled={busy} onClick={() => addTopics([{ kind: 'search', text: t.term }])}>
-                        <Plus size={14} />
-                      </button>
+                      <ButtonUtility size="sm" color="tertiary" tooltip="Approve this search" isDisabled={busy} icon={Plus} onClick={() => addTopics([{ kind: 'search', text: t.term }])} />
                     </div>
                   ))}
                   {!(data?.trends || []).length && !(data?.terms || []).length ? (
@@ -161,13 +159,14 @@ export default function TopicDesk() {
                           if (e.key === 'Enter' && manual.trim()) { addTopics([{ kind: 'custom', text: manual.trim() }]); setManual(''); }
                         }}
                       />
-                      <button
-                        className="btn btn-primary shrink-0"
-                        disabled={busy || !manual.trim()}
+                      <Button
+                        color="primary"
+                        isDisabled={busy || !manual.trim()}
                         onClick={() => { addTopics([{ kind: 'custom', text: manual.trim() }]); setManual(''); }}
+                        iconLeading={<Plus size={16} />}
                       >
-                        <Plus size={14} /> Add
-                      </button>
+                        Add
+                      </Button>
                     </div>
                   </div>
                 </>
@@ -199,9 +198,7 @@ export default function TopicDesk() {
                         {t.addedAt ? ` · added ${t.addedAt.slice(5, 10)}` : ''}
                       </span>
                     </span>
-                    <button className="btn btn-ghost shrink-0" title="Remove from queue" disabled={busy} onClick={() => removeTopic(t.id)}>
-                      <X size={14} />
-                    </button>
+                    <ButtonUtility size="sm" color="tertiary" tooltip="Remove from queue" isDisabled={busy} icon={X} onClick={() => removeTopic(t.id)} />
                   </div>
                 ))
               )}

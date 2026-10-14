@@ -5,6 +5,7 @@ import { YoutubeIcon } from '@/components/BrandIcons';
 import { Card, Chip, PageHeader, PageSkeleton, EmptyState, BrandMark, Segmented } from '@/components/ui';
 import { BRAND_META } from '@/lib/site-data';
 import { when } from '@/lib/utils';
+import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
 
 const FILTERS = [
   { value: 'all', label: 'All' },
@@ -111,8 +112,8 @@ export default function Videos() {
                       </td>
                       <td>
                         {l.videoId ? (
-                          <a href={`https://youtube.com/watch?v=${l.videoId}`} target="_blank" rel="noreferrer" className="icon-btn" style={{ width: 28, height: 28 }} aria-label="Open on YouTube">
-                            <ArrowUpRight size={13} />
+                          <a href={`https://youtube.com/watch?v=${l.videoId}`} target="_blank" rel="noreferrer" aria-label="Open on YouTube">
+                            <ButtonUtility size="xs" color="tertiary" icon={ArrowUpRight} />
                           </a>
                         ) : null}
                       </td>

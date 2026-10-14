@@ -4,6 +4,8 @@ import { ScrollText, RefreshCw, ArrowUpRight, FolderOpen, Terminal, ListChecks }
 import { Card, Chip, PageHeader, PageSkeleton, EmptyState, BrandMark, Segmented } from '@/components/ui';
 import { BRAND_META } from '@/lib/site-data';
 import { timeAgo, when } from '@/lib/utils';
+import { Button } from '@/components/untitledui/base/buttons/button';
+import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
 
 const FILTERS = [
   { value: 'all', label: 'All' },
@@ -34,9 +36,7 @@ export default function Logs() {
   return (
     <div>
       <PageHeader icon={ScrollText} title="Posting logs" sub="Every post the machine made — newest first · auto-refreshes every minute">
-        <button className="btn btn-outline" onClick={() => setTick((t) => t + 1)}>
-          <RefreshCw size={14} /> Refresh now
-        </button>
+        <Button color="secondary" onClick={() => setTick((t) => t + 1)} iconLeading={<RefreshCw size={16} />}>Refresh now</Button>
       </PageHeader>
 
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
@@ -100,8 +100,8 @@ export default function Logs() {
                     </td>
                     <td>
                       {l.videoId ? (
-                        <a href={`https://youtube.com/shorts/${l.videoId}`} target="_blank" rel="noreferrer" className="icon-btn" style={{ width: 28, height: 28 }} aria-label="Open on YouTube">
-                          <ArrowUpRight size={13} />
+                        <a href={`https://youtube.com/shorts/${l.videoId}`} target="_blank" rel="noreferrer" aria-label="Open on YouTube">
+                          <ButtonUtility size="xs" color="tertiary" icon={ArrowUpRight} />
                         </a>
                       ) : null}
                     </td>

@@ -5,6 +5,8 @@ import { Settings, Sun, Moon, Monitor, Check, Plug, Bell, Server, ShieldAlert, U
 import { Card, CardHead, Chip, PageHeader, Switch } from '@/components/ui';
 import { INTEGRATIONS } from '@/lib/site-data';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/untitledui/base/buttons/button';
+import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
 
 const STATUS_STYLE = {
   ok: { label: 'connected', tone: 'ok' },
@@ -308,9 +310,7 @@ export default function SettingsPage() {
                   </span>
                   <Chip tone={u.role === 'owner' ? 'ok' : 'accent'}>{u.role}</Chip>
                   {u.role !== 'owner' ? (
-                    <button className="btn btn-ghost shrink-0" title="Remove from team" onClick={() => removeMember(u.email)} disabled={teamBusy}>
-                      <Trash2 size={13} />
-                    </button>
+                    <ButtonUtility size="sm" color="tertiary" tooltip="Remove from team" isDisabled={teamBusy} icon={Trash2} onClick={() => removeMember(u.email)} />
                   ) : null}
                 </div>
               ))}
@@ -326,9 +326,7 @@ export default function SettingsPage() {
                 <option value="staff">staff</option>
                 <option value="client">client</option>
               </select>
-              <button className="btn btn-primary" onClick={addMember} disabled={teamBusy || !newEmail.trim()}>
-                <Plus size={14} /> Add
-              </button>
+              <Button color="primary" onClick={addMember} isDisabled={teamBusy || !newEmail.trim()} iconLeading={<Plus size={16} />}>Add</Button>
             </div>
             {teamErr ? <p className="text-[11.5px] mt-2" style={{ color: 'var(--bad)' }}>{teamErr}</p> : null}
             <p className="text-[11px] text-faint mt-3">
@@ -345,9 +343,7 @@ export default function SettingsPage() {
           sub="Every device signed in with your account. Revocable instantly — this is the A1 session upgrade."
           icon={MonitorSmartphone}
           right={
-            <button className="btn btn-outline" onClick={revokeAll} disabled={secBusy || !sessions?.length}>
-              Sign out everywhere
-            </button>
+            <Button color="secondary" onClick={revokeAll} isDisabled={secBusy || !sessions?.length}>Sign out everywhere</Button>
           }
         />
         {secErr ? <p className="text-[12px] px-1 mb-2" style={{ color: 'var(--bad)' }}>{secErr}</p> : null}
