@@ -20,6 +20,7 @@ import { RetentionBars, MiniBars } from '@/components/charts';
 import { RETENTION, RETENTION_GOAL, BRAND_META } from '@/lib/site-data';
 import { fmt } from '@/lib/utils';
 import { Button } from '@/components/untitledui/base/buttons/button';
+import DataTable from '@/components/DataTable';
 
 export default function Analytics() {
   const [data, setData] = useState(null);
@@ -291,16 +292,21 @@ export default function Analytics() {
           <div className="px-2 pb-2">
             {terms === null ? (
               <div className="px-3 py-6 space-y-2">{[...Array(5)].map((_, i) => <div key={i} className="skeleton h-5" />)}</div>
-            ) : keywords.length === 0 ? (
-              <p className="text-[12px] text-faint px-3 py-6 text-center">No search terms yet — YouTube needs a few days of search traffic first.</p>
             ) : (
-              keywords.slice(0, 10).map((k) => (
-                <div key={k.term} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-2 transition-colors">
-                  <Search size={12} className="text-faint shrink-0" />
-                  <span className="flex-1 min-w-0 text-[12px] font-medium text-ink truncate">{k.term}</span>
-                  <span className="tnum font-bold text-[12px] text-ink shrink-0">{fmt(k.views)} views</span>
-                </div>
-              ))
+              <DataTable
+                label="Viewer search terms"
+                rows={keywords.map((k, i) => ({ ...k, id: `${k.term}-${i}` }))}
+                emptyIcon={Search}
+                emptyTitle="No search terms yet"
+                emptySub="YouTube needs a few days of search traffic first."
+                pageSize={8}
+                columns={[
+                  { key: 'term', label: 'Search term', rowHeader: true, render: (k) => (
+                    <span className="flex items-center gap-2 text-[12px] font-medium text-fg-primary truncate"><Search size={12} className="text-fg-quaternary shrink-0" /> {k.term}</span>
+                  ) },
+                  { key: 'views', label: 'Views', render: (k) => <span className="tnum font-semibold text-[12px] text-fg-primary">{fmt(k.views)}</span> },
+                ]}
+              />
             )}
           </div>
         </Card>

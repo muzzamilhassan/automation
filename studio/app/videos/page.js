@@ -6,6 +6,7 @@ import { Card, Chip, PageHeader, PageSkeleton, EmptyState, BrandMark, Segmented 
 import { BRAND_META } from '@/lib/site-data';
 import { when } from '@/lib/utils';
 import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
+import DataTable from '@/components/DataTable';
 
 const FILTERS = [
   { value: 'all', label: 'All' },
@@ -67,63 +68,38 @@ export default function Videos() {
         </span>
       </div>
 
-      <Card className="overflow-hidden">
-        {filtered.length === 0 ? (
-          <EmptyState icon={Film} title="Nothing here" sub="No videos match this filter yet." />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="data">
-              <thead>
-                <tr>
-                  <th style={{ width: 46 }}></th>
-                  <th>Title</th>
-                  <th>Channel</th>
-                  <th>Kind</th>
-                  <th>Platform</th>
-                  <th>When</th>
-                  <th style={{ width: 44 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((l, i) => {
-                  const Icon = PLATFORM_ICON[l.platform] || Film;
-                  return (
-                    <tr key={i}>
-                      <td>
-                        <BrandMark short={BRAND_META[l.slug]?.short || '•'} accent={BRAND_META[l.slug]?.accent || 'var(--faint)'} size={28} />
-                      </td>
-                      <td className="max-w-[340px]">
-                        <span className="block truncate font-medium" title={l.title}>{l.title}</span>
-                      </td>
-                      <td className="text-muted text-[12px]">{l.slug}</td>
-                      <td>
-                        <Chip tone={l.kind === 'Episode' ? 'accent' : l.kind === 'Short' ? 'info' : 'plain'}>{l.kind}</Chip>
-                      </td>
-                      <td>
-                        <span className="flex items-center gap-1.5 text-[12px] text-muted">
-                          <Icon size={13} /> {l.platform}
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap">
-                        <Chip tone={l.status === 'scheduled' ? 'info' : 'ok'} dot>
-                          {l.status === 'scheduled' ? 'Scheduled' : l.status === 'published' ? 'Published' : '—'}
-                        </Chip>
-                        <span className="block text-[10.5px] text-faint tnum mt-0.5">{when(l.at)}</span>
-                      </td>
-                      <td>
-                        {l.videoId ? (
-                          <a href={`https://youtube.com/watch?v=${l.videoId}`} target="_blank" rel="noreferrer" aria-label="Open on YouTube">
-                            <ButtonUtility size="xs" color="tertiary" icon={ArrowUpRight} />
-                          </a>
-                        ) : null}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <Card className="overflow-hidden p-4">
+        <DataTable
+          label="All videos"
+          rows={filtered.map((l, i) => ({ ...l, id: `${l.videoId || l.slug}-${i}` }))}
+          emptyIcon={Film}
+          emptyTitle="Nothing here"
+          emptySub="No videos match this filter yet."
+          pageSize={12}
+          columns={[
+            { key: 'brand', label: '', render: (l) => <BrandMark short={BRAND_META[l.slug]?.short || '•'} accent={BRAND_META[l.slug]?.accent || 'var(--faint)'} size={28} /> },
+            { key: 'title', label: 'Title', render: (l) => <span className="block max-w-[340px] truncate font-medium text-fg-primary" title={l.title}>{l.title}</span> },
+            { key: 'slug', label: 'Channel', render: (l) => <span className="text-fg-tertiary text-[12px]">{l.slug}</span> },
+            { key: 'kind', label: 'Kind', render: (l) => <Chip tone={l.kind === 'Episode' ? 'accent' : l.kind === 'Short' ? 'info' : 'plain'}>{l.kind}</Chip> },
+            { key: 'platform', label: 'Platform', render: (l) => {
+              const Icon = PLATFORM_ICON[l.platform] || Film;
+              return <span className="flex items-center gap-1.5 text-[12px] text-fg-tertiary"><Icon size={13} /> {l.platform}</span>;
+            } },
+            { key: 'status', label: 'Status', render: (l) => (
+              <span className="whitespace-nowrap">
+                <Chip tone={l.status === 'scheduled' ? 'info' : 'ok'} dot>
+                  {l.status === 'scheduled' ? 'Scheduled' : l.status === 'published' ? 'Published' : '—'}
+                </Chip>
+                <span className="block text-[10.5px] text-fg-quaternary tnum mt-0.5">{when(l.at)}</span>
+              </span>
+            ) },
+            { key: 'open', label: '', render: (l) => l.videoId ? (
+              <a href={`https://youtube.com/watch?v=${l.videoId}`} target="_blank" rel="noreferrer" aria-label="Open on YouTube">
+                <ButtonUtility size="xs" color="tertiary" icon={ArrowUpRight} />
+              </a>
+            ) : null },
+          ]}
+        />
       </Card>
     </div>
   );

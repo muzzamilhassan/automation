@@ -6,6 +6,7 @@ import { BRAND_META } from '@/lib/site-data';
 import { timeAgo, when } from '@/lib/utils';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
+import DataTable from '@/components/DataTable';
 
 const FILTERS = [
   { value: 'all', label: 'All' },
@@ -65,52 +66,33 @@ export default function Logs() {
         </Card>
       ) : null}
 
-      <Card className="overflow-hidden">
-        {logs.length === 0 ? (
-          <EmptyState icon={ScrollText} title="No posts match" sub="Try another filter, or run a job from Production." />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="data">
-              <thead>
-                <tr>
-                  <th style={{ width: 42 }}></th>
-                  <th>When</th>
-                  <th>Platform</th>
-                  <th>Channel</th>
-                  <th>Kind</th>
-                  <th>Title</th>
-                  <th style={{ width: 44 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {logs.map((l, i) => (
-                  <tr key={i}>
-                    <td>
-                      <BrandMark short={BRAND_META[l.slug]?.short || '•'} accent={BRAND_META[l.slug]?.accent || 'var(--faint)'} size={26} />
-                    </td>
-                    <td className="whitespace-nowrap">
-                      <span className="block text-[12.5px] text-ink tnum">{when(l.at)}</span>
-                      <span className="block text-[10.5px] text-faint">{timeAgo(l.at)}</span>
-                    </td>
-                    <td><Chip tone={l.platform === 'YouTube' ? 'bad' : l.platform === 'FB/IG' ? 'accent' : 'info'}>{l.platform}</Chip></td>
-                    <td className="text-muted text-[12px]">{l.slug}</td>
-                    <td><Chip>{l.kind}</Chip></td>
-                    <td className="max-w-[360px]">
-                      <span className="block truncate" title={l.title}>{l.title}</span>
-                    </td>
-                    <td>
-                      {l.videoId ? (
-                        <a href={`https://youtube.com/shorts/${l.videoId}`} target="_blank" rel="noreferrer" aria-label="Open on YouTube">
-                          <ButtonUtility size="xs" color="tertiary" icon={ArrowUpRight} />
-                        </a>
-                      ) : null}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <Card className="overflow-hidden p-4">
+        <DataTable
+          label="Posting logs"
+          rows={logs.map((l, i) => ({ ...l, id: `${l.videoId || l.slug}-${i}` }))}
+          emptyIcon={ScrollText}
+          emptyTitle="No posts match"
+          emptySub="Try another filter, or run a job from Production."
+          pageSize={12}
+          columns={[
+            { key: 'brand', label: '', render: (l) => <BrandMark short={BRAND_META[l.slug]?.short || '•'} accent={BRAND_META[l.slug]?.accent || 'var(--faint)'} size={26} /> },
+            { key: 'at', label: 'When', render: (l) => (
+              <span className="whitespace-nowrap">
+                <span className="block text-[12.5px] text-fg-primary tnum">{when(l.at)}</span>
+                <span className="block text-[10.5px] text-fg-quaternary">{timeAgo(l.at)}</span>
+              </span>
+            ) },
+            { key: 'platform', label: 'Platform', render: (l) => <Chip tone={l.platform === 'YouTube' ? 'bad' : l.platform === 'FB/IG' ? 'accent' : 'info'}>{l.platform}</Chip> },
+            { key: 'slug', label: 'Channel', render: (l) => <span className="text-fg-tertiary text-[12px]">{l.slug}</span> },
+            { key: 'kind', label: 'Kind', render: (l) => <Chip>{l.kind}</Chip> },
+            { key: 'title', label: 'Title', render: (l) => <span className="block max-w-[360px] truncate text-fg-primary" title={l.title}>{l.title}</span> },
+            { key: 'open', label: '', render: (l) => l.videoId ? (
+              <a href={`https://youtube.com/shorts/${l.videoId}`} target="_blank" rel="noreferrer" aria-label="Open on YouTube">
+                <ButtonUtility size="xs" color="tertiary" icon={ArrowUpRight} />
+              </a>
+            ) : null },
+          ]}
+        />
       </Card>
 
       <div className="grid md:grid-cols-2 gap-4 mt-4">
