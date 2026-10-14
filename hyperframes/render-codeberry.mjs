@@ -59,42 +59,77 @@ const PACKS = {
 const ICON_LIST = 'globe, lock, server, link, search, idcard, book, phone, code, tag, chat, zap, db, git';
 
 
-// ---------- deterministic free-scene designer (LLM-free): unique composition per beat ----------
-const STOP = new Set('the and for with that this your from into when what how why its every before after because them they then than will been have has are was were not but all can our out one two also more most each both make makes made just only some such these those there their would could should about which while does doing done like very much many using used use you yours is be being it as at by of on to in a an or if so we he she i without within would should needs need know knows things thing stuff means mean called based still even ever never always another whole part parts first second third next last same other others around across instead instead yet quite really actually basically'.split(' '));
+// ---------- rich family composer (LLM-free): full-stage compositions, variant per beat ----------
+const STOP = new Set('the and for with that this your from into when what how why its every before after because them they then than will been have has are was were not but all can our out one two also more most each both make makes made just only some such these those there their would could should about which while does doing done like very much many using used use you yours is be being it as at by of on to in a an or if so we he she i without within would should needs need know knows things thing stuff means mean called based still even ever never always another whole part parts first second third next last same other others around across instead yet quite really actually basically'.split(' '));
 function contentWords(text) {
   return String(text).toLowerCase().replace(/[^a-z0-9\s']/g, ' ').split(/\s+/).filter((w) => w.length > 3 && !STOP.has(w));
 }
-function designFreeScenes(beats) {
-  const kindPools = [
-    ['tile', 'pill', 'note'], ['tile', 'ring', 'pill'], ['tile', 'tile', 'pill'],
-    ['pill', 'counter', 'note'], ['tile', 'term', 'stamp'], ['ring', 'pill', 'note'],
-    ['tile', 'pill', 'counter'], ['browserbar', 'tile', 'pill'], ['tile', 'ring', 'stamp'], ['searchrow', 'tile', 'note'],
-  ];
-  const arrPool = ['row', 'split', 'radial', 'diagonal', 'stack', 'row', 'column', 'lshape', 'row', 'split'];
+const PACK_FAMILIES = {
+  network: ['chain', 'window', 'payoff', 'chain', 'search', 'pills'],
+  git: ['commits', 'window', 'payoff', 'pills', 'commits', 'chain'],
+  realtime: ['flow', 'window', 'payoff', 'flow', 'pills', 'search'],
+  generic: ['chain', 'window', 'payoff', 'search', 'pills', 'chain'],
+};
+function composeScene(i, b, beatsArr) {
+  const fams = PACK_FAMILIES[brief.pack] || PACK_FAMILIES.generic;
+  let fam = fams[(i * 5 + Math.floor(i / 6)) % fams.length];
+  if (composeScene._prev === fam) {
+    fam = fams[(fams.indexOf(fam) + 1 + ((i % 2))) % fams.length];
+    if (fam === composeScene._prev) fam = fams[(fams.indexOf(fam) + 2) % fams.length];
+  }
+  composeScene._prev = fam;
+  const cw = contentWords(b.text);
+  const ranked = [...cw].sort((a, b2) => b2.length - a.length);
+  const w = (k) => cw[k % Math.max(1, cw.length)] || (b.em || 'step');
   const icons = ['server', 'globe', 'db', 'phone', 'zap', 'link', 'lock', 'book', 'search', 'chat', 'code', 'idcard'];
-  let prevArr = '';
-  return beats.map((b, i) => {
-    const cw = contentWords(b.text);
-    const pool = kindPools[(i * 7 + 3) % kindPools.length];
-    let arr = arrPool[(i * 3 + Math.floor(i / 7)) % arrPool.length];
-    if (arr === prevArr) arr = arrPool[(arrPool.indexOf(arr) + 4) % arrPool.length];
-    prevArr = arr;
-    const n = 3 + ((i * 7 + 1) % 2); // mostly 3, sometimes 4
-    const ranked = [...cw].sort((a, b2) => b2.length - a.length); // longest = most meaningful
-    const items = [];
-    for (let k = 0; k < n; k++) {
-      const at = cw.length ? cw[Math.floor((k * cw.length) / n) % cw.length] : (b.em || '');
-      const label = (k === 0 && b.em ? b.em : (ranked[k] || ranked[0] || 'step')).slice(0, 14);
-      const it = { kind: pool[k % pool.length], icon: icons[(i * 3 + k * 5) % icons.length], label, at };
-      if (it.kind === 'term') it.cmd = `${(cw[0] || 'run')} ${(cw[1] || '--now')}`;
-      if (it.kind === 'counter') it.label = (b.em || 'STEP ' + (i + 1)).toUpperCase().slice(0, 6);
-      items.push(it);
+  const ic = (k) => icons[(i * 3 + k * 5) % icons.length];
+  const vrot = ['v', 'g', 'e', 'p'];
+  const slugUrl = `https://${(brief.topic || 'example').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 16)}.dev/${w(0)}`;
+  switch (fam) {
+    case 'chain': {
+      const stair = i % 2 === 1;
+      const n = 3 + (i % 2);
+      const seenT = new Set();
+      const tiles = Array.from({ length: n }, (_, k) => {
+        let cand = (k === 0 ? (b.em || w(0)) : w(k)).slice(0, 14);
+        if (seenT.has(cand)) cand = (ranked.find((r2) => !seenT.has(r2)) || w(k + 1) || 'step ' + (k + 1)).slice(0, 14);
+        seenT.add(cand);
+        return { icon: ic(k), label: cand, variant: vrot[(i + k) % 4] };
+      });
+      return { type: 'chain', conn: i % 2 ? 'e' : '', packet: true, packetDur: 1.4, stair, tiles, result: i % 3 === 2 ? { icon: ic(n), label: (b.em || w(1)).slice(0, 14), variant: 'gold' } : null, caption: `STEP ${i + 1} / ${beatsArr.length}` };
     }
-    if (b.em && !items.some((it) => it.at === b.em)) items[items.length - 1].at = b.em;
-    return { arr, items };
-  });
+    case 'window': {
+      const which = ['code', 'browser', 'search'][i % 3];
+      if (which === 'code') return { type: 'code', title: 'terminal', width: 980, lines: [[{ t: '$ ', c: 'c' }, { t: `${w(0)} ${w(1) || '--go'}`, c: 'w' }], [{ t: `${w(2) || 'status'}  ${'OK'.slice(0, 2)} · ${(b.em || 'done').toUpperCase()}`, c: 's' }]], tag: (b.em || '').toUpperCase() };
+      if (which === 'browser') return { type: 'browser', title: String(w(0) || 'app').toUpperCase(), url: slugUrl, sub: shortLine(b.text, 42) };
+      return { type: 'search', title: 'lookup', width: 950, query: (w(0) || 'query').slice(0, 20), caption: shortLine(b.text, 36), results: [0, 1, 2].map((k) => ({ icon: ic(k), w: 80 - k * 24, label: (k === 0 ? b.em : w(k)).slice(0, 16) })) };
+    }
+    case 'payoff':
+      return { type: 'result', icon: ic(1), big: (b.em || w(0)).slice(0, 13).toUpperCase(), label: shortLine(b.text, 40), ring: true };
+    case 'search':
+      return { type: 'search', title: 'records', width: 950, query: (b.em || w(0)).slice(0, 20), caption: `STEP ${i + 1} / ${beatsArr.length}`, results: [0, 1, 2].map((k) => ({ icon: ic(k + 1), w: 84 - k * 26, label: (w(k + 1) || '').slice(0, 16) })) };
+    case 'pills': {
+      const seen = new Set();
+      const lab = (k) => {
+        let cand = [b.em, ranked[0], w(1), w(2), w(0)][k] || w(0);
+        if (seen.has(cand)) cand = ranked.find((r2) => !seen.has(r2)) || cand + ' ' + (k + 1);
+        seen.add(cand);
+        return cand.slice(0, 14).toUpperCase();
+      };
+      return { type: 'pills', items: [0, 1].map((k) => ({ icon: ic(k + 2), label: lab(k), variant: k ? 'emerald' : 'gold' })), caption: shortLine(b.text, 36) };
+    }
+    case 'commits': {
+      const modes = ['plain', 'branch', 'merge', 'rebase'];
+      return { type: 'commits', mode: modes[i % 4], caption: `STEP ${i + 1} / ${beatsArr.length}` };
+    }
+    case 'flow': {
+      const modes = ['close', 'poll', 'duplex'];
+      return { type: 'flow', mode: modes[(i + 1) % 3], leftIcon: 'phone', leftLabel: 'client', rightIcon: 'server', rightLabel: 'server', caption: shortLine(b.text, 36), travel: 1240 };
+    }
+    default:
+      return { type: 'result', icon: 'zap', big: (b.em || 'done').toUpperCase().slice(0, 10), label: shortLine(b.text, 40) };
+  }
 }
-
 async function designBrain(p) {
   if (process.env.GEMINI_API_KEY) {
     for (const cfg of [{ temperature: 0.85, maxOutputTokens: 16000, thinkingConfig: { thinkingBudget: 0 } }, { temperature: 0.85, maxOutputTokens: 16000 }]) {
@@ -313,9 +348,9 @@ if (beats.length === 0 && brief.topic) {
   console.error('[cb] brief needs beats or topic'); process.exit(1);
 }
 else if (brief.freeScenes && plan.length === 0) {
-  plan = designFreeScenes(beats);
-  planIsLight = true;
-  console.log('[cb] deterministic free-scene design (no LLM plan)');
+  plan = beats.map((b, i) => composeScene(i, b, beats));
+  planIsLight = false; // full scene objects already
+  console.log('[cb] composed family plan: ' + plan.map((p2) => p2.type).join(','));
 }
 let scenes = plan.length ? plan : [];
 
@@ -795,11 +830,13 @@ ${beats.map((b, i) => {
   const wide = s.type === 'commits' || s.type === 'globe' || s.type === 'flow';
   const isFree = s.type === 'free';
   const pieces = isFree ? '[]' : wide ? `Array.from(b${i}.children)` : `Array.from(b${i}.querySelectorAll('.rise'))`;
+  const slots = Array.from({ length: 6 }, (_, k) => Math.round((b.start + 0.4 + (k * (b.until - b.start - 1.2)) / 5) * 100) / 100);
   return `var b${i} = document.querySelector('#stage${i}');
 gsap.set(b${i}, { opacity: 0, scale: 0.965, y: 26 });
 gsap.set(${pieces}, { opacity: 0, y: 44 });
 tl.to(b${i}, { opacity: 1, scale: 1, y: 0, duration: 0.5, ease: 'back.out(1.5)' }, ${b.start});
-tl.to(${pieces}, { opacity: 1, y: 0, duration: 0.5, ease: 'back.out(1.6)', stagger: 0.1 }, ${b.start} + 0.16);
+var pt${i} = ${JSON.stringify(slots)};
+Array.prototype.forEach.call(${pieces}, function (el, k) { tl.to(el, { opacity: 1, y: 0, duration: 0.45, ease: 'back.out(1.6)' }, pt${i}[k % pt${i}.length]); });
 tl.set(b${i}, { opacity: 0 }, ${b.until});`;
 }).join('\n')}
 ${motionJs}
