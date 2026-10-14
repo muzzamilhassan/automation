@@ -2,7 +2,7 @@
 // Premium data table on Untitled UI's Table + Pagination (React Aria).
 // columns: [{ key, label, render?(row), rowHeader? }] — render wins over row[key].
 import { useState } from 'react';
-import { Table } from '@/components/untitledui/application/table/table';
+import { Table, TableCard } from '@/components/untitledui/application/table/table';
 import { PaginationPageDefault } from '@/components/untitledui/application/pagination/pagination';
 import { EmptyState } from '@/components/ui';
 
@@ -20,19 +20,17 @@ export default function DataTable({ label, columns, rows, pageSize = 10, emptyIc
         <Table aria-label={label}>
           <Table.Header>
             {columns.map((c) => (
-              <Table.Column key={c.key} id={c.key} isRowHeader={Boolean(c.rowHeader)}>
-                {c.label}
-              </Table.Column>
+              <Table.Head key={c.key} id={c.key} label={c.label} isRowHeader={Boolean(c.rowHeader)} />
             ))}
           </Table.Header>
-          <Table.Body>
-            {slice.map((row, i) => (
-              <Table.Row key={row.id != null ? String(row.id) : String(i)} id={String(row.id != null ? row.id : i)}>
+          <Table.Body items={slice}>
+            {(row) => (
+              <Table.Row id={String(row.id != null ? row.id : '')}>
                 {columns.map((c) => (
-                  <Table.Cell key={c.key}>{c.render ? c.render(row, (p - 1) * pageSize + i) : row[c.key]}</Table.Cell>
+                  <Table.Cell key={c.key}>{c.render ? c.render(row) : row[c.key]}</Table.Cell>
                 ))}
               </Table.Row>
-            ))}
+            )}
           </Table.Body>
         </Table>
       </div>
