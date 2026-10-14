@@ -54,3 +54,7 @@ qa-*.jpg
 music-review/
 research/style-ref/
 studio/.studio-password.txt
+
+# CloudXBerry audit downloads (copyrighted reference videos — local only)
+audit/
+frames-demo/

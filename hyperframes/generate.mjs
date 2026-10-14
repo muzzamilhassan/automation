@@ -115,7 +115,7 @@ CONTENT — topic: "${brief.topic}" | brand: "${brief.brand}" | kicker label: "$
 Word-level beats (voiceover audio already exists at these EXACT times — design to them):
 ${beats.map((b) => `- beat ${b.i}: start=${b.start}s dur=${b.dur}s text="${b.text}"${b.em ? ` (emphasis word: "${b.em}")` : ''}`).join('\n')}
 
-Design the most premium possible ${W}x${H} vertical short for this content in this DNA. Return the complete index.html now.`;
+Design the most premium possible ${W}x${H} video for this content in this DNA. Return the complete index.html now.`;
 
 let html = null, provider = null;
 for (const attempt of [1, 2, 3]) {
@@ -293,16 +293,18 @@ function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&
 
 async function designBrain(p, attempt) {
   if (process.env.GEMINI_API_KEY && attempt !== 9) {
-    try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: p }] }], generationConfig: { temperature: 0.9, maxOutputTokens: 8192 } }),
-      });
-      const d = await res.json();
-      const txt = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      if (txt.length > 500) { console.log('  [brain] gemini responded'); return txt; }
-      throw new Error('short/empty');
-    } catch (e) { console.log(`  [brain] gemini failed: ${String(e.message).slice(0, 60)}`); }
+    for (const cfg of [{ temperature: 0.9, maxOutputTokens: 24000, thinkingConfig: { thinkingBudget: 0 } }, { temperature: 0.9, maxOutputTokens: 24000 }]) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: p }] }], generationConfig: cfg }),
+        });
+        const d = await res.json();
+        const txt = d.candidates?.[0]?.content?.parts?.map((x) => x.text || '').join('') || '';
+        if (txt.length > 500) { console.log('  [brain] gemini responded'); return txt; }
+        throw new Error('short/empty');
+      } catch (e) { console.log(`  [brain] gemini failed: ${String(e.message).slice(0, 60)}`); }
+    }
   }
   if (process.env.GROQ_API_KEY) {
     for (let a = 1; a <= 2; a++) {
@@ -316,6 +318,34 @@ async function designBrain(p, attempt) {
         if (txt.length > 500) { console.log('  [brain] groq responded'); return txt; }
         throw new Error('short');
       } catch (e) { console.log(`  [brain] groq attempt ${a} failed: ${String(e.message).slice(0, 60)}`); }
+    }
+  }
+  if (process.env.CEREBRAS_API_KEY) {
+    for (let a = 1; a <= 2; a++) {
+      try {
+        const res = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+          method: 'POST', headers: { Authorization: `Bearer ${process.env.CEREBRAS_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'gpt-oss-120b', messages: [{ role: 'user', content: p }], temperature: 0.8, max_tokens: 12000 }),
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const txt = (await res.json()).choices?.[0]?.message?.content || '';
+        if (txt.length > 500) { console.log('  [brain] cerebras responded'); return txt; }
+        throw new Error('short');
+      } catch (e) { console.log(`  [brain] cerebras attempt ${a} failed: ${String(e.message).slice(0, 60)}`); }
+    }
+  }
+  if (process.env.MISTRAL_API_KEY) {
+    for (let a = 1; a <= 2; a++) {
+      try {
+        const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
+          method: 'POST', headers: { Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'mistral-small-latest', messages: [{ role: 'user', content: p }], temperature: 0.8, max_tokens: 12000 }),
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const txt = (await res.json()).choices?.[0]?.message?.content || '';
+        if (txt.length > 500) { console.log('  [brain] mistral responded'); return txt; }
+        throw new Error('short');
+      } catch (e) { console.log(`  [brain] mistral attempt ${a} failed: ${String(e.message).slice(0, 60)}`); }
     }
   }
   if (process.env.HF_TOKEN) {
