@@ -136,8 +136,10 @@ function thumbParts() {
     return { icon: Object.keys(ICONS)[0], accentText: topic.toUpperCase().slice(0, 18), whiteText: '', accent2Text: '', sub: 'EVERY PIECE, EXPLAINED', art };
   }
   const icon = kind === 'vs' ? 'link' : Object.keys(ICONS).find((k) => topic.toLowerCase().includes(k)) || 'zap';
+  let sub = topic.toUpperCase();
+  if (sub.length > 32) { sub = sub.slice(0, 32); sub = sub.slice(0, sub.lastIndexOf(' ') > 0 ? sub.lastIndexOf(' ') : sub.length); }
   return {
-    icon, accentText: 'FINALLY', whiteText: ' MAKES SENSE', accent2Text: '', sub: topic.toUpperCase().slice(0, 30),
+    icon, accentText: 'FINALLY', whiteText: ' MAKES SENSE', accent2Text: '', sub,
     art: `<span class="bigicon"><span class="bigicon-in">${svg(icon)}</span></span>`,
   };
 }

@@ -97,7 +97,9 @@ async function designBrain(p) {
 }
 
 function shortLine(text, max = 46) {
-  return String(text).replace(/[^a-zA-Z0-9 .·-]/g, '').slice(0, max).trim() || 'the idea';
+  let t = String(text).replace(/[^a-zA-Z0-9 .·-]/g, '').slice(0, max).trim();
+  if (t.length >= max && t.includes(' ')) t = t.slice(0, t.lastIndexOf(' ')).trim();
+  return t || 'the idea';
 }
 
 // Deterministic scene objects from the LLM's lightweight plan (actors rotate, counters cycle modes).
@@ -115,11 +117,11 @@ function buildScenesFromPlan(plan, actors, beatsArr) {
       case 'browser':
         return { type, title: x.title || 'New Tab', url: x.url || `https://${(brief.topic || 'example').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 18)}.dev`, sub: shortLine(b.text, 40) };
       case 'globe':
-        return { type, leftIcon: 'phone', leftLabel: 'YOU', rightIcon: 'server', rightLabel: 'SERVERS', centerLabel: (b.em || '').toUpperCase(), caption: shortLine(b.text) };
+        return { type, leftIcon: 'phone', leftLabel: 'YOU', rightIcon: 'server', rightLabel: 'SERVERS', centerLabel: (b.em || '').toUpperCase(), caption: `STEP ${i + 1} / ${beatsArr.length}` };
       case 'chain': {
         const n = 2 + (st.chain++ % 2);
         const tiles = Array.from({ length: n }, () => { const a = A(); return { icon: a.icon, label: a.label, variant: variantCycle[st.a % 4] }; });
-        return { type, conn: st.chain % 2 ? 'e' : '', packet: true, packetDur: 1.2 + n * 0.15, tiles, ...(i % 2 === 1 ? { result: { icon: 'idcard', label: (b.em || 'done').slice(0, 16), variant: 'gold' } } : {}), caption: shortLine(b.text) };
+        return { type, conn: st.chain % 2 ? 'e' : '', packet: true, packetDur: 1.2 + n * 0.15, tiles, ...(i % 2 === 1 ? { result: { icon: 'idcard', label: (b.em || 'done').slice(0, 16), variant: 'gold' } } : {}), caption: `STEP ${i + 1} / ${beatsArr.length}` };
       }
       case 'search':
         return { type, title: x.title || 'search', query: x.query || (b.em || 'query').slice(0, 24), caption: shortLine(b.text),
@@ -135,7 +137,7 @@ function buildScenesFromPlan(plan, actors, beatsArr) {
       case 'flow': {
         const modes = ['close', 'poll', 'duplex'];
         const mode = x.mode || modes[st.flow++ % 3];
-        return { type, mode, leftIcon: 'phone', leftLabel: (actors[0] || { label: 'client' }).label.slice(0, 10), rightIcon: 'server', rightLabel: (actors[1] || { label: 'server' }).label.slice(0, 10), caption: shortLine(b.text), travel: 1240 };
+        return { type, mode, leftIcon: 'phone', leftLabel: (actors[0] || { label: 'client' }).label.slice(0, 10), rightIcon: 'server', rightLabel: (actors[1] || { label: 'server' }).label.slice(0, 10), caption: `STEP ${i + 1} / ${beatsArr.length}`, travel: 1240 };
       }
       case 'commits': {
         const modes = ['plain', 'branch', 'merge', 'rebase'];
