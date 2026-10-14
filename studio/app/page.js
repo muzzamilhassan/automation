@@ -15,6 +15,7 @@ import {
   Radar,
 } from 'lucide-react';
 import ActionButton from '@/components/ActionButton';
+import { Button } from '@/components/untitledui/base/buttons/button';
 import { Card, CardHead, Chip, StatCard, PageSkeleton, EmptyState, BrandMark } from '@/components/ui';
 import { MiniBars } from '@/components/charts';
 import { ALERTS, BRAND_META } from '@/lib/site-data';
@@ -80,10 +81,10 @@ export default function Overview() {
     <div>
       <div className="flex flex-wrap items-start justify-between gap-4 mb-7">
         <div>
-          <h1 className="font-display text-[26px] font-bold tracking-tight text-ink leading-tight">
+          <h1 className="font-display text-display-md font-semibold tracking-tight text-fg-primary leading-tight">
             {greet}, Muzzamil
           </h1>
-          <p className="text-[13px] text-muted mt-0.5 flex items-center gap-1.5">
+          <p className="text-[13px] text-fg-tertiary mt-0.5 flex items-center gap-1.5">
             <CalendarDays size={13} className="text-faint" />
             {today} · {active.length} live channels · engine running on GitHub Actions
           </p>
@@ -92,12 +93,10 @@ export default function Overview() {
           {refreshedAt && !refreshing ? (
             <span className="text-[10.5px] text-faint tnum">updated {refreshedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
           ) : null}
-          <button className="btn btn-outline" onClick={() => load(true)} disabled={refreshing}>
-            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} /> {refreshing ? 'Refreshing…' : 'Refresh'}
-          </button>
-          <Link href="/production" className="btn btn-primary">
-            <Zap size={14} /> Production
-          </Link>
+          <Button color="secondary" onClick={() => load(true)} isDisabled={refreshing} iconLeading={<RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />}>
+            {refreshing ? 'Refreshing…' : 'Refresh'}
+          </Button>
+          <Link href="/production"><Button color="primary" iconLeading={<Zap size={16} />}>Production</Button></Link>
         </div>
       </div>
 

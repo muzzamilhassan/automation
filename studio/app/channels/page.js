@@ -47,12 +47,8 @@ export default function Channels() {
   return (
     <div>
       <PageHeader icon={Tv} title="Channels" sub={`${active.length} live channels + ${parked.length} parked brands · every platform account in one place`}>
-        <Link className="btn btn-primary" href="/channels/add">
-          <Plus size={14} /> New channel
-        </Link>
-        <button className="btn btn-outline" onClick={load}>
-          <RefreshCw size={14} /> Refresh
-        </button>
+        <Link href="/channels/add"><Button color="primary" iconLeading={<Plus size={16} />}>New channel</Button></Link>
+        <Button color="secondary" onClick={load} iconLeading={<RefreshCw size={16} />}>Refresh</Button>
       </PageHeader>
 
       <div className="grid xl:grid-cols-2 gap-4">
@@ -69,16 +65,16 @@ export default function Channels() {
                     <div className="flex items-center gap-2">
                       <h2 className="font-display text-[17px] font-bold tracking-tight text-ink">{c.label}</h2>
                       {c.flowPaused ? <Chip tone="warn">PAUSED</Chip> : <Chip tone="ok" dot>ACTIVE</Chip>}
-                      <button
-                        className="btn btn-ghost shrink-0"
-                        title={c.flowPaused ? 'Resume autopilot — the nightly run produces again' : 'Pause autopilot — nothing new is produced; already-scheduled videos still publish'}
+                      <ButtonUtility
+                        size="sm"
+                        color="tertiary"
+                        tooltip={c.flowPaused ? 'Resume autopilot — the nightly run produces again' : 'Pause autopilot — nothing new is produced; already-scheduled videos still publish'}
+                        icon={c.flowPaused ? Play : Pause}
                         onClick={() => toggleFlow(c.slug, c.flowPaused)}
-                      >
-                        {c.flowPaused ? <Play size={13} /> : <Pause size={13} />}
-                      </button>
+                      />
                       {c.fromRegistry ? (
-                        <Link className="btn btn-ghost shrink-0" title="Edit this channel (niche, template, key, schedule)" href={`/channels/add?edit=${c.slug}`}>
-                          <PenLine size={13} />
+                        <Link href={`/channels/add?edit=${c.slug}`} title="Edit this channel (niche, template, key, schedule)">
+                          <ButtonUtility size="sm" color="tertiary" icon={PenLine} />
                         </Link>
                       ) : null}
                     </div>
