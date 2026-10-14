@@ -58,6 +58,43 @@ const PACKS = {
 };
 const ICON_LIST = 'globe, lock, server, link, search, idcard, book, phone, code, tag, chat, zap, db, git';
 
+
+// ---------- deterministic free-scene designer (LLM-free): unique composition per beat ----------
+const STOP = new Set('the and for with that this your from into when what how why its every before after because them they then than will been have has are was were not but all can our out one two also more most each both make makes made just only some such these those there their would could should about which while does doing done like very much many using used use you yours is be being it as at by of on to in a an or if so we he she i without within would should needs need know knows things thing stuff means mean called based still even ever never always another whole part parts first second third next last same other others around across instead instead yet quite really actually basically'.split(' '));
+function contentWords(text) {
+  return String(text).toLowerCase().replace(/[^a-z0-9\s']/g, ' ').split(/\s+/).filter((w) => w.length > 3 && !STOP.has(w));
+}
+function designFreeScenes(beats) {
+  const kindPools = [
+    ['tile', 'pill', 'note'], ['tile', 'ring', 'pill'], ['tile', 'tile', 'pill'],
+    ['pill', 'counter', 'note'], ['tile', 'term', 'stamp'], ['ring', 'pill', 'note'],
+    ['tile', 'pill', 'counter'], ['browserbar', 'tile', 'pill'], ['tile', 'ring', 'stamp'], ['searchrow', 'tile', 'note'],
+  ];
+  const arrPool = ['row', 'split', 'radial', 'diagonal', 'stack', 'row', 'column', 'lshape', 'row', 'split'];
+  const icons = ['server', 'globe', 'db', 'phone', 'zap', 'link', 'lock', 'book', 'search', 'chat', 'code', 'idcard'];
+  let prevArr = '';
+  return beats.map((b, i) => {
+    const cw = contentWords(b.text);
+    const pool = kindPools[(i * 7 + 3) % kindPools.length];
+    let arr = arrPool[(i * 3 + Math.floor(i / 7)) % arrPool.length];
+    if (arr === prevArr) arr = arrPool[(arrPool.indexOf(arr) + 4) % arrPool.length];
+    prevArr = arr;
+    const n = 3 + ((i * 7 + 1) % 2); // mostly 3, sometimes 4
+    const ranked = [...cw].sort((a, b2) => b2.length - a.length); // longest = most meaningful
+    const items = [];
+    for (let k = 0; k < n; k++) {
+      const at = cw.length ? cw[Math.floor((k * cw.length) / n) % cw.length] : (b.em || '');
+      const label = (k === 0 && b.em ? b.em : (ranked[k] || ranked[0] || 'step')).slice(0, 14);
+      const it = { kind: pool[k % pool.length], icon: icons[(i * 3 + k * 5) % icons.length], label, at };
+      if (it.kind === 'term') it.cmd = `${(cw[0] || 'run')} ${(cw[1] || '--now')}`;
+      if (it.kind === 'counter') it.label = (b.em || 'STEP ' + (i + 1)).toUpperCase().slice(0, 6);
+      items.push(it);
+    }
+    if (b.em && !items.some((it) => it.at === b.em)) items[items.length - 1].at = b.em;
+    return { arr, items };
+  });
+}
+
 async function designBrain(p) {
   if (process.env.GEMINI_API_KEY) {
     for (const cfg of [{ temperature: 0.85, maxOutputTokens: 16000, thinkingConfig: { thinkingBudget: 0 } }, { temperature: 0.85, maxOutputTokens: 16000 }]) {
@@ -80,7 +117,7 @@ async function designBrain(p) {
   ];
   for (const [name, url, model, keyEnv] of providers) {
     if (!process.env[keyEnv]) continue;
-    for (let a = 1; a <= 2; a++) {
+    for (let a = 1; a <= 4; a++) {
       try {
         const res = await fetch(url, {
           method: 'POST', headers: { Authorization: `Bearer ${process.env[keyEnv]}`, 'Content-Type': 'application/json' },
@@ -90,8 +127,22 @@ async function designBrain(p) {
         const txt = (await res.json()).choices?.[0]?.message?.content || '';
         if (txt.length > 300) { console.log(`  [brain] ${name} responded`); return txt; }
         throw new Error('short');
-      } catch (e) { console.log(`  [brain] ${name} attempt ${a} failed: ${String(e.message).slice(0, 50)}`); }
+      } catch (e) {
+        const msg = String(e.message);
+        console.log(`  [brain] ${name} attempt ${a} failed: ${msg.slice(0, 50)}`);
+        if (msg.includes('429') && a < 4) { console.log('  [brain] rate-limited — waiting 30s'); await new Promise((r) => setTimeout(r, 30000)); }
+      }
     }
+  }
+  if (process.env.HF_TOKEN) {
+    try {
+      const res = await fetch('https://router.huggingface.co/v1/chat/completions', {
+        method: 'POST', headers: { Authorization: `Bearer ${process.env.HF_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'meta-llama/Llama-3.1-8B-Instruct', messages: [{ role: 'user', content: p }], temperature: 0.8, max_tokens: 8000 }),
+      });
+      const txt = (await res.json()).choices?.[0]?.message?.content || '';
+      if (txt.length > 300) { console.log('  [brain] hf responded'); return txt; }
+    } catch { }
   }
   return null;
 }
@@ -150,35 +201,98 @@ function buildScenesFromPlan(plan, actors, beatsArr) {
   });
 }
 
+function salvageJson(txt) {
+  let t = String(txt).trim();
+  t = t.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
+  const a = t.indexOf('[') >= 0 && t.indexOf('{') >= 0 ? Math.min(t.indexOf('['), t.indexOf('{')) : Math.max(t.indexOf('['), t.indexOf('{'));
+  if (a < 0) return null;
+  t = t.slice(a);
+  try { return JSON.parse(t); } catch { }
+  for (let cut = t.length; cut > 120; cut--) {
+    if (t[cut - 1] !== '}') continue;
+    let cand = t.slice(0, cut);
+    const d = { c: 0, sq: 0 };
+    for (const ch of cand) { if (ch === '{') d.c++; else if (ch === '}') d.c--; else if (ch === '[') d.sq++; else if (ch === ']') d.sq--; }
+    cand += ']'.repeat(Math.max(0, d.sq)) + '}'.repeat(Math.max(0, d.c));
+    try { return JSON.parse(cand); } catch { }
+  }
+  return null;
+}
+
+const NLJ = String.fromCharCode(10);
+const PLAN_INTRO = (n) => `You DESIGN scenes for a premium dark developer-explainer video (glowing cards on black, CloudXBerry style). Every scene must be a UNIQUE composition that builds word-by-word as the narrator speaks.
+Topic: "${brief.topic}". Total video: ${n} beats (~${brief.minutes || 5} minutes).
+
+Component vocabulary (kind — what it looks like):
+- tile: glowing icon card with a small label (machines, services, people, concepts)
+- pill: bright gradient badge with icon (results, names, verdicts)
+- counter: huge number on screen (stats) — label IS the number, e.g. "90%"
+- term: terminal window showing a command (cmd field, e.g. "git stash pop")
+- browserbar: browser URL bar (cmd field holds the URL)
+- searchrow: search box with result bars (lookups, queries) — label is the query
+- ring: icon inside a glowing ring (the hero concept of the scene)
+- note: small monospace chip (short side-note)
+- stamp: red warning tag (dangers, errors)
+
+Arrangements: row, column, diagonal, lshape, radial (1 center + satellites), stack (staircase), split (two groups facing).
+
+Per beat: {"text","em","arr","items":[{"kind","icon","label","at","cmd"?}]}
+- text: 12-20 spoken words, one idea, no greetings, no hashtags.
+- em: ONE word from text to highlight.
+- arr: arrangement, MUST differ from the previous beat's arrangement.
+- items: 2-4 components. Each "at" = ONE word from that beat's text — the component POPS on screen exactly when that word is spoken.
+- icons from: ${ICON_LIST}.
+Design the story visually: who talks to what, what transforms, what counts. Vary: >= 4 arrangements and >= 5 kinds across your beats.`;
+
+const PLAN_EXAMPLES = `Example beat objects (DNS topic):
+{"text":"Your resolver asks the root server first, before anything else.","em":"root","arr":"split","items":[{"kind":"tile","icon":"phone","label":"resolver","at":"resolver"},{"kind":"tile","icon":"db","label":"root","at":"root"},{"kind":"pill","icon":"link","label":"first hop","at":"first"}]}
+{"text":"Nine in ten lookups never leave the cache, so answers feel instant.","em":"cache","arr":"radial","items":[{"kind":"ring","icon":"zap","label":"cache","at":"cache"},{"kind":"counter","icon":"zap","label":"90%","at":"nine"},{"kind":"tile","icon":"globe","label":"web","at":"lookups"}]}`;
+
 async function autoPlan() {
   const pack = PACKS[brief.pack] ? brief.pack : 'generic';
   const minutes = brief.minutes || 5;
   const n = Math.max(24, Math.min(48, Math.round(minutes * 7.2)));
-  const prompt = `You write scene plans for a premium developer-explainer video engine (dark, glowing visuals).
-Topic: "${brief.topic}". Motion pack: ${pack}. Allowed scene types: ${PACKS[pack].join(', ')}.
-Audience: developers, US. Target: EXACTLY ${n} beats (~${minutes} minutes).
-Story shape: 2 hook beats -> 3 problem beats -> ~${n - 12} step-by-step build beats (each ONE concrete idea, escalating) -> 3 recap beats -> 2 payoff beats.
-Rules:
-- beat text: 12-20 spoken words, one idea, no greetings, no "in this video", no hashtags.
-- em: ONE word that appears in that beat's text (the word to highlight).
-- scene: pick from the allowed types; NEVER the same type 3 beats in a row; use the pack's signature type often.
-- actors: 4-6 core nouns of THIS topic, each with an icon from: ${ICON_LIST}.
-- optional extras per beat: for "code" a "cmd" (short terminal command); for "result" a "stat" {from,to,dec,suffix} counting animation; for "browser" a "url".
-Return ONLY valid JSON, no markdown: {"title":"...","actors":[{"label":"resolver","icon":"server"}],"beats":[{"text":"...","em":"...","scene":"chain"}]} — beats array length EXACTLY ${n}.`;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    const out = await designBrain(prompt + (attempt > 1 ? '\nReturn ONLY the raw JSON.' : ''));
-    if (!out) continue;
-    const m = out.match(/\{[\s\S]*\}/);
-    if (!m) continue;
-    try {
-      const parsed = JSON.parse(m[0]);
-      if (Array.isArray(parsed.beats) && parsed.beats.length >= 20 && Array.isArray(parsed.actors) && parsed.actors.length >= 3) {
-        parsed.beats = parsed.beats.slice(0, n).map((b) => ({ text: String(b.text || '').trim(), em: String(b.em || '').trim(), scene: String(b.scene || 'result').trim() }));
-        console.log(`[cb] auto-plan accepted (attempt ${attempt}): ${parsed.beats.length} beats, actors: ${parsed.actors.map((a) => a.label).join(', ')}`);
-        return parsed;
-      }
-      console.log(`  [plan] attempt ${attempt}: beats=${(parsed.beats || []).length} (need >= 20)`);
-    } catch (e) { console.log(`  [plan] attempt ${attempt}: bad JSON (${String(e.message).slice(0, 40)})`); }
+  const half = Math.ceil(n / 2);
+  let actors = null, title = null;
+  const beatsAll = [];
+
+  const p1 = PLAN_INTRO(n) + NLJ + NLJ + PLAN_EXAMPLES + NLJ + NLJ +
+    `TASK: design beats 1-${half} (the hook, the problem, and the first build steps).
+Also return "title" and "actors" (4-6 core nouns of the topic with icons).
+Return ONLY valid JSON, no markdown:
+{"title":"...","actors":[{"label":"...","icon":"..."}],"beats":[ ... EXACTLY ${half} objects ... ]}`;
+  let r1 = salvageJson((await designBrain(p1)) || '');
+  for (let round = 0; round < 2 && !r1; round++) { console.log('[cb] plan chunk 1 retry in 60s...'); await new Promise((r) => setTimeout(r, 60000)); r1 = salvageJson((await designBrain(p1)) || ''); }
+  if (r1) {
+    title = r1.title || null;
+    actors = Array.isArray(r1.actors) ? r1.actors : null;
+    beatsAll.push(...(Array.isArray(r1.beats) ? r1.beats : []));
+    console.log(`[cb] plan chunk 1: ${beatsAll.length} beats`);
+  }
+
+  if (beatsAll.length >= Math.floor(half * 0.6)) {
+    const lastText = (beatsAll[beatsAll.length - 1] || {}).text || '';
+    const p2 = PLAN_INTRO(n) + NLJ + NLJ + PLAN_EXAMPLES + NLJ + NLJ +
+      `TASK: continue the SAME video. Beats 1-${beatsAll.length} are done; the last one was: "${String(lastText).slice(0, 80)}".
+Design the NEXT ${n - beatsAll.length} beats: finish the build steps, then 3 recap beats, then 2 payoff beats.
+Return ONLY valid JSON, no markdown: {"beats":[ ... EXACTLY ${n - beatsAll.length} objects ... ]}`;
+    let r2 = salvageJson((await designBrain(p2)) || '');
+    for (let round = 0; round < 2 && !r2; round++) { console.log('[cb] plan chunk 2 retry in 60s...'); await new Promise((r) => setTimeout(r, 60000)); r2 = salvageJson((await designBrain(p2)) || ''); }
+    if (r2 && Array.isArray(r2.beats)) {
+      beatsAll.push(...r2.beats);
+      console.log(`[cb] plan chunk 2: total ${beatsAll.length} beats`);
+    }
+  }
+
+  beatsAll.forEach((b) => {
+    b.text = String(b.text || '').trim();
+    b.em = String(b.em || '').trim();
+    b.items = Array.isArray(b.items) ? b.items.slice(0, 4) : [];
+  });
+  const valid = beatsAll.filter((b) => b.text && b.items.length > 0);
+  if (valid.length >= 18) {
+    console.log(`[cb] auto-plan accepted: ${valid.length} beats` + (actors ? `, actors: ${actors.map((a) => a.label).join(', ')}` : ''));
+    return { title: title || brief.topic, actors: actors && actors.length ? actors : [{ label: 'system', icon: 'server' }, { label: 'client', icon: 'phone' }, { label: 'data', icon: 'db' }, { label: 'user', icon: 'globe' }], beats: valid };
   }
   return null;
 }
@@ -198,6 +312,11 @@ if (beats.length === 0 && brief.topic) {
 } else if (beats.length === 0) {
   console.error('[cb] brief needs beats or topic'); process.exit(1);
 }
+else if (brief.freeScenes && plan.length === 0) {
+  plan = designFreeScenes(beats);
+  planIsLight = true;
+  console.log('[cb] deterministic free-scene design (no LLM plan)');
+}
 let scenes = plan.length ? plan : [];
 
 const work = path.join(HF_DIR, 'work', `${slug}-tpl`);
@@ -209,7 +328,58 @@ console.log(`[cb] ${slug} — ${W}x${H}, ${beats.length} beats`);
 const tile = (t, extra = '') => `<span class="hf-tile ${t.variant || ''} ${extra} rise">${svg(t.icon)}<span class="hf-tlabel">${t.label || ''}</span></span>`;
 const pill = (p, extra = '') => `<span class="hf-pill ${p.variant || 'gold'} ${extra} rise"><span class="ic">${svg(p.icon)}</span><span>${p.label}</span><span class="hf-shine"></span></span>`;
 
+
+// ---------- free scenes: AI-designed unique compositions, entrances word-synced ----------
+const FX_KINDS = ['tile', 'pill', 'counter', 'term', 'browserbar', 'searchrow', 'ring', 'note', 'stamp'];
+const FX_ARRS = ['row', 'column', 'diagonal', 'lshape', 'radial', 'stack', 'split'];
+const FX_SIZE = { tile: [214, 184], pill: [330, 68], counter: [360, 180], term: [660, 210], browserbar: [720, 78], searchrow: [680, 200], ring: [230, 230], note: [230, 48], stamp: [240, 46] };
+function renderFree(sc) {
+  const items = (sc.items || []).slice(0, 5);
+  const sw = Math.round(W * 0.88), sh = Math.round(H - 392 - 96);
+  const arr = FX_ARRS.includes(sc.arr) ? sc.arr : 'row';
+  const sizes = items.map((it) => FX_SIZE[it.kind] || FX_SIZE.tile);
+  let pts = [];
+  if (arr === 'column') { const maxH = Math.max(...sizes.map((z) => z[1])); const step = Math.max(maxH + 30, Math.min(250, (sh - 60) / Math.max(1, items.length))); pts = sizes.map((sz, k) => ({ x: sw / 2 - sz[0] / 2, y: sh / 2 - (items.length - 1) * step / 2 + k * step - sz[1] / 2 })); }
+  else if (arr === 'diagonal') { pts = sizes.map((sz, k) => ({ x: sw * 0.08 + (sw * 0.6 - sizes[0][0]) * (k / Math.max(1, items.length - 1)), y: sh * 0.78 - sh * 0.55 * (k / Math.max(1, items.length - 1)) - sz[1] / 2 })); }
+  else if (arr === 'lshape') { const half = Math.ceil(items.length / 2); pts = sizes.map((sz, k) => k < half ? { x: sw * 0.1 + k * (sw * 0.55 / half), y: sh * 0.72 - sz[1] / 2 } : { x: sw * 0.8 - sz[0] / 2, y: sh * 0.62 - (k - half + 1) * (sz[1] + 40) - sz[1] / 2 }); }
+  else if (arr === 'radial') { pts = sizes.map((sz, k) => { if (k === 0) return { x: sw / 2 - sz[0] / 2, y: sh / 2 - sz[1] / 2 }; const a = (k - 1) / Math.max(1, items.length - 1) * Math.PI * 2 - Math.PI / 2; return { x: sw / 2 + Math.cos(a) * sw * 0.3 - sz[0] / 2, y: sh / 2 + Math.sin(a) * sh * 0.34 - sz[1] / 2 }; }); }
+  else if (arr === 'stack') { pts = sizes.map((sz, k) => ({ x: sw * 0.05 + k * 265, y: sh * 0.82 - k * ((sh * 0.6) / Math.max(1, items.length - 1)) - sz[1] / 2 })); }
+  else if (arr === 'split') { pts = sizes.map((sz, k) => ({ x: k % 2 === 0 ? sw * 0.16 - sz[0] / 2 : sw * 0.84 - sz[0] / 2, y: sh * 0.3 + Math.floor(k / 2) * 180 - sz[1] / 2 })); }
+  else { const n = items.length; const spread = sw * 0.74; const startx = sw / 2 - spread / 2; pts = sizes.map((sz, k) => ({ x: n === 1 ? sw / 2 - sz[0] / 2 : startx + (spread - sz[0]) * (k / (n - 1)), y: sh / 2 - sz[1] / 2 })); }
+  const variantCycle = ['v', 'g', 'e', 'p'];
+  let html = `<span class="fx-stage">`;
+  if (arr === 'radial' && items.length > 2) {
+    html += `<svg class="fx-svg" viewBox="0 0 ${sw} ${sh}">` + items.slice(1).map((_, k) => {
+      const c0 = { x: pts[0].x + sizes[0][0] / 2, y: pts[0].y + sizes[0][1] / 2 };
+      const c = { x: pts[k + 1].x + sizes[k + 1][0] / 2, y: pts[k + 1].y + sizes[k + 1][1] / 2 };
+      return `<line x1="${Math.round(c0.x)}" y1="${Math.round(c0.y)}" x2="${Math.round(c.x)}" y2="${Math.round(c.y)}" stroke="${k % 2 ? '#4ade80' : '#fbbf24'}" stroke-width="3" stroke-dasharray="12 10" opacity="0.6"/>`;
+    }).join('') + `</svg>`;
+  }
+  items.forEach((it, k) => {
+    const id = `fx-${sc._i}-${k}`;
+    const wd = sizes[k][0], ht = sizes[k][1];
+    const pos = `left:${Math.max(0, Math.round(pts[k].x))}px;top:${Math.max(0, Math.round(pts[k].y))}px;`;
+    const variant = variantCycle[k % 4];
+    const label = String(it.label || '').slice(0, 18);
+    switch (it.kind) {
+      case 'pill': html += `<span class="hf-pill ${it.variant || (k % 2 ? 'emerald' : 'gold')} fx" id="${id}" style="${pos}"><span class="ic">${svg(it.icon || 'tag')}</span><span>${label}</span><span class="hf-shine"></span></span>`; break;
+      case 'counter': html += `<span class="hf-num fx" id="${id}" style="${pos}font-size:76px;">${String(it.label || '0').slice(0, 8)}</span>`; break;
+      case 'term': html += `<span class="hf-window fx" id="${id}" style="${pos}width:${wd}px;"><span class="hf-bar"><i></i><i></i><i></i><span class="hf-tab">terminal</span></span><span class="hf-body" style="flex-direction:column;align-items:stretch;gap:10px;padding:22px 26px;"><span class="hf-codeline"><span class="tok-c">$ </span><span>${escAttr(it.cmd || label.toLowerCase())}</span></span></span></span>`; break;
+      case 'browserbar': html += `<span class="hf-urlrow fx" id="${id}" style="${pos}width:${wd}px;"><span class="hf-lock">${svg('lock')}</span><span class="hf-url" style="font-size:24px;">${escAttr(it.cmd || 'https://example.dev')}</span></span>`; break;
+      case 'searchrow': html += `<span class="hf-window fx" id="${id}" style="${pos}width:${wd}px;"><span class="hf-body" style="flex-direction:column;align-items:stretch;gap:16px;padding:24px 28px;"><span class="hf-search">${svg('search')}<span>${escAttr(label || 'query')}</span></span><span class="hf-rbar" style="width:78%;"></span><span class="hf-rbar" style="width:52%;"></span></span></span>`; break;
+      case 'ring': html += `<span class="hf-ringwrap fx" id="${id}" style="${pos}"><span class="hf-bigicon">${svg(it.icon || 'zap')}</span><svg class="hf-ring" viewBox="0 0 200 200"><circle cx="100" cy="100" r="92" pathLength="100"/></svg></span>`; break;
+      case 'note': html += `<span class="hf-chip fx" id="${id}" style="${pos}">${escAttr(label)}</span>`; break;
+      case 'stamp': html += `<span class="hf-tag fx" id="${id}" style="${pos}font-size:22px;padding:10px 18px;">${escAttr(label)}</span>`; break;
+      default: html += `<span class="hf-tile ${variant} fx" id="${id}" style="${pos}width:${wd}px;height:${ht}px;min-height:0;">${svg(it.icon || 'tag')}<span class="hf-tlabel">${label}</span></span>`;
+    }
+  });
+  html += `</span>`;
+  return html;
+}
+function escAttr(x) { return String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
 const RENDER = {
+  free: (s) => renderFree(s),
   browser: (s) => `
     <span class="hf-window rise" style="width:${s.width || 840}px">
       <span class="hf-bar"><i></i><i></i><i></i><span class="hf-tab">${s.title || 'New Tab'}</span></span>
@@ -396,21 +566,27 @@ html,body{width:${W}px;height:${H}px;overflow:hidden;background:#050505;}
 .hf-endcard .hf-eb{font:800 92px 'Poppins',sans-serif;color:#fff;}
 .hf-endcard .hf-eb em{font-style:normal;color:${amb.a};text-shadow:0 0 34px ${amb.a}80;}
 .hf-endcard .hf-es{font:500 22px 'JetBrains Mono',monospace;letter-spacing:.3em;color:rgba(255,255,255,.55);text-transform:uppercase;}
+.fx-stage{position:relative;display:block;width:100%;height:100%;}
+.fx{position:absolute;display:block;}
+.fx .hf-pill,.fx .hf-tile,.fx .hf-window,.fx .hf-urlrow,.fx .hf-ringwrap,.fx .hf-num,.fx .hf-chip,.fx .hf-tag{position:absolute;}
+.fx-svg{position:absolute;inset:0;width:100%;height:100%;}
 `;
 
 // ---------- 1. TTS ----------
 function probe(f) {
   return parseFloat(execFileSync('ffprobe', ['-v', 'quiet', '-show_entries', 'format=duration', '-of', 'csv=p=0', f], { encoding: 'utf8' }).trim());
 }
-function tts(text, out) {
-  const py = `import asyncio,edge_tts,sys\nasync def m():\n  for i in range(5):\n    try:\n      c=edge_tts.Communicate(sys.argv[1],sys.argv[2],rate="${brief.rate || '-4%'}")\n      with open(sys.argv[3],'wb') as f:\n        async for ch in c.stream():\n          if ch['type']=='audio': f.write(ch['data'])\n      import os\n      if os.path.getsize(sys.argv[3])>1000: return\n    except Exception as e: print('retry',i,e); await asyncio.sleep(1+i)\n  raise SystemExit(1)\nasyncio.run(m())`;
-  const r = spawnSync('python', ['-c', py, text, VOICE, out], { encoding: 'utf8', timeout: 120000 });
+function tts(text, out, wordsOut) {
+  const py = `import asyncio,edge_tts,sys,json\nasync def m():\n  words=[]\n  for i in range(5):\n    try:\n      c=edge_tts.Communicate(sys.argv[1],sys.argv[2],boundary='WordBoundary',rate="${brief.rate || '-4%'}")\n      with open(sys.argv[3],'wb') as f:\n        async for ch in c.stream():\n          if ch['type']=='audio': f.write(ch['data'])\n          elif ch['type']=='WordBoundary': words.append({'t':round(ch['offset']/1e7,2),'w':str(ch['text']).lower()})\n      import os\n      if os.path.getsize(sys.argv[3])>1000:\n        json.dump(words,open(sys.argv[4],'w')); return\n    except Exception as e: print('retry',i,e); await asyncio.sleep(1+i)\n  raise SystemExit(1)\nasyncio.run(m())`;
+  const r = spawnSync('python', ['-c', py, text, VOICE, out, wordsOut], { encoding: 'utf8', timeout: 120000 });
   if (r.status !== 0) throw new Error('tts failed: ' + (r.stderr || r.stdout).slice(0, 200));
 }
 let t = 0;
 for (const b of beats) {
   const mp3 = path.join(work, 'voice', `beat-${String(b.i).padStart(2, '0')}.mp3`);
-  tts(b.text, mp3);
+  const wordsFile = path.join(work, 'voice', `beat-${String(b.i).padStart(2, '0')}.words.json`);
+  tts(b.text, mp3, wordsFile);
+  try { b.words = JSON.parse(fs.readFileSync(wordsFile, 'utf8')).map((w) => ({ t: Math.round((b.start + w.t) * 100) / 100, w: w.w })); } catch { b.words = []; }
   const dur = probe(mp3);
   b.start = Math.round(t * 100) / 100; b.dur = Math.round(dur * 100) / 100; b.file = `voice/beat-${String(b.i).padStart(2, '0')}.mp3`;
   t = t + dur + GAP;
@@ -421,7 +597,22 @@ const END_DUR = 3.4;
 const total = Math.round((endStart + END_DUR) * 100) / 100;
 console.log(`[cb] total ${total}s (end card ${endStart}s + ${END_DUR}s)`);
 beats.forEach((b, i) => { b.until = i < beats.length - 1 ? beats[i + 1].start : endStart; });
-if (planIsLight) scenes = buildScenesFromPlan(plan, actors, beats);
+if (planIsLight) {
+  const allHaveItems = plan.every((e2) => Array.isArray(e2.items) && e2.items.length > 0);
+  if (allHaveItems) {
+    scenes = plan.map((e2, i2) => ({
+      type: 'free', arr: FX_ARRS.includes(e2.arr) ? e2.arr : 'row',
+      items: (e2.items || []).slice(0, 5).map((it) => ({
+        kind: FX_KINDS.includes(it.kind) ? it.kind : 'tile',
+        icon: ICONS[it.icon] ? it.icon : 'tag',
+        label: String(it.label || '').slice(0, 18),
+        at: String(it.at || '').toLowerCase(),
+        ...(it.cmd ? { cmd: it.cmd } : {}), ...(it.variant ? { variant: it.variant } : {}),
+      })),
+    }));
+    console.log('[cb] free-scene plan: ' + scenes.map((s2) => s2.arr + '(' + s2.items.map((x) => x.kind[0]).join('') + ')').join(' '));
+  } else scenes = buildScenesFromPlan(plan, actors, beats);
+}
 const sceneTypes = scenes.map((s2) => s2.type).join(',');
 console.log(`[cb] scene plan: ${sceneTypes}`);
 
@@ -522,6 +713,20 @@ tl.fromTo('#closed-i${i}', { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, d
 });
 tl.to('#wire-i${i}', { opacity: 0.55, duration: 0.7, yoyo: true, repeat: -1, ease: 'sine.inOut' }, ${start} + 0.8);`;
     }
+  } else if (s.type === 'free') {
+    m += `
+var wl${i} = ${JSON.stringify((beats[i].words || []).map((w) => [w.t, w.w]))};
+var wt${i} = function (word) { word = String(word).toLowerCase(); for (var q = 0; q < wl${i}.length; q++) { if (wl${i}[q][1] === word || wl${i}[q][1].indexOf(word) === 0) return wl${i}[q][0]; } return -1; };
+var its${i} = ${JSON.stringify((s.items || []).map((it, k) => ({ id: 'fx-' + i + '-' + k, at: String(it.at || '').toLowerCase() })))};
+its${i}.forEach(function (it, k) {
+  var el = document.getElementById(it.id); if (!el) return;
+  var tw = it.at ? wt${i}(it.at) : -1; if (tw < 0) tw = ${start} + 0.5 + k * 0.4;
+  tw = Math.min(tw, ${(beats[i].until || 0).toFixed(2)} - 0.35);
+  gsap.set(el, { opacity: 0, y: 36, scale: 0.92 });
+  tl.to(el, { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: 'back.out(1.8)' }, tw);
+});
+Array.prototype.forEach.call(b${i}.querySelectorAll('.hf-shine'), function (el, k) { tl.fromTo(el, { x: -160 }, { x: 420, duration: 1.3, ease: 'power1.inOut', repeat: -1, repeatDelay: 1.6 }, ${start} + 1.2 + k * 0.5); });
+`;
   }
   return m;
 }
@@ -573,10 +778,11 @@ var beatEls = [${beats.map((b) => `'#beat${b.i}'`).join(', ')}].map(function (se
   return nodes;
 });
 beatEls.forEach(function (ws) { gsap.set(ws, { opacity: 0, y: 56 }); });
-var starts = [${beats.map((b) => b.start).join(', ')}];
-beatEls.forEach(function (ws, i) {
-  tl.to(ws, { opacity: 1, y: 0, duration: 0.6, ease: 'expo.out', stagger: 0.07 }, starts[i] + 0.1);
-});
+/* headline words appear at the exact SPOKEN time of each word */
+${beats.map((b) => `  (function () {
+    var ws = beatEls[${b.i}], hw = ${JSON.stringify(b.words.map((w) => w.t))};
+    ws.forEach(function (w, j) { var tw = hw[j] !== undefined ? hw[j] : ${b.start} + 0.1 + j * 0.07; tl.to(w, { opacity: 1, y: 0, duration: 0.5, ease: 'expo.out' }, tw); });
+  })();`).join('\n')}
 /* ambient: aurora drift + rising dust (deterministic, always-on) */
 tl.fromTo('.aurora.a', { x: 0, y: 0 }, { x: 130, y: 70, duration: 9, yoyo: true, repeat: -1, ease: 'sine.inOut' }, 0);
 tl.fromTo('.aurora.b', { x: 0, y: 0 }, { x: -110, y: -60, duration: 12, yoyo: true, repeat: -1, ease: 'sine.inOut' }, 0);
@@ -587,7 +793,8 @@ Array.prototype.forEach.call(document.querySelectorAll('.dust'), function (d, k)
 ${beats.map((b, i) => {
   const s = scenes[i] || {};
   const wide = s.type === 'commits' || s.type === 'globe' || s.type === 'flow';
-  const pieces = wide ? `Array.from(b${i}.children)` : `Array.from(b${i}.querySelectorAll('.rise'))`;
+  const isFree = s.type === 'free';
+  const pieces = isFree ? '[]' : wide ? `Array.from(b${i}.children)` : `Array.from(b${i}.querySelectorAll('.rise'))`;
   return `var b${i} = document.querySelector('#stage${i}');
 gsap.set(b${i}, { opacity: 0, scale: 0.965, y: 26 });
 gsap.set(${pieces}, { opacity: 0, y: 44 });
