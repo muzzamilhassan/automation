@@ -24,6 +24,9 @@ import { NAV } from './nav';
 import CommandPalette from './CommandPalette';
 import { ALERTS } from '@/lib/site-data';
 import { cn } from '@/lib/utils';
+import { NavList } from '@/components/untitledui/application/app-navigation/base-components/nav-list';
+import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
+import { Badge, BadgeWithIcon } from '@/components/untitledui/base/badges/badges';
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -31,39 +34,39 @@ function ThemeToggle() {
   useEffect(() => setMounted(true), []);
   const dark = theme !== 'light';
   return (
-    <button
-      className="icon-btn"
-      aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
-      title={dark ? 'Light theme' : 'Dark theme'}
+    <ButtonUtility
+      size="sm"
+      color="tertiary"
+      tooltip={dark ? 'Light theme' : 'Dark theme'}
+      icon={mounted && !dark ? Sun : Moon}
       onClick={() => setTheme(dark ? 'light' : 'dark')}
-    >
-      {mounted && !dark ? <Sun size={15.5} /> : <Moon size={15.5} />}
-    </button>
+      aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
+    />
   );
 }
 
 function Notifications({ open, onClose }) {
   if (!open) return null;
   const ICONS = { bad: OctagonAlert, warn: AlertTriangle, info: Info };
+  const COLOR = { bad: 'text-error-primary', warn: 'text-warning-primary', info: 'text-fg-tertiary' };
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="absolute right-0 top-[calc(100%+10px)] w-[340px] card pop-in overflow-hidden z-50" style={{ boxShadow: '0 18px 50px rgba(0,0,0,0.35)' }}>
-        <div className="flex items-center justify-between px-4 py-3 border-b border-line">
-          <span className="section-title">Alerts</span>
-          <span className="chip chip-warn">{ALERTS.length} open</span>
+      <div className="absolute right-0 top-[calc(100%+10px)] w-[340px] rounded-xl border border-border-secondary bg-bg-primary shadow-xl z-50 overflow-hidden pop-in">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border-tertiary">
+          <span className="text-sm font-semibold text-fg-primary">Alerts</span>
+          <Badge color="warning" size="sm">{ALERTS.length} open</Badge>
         </div>
         <div className="max-h-[320px] overflow-y-auto">
           {ALERTS.map((a) => {
             const Icon = ICONS[a.level] || Info;
-            const color = a.level === 'bad' ? 'var(--bad)' : a.level === 'warn' ? 'var(--warn)' : 'var(--info)';
             return (
-              <Link key={a.title} href={a.href} onClick={onClose} className="flex gap-3 px-4 py-3 border-b border-line last:border-0 hover:bg-surface-2 transition-colors">
-                <Icon size={15} className="shrink-0 mt-0.5" style={{ color }} />
+              <Link key={a.title} href={a.href} onClick={onClose} className="flex gap-3 px-4 py-3 border-b border-border-tertiary last:border-0 hover:bg-bg-secondary transition-colors">
+                <Icon size={15} className={cn('shrink-0 mt-0.5', COLOR[a.level] || COLOR.info)} />
                 <span>
-                  <span className="block text-[12.5px] font-semibold text-ink">{a.title}</span>
-                  <span className="block text-[11.5px] text-muted mt-0.5 leading-snug">{a.body}</span>
-                  <span className="block text-[10.5px] text-faint mt-1 font-mono">{a.when}</span>
+                  <span className="block text-[12.5px] font-semibold text-fg-primary">{a.title}</span>
+                  <span className="block text-[11.5px] text-fg-tertiary mt-0.5 leading-snug">{a.body}</span>
+                  <span className="block text-[10.5px] text-fg-quaternary mt-1 font-mono">{a.when}</span>
                 </span>
               </Link>
             );
@@ -74,39 +77,47 @@ function Notifications({ open, onClose }) {
   );
 }
 
-function NavList({ collapsed, onNavigate }) {
+function NavGroups({ collapsed, onNavigate }) {
   const pathname = usePathname();
-  return (
-    <nav className="flex-1 overflow-y-auto px-[9px] pb-4">
-      {NAV.map((g) => (
-        <div key={g.group}>
-          {!collapsed ? <div className="nav-label">{g.group}</div> : <div className="mx-3 my-3 border-t border-line" />}
-          <div className="space-y-0.5">
-            {g.items.map((item) => {
-              const Icon = item.icon;
-              const active = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={onNavigate}
-                  title={collapsed ? item.label : undefined}
-                  className={cn('nav-item', active && 'active', collapsed && 'justify-center px-0')}
-                >
-                  <Icon size={16.5} strokeWidth={2.1} className={cn(active && 'text-accent')} />
-                  {!collapsed ? <span className="truncate">{item.label}</span> : null}
-                </Link>
-              );
-            })}
-          </div>
+  const blocks = [];
+  NAV.forEach((g, gi) => {
+    if (collapsed) {
+      blocks.push(<div key={`div-${g.group}`} className="mx-4 my-2"><hr className="h-px w-full border-none bg-border-secondary" /></div>);
+    } else {
+      blocks.push(
+        <div key={`h-${g.group}`} className="px-6 pt-5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-fg-quaternary">
+          {g.group}
         </div>
-      ))}
-      <div className={cn('mt-5 pt-4 border-t border-line', collapsed ? 'px-1 flex justify-center' : 'px-[11px]')}>
+      );
+    }
+    const items = g.items.map((i) => ({
+      href: i.href,
+      label: collapsed ? '' : i.label,
+      icon: i.icon,
+      title: i.label,
+    }));
+    blocks.push(
+      <NavList
+        key={`nav-${g.group}`}
+        activeUrl={pathname}
+        items={items.map((it) => ({
+          ...it,
+          label: it.label || undefined,
+        }))}
+        className={collapsed ? '[&_span]:hidden [&_a]:justify-center [&_a]:px-0' : ''}
+      />
+    );
+    void gi;
+  });
+  return (
+    <nav className="flex-1 overflow-y-auto pb-4">
+      {blocks}
+      <div className={cn('mt-5 pt-4 border-t border-border-tertiary', collapsed ? 'px-1 flex justify-center' : 'px-6')}>
         <a
           href="https://muzzamilhassan.github.io/quarrystudio/dashboard.html"
           target="_blank"
           rel="noreferrer"
-          className="flex items-center gap-2 text-[12px] text-faint hover:text-muted transition-colors"
+          className="flex items-center gap-2 text-[12px] text-fg-quaternary hover:text-fg-secondary transition-colors"
           title="TikTok dashboard"
         >
           <ExternalLink size={13} />
@@ -119,17 +130,17 @@ function NavList({ collapsed, onNavigate }) {
 
 function Brand({ collapsed }) {
   return (
-    <Link href="/" className="flex items-center gap-3 px-3 h-[60px] shrink-0" onClick={() => {}}>
+    <Link href="/" className="flex items-center gap-3 px-6 h-[64px] shrink-0">
       <span
-        className="flex items-center justify-center w-8 h-8 rounded-xl shrink-0"
-        style={{ background: 'linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #22d3ee))' }}
+        className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0"
+        style={{ background: 'linear-gradient(135deg, var(--brand-600, #7f56d9), color-mix(in srgb, var(--brand-500, #9e77ed) 70%, #22d3ee))' }}
       >
-        <Pickaxe size={16} color="var(--accent-ink)" strokeWidth={2.4} />
+        <Pickaxe size={16} color="#fff" strokeWidth={2.4} />
       </span>
       {!collapsed ? (
         <span className="min-w-0">
-          <span className="block font-display font-bold text-[15px] tracking-tight text-ink leading-none">Quarry Studio</span>
-          <span className="block text-[10.5px] text-faint mt-0.5">Command Center</span>
+          <span className="block font-display font-semibold text-[15px] tracking-tight text-fg-primary leading-none">Quarry Studio</span>
+          <span className="block text-[10.5px] text-fg-quaternary mt-0.5">Command Center</span>
         </span>
       ) : null}
     </Link>
@@ -181,41 +192,41 @@ export default function AppShell({ children }) {
   };
 
   const current = NAV.flatMap((g) => g.items).find((i) => i.href === pathname);
-  const pageTitle = current ? current.label : pathname === '/channels' ? 'Channels' : 'Quarry Studio';
+  const pageTitle = current ? current.label : 'Quarry Studio';
 
-  const sidebarInner = (collapsed, isMobile = false) => (
+  const sidebarInner = (collapsedState, isMobile = false) => (
     <>
-      <Brand collapsed={collapsed && !isMobile} />
-      <NavList collapsed={collapsed && !isMobile} onNavigate={() => setMobileOpen(false)} />
-      <div className={cn('p-3 border-t border-line shrink-0', collapsed && !isMobile ? 'flex flex-col items-center gap-2' : 'flex items-center justify-between')}>
+      <Brand collapsed={collapsedState && !isMobile} />
+      <NavGroups collapsed={collapsedState && !isMobile} onNavigate={() => setMobileOpen(false)} />
+      <div className={cn('p-3 border-t border-border-tertiary shrink-0', collapsedState && !isMobile ? 'flex flex-col items-center gap-2' : 'flex items-center justify-between')}>
         <div className="flex items-center gap-2 min-w-0">
-          <span className="w-2 h-2 rounded-full pulse-dot" style={{ background: 'var(--ok)' }} />
-          {!collapsed || isMobile ? (
-            <span className="text-[11px] text-muted truncate">
-              Engine connected <span className="text-faint">· 16 brands</span>
+          <span className="w-2 h-2 rounded-full pulse-dot" style={{ background: 'var(--color-success-500, #12b76a)' }} />
+          {!collapsedState || isMobile ? (
+            <span className="text-[11px] text-fg-tertiary truncate">
+              Engine connected <span className="text-fg-quaternary">· 16 brands</span>
             </span>
           ) : null}
         </div>
         {!isMobile ? (
-          <button
-            className="icon-btn btn-sm"
-            style={{ width: 26, height: 26, borderRadius: 8 }}
+          <ButtonUtility
+            size="xs"
+            color="tertiary"
+            tooltip={collapsedState ? 'Expand sidebar' : 'Collapse sidebar'}
+            icon={collapsedState ? ChevronsRight : ChevronsLeft}
             onClick={() => setCollapsed((c) => !c)}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {collapsed ? <ChevronsRight size={13} /> : <ChevronsLeft size={13} />}
-          </button>
+            aria-label={collapsedState ? 'Expand sidebar' : 'Collapse sidebar'}
+          />
         ) : null}
       </div>
     </>
   );
 
   return (
-    <div className="min-h-screen flex bg-bg">
+    <div className="min-h-screen flex bg-bg-primary">
       {/* desktop sidebar */}
       <aside
-        className="hidden lg:flex flex-col sticky top-0 h-screen shrink-0 z-30 border-r border-line bg-bg-soft transition-all duration-200"
-        style={{ width: collapsed ? 68 : 240 }}
+        className="hidden lg:flex flex-col sticky top-0 h-screen shrink-0 z-30 border-r border-border-secondary bg-bg-secondary transition-all duration-200"
+        style={{ width: collapsed ? 68 : 248 }}
       >
         {sidebarInner(collapsed)}
       </aside>
@@ -224,9 +235,9 @@ export default function AppShell({ children }) {
       {mobileOpen ? (
         <div className="lg:hidden fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onClick={() => setMobileOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 w-[248px] bg-bg-soft border-r border-line flex flex-col pop-in">
-            <button className="absolute top-4 right-3 icon-btn" style={{ width: 28, height: 28 }} onClick={() => setMobileOpen(false)} aria-label="Close menu">
-              <X size={15} />
+          <aside className="absolute inset-y-0 left-0 w-[250px] bg-bg-primary border-r border-border-secondary flex flex-col pop-in">
+            <button className="absolute top-4 right-3 z-10" style={{ width: 28, height: 28 }} onClick={() => setMobileOpen(false)} aria-label="Close menu">
+              <X size={15} className="text-fg-tertiary" />
             </button>
             {sidebarInner(false, true)}
           </aside>
@@ -235,46 +246,52 @@ export default function AppShell({ children }) {
 
       {/* main column */}
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="sticky top-0 z-40 h-[60px] border-b border-line backdrop-blur-xl" style={{ background: 'color-mix(in srgb, var(--bg) 82%, transparent)' }}>
+        <header className="sticky top-0 z-40 h-[64px] border-b border-border-secondary backdrop-blur-xl bg-bg-primary/85">
           <div className="h-full px-4 md:px-7 flex items-center gap-3">
-            <button className="icon-btn lg:hidden" onClick={() => setMobileOpen(true)} aria-label="Open menu">
+            <button className="lg:hidden icon-btn" onClick={() => setMobileOpen(true)} aria-label="Open menu">
               <Menu size={16} />
             </button>
 
             <div className="hidden md:flex items-center gap-2 text-[13px] min-w-0">
-              <Activity size={13} className="text-faint" />
-              <span className="text-faint">Quarry Studio</span>
-              <span className="text-faint">/</span>
-              <span className="font-semibold text-ink truncate">{pageTitle}</span>
+              <Activity size={13} className="text-fg-quaternary" />
+              <span className="text-fg-quaternary">Quarry Studio</span>
+              <span className="text-fg-quaternary">/</span>
+              <span className="font-semibold text-fg-primary truncate">{pageTitle}</span>
             </div>
 
             <div className="flex-1" />
 
             <button
               onClick={() => setPaletteOpen(true)}
-              className="hidden sm:flex items-center gap-2 h-9 pl-3 pr-2 rounded-xl border border-line bg-surface text-faint hover:border-line-strong hover:text-muted transition-colors"
+              className="hidden sm:flex items-center gap-2 h-9 pl-3 pr-2 rounded-lg border border-border-secondary bg-bg-primary text-fg-quaternary hover:border-border-primary hover:text-fg-tertiary transition-colors"
               style={{ width: 220 }}
             >
               <Search size={14} />
               <span className="text-[12.5px]">Search or run…</span>
-              <span className="ml-auto kbd">⌘K</span>
+              <span className="ml-auto font-mono text-[10.5px] text-fg-quaternary border border-border-tertiary rounded px-1 py-px">⌘K</span>
             </button>
-            <button className="icon-btn sm:hidden" onClick={() => setPaletteOpen(true)} aria-label="Search">
+            <button className="sm:hidden icon-btn" onClick={() => setPaletteOpen(true)} aria-label="Search">
               <Search size={15.5} />
             </button>
 
-            <span className="hidden md:inline-flex chip chip-ok">
-              <span className="w-1.5 h-1.5 rounded-full pulse-dot" style={{ background: 'var(--ok)' }} />
-              Engine live
+            <span className="hidden md:inline-flex">
+              <BadgeWithIcon color="success" size="sm" icon={<span className="w-1.5 h-1.5 rounded-full pulse-dot" style={{ background: 'currentColor' }} />}>
+                Engine live
+              </BadgeWithIcon>
             </span>
 
             <div className="relative">
-              <button className="icon-btn relative" onClick={() => setNotifOpen((o) => !o)} aria-label="Alerts">
-                <Bell size={15.5} />
-                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9.5px] font-bold flex items-center justify-center" style={{ background: 'var(--bad)', color: '#fff' }}>
-                  {ALERTS.length}
-                </span>
-              </button>
+              <ButtonUtility
+                size="sm"
+                color="tertiary"
+                tooltip="Alerts"
+                icon={Bell}
+                onClick={() => setNotifOpen((o) => !o)}
+                aria-label="Alerts"
+              />
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9.5px] font-bold flex items-center justify-center bg-error-solid text-white pointer-events-none">
+                {ALERTS.length}
+              </span>
               <Notifications open={notifOpen} onClose={() => setNotifOpen(false)} />
             </div>
 
@@ -282,8 +299,7 @@ export default function AppShell({ children }) {
 
             <div className="relative">
               <button
-                className="flex items-center justify-center w-8 h-8 rounded-full font-display font-bold text-[12px] shrink-0 cursor-pointer transition-transform hover:scale-105"
-                style={{ background: 'var(--accent-soft)', color: 'var(--accent)', border: '1px solid color-mix(in srgb, var(--accent) 35%, transparent)' }}
+                className="flex items-center justify-center w-8 h-8 rounded-full font-display font-semibold text-[12px] shrink-0 cursor-pointer transition-transform hover:scale-105 border border-border-primary bg-brand-primary text-white"
                 onClick={() => setUserOpen((o) => !o)}
                 aria-label="Account menu"
                 title="Muzzamil — owner"
@@ -293,16 +309,15 @@ export default function AppShell({ children }) {
               {userOpen ? (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setUserOpen(false)} />
-                  <div className="absolute right-0 top-[calc(100%+10px)] w-[220px] card pop-in overflow-hidden z-50" style={{ boxShadow: '0 18px 50px rgba(0,0,0,0.35)' }}>
-                    <div className="px-4 py-3 border-b border-line">
-                      <p className="text-[12.5px] font-semibold text-ink">Muzzamil Hassan</p>
-                      <p className="text-[11px] text-faint mt-0.5">Studio owner · trusted 30 days</p>
+                  <div className="absolute right-0 top-[calc(100%+10px)] w-[220px] rounded-xl border border-border-secondary bg-bg-primary shadow-xl overflow-hidden z-50 pop-in">
+                    <div className="px-4 py-3 border-b border-border-tertiary">
+                      <p className="text-[12.5px] font-semibold text-fg-primary">Muzzamil Hassan</p>
+                      <p className="text-[11px] text-fg-quaternary mt-0.5">Studio owner · trusted 30 days</p>
                     </div>
                     <button
                       onClick={logout}
                       disabled={loggingOut}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12.5px] font-semibold transition-colors hover:bg-surface-2 disabled:opacity-50"
-                      style={{ color: 'var(--bad)' }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12.5px] font-semibold transition-colors hover:bg-bg-secondary disabled:opacity-50 text-error-primary"
                     >
                       <LogOut size={14} />
                       {loggingOut ? 'Signing out…' : 'Log out'}
@@ -314,13 +329,13 @@ export default function AppShell({ children }) {
           </div>
         </header>
 
-        <main className="relative page-glow w-full px-4 md:px-7 py-6 md:py-8 max-w-[1200px] mx-auto">
+        <main className="relative w-full px-4 md:px-7 py-6 md:py-8 max-w-[1200px] mx-auto">
           <div key={pathname} className="fade-up">
             {children}
           </div>
-          <footer className="mt-14 pb-6 flex items-center justify-between text-[11px] text-faint">
+          <footer className="mt-14 pb-6 flex items-center justify-between text-[11px] text-fg-quaternary">
             <span>Quarry Studio · runs on GitHub Actions · nothing lives on this PC</span>
-            <span className="font-mono">v2.0</span>
+            <span className="font-mono">v3.0 · Untitled UI</span>
           </footer>
         </main>
       </div>
