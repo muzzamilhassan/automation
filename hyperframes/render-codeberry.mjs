@@ -435,12 +435,17 @@ const RENDER = {
     const n = (s.labels || []).length;
     const sw = Math.round(W * 0.84), x0 = Math.round(W * 0.08), y = 296;
     const line = `<svg class="fx-svg" viewBox="0 0 ${sw} ${H - 392 - 96}" style="left:${x0}px;top:0;"><path id="tl-line-i${s._i}" d="M 30 ${Math.round((H - 392 - 96) / 2)} H ${sw - 30}" pathLength="100" stroke="#fbbf24" stroke-width="5" fill="none" stroke-linecap="round"/></svg>`;
+    const stems = (s.labels || []).map((_, k) => {
+      const px = Math.round(30 + ((sw - 60) - 40) * (k / Math.max(1, n - 1)));
+      const up = k % 2 === 0;
+      return `<path id="tl-stem-i${s._i}-${k}" d="M ${px} ${up ? 250 : 300} L ${px} ${Math.round((H - 392 - 96) / 2)}" pathLength="100" stroke="rgba(255,255,255,.35)" stroke-width="3" fill="none"/>`;
+    }).join('');
     const stops = (s.labels || []).map((lb, k) => {
       const px = Math.round(30 + ((sw - 60) - 40) * (k / Math.max(1, n - 1)));
       const up = k % 2 === 0;
-      return `<span class="hf-tile ${['v', 'g', 'e', 'p'][k % 4]} fx tlstop" id="tl-k-i${s._i}-${k}" style="left:${x0 + px - 10}px;top:${up ? 120 : 330}px;width:190px;height:120px;min-height:0;">${svg(lb.icon || 'tag')}<span class="hf-tlabel">${lb.label}</span></span>`;
+      return `<span class="hf-tile ${['v', 'g', 'e', 'p'][k % 4]} fx tlstop" id="tl-k-i${s._i}-${k}" style="left:${x0 + px - 95}px;top:${up ? 108 : 312}px;width:190px;height:130px;min-height:0;">${svg(lb.icon || 'tag')}<span class="hf-tlabel">${lb.label}</span></span>`;
     }).join('');
-    return line + stops;
+    return line + stems + stops;
   },
   cycle: (s) => {
     const cx = Math.round(W * 0.5), cy = 296, r = 208;
@@ -477,15 +482,14 @@ const RENDER = {
     const path = `M ${pts[0].x} ${pts[0].y} ` + pts.slice(1).map((p2, k) => `Q ${Math.round((pts[k].x + p2.x) / 2)} ${k % 2 === 0 ? 40 : sh - 40} ${p2.x} ${p2.y}`).join(' ');
     return `<svg class="fx-svg" viewBox="0 0 ${sw} ${sh}" style="left:${x0}px;top:0;">
       <path id="rt-path-i${s._i}" d="${path}" pathLength="100" stroke="#fbbf24" stroke-width="5" fill="none" stroke-linecap="round"/>
-      ${stops.map((lb, k) => `<circle id="rt-s-i${s._i}-${k}" class="cm-node ${['v', 'g', 'e'][k % 3]}" cx="${pts[k].x}" cy="${pts[k].y}" r="16"/><text x="${pts[k].x}" y="${pts[k].y + (k % 2 === 0 ? 52 : -34)}" text-anchor="middle" fill="rgba(255,255,255,.8)" font-family="JetBrains Mono" font-size="20" letter-spacing="2">${(lb.label || '').toUpperCase()}</text>`).join('')}
-      <circle id="rt-dot-i${s._i}" r="11" fill="#fff" opacity="0"/>
-    </svg>`;
+      ${stops.map((_, k) => `<circle id="rt-node-i${s._i}-${k}" class="cm-node ${['v', 'g', 'e'][k % 3]}" cx="${pts[k].x}" cy="${pts[k].y}" r="14"/>`).join('')}
+    </svg>` + stops.map((lb, k) => `<span class="hf-tile ${['v', 'g', 'e'][k % 3]} fx" id="rt-s-i${s._i}-${k}" style="left:${Math.round(x0 + pts[k].x - 95)}px;top:${Math.round(pts[k].y + (k % 2 === 0 ? -170 : 36))}px;width:190px;height:120px;min-height:0;">${svg(lb.icon || 'tag')}<span class="hf-tlabel">${lb.label}</span></span>`).join('');
   },
   chat: (s) => {
     const items = (s.labels || []).slice(0, 4);
-    return `<span class="hf-tile v fx" id="ch-side-i${s._i}-0" style="left:6%;top:170px;">${svg('phone')}<span class="hf-tlabel">client</span></span>
-    <span class="hf-tile g fx" id="ch-side-i${s._i}-1" style="right:6%;top:170px;">${svg('server')}<span class="hf-tlabel">server</span></span>`
-    + items.map((lb, k) => `<span class="hf-msg ${k % 2 ? 'back' : ''}" id="ch-b-i${s._i}-${k}" style="left:${k % 2 ? '58%' : '20%'};top:${[110, 330, 210, 430][k % 4]}px;position:absolute;font-size:22px;opacity:0;">${lb.label}</span>`).join('');
+    return `<span class="hf-tile v fx" id="ch-side-i${s._i}-0" style="left:4%;top:180px;width:220px;height:230px;min-height:0;">${svg('phone')}<span class="hf-tlabel">client</span></span>
+    <span class="hf-tile g fx" id="ch-side-i${s._i}-1" style="right:4%;top:180px;width:220px;height:230px;min-height:0;">${svg('server')}<span class="hf-tlabel">server</span></span>`
+    + items.map((lb, k) => `<span class="hf-msg ${k % 2 ? 'back' : ''}" id="ch-b-i${s._i}-${k}" style="${k % 2 ? 'right' : 'left'}:${k % 2 ? '17%' : '17%'};top:${[60, 210, 360, 470][k % 4]}px;position:absolute;font-size:26px;padding:14px 26px;opacity:0;">${lb.label}</span>`).join('');
   },
 
   browser: (s) => `
@@ -824,7 +828,8 @@ tl.to('#wire-i${i}', { opacity: 0.55, duration: 0.7, yoyo: true, repeat: -1, eas
   } else if (s.type === 'timeline') {
     m += `
 tl.fromTo('#tl-line-i${i}', { drawSVG: '0%' }, { drawSVG: '100%', duration: ${(beats[i].until - beats[i].start).toFixed(2) - 0.6}, ease: 'none' }, ${start} + 0.4);
-${(s.labels || []).map((_, k) => `tl.fromTo('#tl-k-i${i}-${k}', { scale: 0, opacity: 0, transformOrigin: '50% 50%' }, { scale: 1, opacity: 1, duration: 0.4, ease: 'back.out(2)' }, ${start} + 0.5 + ${(beats[i].until - beats[i].start).toFixed(2) - 0.6} * ${(k / Math.max(1, (s.labels || []).length - 1)).toFixed(2)});`).join('\n')}`;
+${(s.labels || []).map((_, k) => `tl.fromTo('#tl-stem-i${i}-${k}', { drawSVG: '0%' }, { drawSVG: '100%', duration: 0.3, ease: 'power1.inOut' }, ${start} + 0.4 + ${(beats[i].until - beats[i].start).toFixed(2) - 0.6} * ${(k / Math.max(1, (s.labels || []).length - 1)).toFixed(2)});
+tl.fromTo('#tl-k-i${i}-${k}', { scale: 0, opacity: 0, transformOrigin: '50% ${k % 2 === 0 ? '100%' : '0%'}' }, { scale: 1, opacity: 1, duration: 0.4, ease: 'back.out(2)' }, ${start} + 0.65 + ${(beats[i].until - beats[i].start).toFixed(2) - 0.6} * ${(k / Math.max(1, (s.labels || []).length - 1)).toFixed(2)});`).join('\n')}`;
   } else if (s.type === 'cycle') {
     m += `
 tl.fromTo('#cy-ring-i${i}', { strokeDashoffset: 0 }, { strokeDashoffset: -224, duration: 8, ease: 'none', repeat: -1 }, ${start});
@@ -841,7 +846,7 @@ tl.fromTo('#tr-k-i${i}-${k}', { scale: 0, opacity: 0, transformOrigin: '50% 50%'
   } else if (s.type === 'route') {
     m += `
 tl.fromTo('#rt-path-i${i}', { drawSVG: '0%' }, { drawSVG: '100%', duration: ${(beats[i].until - beats[i].start).toFixed(2) - 0.5}, ease: 'none' }, ${start} + 0.4);
-${(s.labels || []).slice(0, 3).map((_, k) => `tl.fromTo('#rt-s-i${i}-${k}', { scale: 0, opacity: 0, transformOrigin: '50% 50%' }, { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(2)' }, ${start} + 0.45 + ${(beats[i].until - beats[i].start).toFixed(2) - 0.5} * ${[0, 0.5, 1][k]});`).join('\n')}
+${(s.labels || []).slice(0, 3).map((_, k) => `tl.fromTo('#rt-node-i${i}-${k}', { scale: 0, opacity: 0, transformOrigin: '50% 50%' }, { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(2)' }, ${start} + 0.45 + ${(beats[i].until - beats[i].start).toFixed(2) - 0.5} * ${[0, 0.5, 1][k]});\ntl.fromTo('#rt-s-i${i}-${k}', { y: ${k % 2 === 0 ? 30 : -30}, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: 'back.out(1.7)' }, ${start} + 0.9 + ${(beats[i].until - beats[i].start).toFixed(2) - 0.5} * ${[0, 0.5, 1][k]});`).join('\n')}
 `;
   } else if (s.type === 'chat') {
     m += `
@@ -930,7 +935,8 @@ ${beats.map((b, i) => {
   const wide = s.type === 'commits' || s.type === 'globe' || s.type === 'flow';
   const isFree = s.type === 'free';
   const pieces = isFree ? '[]' : wide ? `Array.from(b${i}.children)` : `Array.from(b${i}.querySelectorAll('.rise'))`;
-  const slots = Array.from({ length: 6 }, (_, k) => Math.round((b.start + 0.4 + (k * (b.until - b.start - 1.2)) / 5) * 100) / 100);
+  const spanEnd = b.start + Math.max(1.8, (b.until - b.start) * 0.45);
+  const slots = Array.from({ length: 6 }, (_, k) => Math.round((b.start + 0.35 + (k * (spanEnd - b.start - 0.35)) / 5) * 100) / 100);
   return `var b${i} = document.querySelector('#stage${i}');
 var lean${i} = [0, -44, 44][${i} % 3];
 gsap.set(b${i}, { opacity: 0, scale: 0.965, y: 26, x: lean${i} });
