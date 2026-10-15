@@ -65,19 +65,23 @@ function contentWords(text) {
   return String(text).toLowerCase().replace(/[^a-z0-9\s']/g, ' ').split(/\s+/).filter((w) => w.length > 3 && !STOP.has(w));
 }
 const PACK_FAMILIES = {
-  network: ['chain', 'window', 'payoff', 'chain', 'search', 'pills'],
-  git: ['commits', 'window', 'payoff', 'pills', 'commits', 'chain'],
-  realtime: ['flow', 'window', 'payoff', 'flow', 'pills', 'search'],
-  generic: ['chain', 'window', 'payoff', 'search', 'pills', 'chain'],
+  network: ['chain', 'window', 'payoff', 'route', 'search', 'cycle', 'timeline', 'pills', 'tree', 'funnel', 'chat'],
+  git: ['commits', 'window', 'timeline', 'chain', 'payoff', 'funnel', 'pills', 'tree'],
+  realtime: ['flow', 'chat', 'window', 'timeline', 'payoff', 'cycle', 'pills', 'search'],
+  generic: ['chain', 'window', 'timeline', 'funnel', 'tree', 'route', 'cycle', 'payoff', 'pills', 'search', 'chat'],
 };
 function composeScene(i, b, beatsArr) {
   const fams = PACK_FAMILIES[brief.pack] || PACK_FAMILIES.generic;
-  let fam = fams[(i * 5 + Math.floor(i / 6)) % fams.length];
-  if (composeScene._prev === fam) {
-    fam = fams[(fams.indexOf(fam) + 1 + ((i % 2))) % fams.length];
-    if (fam === composeScene._prev) fam = fams[(fams.indexOf(fam) + 2) % fams.length];
+  composeScene._used = composeScene._used || [];
+  let idx = (i * 5 + Math.floor(i / 6)) % fams.length;
+  let fam = fams[idx];
+  let guard = 0;
+  while (composeScene._used.slice(-3).includes(fam) && guard++ < fams.length) {
+    idx = (idx + 1) % fams.length;
+    fam = fams[idx];
   }
-  composeScene._prev = fam;
+  composeScene._used.push(fam);
+  if (composeScene._used.length > 4) composeScene._used.shift();
   const cw = contentWords(b.text);
   const ranked = [...cw].sort((a, b2) => b2.length - a.length);
   const w = (k) => cw[k % Math.max(1, cw.length)] || (b.em || 'step');
@@ -118,6 +122,18 @@ function composeScene(i, b, beatsArr) {
       };
       return { type: 'pills', items: [0, 1].map((k) => ({ icon: ic(k + 2), label: lab(k), variant: k ? 'emerald' : 'gold' })), caption: shortLine(b.text, 36) };
     }
+    case 'timeline':
+      return { type: 'timeline', labels: [0, 1, 2, 3].map((k) => ({ icon: ic(k + 1), label: (k === 0 ? (b.em || w(0)) : w(k + 1)).slice(0, 13) })) };
+    case 'cycle':
+      return { type: 'cycle', labels: [0, 1, 2, 3].map((k) => ({ icon: ic(k + 2), label: (k === 0 ? (b.em || w(0)) : w(k + 2)).slice(0, 13) })) };
+    case 'funnel':
+      return { type: 'funnel', labels: [0, 1, 2].map((k) => ({ icon: ic(k + 1), label: (k === 0 ? (b.em || w(0)) : w(k + 2)).slice(0, 16) })) };
+    case 'tree':
+      return { type: 'tree', labels: [{ icon: 'server', label: (b.em || w(0)).slice(0, 13) }, { icon: ic(2), label: w(1).slice(0, 13) }, { icon: ic(4), label: w(2).slice(0, 13) }, { icon: ic(6), label: w(3).slice(0, 13) }] };
+    case 'route':
+      return { type: 'route', labels: [0, 1, 2].map((k) => ({ icon: ic(k), label: (k === 0 ? (b.em || w(0)) : w(k + 2)).slice(0, 13) })) };
+    case 'chat':
+      return { type: 'chat', labels: [0, 1, 2].map((k) => ({ icon: ic(k), label: (k === 0 ? (b.em || w(0)) : w(k + 1)).slice(0, 16) })) };
     case 'commits': {
       const modes = ['plain', 'branch', 'merge', 'rebase'];
       return { type: 'commits', mode: modes[i % 4], caption: `STEP ${i + 1} / ${beatsArr.length}` };
@@ -415,6 +431,63 @@ function escAttr(x) { return String(x).replace(/&/g, '&amp;').replace(/</g, '&lt
 
 const RENDER = {
   free: (s) => renderFree(s),
+  timeline: (s) => {
+    const n = (s.labels || []).length;
+    const sw = Math.round(W * 0.84), x0 = Math.round(W * 0.08), y = 296;
+    const line = `<svg class="fx-svg" viewBox="0 0 ${sw} ${H - 392 - 96}" style="left:${x0}px;top:0;"><path id="tl-line-i${s._i}" d="M 30 ${Math.round((H - 392 - 96) / 2)} H ${sw - 30}" pathLength="100" stroke="#fbbf24" stroke-width="5" fill="none" stroke-linecap="round"/></svg>`;
+    const stops = (s.labels || []).map((lb, k) => {
+      const px = Math.round(30 + ((sw - 60) - 40) * (k / Math.max(1, n - 1)));
+      const up = k % 2 === 0;
+      return `<span class="hf-tile ${['v', 'g', 'e', 'p'][k % 4]} fx tlstop" id="tl-k-i${s._i}-${k}" style="left:${x0 + px - 10}px;top:${up ? 120 : 330}px;width:190px;height:120px;min-height:0;">${svg(lb.icon || 'tag')}<span class="hf-tlabel">${lb.label}</span></span>`;
+    }).join('');
+    return line + stops;
+  },
+  cycle: (s) => {
+    const cx = Math.round(W * 0.5), cy = 296, r = 208;
+    const items = (s.labels || []).slice(0, 4);
+    const tiles = items.map((lb, k) => {
+      const a = (k / items.length) * Math.PI * 2 - Math.PI / 2;
+      const px = cx + Math.cos(a) * r * 1.42 - 105, py = cy + Math.sin(a) * r - 80;
+      return `<span class="hf-tile ${['v', 'g', 'e', 'p'][k % 4]} fx" id="cy-k-i${s._i}-${k}" style="left:${Math.round(px)}px;top:${Math.round(py)}px;width:210px;height:160px;min-height:0;">${svg(lb.icon || 'tag')}<span class="hf-tlabel">${lb.label}</span></span>`;
+    }).join('');
+    return `<svg class="fx-svg" viewBox="0 0 ${W} ${H - 392 - 96}"><circle id="cy-ring-i${s._i}" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#fbbf24" stroke-width="4" stroke-dasharray="16 12" opacity="0.75"/></svg>` + tiles;
+  },
+  funnel: (s) => {
+    const widths = [900, 640, 400];
+    return (s.labels || []).slice(0, 3).map((lb, k) => `<span class="fx" id="fn-k-i${s._i}-${k}" style="left:${Math.round(W / 2 - widths[k] / 2)}px;top:${Math.round(70 + k * 148)}px;"><span class="hf-pill ${k === 2 ? 'emerald' : 'gold'}" style="width:${widths[k]}px;justify-content:center;height:96px;font-size:32px;"><span class="ic">${svg(lb.icon || 'tag')}</span><span>${lb.label}</span><span class="hf-shine"></span></span></span>`).join('');
+  },
+  tree: (s) => {
+    const sw = Math.round(W * 0.8), x0 = Math.round(W * 0.1);
+    const kids = (s.labels || []).slice(1);
+    const top = `<span class="hf-tile g fx" id="tr-top-i${s._i}" style="left:${Math.round(x0 + sw / 2 - 107)}px;top:40px;width:214px;height:150px;min-height:0;">${svg((s.labels || [])[0] && s.labels[0].icon || 'server')}<span class="hf-tlabel">${(s.labels || [])[0] ? s.labels[0].label : 'root'}</span></span>`;
+    const lines = `<svg class="fx-svg" viewBox="0 0 ${sw} ${H - 392 - 96}" style="left:${x0}px;top:0;">` + kids.map((_, k) => {
+      const kx = sw * (0.22 + (0.56) * (k / Math.max(1, kids.length - 1)));
+      return `<path id="tr-l-i${s._i}-${k}" d="M ${sw / 2} 190 C ${sw / 2} 300 ${kx} 260 ${kx} 360" pathLength="100" stroke="#4ade80" stroke-width="4" fill="none" opacity="0.7"/>`;
+    }).join('') + `</svg>`;
+    const kidTiles = kids.map((lb, k) => {
+      const kx = sw * (0.22 + 0.56 * (k / Math.max(1, kids.length - 1)));
+      return `<span class="hf-tile ${['v', 'e', 'p'][k % 3]} fx" id="tr-k-i${s._i}-${k}" style="left:${Math.round(x0 + kx - 100)}px;top:368px;width:200px;height:140px;min-height:0;">${svg(lb.icon || 'tag')}<span class="hf-tlabel">${lb.label}</span></span>`;
+    }).join('');
+    return lines + top + kidTiles;
+  },
+  route: (s) => {
+    const sw = Math.round(W * 0.84), sh = H - 392 - 96, x0 = Math.round(W * 0.08);
+    const stops = (s.labels || []).slice(0, 3);
+    const pts = stops.map((_, k) => ({ x: Math.round(sw * (0.08 + 0.84 * (k / Math.max(1, stops.length - 1)))), y: Math.round(sh * (k % 2 === 0 ? 0.3 : 0.72)) }));
+    const path = `M ${pts[0].x} ${pts[0].y} ` + pts.slice(1).map((p2, k) => `Q ${Math.round((pts[k].x + p2.x) / 2)} ${k % 2 === 0 ? 40 : sh - 40} ${p2.x} ${p2.y}`).join(' ');
+    return `<svg class="fx-svg" viewBox="0 0 ${sw} ${sh}" style="left:${x0}px;top:0;">
+      <path id="rt-path-i${s._i}" d="${path}" pathLength="100" stroke="#fbbf24" stroke-width="5" fill="none" stroke-linecap="round"/>
+      ${stops.map((lb, k) => `<circle id="rt-s-i${s._i}-${k}" class="cm-node ${['v', 'g', 'e'][k % 3]}" cx="${pts[k].x}" cy="${pts[k].y}" r="16"/><text x="${pts[k].x}" y="${pts[k].y + (k % 2 === 0 ? 52 : -34)}" text-anchor="middle" fill="rgba(255,255,255,.8)" font-family="JetBrains Mono" font-size="20" letter-spacing="2">${(lb.label || '').toUpperCase()}</text>`).join('')}
+      <circle id="rt-dot-i${s._i}" r="11" fill="#fff" opacity="0"/>
+    </svg>`;
+  },
+  chat: (s) => {
+    const items = (s.labels || []).slice(0, 4);
+    return `<span class="hf-tile v fx" id="ch-side-i${s._i}-0" style="left:6%;top:170px;">${svg('phone')}<span class="hf-tlabel">client</span></span>
+    <span class="hf-tile g fx" id="ch-side-i${s._i}-1" style="right:6%;top:170px;">${svg('server')}<span class="hf-tlabel">server</span></span>`
+    + items.map((lb, k) => `<span class="hf-msg ${k % 2 ? 'back' : ''}" id="ch-b-i${s._i}-${k}" style="left:${k % 2 ? '58%' : '20%'};top:${[110, 330, 210, 430][k % 4]}px;position:absolute;font-size:22px;opacity:0;">${lb.label}</span>`).join('');
+  },
+
   browser: (s) => `
     <span class="hf-window rise" style="width:${s.width || 840}px">
       <span class="hf-bar"><i></i><i></i><i></i><span class="hf-tab">${s.title || 'New Tab'}</span></span>
@@ -748,6 +821,32 @@ tl.fromTo('#closed-i${i}', { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, d
 });
 tl.to('#wire-i${i}', { opacity: 0.55, duration: 0.7, yoyo: true, repeat: -1, ease: 'sine.inOut' }, ${start} + 0.8);`;
     }
+  } else if (s.type === 'timeline') {
+    m += `
+tl.fromTo('#tl-line-i${i}', { drawSVG: '0%' }, { drawSVG: '100%', duration: ${(beats[i].until - beats[i].start).toFixed(2) - 0.6}, ease: 'none' }, ${start} + 0.4);
+${(s.labels || []).map((_, k) => `tl.fromTo('#tl-k-i${i}-${k}', { scale: 0, opacity: 0, transformOrigin: '50% 50%' }, { scale: 1, opacity: 1, duration: 0.4, ease: 'back.out(2)' }, ${start} + 0.5 + ${(beats[i].until - beats[i].start).toFixed(2) - 0.6} * ${(k / Math.max(1, (s.labels || []).length - 1)).toFixed(2)});`).join('\n')}`;
+  } else if (s.type === 'cycle') {
+    m += `
+tl.fromTo('#cy-ring-i${i}', { strokeDashoffset: 0 }, { strokeDashoffset: -224, duration: 8, ease: 'none', repeat: -1 }, ${start});
+${(s.labels || []).map((_, k) => `tl.fromTo('#cy-k-i${i}-${k}', { scale: 0, opacity: 0, transformOrigin: '50% 50%' }, { scale: 1, opacity: 1, duration: 0.4, ease: 'back.out(2)' }, ${start} + 0.5 + ${k} * 0.5);`).join('\n')}`;
+  } else if (s.type === 'funnel') {
+    m += `
+${(s.labels || []).map((_, k) => `tl.fromTo('#fn-k-i${i}-${k}', { scaleX: 0, opacity: 0 }, { scaleX: 1, opacity: 1, duration: 0.55, ease: 'power3.out' }, ${start} + 0.45 + ${k} * 0.5);`).join('\n')}
+Array.prototype.forEach.call(b${i}.querySelectorAll('.hf-shine'), function (el, k) { tl.fromTo(el, { x: -160 }, { x: 900, duration: 1.4, ease: 'power1.inOut', repeat: -1, repeatDelay: 1.5 }, ${start} + 1.6 + k * 0.4); });`;
+  } else if (s.type === 'tree') {
+    m += `
+tl.fromTo('#tr-top-i${i}', { scale: 0, opacity: 0, transformOrigin: '50% 50%' }, { scale: 1, opacity: 1, duration: 0.4, ease: 'back.out(2)' }, ${start} + 0.4);
+${(s.labels || []).slice(1).map((_, k) => `tl.fromTo('#tr-l-i${i}-${k}', { drawSVG: '0%' }, { drawSVG: '100%', duration: 0.5, ease: 'power2.inOut' }, ${start} + 0.9 + ${k} * 0.45);
+tl.fromTo('#tr-k-i${i}-${k}', { scale: 0, opacity: 0, transformOrigin: '50% 50%' }, { scale: 1, opacity: 1, duration: 0.4, ease: 'back.out(2)' }, ${start} + 1.3 + ${k} * 0.45);`).join('\n')}`;
+  } else if (s.type === 'route') {
+    m += `
+tl.fromTo('#rt-path-i${i}', { drawSVG: '0%' }, { drawSVG: '100%', duration: ${(beats[i].until - beats[i].start).toFixed(2) - 0.5}, ease: 'none' }, ${start} + 0.4);
+${(s.labels || []).slice(0, 3).map((_, k) => `tl.fromTo('#rt-s-i${i}-${k}', { scale: 0, opacity: 0, transformOrigin: '50% 50%' }, { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(2)' }, ${start} + 0.45 + ${(beats[i].until - beats[i].start).toFixed(2) - 0.5} * ${[0, 0.5, 1][k]});`).join('\n')}
+`;
+  } else if (s.type === 'chat') {
+    m += `
+[0, 1].forEach(function (k) { tl.fromTo('#ch-side-i${i}-' + k, { scale: 0, opacity: 0, transformOrigin: '50% 50%' }, { scale: 1, opacity: 1, duration: 0.4, ease: 'back.out(2)' }, ${start} + 0.35 + k * 0.25); });
+${(s.labels || []).slice(0, 4).map((_, k) => `tl.fromTo('#ch-b-i${i}-${k}', { scale: 0.5, opacity: 0, transformOrigin: '${k % 2 ? '100% 50%' : '0% 50%'}' }, { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(2.2)' }, ${start} + 0.9 + ${k} * 0.7);`).join('\n')}`;
   } else if (s.type === 'free') {
     m += `
 var wl${i} = ${JSON.stringify((beats[i].words || []).map((w) => [w.t, w.w]))};
@@ -775,6 +874,7 @@ const html = `<!doctype html>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/DrawSVGPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/MotionPathPlugin.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <style>${CSS}</style>
 </head>
@@ -795,7 +895,7 @@ ${audioClips}
   <audio id="music" class="clip" data-start="0" data-duration="${total}" data-track-index="6" data-volume="0.12" src="assets/music.mp3"></audio>
 </div>
 <script>
-gsap.registerPlugin(DrawSVGPlugin);
+gsap.registerPlugin(DrawSVGPlugin, MotionPathPlugin);
 var tl = gsap.timeline({ paused: true });
 var globes = [];
 var beatEls = [${beats.map((b) => `'#beat${b.i}'`).join(', ')}].map(function (sel) {
@@ -832,9 +932,10 @@ ${beats.map((b, i) => {
   const pieces = isFree ? '[]' : wide ? `Array.from(b${i}.children)` : `Array.from(b${i}.querySelectorAll('.rise'))`;
   const slots = Array.from({ length: 6 }, (_, k) => Math.round((b.start + 0.4 + (k * (b.until - b.start - 1.2)) / 5) * 100) / 100);
   return `var b${i} = document.querySelector('#stage${i}');
-gsap.set(b${i}, { opacity: 0, scale: 0.965, y: 26 });
+var lean${i} = [0, -44, 44][${i} % 3];
+gsap.set(b${i}, { opacity: 0, scale: 0.965, y: 26, x: lean${i} });
 gsap.set(${pieces}, { opacity: 0, y: 44 });
-tl.to(b${i}, { opacity: 1, scale: 1, y: 0, duration: 0.5, ease: 'back.out(1.5)' }, ${b.start});
+tl.to(b${i}, { opacity: 1, scale: 1, y: 0, x: lean${i}, duration: 0.5, ease: 'back.out(1.5)' }, ${b.start});
 var pt${i} = ${JSON.stringify(slots)};
 Array.prototype.forEach.call(${pieces}, function (el, k) { tl.to(el, { opacity: 1, y: 0, duration: 0.45, ease: 'back.out(1.6)' }, pt${i}[k % pt${i}.length]); });
 tl.set(b${i}, { opacity: 0 }, ${b.until});`;
@@ -913,10 +1014,17 @@ if (fs.existsSync(musicSrc)) { fs.mkdirSync(path.join(genDir, 'assets'), { recur
 fs.writeFileSync(path.join(genDir, 'index.html'), html);
 
 console.log('[cb] running check gate ...');
-const c = spawnSync('npx', ['--yes', `hyperframes@${HF_VER}`, 'check'], { cwd: genDir, encoding: 'utf8', shell: true, timeout: 300000 });
-const cout = `${c.stdout || ''}\n${c.stderr || ''}`;
+let c = null, cout = '';
+for (let attempt = 1; attempt <= 3; attempt++) {
+  c = spawnSync('npx', ['--yes', `hyperframes@${HF_VER}`, 'check'], { cwd: genDir, encoding: 'utf8', shell: true, timeout: 300000 });
+  cout = `${c.stdout || ''}${c.stderr || ''}`;
+  if (c.status === 0) break;
+  const transient = /page_error|Navigation timeout|check_runtime_failure/.test(cout);
+  if (transient && attempt < 3) { console.log(`[cb] check transient failure (attempt ${attempt}) — retrying in 20s`); await new Promise((r) => setTimeout(r, 20000)); }
+  else break;
+}
 if (c.status !== 0) {
-  console.error('[cb] check FAILED:\n' + cout.split('\n').filter((l) => l.includes('✗') || l.includes('error')).slice(0, 12).join('\n'));
+  console.error('[cb] check FAILED:' + NLJ + cout.split(NLJ).filter((l) => l.includes('✗') || l.includes('error')).slice(0, 12).join(NLJ));
   process.exit(1);
 }
 console.log('[cb] check PASSED — rendering ...');
