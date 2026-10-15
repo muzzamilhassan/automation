@@ -80,7 +80,7 @@ export default function Analytics() {
 
   // REAL daily views from the YouTube Analytics API (28 days)
 
-  const keywords = (sel === 'all' ? terms : terms || []).filter((k) => k && k.term);
+  const keywords = (terms || []).filter((k) => k && k.term);
   const platformSlices = sel === 'all'
     ? [
         { name: 'YouTube', value: totals.ytSubs || 0, color: '#ff4444' },

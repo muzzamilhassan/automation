@@ -45,10 +45,10 @@ function ThemeCard({ value, label, icon: Icon, current, onPick, preview }) {
 }
 
 function MiniPreview({ dark }) {
-  const bg = dark ? '#0a0a0e' : '#f4f4f6';
-  const card = dark ? '#121218' : '#ffffff';
-  const line = dark ? 'rgba(255,255,255,0.08)' : '#e6e6ea';
-  const accent = dark ? '#8b70ff' : '#6742e0';
+  const bg = dark ? '#0f1113' : '#f6f7f8';
+  const card = dark ? '#17191c' : '#ffffff';
+  const line = dark ? 'rgba(255,255,255,0.08)' : '#e6e8eb';
+  const accent = '#C9B7EF';
   return (
     <div className="w-full h-full p-2.5 flex flex-col gap-1.5" style={{ background: bg }}>
       <div className="flex gap-1.5 flex-1">
@@ -188,11 +188,11 @@ export default function SettingsPage() {
           <div className="overline mt-7 mb-3">Typography</div>
           <div className="grid sm:grid-cols-3 gap-2.5">
             <div className="inset-tile p-3">
-              <p className="text-[13px] font-semibold text-ink" style={{ fontFamily: 'var(--font-inter)' }}>Inter</p>
+              <p className="text-[13px] font-semibold text-ink" style={{ fontFamily: 'var(--font-jakarta)' }}>Plus Jakarta Sans</p>
               <p className="text-[11px] text-faint mt-0.5">UI + body text</p>
             </div>
             <div className="inset-tile p-3">
-              <p className="text-[13px] font-bold text-ink" style={{ fontFamily: 'var(--font-space-grotesk)' }}>Space Grotesk</p>
+              <p className="text-[13px] font-bold text-ink" style={{ fontFamily: 'var(--font-jakarta)' }}>Plus Jakarta Sans</p>
               <p className="text-[11px] text-faint mt-0.5">Headlines + big numbers</p>
             </div>
             <div className="inset-tile p-3">

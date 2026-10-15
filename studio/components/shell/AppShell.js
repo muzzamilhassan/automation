@@ -24,7 +24,6 @@ import { NAV } from './nav';
 import CommandPalette from './CommandPalette';
 import { ALERTS } from '@/lib/site-data';
 import { cn } from '@/lib/utils';
-import { NavList } from '@/components/untitledui/application/app-navigation/base-components/nav-list';
 import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
 import { Badge, BadgeWithIcon } from '@/components/untitledui/base/badges/badges';
 
@@ -32,7 +31,8 @@ function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const dark = theme !== 'light';
+  // stay on the SSR default until mounted so server and first client render match
+  const dark = !mounted || theme !== 'light';
   return (
     <ButtonUtility
       size="sm"
@@ -52,7 +52,7 @@ function Notifications({ open, onClose }) {
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="absolute right-0 top-[calc(100%+10px)] w-[340px] rounded-xl border border-border-secondary bg-bg-primary shadow-xl z-50 overflow-hidden pop-in">
+      <div className="absolute right-0 top-[calc(100%+10px)] w-[340px] rounded-lg border border-border-secondary bg-bg-primary shadow-xl z-50 overflow-hidden pop-in">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border-tertiary">
           <span className="text-sm font-semibold text-fg-primary">Alerts</span>
           <Badge color="warning" size="sm">{ALERTS.length} open</Badge>
@@ -77,47 +77,45 @@ function Notifications({ open, onClose }) {
   );
 }
 
+/* 10-15 DREAMS CONVERSION: dark sidebar with custom links (replaces the UUI
+   NavList so the always-dark palette is fully controlled). */
 function NavGroups({ collapsed, onNavigate }) {
   const pathname = usePathname();
-  const blocks = [];
-  NAV.forEach((g, gi) => {
-    if (collapsed) {
-      blocks.push(<div key={`div-${g.group}`} className="mx-4 my-2"><hr className="h-px w-full border-none bg-border-secondary" /></div>);
-    } else {
-      blocks.push(
-        <div key={`h-${g.group}`} className="px-6 pt-5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-fg-quaternary">
-          {g.group}
-        </div>
-      );
-    }
-    const items = g.items.map((i) => ({
-      href: i.href,
-      label: collapsed ? '' : i.label,
-      icon: i.icon,
-      title: i.label,
-    }));
-    blocks.push(
-      <NavList
-        key={`nav-${g.group}`}
-        activeUrl={pathname}
-        items={items.map((it) => ({
-          ...it,
-          label: it.label || undefined,
-        }))}
-        className={collapsed ? '[&_span]:hidden [&_a]:justify-center [&_a]:px-0' : ''}
-      />
-    );
-    void gi;
-  });
   return (
-    <nav className="flex-1 overflow-y-auto pb-4">
-      {blocks}
-      <div className={cn('mt-5 pt-4 border-t border-border-tertiary', collapsed ? 'px-1 flex justify-center' : 'px-6')}>
+    <nav className="flex-1 overflow-y-auto pb-4 px-3">
+      {NAV.map((g) => (
+        <div key={g.group}>
+          {collapsed ? (
+            <div className="mx-2 my-2.5 h-px bg-white/10" />
+          ) : (
+            <div className="qs-side-group">{g.group}</div>
+          )}
+          <div className={cn('space-y-0.5', collapsed && 'qs-rail')}>
+            {g.items.map((i) => {
+              const active = pathname === i.href;
+              const Icon = i.icon;
+              return (
+                <Link
+                  key={i.href}
+                  href={i.href}
+                  onClick={onNavigate}
+                  title={collapsed ? i.label : undefined}
+                  className={cn('qs-side-link', active && 'active')}
+                >
+                  <Icon />
+                  <span className="truncate">{i.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      <div className={cn('mt-5 pt-4 border-t border-white/10', collapsed ? 'flex justify-center' : '')}>
         <a
           href="https://muzzamilhassan.github.io/quarrystudio/dashboard.html"
           target="_blank"
           rel="noreferrer"
-          className="flex items-center gap-2 text-[12px] text-fg-quaternary hover:text-fg-secondary transition-colors"
+          className="flex items-center gap-2 px-2 text-[12px] text-[#6b7671] hover:text-[#98a2a7] transition-colors"
           title="TikTok dashboard"
         >
           <ExternalLink size={13} />
@@ -130,17 +128,17 @@ function NavGroups({ collapsed, onNavigate }) {
 
 function Brand({ collapsed }) {
   return (
-    <Link href="/" className="flex items-center gap-3 px-6 h-[64px] shrink-0">
+    <Link href="/" className="flex items-center gap-3 px-5 h-[58px] shrink-0 border-b border-white/10">
       <span
         className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0"
-        style={{ background: 'linear-gradient(135deg, var(--brand-600, #7f56d9), color-mix(in srgb, var(--brand-500, #9e77ed) 70%, #22d3ee))' }}
+        style={{ background: 'var(--accent)' }}
       >
-        <Pickaxe size={16} color="#fff" strokeWidth={2.4} />
+        <Pickaxe size={16} color="#0a0a0a" strokeWidth={2.4} />
       </span>
       {!collapsed ? (
         <span className="min-w-0">
-          <span className="block font-display font-semibold text-[15px] tracking-tight text-fg-primary leading-none">Quarry Studio</span>
-          <span className="block text-[10.5px] text-fg-quaternary mt-0.5">Command Center</span>
+          <span className="block font-display font-bold text-[15px] tracking-tight text-white leading-none">Quarry Studio</span>
+          <span className="block text-[10.5px] text-[#6b7671] mt-0.5">Command Center</span>
         </span>
       ) : null}
     </Link>
@@ -198,24 +196,24 @@ export default function AppShell({ children }) {
     <>
       <Brand collapsed={collapsedState && !isMobile} />
       <NavGroups collapsed={collapsedState && !isMobile} onNavigate={() => setMobileOpen(false)} />
-      <div className={cn('p-3 border-t border-border-tertiary shrink-0', collapsedState && !isMobile ? 'flex flex-col items-center gap-2' : 'flex items-center justify-between')}>
+      <div className={cn('qs-side-foot p-3 shrink-0', collapsedState && !isMobile ? 'flex flex-col items-center gap-2' : 'flex items-center justify-between')}>
         <div className="flex items-center gap-2 min-w-0">
-          <span className="w-2 h-2 rounded-full pulse-dot" style={{ background: 'var(--color-success-500, #12b76a)' }} />
+          <span className="w-2 h-2 rounded-full pulse-dot" style={{ background: '#17b26a' }} />
           {!collapsedState || isMobile ? (
-            <span className="text-[11px] text-fg-tertiary truncate">
-              Engine connected <span className="text-fg-quaternary">· 16 brands</span>
+            <span className="text-[11px] text-[#98a2a7] truncate">
+              Engine connected <span className="text-[#6b7671]">· 16 brands</span>
             </span>
           ) : null}
         </div>
         {!isMobile ? (
-          <ButtonUtility
-            size="xs"
-            color="tertiary"
-            tooltip={collapsedState ? 'Expand sidebar' : 'Collapse sidebar'}
-            icon={collapsedState ? ChevronsRight : ChevronsLeft}
+          <button
+            className="qs-side-collapse"
             onClick={() => setCollapsed((c) => !c)}
             aria-label={collapsedState ? 'Expand sidebar' : 'Collapse sidebar'}
-          />
+            title={collapsedState ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsedState ? <ChevronsRight size={14} /> : <ChevronsLeft size={14} />}
+          </button>
         ) : null}
       </div>
     </>
@@ -225,8 +223,8 @@ export default function AppShell({ children }) {
     <div className="min-h-screen flex bg-bg-primary">
       {/* desktop sidebar */}
       <aside
-        className="hidden lg:flex flex-col sticky top-0 h-screen shrink-0 z-30 border-r border-border-secondary bg-bg-secondary transition-all duration-200"
-        style={{ width: collapsed ? 68 : 248 }}
+        className="hidden lg:flex flex-col sticky top-0 h-screen shrink-0 z-30 qs-side transition-all duration-200"
+        style={{ width: collapsed ? 64 : 246 }}
       >
         {sidebarInner(collapsed)}
       </aside>
@@ -235,9 +233,9 @@ export default function AppShell({ children }) {
       {mobileOpen ? (
         <div className="lg:hidden fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onClick={() => setMobileOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 w-[250px] bg-bg-primary border-r border-border-secondary flex flex-col pop-in">
+          <aside className="absolute inset-y-0 left-0 w-[250px] qs-side flex flex-col pop-in">
             <button className="absolute top-4 right-3 z-10" style={{ width: 28, height: 28 }} onClick={() => setMobileOpen(false)} aria-label="Close menu">
-              <X size={15} className="text-fg-tertiary" />
+              <X size={15} className="text-[#98a2a7]" />
             </button>
             {sidebarInner(false, true)}
           </aside>
@@ -246,8 +244,8 @@ export default function AppShell({ children }) {
 
       {/* main column */}
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="sticky top-0 z-40 h-[64px] border-b border-border-secondary backdrop-blur-xl bg-bg-primary/85">
-          <div className="h-full px-4 md:px-7 flex items-center gap-3">
+        <header className="sticky top-0 z-40 h-[58px] border-b border-border-secondary backdrop-blur-xl bg-bg-primary/85">
+          <div className="h-full px-4 md:px-6 flex items-center gap-3">
             <button className="lg:hidden icon-btn" onClick={() => setMobileOpen(true)} aria-label="Open menu">
               <Menu size={16} />
             </button>
@@ -263,8 +261,8 @@ export default function AppShell({ children }) {
 
             <button
               onClick={() => setPaletteOpen(true)}
-              className="hidden sm:flex items-center gap-2 h-9 pl-3 pr-2 rounded-lg border border-border-secondary bg-bg-primary text-fg-quaternary hover:border-border-primary hover:text-fg-tertiary transition-colors"
-              style={{ width: 220 }}
+              className="hidden sm:flex items-center gap-2 h-8 pl-3 pr-2 rounded-lg border border-transparent bg-bg-tertiary text-fg-quaternary hover:text-fg-tertiary transition-colors"
+              style={{ width: 210 }}
             >
               <Search size={14} />
               <span className="text-[12.5px]">Search or run…</span>
@@ -299,7 +297,8 @@ export default function AppShell({ children }) {
 
             <div className="relative">
               <button
-                className="flex items-center justify-center w-8 h-8 rounded-full font-display font-semibold text-[12px] shrink-0 cursor-pointer transition-transform hover:scale-105 border border-border-primary bg-brand-primary text-white"
+                className="flex items-center justify-center w-8 h-8 rounded-full font-display font-bold text-[12px] shrink-0 cursor-pointer transition-transform hover:scale-105"
+                style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
                 onClick={() => setUserOpen((o) => !o)}
                 aria-label="Account menu"
                 title="Muzzamil — owner"
@@ -309,7 +308,7 @@ export default function AppShell({ children }) {
               {userOpen ? (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setUserOpen(false)} />
-                  <div className="absolute right-0 top-[calc(100%+10px)] w-[220px] rounded-xl border border-border-secondary bg-bg-primary shadow-xl overflow-hidden z-50 pop-in">
+                  <div className="absolute right-0 top-[calc(100%+10px)] w-[220px] rounded-lg border border-border-secondary bg-bg-primary shadow-xl overflow-hidden z-50 pop-in">
                     <div className="px-4 py-3 border-b border-border-tertiary">
                       <p className="text-[12.5px] font-semibold text-fg-primary">Muzzamil Hassan</p>
                       <p className="text-[11px] text-fg-quaternary mt-0.5">Studio owner · trusted 30 days</p>
@@ -329,13 +328,13 @@ export default function AppShell({ children }) {
           </div>
         </header>
 
-        <main className="relative w-full px-4 md:px-7 py-6 md:py-8 max-w-[1200px] mx-auto">
+        <main className="relative w-full px-4 md:px-6 py-5 md:py-7 max-w-[1240px] mx-auto">
           <div key={pathname} className="fade-up">
             {children}
           </div>
           <footer className="mt-14 pb-6 flex items-center justify-between text-[11px] text-fg-quaternary">
             <span>Quarry Studio · runs on GitHub Actions · nothing lives on this PC</span>
-            <span className="font-mono">v3.0 · Untitled UI</span>
+            <span className="font-mono">v4.0 · Dreams UI</span>
           </footer>
         </main>
       </div>

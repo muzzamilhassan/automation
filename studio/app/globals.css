@@ -9,9 +9,21 @@
 --------------------------------------------------------------------------- */
 
 @theme inline {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-space-grotesk), var(--font-inter), ui-sans-serif, sans-serif;
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
+
+  /* 10-15 DREAMS CONVERSION: sharp 5px corners across the app (rounded-full
+     is a special value and stays perfectly round). Dreams sets every radius
+     token to 5px. */
+  --radius-xs: 5px;
+  --radius-sm: 5px;
+  --radius-md: 5px;
+  --radius-lg: 5px;
+  --radius-xl: 5px;
+  --radius-2xl: 5px;
+  --radius-3xl: 6px;
+  --radius-4xl: 8px;
 
   --color-bg: var(--bg);
   --color-bg-soft: var(--bg-soft);
@@ -30,40 +42,40 @@
   --color-info: var(--info);
 }
 
-/* 10-14 UNTITLED UI REDESIGN: legacy tokens now resolve to the Untitled UI
-   palette (Tailwind neutral scale + UUI brand/success/warning/error hues). */
+/* 10-15 DREAMS CONVERSION: light tokens now resolve to the Dreams AI Analytics
+   neutral palette. Accent stays QUARRY LAVENDER (#C9B7EF + black text). */
 :root {
-  --bg: #fafafa;
-  --bg-soft: #f5f5f5;
+  --bg: #f6f7f8;
+  --bg-soft: #eef0f2;
   --surface: #ffffff;
-  --surface-2: #f5f5f5;
-  --line: #e5e5e5;
-  --line-strong: #d4d4d4;
-  --ink: #0a0a0a;
-  --muted: #27272a;
-  --faint: #52525b;
+  --surface-2: #f1f3f4;
+  --line: #e6e8eb;
+  --line-strong: #d5d9dc;
+  --ink: #1a1d20;
+  --muted: #5b6670;
+  --faint: #848d95;
   --accent: #C9B7EF;
   --accent-ink: #0a0a0a;
   --accent-soft: rgba(201, 183, 239, 0.16);
-  --ok: #12b76a;
-  --warn: #f79009;
-  --bad: #f04438;
-  --info: #0ba5ec;
+  --ok: #12a66e;
+  --warn: #e8a317;
+  --bad: #dc2f2f;
+  --info: #0aa2c0;
   --card-shadow: 0 1px 3px rgba(16, 24, 40, 0.1), 0 1px 2px rgba(16, 24, 40, 0.06);
   --glow: radial-gradient(600px 220px at 70% -60px, rgba(201, 183, 239, 0.18), transparent 70%);
   color-scheme: light;
 }
 
 .dark {
-  --bg: #0a0a0a;
-  --bg-soft: #050505;
-  --surface: #171717;
-  --surface-2: #1e1e1e;
-  --line: #262626;
-  --line-strong: #404040;
+  --bg: #0f1113;
+  --bg-soft: #0b0d0e;
+  --surface: #17191c;
+  --surface-2: #1e2124;
+  --line: #26292d;
+  --line-strong: #3a3e44;
   --ink: #ffffff;
-  --muted: #d4d4d4;
-  --faint: #a3a3a3;
+  --muted: #cdd3d8;
+  --faint: #939ca4;
   --accent: #C9B7EF;
   --accent-ink: #0a0a0a;
   --accent-soft: rgba(201, 183, 239, 0.16);
@@ -74,6 +86,13 @@
   --card-shadow: none;
   --glow: radial-gradient(700px 260px at 68% -80px, rgba(139, 112, 255, 0.14), transparent 70%);
   color-scheme: dark;
+}
+
+/* Dreams base density: 14px root scales every rem-based Tailwind size and
+   spacing unit down to the template's compact rhythm (text-sm → 12.25px,
+   text-xs → 10.5px, spacing unit 3.5px). */
+html {
+  font-size: 14px;
 }
 
 html,
@@ -105,7 +124,7 @@ body {
 }
 *::-webkit-scrollbar-thumb {
   background: var(--line-strong);
-  border-radius: 8px;
+  border-radius: 5px;
 }
 *::-webkit-scrollbar-track {
   background: transparent;
@@ -114,7 +133,7 @@ body {
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: 5px;
 }
 
 /* ------------------------------- surfaces -------------------------------- */
@@ -131,7 +150,7 @@ body {
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 5px;
   box-shadow: var(--card-shadow);
 }
 
@@ -146,7 +165,7 @@ body {
 .inset-tile {
   background: var(--surface-2);
   border: none;
-  border-radius: 12px;
+  border-radius: 5px;
 }
 
 /* 10-09: box main values read as near-black (light) / near-white (dark) */
@@ -205,7 +224,7 @@ body {
   gap: 7px;
   height: 36px;
   padding: 0 14px;
-  border-radius: 8px;
+  border-radius: 5px;
   font-size: 13px;
   font-weight: 600;
   border: 1px solid transparent;
@@ -241,7 +260,7 @@ body {
   background: var(--surface-2);
   border: 1px solid var(--line-strong);
   color: var(--ink);
-  border-radius: 10px;
+  border-radius: 5px;
   padding: 8px 12px;
   font-size: 13px;
   font-weight: 500;
@@ -276,7 +295,7 @@ body {
   height: 28px;
   padding: 0 10px;
   font-size: 12px;
-  border-radius: 8px;
+  border-radius: 5px;
   gap: 5px;
 }
 
@@ -286,7 +305,7 @@ body {
   justify-content: center;
   width: 34px;
   height: 34px;
-  border-radius: 10px;
+  border-radius: 5px;
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--muted);
@@ -306,7 +325,7 @@ body {
   align-items: center;
   gap: 11px;
   padding: 8px 11px;
-  border-radius: 10px;
+  border-radius: 5px;
   font-size: 13.5px;
   font-weight: 500;
   color: var(--muted);
@@ -393,7 +412,7 @@ table.data tbody tr:hover {
   align-items: center;
   height: 20px;
   padding: 0 6px;
-  border-radius: 6px;
+  border-radius: 5px;
   border: 1px solid var(--line-strong);
   background: var(--surface-2);
   color: var(--faint);
@@ -457,7 +476,7 @@ table.data tbody tr:hover {
   to { background-position: -200% 0; }
 }
 .skeleton {
-  border-radius: 10px;
+  border-radius: 5px;
   background: linear-gradient(100deg, var(--surface-2) 40%, var(--line) 50%, var(--surface-2) 60%);
   background-size: 200% 100%;
   animation: shimmer 1.6s linear infinite;
@@ -500,3 +519,85 @@ table.data tbody tr:hover {
 .bg-brand-solid { background-color: #C9B7EF; }
 .hover\:bg-brand-solid_hover:hover { background-color: #B49EEA; }
 .bg-brand-solid.text-white, .bg-brand-solid.text-fg-white { color: #0a0a0a; }
+
+/* ---------- 10-15 DREAMS CONVERSION: always-dark sidebar ---------- */
+/* Dreams' --sidebar-bg #0C0F0D, sidebar text #98A2A7, group labels #6B7671.
+   Active item = lavender tint + white text + lavender icon. Same in both themes. */
+.qs-side {
+  background: #0c0f0d;
+}
+.qs-side-group {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b7671;
+  margin: 16px 6px 6px;
+  padding: 0 4px;
+}
+.qs-side-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 5px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #98a2a7;
+  transition: background 0.14s ease, color 0.14s ease;
+  position: relative;
+}
+.qs-side-link:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #e8ecec;
+}
+.qs-side-link.active {
+  background: rgba(201, 183, 239, 0.13);
+  color: #ffffff;
+  font-weight: 600;
+}
+.qs-side-link.active svg {
+  color: #c9b7ef;
+}
+.qs-side-link svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+.qs-side-foot {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+.qs-side-collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: #6b7671;
+  cursor: pointer;
+}
+.qs-side-collapse:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #e8ecec;
+}
+.qs-side-badge {
+  margin-left: auto;
+  background: var(--accent);
+  color: #0a0a0a;
+  font-size: 10.5px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+/* collapsed rail: icons only */
+.qs-rail .qs-side-link {
+  justify-content: center;
+  padding: 0;
+}
+.qs-rail .qs-side-link span {
+  display: none;
+}
