@@ -4,20 +4,22 @@ import Link from 'next/link';
 import { Tv, Music2, RefreshCw, Mic, Music, Clock, Archive, Plus, PenLine, Pause, Play } from 'lucide-react';
 import { YoutubeIcon, FacebookIcon, InstagramIcon } from '@/components/BrandIcons';
 import { Card, CardHead, Chip, PageHeader, BrandMark, PageSkeleton, EmptyState } from '@/components/ui';
+import { Button } from '@/components/untitledui/base/buttons/button';
+import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
 import { BRAND_META, MUSIC_MOODS } from '@/lib/site-data';
 import { fmt } from '@/lib/utils';
 
 function PlatformRow({ icon: Icon, color, label, handle, followers, extra }) {
   return (
-    <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-2 transition-colors">
-      <span className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0" style={{ background: `color-mix(in srgb, ${color} 12%, transparent)`, color }}>
+    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-surface-2 transition-colors">
+      <span className="flex items-center justify-center w-7 h-7 rounded-md shrink-0" style={{ background: `color-mix(in srgb, ${color} 12%, transparent)`, color }}>
         <Icon size={14} />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-[12px] font-semibold text-ink truncate">{label}</span>
         <span className="block text-[11px] text-faint font-mono truncate">{handle}</span>
       </span>
-      {extra ? <span className="text-[11px] text-faint hidden sm:block">{extra}</span> : null}
+      {extra ? <span className="text-[11px] text-faint hidden sm:block tnum">{extra}</span> : null}
       <span className="tnum text-[12px] font-bold text-ink shrink-0">{followers}</span>
     </div>
   );
@@ -63,7 +65,7 @@ export default function Channels() {
                   <BrandMark short={meta?.short || '•'} accent={c.accent} size={44} />
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="font-display text-[17px] font-bold tracking-tight text-ink">{c.label}</h2>
+                      <h2 className="font-display text-[17px] font-bold tracking-tight text-ink text-balance">{c.label}</h2>
                       {c.flowPaused ? <Chip tone="warn">PAUSED</Chip> : <Chip tone="ok" dot>ACTIVE</Chip>}
                       <ButtonUtility
                         size="sm"
@@ -72,11 +74,9 @@ export default function Channels() {
                         icon={c.flowPaused ? Play : Pause}
                         onClick={() => toggleFlow(c.slug, c.flowPaused)}
                       />
-                      {c.fromRegistry ? (
-                        <Link href={`/channels/add?edit=${c.slug}`} title="Edit this channel (niche, template, key, schedule)">
-                          <ButtonUtility size="sm" color="tertiary" icon={PenLine} />
-                        </Link>
-                      ) : null}
+                      <Link href={`/channels/add?edit=${c.slug}`} title="Edit this channel (niche, sub-niches, template, schedule)">
+                        <ButtonUtility size="sm" color="tertiary" icon={PenLine} />
+                      </Link>
                     </div>
                     <p className="text-[12px] text-muted mt-0.5">{c.niche}</p>
                   </div>

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { UserPlus, ShieldCheck, CheckCircle2, AlertTriangle, ArrowRight, Layers, Settings2, Plus, Sparkles, X } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, EmptyState, PageSkeleton } from '@/components/ui';
 import { STYLE_CATALOG, STYLE_BY_ID } from '@/lib/styles-catalog';
-import { NICHE_CATALOG } from '@/lib/niches';
+import { NICHE_CATALOG, NICHE_MAP } from '@/lib/niches';
 
 const VOICE_SUGGESTIONS = ['am_michael', 'bm_george', 'bm_daniel', 'am_onyx', 'bf_emma'];
 const DOC_DAYS = ['Tue', 'Wed', 'Thu', 'Fri'];
@@ -30,22 +30,34 @@ export default function AddChannel() {
   const [fillingKit, setFillingKit] = useState(false);
   const [kitMood, setKitMood] = useState('');
   const [form, setForm] = useState({
-    label: '', niche: '', style: 'cinematic', voice: 'am_michael', accent: '#38BDF8', slots: '22:35',
+    label: '', niche: '', subNiches: '', style: 'cinematic', voice: 'am_michael', accent: '#38BDF8', slots: '22:35',
     docDay: 'Tue', eyebrow: '', tagline: '', tags: '', description: '',
   });
 
   const loadReg = () => fetch('/api/channels/registry').then((r) => r.json()).then(setReg).catch(() => setReg({ channels: [] }));
 
-  const prefill = (entry) => setForm((f) => ({
-    ...f,
-    label: entry.label || '',
-    niche: entry.niche || '',
-    docDay: entry.docDay || entry.kit?.docDay || 'Tue',
-    eyebrow: entry.kit?.eyebrow || '',
-    tagline: entry.kit?.tagline || '',
-    tags: entry.kit?.tags?.length ? entry.kit.tags.join(', ') : (entry.ytKeywords || ''),
-    description: entry.kit?.description || entry.ytDescription || '',
-  }));
+  const prefill = (entry) => {
+    const rawNiches = Array.isArray(entry.kit?.niches)
+      ? entry.kit.niches
+      : Array.isArray(entry.niches)
+        ? entry.niches
+        : (entry.niche ? [entry.niche] : []);
+    setForm((f) => ({
+      ...f,
+      label: entry.label || '',
+      niche: entry.niche || '',
+      subNiches: rawNiches.join(', '),
+      style: entry.style || f.style || 'cinematic',
+      voice: entry.voice || f.voice || 'am_michael',
+      accent: entry.accent || f.accent || '#38BDF8',
+      slots: Array.isArray(entry.slots) ? entry.slots.join(', ') : (entry.slots || '22:35'),
+      docDay: entry.docDay || entry.kit?.docDay || 'Tue',
+      eyebrow: entry.kit?.eyebrow || '',
+      tagline: entry.kit?.tagline || '',
+      tags: entry.kit?.tags?.length ? entry.kit.tags.join(', ') : (entry.ytKeywords || ''),
+      description: entry.kit?.description || entry.ytDescription || '',
+    }));
+  };
 
   useEffect(() => {
     let alive = true;
@@ -59,15 +71,27 @@ export default function AddChannel() {
       if (q.get('error')) setError(q.get('error'));
       if (q.get('secretWarning')) setSecretWarning(q.get('secretWarning'));
       if (q.get('connected')) {
-        setConnectedSlug(q.get('connected'));
-        const entry = (r?.channels || []).find((c) => c.slug === q.get('connected'));
-        if (entry) prefill(entry);
+        const connSlug = q.get('connected');
+        setConnectedSlug(connSlug);
+        fetch(`/api/channels/profile?slug=${connSlug}`)
+          .then((x) => x.json())
+          .then((d) => { if (d?.channel) prefill(d.channel); })
+          .catch(() => {
+            const entry = (r?.channels || []).find((c) => c.slug === connSlug);
+            if (entry) prefill(entry);
+          });
       }
-      // edit mode: ?edit=slug opens the setup form for an ALREADY-connected channel
+      // edit mode: ?edit=slug opens the setup form for ANY channel (living or registry)
       if (q.get('edit')) {
-        setConnectedSlug(q.get('edit'));
-        const entry = (r?.channels || []).find((c) => c.slug === q.get('edit'));
-        if (entry) prefill(entry);
+        const editSlug = q.get('edit');
+        setConnectedSlug(editSlug);
+        fetch(`/api/channels/profile?slug=${editSlug}`)
+          .then((x) => x.json())
+          .then((d) => { if (d?.channel) prefill(d.channel); })
+          .catch(() => {
+            const entry = (r?.channels || []).find((c) => c.slug === editSlug);
+            if (entry) prefill(entry);
+          });
       }
     })();
     return () => {
@@ -93,6 +117,7 @@ export default function AddChannel() {
       setKitMood(d.kit.mood || '');
       setForm((f) => ({
         ...f,
+        subNiches: Array.isArray(d.kit.niches) ? d.kit.niches.join(', ') : f.subNiches,
         eyebrow: d.kit.eyebrow || f.eyebrow,
         tagline: d.kit.tagline || f.tagline,
         tags: (d.kit.tags || []).join(', '),
@@ -147,6 +172,11 @@ export default function AddChannel() {
   const saveProfile = async (start = false) => {
     setSaving(true);
     setError('');
+    const subNichesList = form.subNiches
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+
     try {
       const r = await fetch('/api/channels/profile', {
         method: 'POST',
@@ -155,6 +185,7 @@ export default function AddChannel() {
           slug: connectedSlug,
           label: form.label,
           niche: form.niche,
+          subNiches: subNichesList,
           style: form.style,
           voice: form.voice,
           accent: form.accent,
@@ -165,7 +196,7 @@ export default function AddChannel() {
             eyebrow: form.eyebrow,
             tagline: form.tagline,
             tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
-            niches: form.niche ? [form.niche.toLowerCase()] : [],
+            niches: subNichesList.length ? subNichesList : (form.niche ? [form.niche.toLowerCase()] : []),
             description: form.description,
           },
         }),
@@ -293,16 +324,69 @@ export default function AddChannel() {
                   <button
                     key={n}
                     type="button"
-                    className="inset-tile px-2.5 py-1 text-[11px] font-semibold text-muted hover:text-ink transition-colors"
+                    className="inset-tile px-2.5 py-1 text-[11px] font-semibold text-muted hover:text-ink rounded-md transition-[color,border-color,background-color,transform] duration-100 ease-out cursor-pointer active:scale-[0.96]"
                     style={form.niche === n ? { color: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
-                    onClick={() => setForm({ ...form, niche: n })}
+                    onClick={() => {
+                      const subs = NICHE_MAP[n] || [];
+                      setForm({
+                        ...form,
+                        niche: n,
+                        subNiches: subs.length ? subs.join(', ') : form.subNiches,
+                      });
+                    }}
                   >
                     {n}
                   </button>
                 ))}
               </div>
-              <p className="text-[10.5px] text-faint mt-1.5">One tap = niche filled. Or type your own — free text always wins.</p>
+              <p className="text-[10.5px] text-faint mt-1.5">One tap = niche filled + smart sub-niches auto-loaded. Or type your own.</p>
             </div>
+
+            {/* 10-16 PRODUCT SCALE: Sub-niches field */}
+            <label className="block sm:col-span-2">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="overline block">Sub-niches & Content Pillars (Comma separated)</span>
+                <span className="text-[11px] text-faint">Daily research automatically rotates across these pillars</span>
+              </div>
+              <textarea
+                className="input w-full font-mono text-[12px]"
+                rows={2}
+                value={form.subNiches}
+                onChange={(e) => setForm({ ...form, subNiches: e.target.value })}
+                placeholder="e.g. power of silence, dark psychology defense, samurai mindset, emotional detachment, boundary setting"
+              />
+              {NICHE_MAP[form.niche]?.length ? (
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  <span className="text-[11px] text-muted mr-1">Recommended pillars:</span>
+                  {NICHE_MAP[form.niche].map((sn) => {
+                    const currentSubs = form.subNiches.split(',').map((s) => s.trim().toLowerCase());
+                    const active = currentSubs.includes(sn.toLowerCase());
+                    return (
+                      <button
+                        key={sn}
+                        type="button"
+                        className="inset-tile px-2 py-0.5 text-[10.5px] font-medium rounded-md transition-[color,border-color,background-color,transform] duration-100 ease-out cursor-pointer active:scale-[0.96]"
+                        style={active ? { color: 'var(--accent)', borderColor: 'var(--accent)' } : { color: 'var(--muted)' }}
+                        onClick={() => {
+                          if (active) {
+                            const filtered = currentSubs.filter((s) => s !== sn.toLowerCase());
+                            setForm({ ...form, subNiches: filtered.join(', ') });
+                          } else {
+                            const next = form.subNiches.trim() ? `${form.subNiches.trim().replace(/,$/, '')}, ${sn}` : sn;
+                            setForm({ ...form, subNiches: next });
+                          }
+                        }}
+                      >
+                        {active ? '✓ ' : '+ '} {sn}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+              <p className="text-[10.5px] text-faint mt-1.5">
+                The research engine searches YouTube for live viral videos in each sub-niche, ensuring your channel never runs out of fresh, high-performing ideas.
+              </p>
+            </label>
             <label className="block">
               <span className="overline block mb-1.5">Video template</span>
               <select className="input w-full" value={form.style} onChange={(e) => setForm({ ...form, style: e.target.value })}>
@@ -472,7 +556,7 @@ export default function AddChannel() {
                   {c.kit?.tags?.length ? <Chip tone="ok">kit saved</Chip> : null}
                   <Chip tone={c.tokenSecretSaved === false ? 'warn' : 'ok'}>{c.tokenSecretSaved === false ? 'secret missing' : 'key saved'}</Chip>
                   <button
-                    className="btn btn-ghost shrink-0"
+                    className="icon-btn w-8 h-8 rounded-md shrink-0"
                     title="Open the setup form for this channel (also use this to re-connect and upgrade its dashboard data)"
                     onClick={() => {
                       setSaved(false);
@@ -484,7 +568,7 @@ export default function AddChannel() {
                     <Settings2 size={14} />
                   </button>
                   <button
-                    className="btn btn-ghost shrink-0"
+                    className="icon-btn w-8 h-8 rounded-md shrink-0 text-red-400 hover:text-red-300 hover:border-red-500/40"
                     title="Disconnect: revoke access, delete the key, remove from Studio. Videos on the channel stay."
                     onClick={async () => {
                       if (!window.confirm(`Disconnect ${c.label || c.slug}? The machine loses access immediately (key revoked) and it leaves the dashboard. Videos on the channel stay. Continue?`)) return;

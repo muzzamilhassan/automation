@@ -112,7 +112,7 @@ const RUN_EPISODE = !NO_EPISODE && TOPUP_N === 0 && (!episodeDone || (FORCE && !
 const results = [];
 const themes = [];
 
-const page = { id: 'yt-' + slug, ytSlug: slug, name: b.label, niche: b.niche };
+const page = { id: 'yt-' + slug, ytSlug: slug, name: b.label, niche: b.niche, ytBrand: b };
 
 if (RUN_SHORTS) {
   // 09-30: topics are RESEARCH-LED. The static theme banks are gone — each
@@ -168,6 +168,7 @@ if (RUN_SHORTS) {
     console.log(`[desk] used ${deskUsed} user-approved topic(s) — ${deskQueue.length} left in the queue`);
   }
   if (waves.length) {
+    const subNicheList = Array.isArray(b.niches) && b.niches.length ? b.niches : [b.niche];
     for (let k = themesToday.length; k < b.slots.length; k++) {
       let seed = null;
       for (let off = 0; off < waves.length; off++) {
@@ -175,16 +176,17 @@ if (RUN_SHORTS) {
         if (!usedSeeds.includes(cand.title) && !themesToday.some((t) => t.seed === cand.title)) { seed = cand; break; }
       }
       if (!seed) seed = waves[(dayIdx * b.slots.length + k) % waves.length];
+      const slotSubNiche = subNicheList[(dayIdx * b.slots.length + k) % subNicheList.length];
       themesToday.push({
         seed: seed.title,
-        topic: `Build today's video around the THEME of this proven viral video in the niche right now: "${seed.title}" (${seed.views.toLocaleString('en-US')} views in the last 14 days). Reimagine it natively for ${b.label} — do NOT copy its title or wording; bring a fresh angle. Weave in what is currently working: ${(page.trend.hotKeywords.slice(0, 6)).join(', ')}.${page.viewerTerms?.length ? ` Your own viewers found this channel by searching: ${page.viewerTerms.slice(0, 8).join(', ')} — work the strongest of these real search words naturally into the hook and points.` : ''}`
+        subNiche: slotSubNiche,
+        topic: `Sub-niche focus: "${slotSubNiche}" (Channel Niche: "${b.niche}"). Build today's video around the THEME of this proven viral video in this space right now: "${seed.title}" (${seed.views.toLocaleString('en-US')} views in the last 14 days). Reimagine it natively for ${b.label} — do NOT copy its title or wording; bring a fresh, original angle. Weave in what is currently working: ${(page.trend.hotKeywords.slice(0, 6)).join(', ')}.${page.viewerTerms?.length ? ` Your own viewers found this channel by searching: ${page.viewerTerms.slice(0, 8).join(', ')} — work the strongest of these real search words naturally into the hook and points.` : ''}`
       });
     }
   }
-  console.log(`[topics] ${themesToday.map(t => '← ' + t.seed.slice(0, 48)).join(' | ') || 'none — research unavailable'}`);
-  // off-niche drift guard is a Quote Quarry lesson ( Stoicism words leaking in) —
-  // registry channels define their own niche, so the check stays legacy-only
-  const OFF_NICHE = b.fromRegistry ? null : /\bstoic\w*|manipulat\w*|toxic|calm your mind|dark psychology\b/i;
+  console.log(`[topics] ${themesToday.map(t => '← ' + (t.subNiche ? `[${t.subNiche}] ` : '') + t.seed.slice(0, 40)).join(' | ') || 'none — research unavailable'}`);
+  // off-niche drift guard prevents stoicism words leaking into pure finance channels
+  const OFF_NICHE = (slug === 'quotequarry' || b.fromRegistry) ? null : /\bstoic\w*|manipulat\w*|toxic|calm your mind|dark psychology\b/i;
 
   const slotLimit = TOPUP_N > 0 ? Math.min(TOPUP_N, b.slots.length) : b.slots.length;
   for (let i = 0; i < slotLimit; i++) {

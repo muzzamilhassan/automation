@@ -15,15 +15,22 @@ export const BRANDS = [
     slug: 'quotequarry',
     label: 'QUOTE QUARRY',
     handle: '@quotequarry302',
-    niche: 'Stoicism & daily motivation',
+    niche: 'Timeless wisdom, self-mastery & human psychology',
     cpmTier: 'main channel',
     accent: '#F5E31C', bg: '#0A0A0A', ink: '#FFFFFF',
     eyebrow: 'DAILY WISDOM // QUOTE QUARRY',
     tagline: 'Quarry your best self.',
-    keyword: 'stoic quotes', kwShort: 'stoic wisdom', theme: 'Stoicism',
-    niches: ['stoicism', 'self mastery', 'mental strength'],
-    authority: 'Stoicism Philosophy',
-    tags: ['stoicism', 'stoic wisdom', 'motivation', 'discipline', 'mindset', 'self improvement', 'mental strength', 'philosophy', 'success mindset', 'inner peace'],
+    keyword: 'timeless wisdom', kwShort: 'daily wisdom', theme: 'Wisdom',
+    niches: [
+      'human psychology & respect',
+      'power of silence & solitude',
+      'dark psychology defense',
+      'samurai mindset & musashi',
+      'emotional detachment',
+      'stoic rules for modern life'
+    ],
+    authority: 'Timeless Wisdom',
+    tags: ['timeless wisdom', 'human psychology', 'self respect', 'power of silence', 'mental strength', 'stoicism', 'philosophy', 'mindset', 'self mastery', 'boundaries'],
     musicFeels: ['epic', 'inspir', 'heroic'],
     voice: 'am_michael',
     // 10-05 CADENCE: 1 short/day (best ET-prime slot only) + 1 doc/week.
@@ -41,8 +48,15 @@ export const BRANDS = [
     eyebrow: 'MARKET WISDOM // INVESTOR\'S COMPASS',
     tagline: 'Conviction over panic.',
     keyword: 'investing wisdom', kwShort: 'investing wisdom', theme: 'Investing',
-    niches: ['investing psychology', 'stock market wisdom', 'long term wealth'],
-    authority: 'Investing Psychology',
+    niches: [
+      'warren buffett rules',
+      'market crashes & history',
+      'compounding secrets',
+      'investing psychology',
+      'risk management',
+      'value investing'
+    ],
+    authority: 'Market Wisdom',
     tags: ['investing', 'stock market', 'warren buffett', 'financial education', 'money mindset', 'compounding', 'value investing', 'market psychology', 'wealth building', 'finance', 'investment strategy', 'stock market for beginners'],
     voice: 'bm_george',
     musicFeels: ['calming', 'inspir', 'mystical'], // premium, calm-confident market wisdom
@@ -60,8 +74,15 @@ export const BRANDS = [
     eyebrow: 'MONEY RULES // THE MONEY RULEBOOK',
     tagline: 'Rules beat motivation.',
     keyword: 'money rules', kwShort: 'money rules', theme: 'Money',
-    niches: ['personal finance', 'money habits', 'saving systems'],
-    authority: 'Personal Finance',
+    niches: [
+      'silent money habits',
+      'frugal living rules',
+      'debt snowball stories',
+      'budgeting psychology',
+      'first $100k blueprint',
+      'assets vs liabilities'
+    ],
+    authority: 'Money Rules',
     tags: ['personal finance', 'money tips', 'saving money', 'financial freedom', 'budgeting', 'wealth habits', 'money management', 'financial literacy', 'pay yourself first', 'money mindset', 'financial planning', 'build wealth'],
     voice: 'bm_daniel',
     musicFeels: ['bright', 'uplifting', 'grooving'], // clean, confident money-rules energy
@@ -79,7 +100,13 @@ export const BRANDS = [
     eyebrow: 'QUIET WEALTH // OLD MONEY CODE',
     tagline: 'Wealth whispers.',
     keyword: 'old money habits', kwShort: 'old money', theme: 'Quiet Wealth',
-    niches: ['old money habits', 'quiet luxury', 'generational wealth'],
+    niches: [
+      'silent wealth standards',
+      'stealth wealth etiquette',
+      'generational wealth rules',
+      'taste over flash',
+      'quiet confidence habits'
+    ],
     authority: 'Old Money Philosophy',
     tags: ['old money', 'old money habits', 'quiet luxury', 'old money aesthetic', 'generational wealth', 'elegance', 'classy lifestyle', 'wealth habits', 'success habits', 'old money rules', 'style', 'self improvement'],
     voice: 'am_fenrir',

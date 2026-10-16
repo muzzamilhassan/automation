@@ -4,6 +4,7 @@
 // saving — the machine drafts, the human approves. (No LLM key needed on the
 // server; the fields are plain templates.)
 import { requireRole } from '@/lib/route-auth';
+import { NICHE_MAP } from '@/lib/niches';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,13 +56,24 @@ export async function POST(req) {
     'Compound everything.',
   ];
 
+  // 10-16 PRODUCT SCALE: resolve curated sub-niches from NICHE_MAP or smart-generate
+  const foundMap = Object.entries(NICHE_MAP).find(([k]) => low.includes(k.toLowerCase()) || k.toLowerCase().includes(low));
+  const subNiches = foundMap
+    ? foundMap[1]
+    : [
+        low,
+        ...words.map((w) => `${w} psychology`),
+        ...words.map((w) => `${w} rules`),
+        ...words.map((w) => `${w} habits`),
+      ].slice(0, 6);
+
   const kit = {
     eyebrow: `${nick.toUpperCase()} // ${lab.toUpperCase()}`.slice(0, 60),
     tagline: taglines[hash(slug || lab) % taglines.length],
     keyword: low,
     kwShort,
     theme: nick,
-    niches: [low, ...words.filter((w) => w !== low).slice(0, 3)],
+    niches: subNiches,
     authority: `${titleCase(nick)} Wisdom`,
     tags,
     musicFeels: MOOD_FEELS[mood],

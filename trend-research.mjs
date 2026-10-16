@@ -1,16 +1,14 @@
-// Trend research — finds what's going viral RIGHT NOW in a brand's niche.
+// Trend research — finds what's going viral RIGHT NOW in a brand's niche and sub-niches.
 // search.list (own 100-calls/day bucket) over the last 14 days, ordered by
 // views, US region -> pulls full stats/tags -> extracts hot keywords.
-// Cached ~3 days per slug to conserve quota.
-// 09-30: topics are now RESEARCH-LED (static theme banks removed) — so this
-// must not fail lightly. Tries several seed combinations before giving up.
-// Usage (from yt-daily): const trend = await researchTrend(slug, auth, seeds);
+// 10-16 PRODUCT SCALE: sub-niche aware rotation — cycles through channel sub-niches
+// so every day / slot targets a distinct content pillar instead of repeating static topics.
 import fs from 'node:fs';
 import { google } from 'googleapis';
 
 const STOP = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'to', 'in', 'for', 'your', 'you', 'this', 'that', 'with', 'how', 'why', 'what', 'is', 'are', 'on', 'my', 'it', 'be', 'not', 'do', 'dont', 'if', 'they', 'their', 'from', 'at', 'as', 'was', 'will', 'no', 'ever', 'best', 'top', 'vs', 'new', '2024', '2025', '2026']);
 
-export async function researchTrend(slug, auth, seeds, cacheDays = 3) {
+export async function researchTrend(slug, auth, seeds, cacheDays = 1) {
   const file = `yt-mcp/trends-${slug}.json`;
   try {
     const c = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -20,15 +18,22 @@ export async function researchTrend(slug, auth, seeds, cacheDays = 3) {
   const yt = google.youtube({ version: 'v3', auth });
   const after = new Date(Date.now() - 14 * 86400000).toISOString();
 
-  // Try a few query shapes — combined seeds, then singles — first one with
-  // results wins. A blank trend now means NO video for that channel, so this
-  // must be resilient.
-  const queries = [
-    seeds.slice(0, 2).join(' '),
-    seeds[0],
-    seeds[1] || seeds[0],
-    seeds.slice(0, 2).join(' ') + ' explained',
-  ].filter(Boolean);
+  // 10-16 PRODUCT SCALE: Rotate starting sub-niche by day of year so each day's
+  // research targets a fresh pillar from the channel's sub-niches.
+  const rawSubNiches = (Array.isArray(seeds) ? seeds : [seeds]).map((s) => String(s || '').trim()).filter(Boolean);
+  if (!rawSubNiches.length) rawSubNiches.push('daily motivation');
+
+  const daySlot = Math.floor(Date.now() / 86400000);
+  const startIdx = daySlot % rawSubNiches.length;
+  const queries = [];
+
+  for (let i = 0; i < rawSubNiches.length; i++) {
+    const sn = rawSubNiches[(startIdx + i) % rawSubNiches.length];
+    queries.push(sn);
+    queries.push(`${sn} explained`);
+    queries.push(`${sn} rules`);
+    queries.push(`${sn} habits`);
+  }
 
   let ids = null;
   let usedQuery = '';
@@ -66,11 +71,15 @@ export async function researchTrend(slug, auth, seeds, cacheDays = 3) {
     }
   }
   const hotKeywords = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 12).map(e => e[0]);
+  const activeSubNiche = rawSubNiches.find((sn) => usedQuery.toLowerCase().includes(sn.toLowerCase())) || rawSubNiches[startIdx];
 
   const trend = {
-    at: Date.now(), seed: usedQuery, hotKeywords,
+    at: Date.now(),
+    seed: usedQuery,
+    activeSubNiche,
+    hotKeywords,
     viralChannels: [...new Set(videos.map(v => v.channel))].slice(0, 8),
-    videos: videos.slice(0, 8).map(v => ({ title: v.title, channel: v.channel, views: v.views, videoId: v.videoId }))
+    videos: videos.slice(0, 10).map(v => ({ title: v.title, channel: v.channel, views: v.views, videoId: v.videoId }))
   };
   fs.writeFileSync(file, JSON.stringify(trend, null, 2));
   return trend;

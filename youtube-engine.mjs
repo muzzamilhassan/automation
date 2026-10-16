@@ -24,16 +24,32 @@ function geminiKey() {
   return process.env.GEMINI_API_KEY || (fs.existsSync('.env') ? (fs.readFileSync('.env', 'utf8').match(/^GEMINI_API_KEY=(.+)$/m) || [])[1]?.trim() : '') || '';
 }
 import { BRANDS as YT_BRAND_KITS } from './yt-brands/brands.mjs';
+import { registryToKit } from './lib/brand-resolve.mjs';
 
-// Resolve the brand for a page. New multi-channel kits (yt-brands/brands.mjs)
-// are selected via page.ytSlug; legacy FB-page brands keep working unchanged.
+// Resolve the brand for a page. Checks page.ytBrand, yt-brands/brands.mjs,
+// and yt-mcp/studio-channels.json for any newly added product/wizard channels.
 function resolveBrand(page) {
-  if (page?.ytSlug) {
-    const kit = YT_BRAND_KITS.find((b) => b.slug === page.ytSlug);
+  if (page?.ytBrand) {
+    const b = page.ytBrand;
+    const followName = b.followName || (b.label ? b.label.split(' ').map((w) => w[0] + w.slice(1).toLowerCase()).join(' ') : 'us');
+    return { ...b, followName };
+  }
+  const slug = page?.ytSlug || page?.slug || page?.id;
+  if (slug) {
+    const kit = YT_BRAND_KITS.find((b) => b.slug === slug);
     if (kit) {
       const followName = kit.label.split(' ').map((w) => w[0] + w.slice(1).toLowerCase()).join(' ');
       return { ...kit, followName };
     }
+    try {
+      const reg = JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8'));
+      const e = (reg.channels || []).find((c) => c.slug === slug);
+      if (e) {
+        const k = registryToKit(e);
+        const followName = k.label.split(' ').map((w) => w[0] + w.slice(1).toLowerCase()).join(' ');
+        return { ...k, followName };
+      }
+    } catch { }
   }
   return YT_BRANDS[page?.id] || Object.values(YT_BRANDS)[0];
 }
@@ -529,9 +545,10 @@ export async function generateYouTubeScript(page, forcedTheme = null) {
     : page.trend
       ? `Choose the single most compelling topic for today's video yourself, derived from the viral signals below. Do NOT copy any existing title.`
       : `Choose the single most compelling, most searched topic in the niche for today's video.`;
-  const styleLine = brand.niches?.length
-    ? `Write like the top ${brand.authority} YouTube channels for "${page.name}" (Niche: ${page.niche}). The points must be concrete, specific ${brand.niches[0]} insights that feel like insider knowledge, not vague motivation.\nCRITICAL: every point MUST be strictly about ${brand.niches.join(' / ')}. Do NOT write generic stoicism, generic self-improvement, or mindset fluff.`
-    : `You write viral self-improvement YouTube Shorts scripts (like top stoicism channels: Stoic Legend, Psygena, Legacy Mindset) for "${page.name}" (Niche: ${page.niche}).\nWrite in EASY, CLEAR, punchy English. The points must be about HUMAN PSYCHOLOGY, respect and social dynamics (this is what performs best), not abstract quotes.`;
+  const subNichesStr = Array.isArray(brand.niches) && brand.niches.length ? brand.niches.join(', ') : (brand.niche || 'self improvement');
+  const styleLine = `You write viral, high-retention YouTube Shorts scripts for "${page.name || brand.label}" (Niche: ${brand.niche}).
+Target content pillars: ${subNichesStr}.
+Write in EASY, CLEAR, punchy English with high curiosity and immediate practical payoff. The points must deliver concrete insider-level insights that feel like real knowledge, not generic surface-level fluff.`;
   const trendBlock = page.trend ? `\nGOING VIRAL RIGHT NOW in this exact niche (ride this wave — align your angle and wording with what is working): ${page.trend.videos.slice(0, 5).map(v => `"${v.title}"`).join(' | ')}\nHot search keywords to weave in naturally: ${page.trend.hotKeywords.join(', ')}.` : '';
   // RETENTION ENGINE (09-19: IC/MR/DFD sat at 35-54% avg-watched and the Shorts
   // feed buried them; QQ's 86% proves the format works when viewers stay)
@@ -776,17 +793,16 @@ export async function renderYouTubeScriptShort(page, script, musicOverride = nul
 
 export function buildScriptMeta(page, script, musicLabel = '') {
   const brand = resolveBrand(page);
-  // competitor-proven patterns: numbered listicle title + "| <authority>" suffix
-  // (every Stoic Legend title ends "| Stoicism Philosophy"; Psygena5 uses "| Machiavelli")
-  const title = `${titleCase(script.thumbHeadline)} | ${brand.authority}`.replace(/\s+/g, ' ').slice(0, 95);
-  const visibleTags = (brand.tags || ['stoicism', 'psychology', 'self improvement']).slice(0, 3).map((t) => '#' + t.replace(/\s+/g, ''));
+  const authority = brand.authority || `${brand.niche || 'Daily'} Wisdom`;
+  const title = `${titleCase(script.thumbHeadline)} | ${authority}`.replace(/\s+/g, ' ').slice(0, 95);
+  const visibleTags = (brand.tags?.length ? brand.tags : [brand.niche || 'shorts']).slice(0, 3).map((t) => '#' + String(t).replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, ''));
   const descCore = [
     `${titleCase(script.hook)}.`,
     '',
     ...script.points.map((p, i) => `${i + 1}. ${titleCase(p.title)} — ${p.line}`),
     '',
     String(script.closing || ''),
-    `Follow ${brand.followName || 'Quote Quarry'} for daily ${brand.kwShort}.`,
+    `Follow ${brand.followName || brand.label || 'us'} for daily ${brand.kwShort || 'insights'}.`,
     visibleTags.join(' ')
   ].join('\n').slice(0, 480);
   const description = musicLabel ? `${descCore}\n🎵 ${musicLabel}`.slice(0, 4900) : descCore;

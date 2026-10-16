@@ -61,7 +61,7 @@
   --warn: #e8a317;
   --bad: #dc2f2f;
   --info: #0aa2c0;
-  --card-shadow: 0 1px 3px rgba(16, 24, 40, 0.1), 0 1px 2px rgba(16, 24, 40, 0.06);
+  --card-shadow: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
   --glow: radial-gradient(600px 220px at 70% -60px, rgba(201, 183, 239, 0.18), transparent 70%);
   color-scheme: light;
 }
@@ -83,7 +83,7 @@
   --warn: #fdb022;
   --bad: #f97066;
   --info: #38bdf8;
-  --card-shadow: none;
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.24);
   --glow: radial-gradient(700px 260px at 68% -80px, rgba(139, 112, 255, 0.14), transparent 70%);
   color-scheme: dark;
 }
@@ -155,11 +155,15 @@ body {
 }
 
 .card-hover {
-  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+  transition: border-color 0.18s ease-out, transform 0.18s ease-out, box-shadow 0.18s ease-out;
 }
 .card-hover:hover {
   border-color: var(--line-strong);
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 24, 40, 0.08), 0 2px 4px rgba(16, 24, 40, 0.04);
+}
+.card-hover:active {
+  transform: scale(0.985);
 }
 
 .inset-tile {
@@ -229,12 +233,12 @@ body {
   font-weight: 600;
   border: 1px solid transparent;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.05s ease;
+  transition: background-color 0.15s ease-out, border-color 0.15s ease-out, color 0.15s ease-out, transform 0.1s ease-out, box-shadow 0.15s ease-out;
   user-select: none;
   white-space: nowrap;
 }
 .btn:active {
-  transform: translateY(1px);
+  transform: scale(0.96);
 }
 .btn:disabled {
   opacity: 0.45;
@@ -246,7 +250,7 @@ body {
   color: var(--accent-ink);
 }
 .btn-primary:hover {
-  filter: brightness(1.1);
+  filter: brightness(1.08);
 }
 .btn-outline {
   background: var(--surface);
@@ -265,7 +269,7 @@ body {
   font-size: 13px;
   font-weight: 500;
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out;
 }
 .input:focus {
   border-color: var(--accent);
@@ -303,19 +307,30 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  position: relative;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
   border-radius: 5px;
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--muted);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.15s ease-out, color 0.15s ease-out, border-color 0.15s ease-out, transform 0.1s ease-out;
+}
+.icon-btn::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
 }
 .icon-btn:hover {
   color: var(--ink);
   border-color: var(--line-strong);
   background: var(--surface-2);
+}
+.icon-btn:active {
+  transform: scale(0.96);
 }
 
 /* -------------------------------- nav ------------------------------------ */
@@ -425,6 +440,7 @@ table.data tbody tr:hover {
   font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.01em;
+  text-wrap: balance;
 }
 
 .overline {
@@ -572,6 +588,7 @@ table.data tbody tr:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  position: relative;
   width: 28px;
   height: 28px;
   border-radius: 5px;
@@ -579,10 +596,19 @@ table.data tbody tr:hover {
   background: transparent;
   color: #6b7671;
   cursor: pointer;
+  transition: background-color 0.15s ease-out, color 0.15s ease-out, transform 0.1s ease-out;
+}
+.qs-side-collapse::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
 }
 .qs-side-collapse:hover {
   background: rgba(255, 255, 255, 0.06);
   color: #e8ecec;
+}
+.qs-side-collapse:active {
+  transform: scale(0.96);
 }
 .qs-side-badge {
   margin-left: auto;

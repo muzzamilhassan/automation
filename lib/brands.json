@@ -2,7 +2,7 @@
   "quotequarry": {
     "label": "QUOTE QUARRY",
     "handle": "@quotequarry302",
-    "niche": "Stoicism & daily motivation",
+    "niche": "Timeless wisdom, self-mastery & human psychology",
     "accent": "#F5E31C",
     "bg": "#0A0A0A",
     "voice": "am_michael",
@@ -16,17 +16,25 @@
       "heroic"
     ],
     "active": true,
+    "niches": [
+      "human psychology & respect",
+      "power of silence & solitude",
+      "dark psychology defense",
+      "samurai mindset & musashi",
+      "emotional detachment",
+      "stoic rules for modern life"
+    ],
     "tags": [
-      "stoicism",
-      "stoic wisdom",
-      "motivation",
-      "discipline",
-      "mindset",
-      "self improvement",
+      "timeless wisdom",
+      "human psychology",
+      "self respect",
+      "power of silence",
       "mental strength",
+      "stoicism",
       "philosophy",
-      "success mindset",
-      "inner peace"
+      "mindset",
+      "self mastery",
+      "boundaries"
     ],
     "hashtags": null,
     "docDay": "Tue"
@@ -48,6 +56,14 @@
       "mystical"
     ],
     "active": true,
+    "niches": [
+      "warren buffett rules",
+      "market crashes & history",
+      "compounding secrets",
+      "investing psychology",
+      "risk management",
+      "value investing"
+    ],
     "tags": [
       "investing",
       "stock market",
@@ -82,6 +98,14 @@
       "grooving"
     ],
     "active": true,
+    "niches": [
+      "silent money habits",
+      "frugal living rules",
+      "debt snowball stories",
+      "budgeting psychology",
+      "first $100k blueprint",
+      "assets vs liabilities"
+    ],
     "tags": [
       "personal finance",
       "money tips",
@@ -100,22 +124,28 @@
     "docDay": "Thu"
   },
   "debt-free-doctrine": {
-    "label": "DEBT-FREE DOCTRINE",
+    "label": "OLD MONEY CODE",
     "handle": "@debtfreedoctrine",
-    "niche": "Debt payoff & credit smarts",
-    "accent": "#FF5A4E",
-    "bg": "#14100E",
+    "niche": "Old money habits & quiet wealth",
+    "accent": "#D9C7A7",
+    "bg": "#12100C",
     "voice": "am_fenrir",
     "slots": [
       "00:35"
     ],
     "longSlot": "01:30",
     "musicFeels": [
-      "driving",
-      "action",
-      "heroic"
+      "calming",
+      "bright"
     ],
     "active": true,
+    "niches": [
+      "silent wealth standards",
+      "stealth wealth etiquette",
+      "generational wealth rules",
+      "taste over flash",
+      "quiet confidence habits"
+    ],
     "tags": [
       "debt free",
       "pay off debt",

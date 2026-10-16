@@ -229,7 +229,7 @@ export function RetentionBars({ rows, goal }) {
           </div>
           <div className="relative h-3.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)', border: '1px solid var(--line)' }}>
             <div
-              className="h-full rounded-full transition-all duration-1000"
+              className="h-full rounded-full transition-[width] duration-700 ease-out"
               style={{ width: `${Math.min(100, r.pct)}%`, background: `linear-gradient(90deg, color-mix(in srgb, ${r.accent} 55%, transparent), ${r.accent})` }}
             />
             <div
@@ -258,7 +258,7 @@ export function MiniBars({ data, color = 'var(--accent)', height = 56, labels })
       {data.map((v, i) => (
         <div key={i} className="flex-1 flex flex-col items-center gap-1 group" title={`${labels?.[i] ?? i}: ${v}`}>
           <div
-            className="w-full rounded-t-md transition-all duration-500 group-hover:opacity-80"
+            className="w-full rounded-t-md transition-[height,opacity] duration-500 ease-out group-hover:opacity-80"
             style={{ height: `${Math.max(4, (v / max) * (height - 14))}px`, background: color, opacity: 0.32 + 0.68 * (v / max) }}
           />
           {labels ? <span className="text-[9px] text-faint font-mono">{labels[i]}</span> : null}

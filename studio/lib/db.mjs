@@ -8,8 +8,10 @@ import { ENV } from './data.mjs';
 
 const url = process.env.DATABASE_URL || ENV.DATABASE_URL || '';
 
-export const dbReady = Boolean(url);
-export const db = url
+const isPostgres = typeof url === 'string' && (url.startsWith('postgres://') || url.startsWith('postgresql://'));
+
+export const dbReady = isPostgres;
+export const db = isPostgres
   ? postgres(url, { ssl: 'require', max: 5, prepare: false })
   : null;
 

@@ -6,10 +6,12 @@ import { LongVideo } from "./longscenes";
 import { DocV2 } from "./longscenes2";
 import { CapShowcase } from "./caption-showcase";
 import { Thumb } from "./thumb";
+import { ThumbLab, OverlayThumb, TSThumb } from "./thumb-lab";
 import { Teacher } from "./teacher";
 import { TechExplain } from "./tech-explain";
 import { TechVideo } from "./tech-video";
 import { PsychToon, type PsychDoc } from "./psych-toon";
+import { VoxCollage, type VoxDoc } from "./vox-collage";
 
 const EMPTY: Storyboard = {
   title: "Explainer",
@@ -151,6 +153,33 @@ export const RemotionRoot: React.FC = () => {
         defaultProps={{ sceneWords: [], sceneAudio: [null, null, null, null], music: null }}
       />
       <Composition
+        id="TSThumb"
+        component={TSThumb}
+        durationInFrames={1}
+        fps={30}
+        width={1280}
+        height={720}
+        defaultProps={{ bg: "tl/crashchart.jpg", face: "tl/face.jpg", line1: "NOBEL WINNERS", line2: "LOST $46 BILLION", chip: "INVESTOR'S COMPASS", accent: "#F5E31C" }}
+      />
+      <Composition
+        id="OverlayThumb"
+        component={OverlayThumb}
+        durationInFrames={1}
+        fps={30}
+        width={1280}
+        height={720}
+        defaultProps={{ bg: "tl/bg-ic.png", headline: "THE $46B MISTAKE", brand: "INVESTOR'S COMPASS", accent: "#E8C15A" }}
+      />
+      <Composition
+        id="ThumbLab"
+        component={ThumbLab}
+        durationInFrames={1}
+        fps={30}
+        width={1280}
+        height={720}
+        defaultProps={{ channel: "ic", variant: "A" }}
+      />
+      <Composition
         id="TechVideo"
         component={TechVideo}
         durationInFrames={10}
@@ -200,6 +229,27 @@ export const RemotionRoot: React.FC = () => {
             width: d.width || 1920,
             height: d.height || 1080,
             props: raw ? props : { psych: d },
+          };
+        }}
+      />
+      <Composition
+        id="VoxCollage"
+        component={VoxCollage}
+        durationInFrames={10}
+        fps={30}
+        width={1920}
+        height={1080}
+        defaultProps={{ doc: { title: "Vox Collage", fps: 30, width: 1920, height: 1080, totalMs: 100, bg: null, beats: [] } as VoxDoc }}
+        calculateMetadata={({ props }: any) => {
+          const raw = Array.isArray(props?.beats) && props.beats.length > 0;
+          const d: VoxDoc | undefined = raw ? props : props?.doc;
+          if (!d || !Array.isArray(d.beats) || d.beats.length === 0) return { durationInFrames: 10, fps: 30, width: 1920, height: 1080 };
+          return {
+            durationInFrames: Math.max(Math.ceil((d.totalMs / 1000) * (d.fps || 30)), 10),
+            fps: d.fps || 30,
+            width: d.width || 1920,
+            height: d.height || 1080,
+            props: raw ? props : { doc: d },
           };
         }}
       />

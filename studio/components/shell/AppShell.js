@@ -128,7 +128,7 @@ function NavGroups({ collapsed, onNavigate }) {
 
 function Brand({ collapsed }) {
   return (
-    <Link href="/" className="flex items-center gap-3 px-5 h-[58px] shrink-0 border-b border-white/10">
+    <Link href="/" className="flex items-center gap-3 px-5 h-[58px] shrink-0 border-b border-white/10 active:scale-[0.98] transition-transform duration-100 ease-out">
       <span
         className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0"
         style={{ background: 'var(--accent)' }}
@@ -223,7 +223,7 @@ export default function AppShell({ children }) {
     <div className="min-h-screen flex bg-bg-primary">
       {/* desktop sidebar */}
       <aside
-        className="hidden lg:flex flex-col sticky top-0 h-screen shrink-0 z-30 qs-side transition-all duration-200"
+        className="hidden lg:flex flex-col sticky top-0 h-screen shrink-0 z-30 qs-side transition-[width] duration-200 ease-out"
         style={{ width: collapsed ? 64 : 246 }}
       >
         {sidebarInner(collapsed)}
@@ -234,8 +234,8 @@ export default function AppShell({ children }) {
         <div className="lg:hidden fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onClick={() => setMobileOpen(false)} />
           <aside className="absolute inset-y-0 left-0 w-[250px] qs-side flex flex-col pop-in">
-            <button className="absolute top-4 right-3 z-10" style={{ width: 28, height: 28 }} onClick={() => setMobileOpen(false)} aria-label="Close menu">
-              <X size={15} className="text-[#98a2a7]" />
+            <button className="absolute top-2 right-2 z-10 w-11 h-11 flex items-center justify-center rounded-lg text-[#98a2a7] hover:text-white transition-colors" onClick={() => setMobileOpen(false)} aria-label="Close menu">
+              <X size={16} />
             </button>
             {sidebarInner(false, true)}
           </aside>
@@ -297,7 +297,7 @@ export default function AppShell({ children }) {
 
             <div className="relative">
               <button
-                className="flex items-center justify-center w-8 h-8 rounded-full font-display font-bold text-[12px] shrink-0 cursor-pointer transition-transform hover:scale-105"
+                className="flex items-center justify-center w-8 h-8 rounded-full font-display font-bold text-[12px] shrink-0 cursor-pointer relative before:absolute before:-inset-1 before:content-[''] transition-transform duration-100 ease-out hover:scale-105 active:scale-[0.96]"
                 style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
                 onClick={() => setUserOpen((o) => !o)}
                 aria-label="Account menu"

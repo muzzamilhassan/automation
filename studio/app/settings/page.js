@@ -20,14 +20,14 @@ function ThemeCard({ value, label, icon: Icon, current, onPick, preview }) {
   return (
     <button
       onClick={() => onPick(value)}
-      className={cn('text-left rounded-2xl border p-3 transition-all flex-1', active ? '' : 'hover:-translate-y-0.5')}
+      className={cn('text-left rounded-xl border p-3 transition-[transform,border-color,background-color] duration-150 ease-out flex-1 cursor-pointer active:scale-[0.98]', active ? '' : 'hover:-translate-y-0.5')}
       style={{
         borderColor: active ? 'var(--accent)' : 'var(--line)',
         background: active ? 'var(--accent-soft)' : 'var(--surface)',
         boxShadow: active ? '0 0 0 1px var(--accent)' : undefined,
       }}
     >
-      <div className="rounded-xl overflow-hidden border border-line mb-3" style={{ height: 84 }}>
+      <div className="rounded-lg overflow-hidden border border-line mb-3" style={{ height: 84 }}>
         {preview}
       </div>
       <div className="flex items-center justify-between">

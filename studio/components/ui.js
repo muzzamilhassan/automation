@@ -11,15 +11,15 @@ export function PageHeader({ icon: Icon, title, sub, children }) {
       <div className="flex items-center gap-3.5">
         {Icon ? (
           <div
-            className="flex items-center justify-center w-11 h-11 rounded-2xl shrink-0"
+            className="flex items-center justify-center w-11 h-11 rounded-xl shrink-0"
             style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
           >
             <Icon size={21} strokeWidth={2.2} />
           </div>
         ) : null}
         <div>
-          <h1 className="font-display text-[26px] font-bold leading-tight tracking-tight text-ink">{title}</h1>
-          {sub ? <p className="text-[13px] text-muted mt-0.5">{sub}</p> : null}
+          <h1 className="font-display text-[26px] font-bold leading-tight tracking-tight text-ink text-balance">{title}</h1>
+          {sub ? <p className="text-[13px] text-muted mt-0.5 text-pretty">{sub}</p> : null}
         </div>
       </div>
       {children ? <div className="flex items-center gap-2 flex-wrap">{children}</div> : null}
@@ -41,10 +41,10 @@ export function CardHead({ title, sub, icon: Icon, right, className }) {
   return (
     <div className={cn('flex items-center justify-between gap-3 px-5 pt-4 pb-3', className)}>
       <div className="flex items-center gap-2.5 min-w-0">
-        {Icon ? <Icon size={16} className="text-faint shrink-0" /> : null}
+        {Icon ? <Icon size={16} className="text-faint shrink-0" strokeWidth={2} /> : null}
         <div className="min-w-0">
-          <h2 className="section-title truncate">{title}</h2>
-          {sub ? <p className="text-xs text-faint mt-0.5 truncate">{sub}</p> : null}
+          <h2 className="section-title truncate text-balance">{title}</h2>
+          {sub ? <p className="text-xs text-faint mt-0.5 truncate text-pretty">{sub}</p> : null}
         </div>
       </div>
       {right ? <div className="flex items-center gap-2 shrink-0">{right}</div> : null}
@@ -184,7 +184,7 @@ export function Segmented({ options, value, onChange, className }) {
           aria-selected={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn(
-            'px-3 h-7 rounded-lg text-xs font-semibold transition-colors',
+            'px-3 h-7 rounded-lg text-xs font-semibold cursor-pointer transition-[color,background-color,transform] duration-100 ease-out active:scale-[0.96]',
             value === o.value ? 'text-ink' : 'text-faint hover:text-muted'
           )}
           style={value === o.value ? { background: 'var(--surface-2)', boxShadow: 'inset 0 0 0 1px var(--line-strong)' } : undefined}
@@ -205,14 +205,14 @@ export function Switch({ checked, onChange, label }) {
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className="relative w-10 h-[22px] rounded-full border transition-colors shrink-0"
+      className="relative w-10 h-[22px] rounded-full border transition-colors shrink-0 cursor-pointer before:absolute before:-inset-y-2 before:-inset-x-1 before:content-['']"
       style={{
         background: checked ? 'var(--accent)' : 'var(--surface-2)',
         borderColor: checked ? 'var(--accent)' : 'var(--line-strong)',
       }}
     >
       <span
-        className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full transition-all"
+        className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full transition-[left,background-color] duration-150 ease-out"
         style={{
           left: checked ? 20 : 3,
           background: checked ? 'var(--accent-ink)' : 'var(--faint)',
@@ -228,12 +228,12 @@ export function EmptyState({ icon: Icon, title, sub }) {
   return (
     <div className="flex flex-col items-center justify-center py-14 text-center">
       {Icon ? (
-        <div className="flex items-center justify-center w-12 h-12 rounded-2xl mb-3" style={{ background: 'var(--surface-2)', color: 'var(--faint)' }}>
-          <Icon size={22} />
+        <div className="flex items-center justify-center w-12 h-12 rounded-xl mb-3" style={{ background: 'var(--surface-2)', color: 'var(--faint)' }}>
+          <Icon size={22} strokeWidth={1.8} />
         </div>
       ) : null}
-      <p className="text-sm font-semibold text-ink">{title}</p>
-      {sub ? <p className="text-xs text-faint mt-1 max-w-xs">{sub}</p> : null}
+      <p className="text-sm font-semibold text-ink text-balance">{title}</p>
+      {sub ? <p className="text-xs text-faint mt-1 max-w-xs text-pretty">{sub}</p> : null}
     </div>
   );
 }
@@ -244,7 +244,7 @@ export function Progress({ pct, color = 'var(--accent)', className }) {
   return (
     <div className={cn('h-1.5 rounded-full overflow-hidden', className)} style={{ background: 'var(--surface-2)', border: '1px solid var(--line)' }}>
       <div
-        className="h-full rounded-full transition-all duration-700"
+        className="h-full rounded-full transition-[width] duration-500 ease-out"
         style={{ width: `${Math.min(100, Math.max(0, pct))}%`, background: color }}
       />
     </div>

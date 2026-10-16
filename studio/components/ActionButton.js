@@ -35,13 +35,13 @@ export default function ActionButton({ action, slug = null, label, small = false
         title={`Runs ${action}${slug ? ` (${slug})` : ''} in the background`}
       >
         {busy ? (
-          <Loader2 size={small ? 12 : 14} className="animate-spin" />
+          <Loader2 size={small ? 12 : 14} className="animate-spin text-accent" />
         ) : ok === true ? (
-          <Check size={small ? 12 : 14} />
+          <Check size={small ? 12 : 14} className="text-emerald-500" />
         ) : ok === false ? (
-          <X size={small ? 12 : 14} />
+          <X size={small ? 12 : 14} className="text-red-500" />
         ) : (
-          <Play size={small ? 12 : 14} />
+          <Play size={small ? 12 : 14} className="translate-x-[0.5px]" />
         )}
         {busy ? 'Starting…' : ok === true ? 'Started' : ok === false ? 'Failed' : label}
       </button>
