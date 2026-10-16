@@ -1,52 +1,44 @@
 {
-  "at": 1791798553158,
+  "at": 1792136012251,
   "seed": "investing psychology stock market wisdom",
   "hotKeywords": [
+    "warren",
+    "buffett",
+    "discipline",
     "market",
     "stock",
-    "discipline",
-    "books",
+    "investing",
+    "fact",
     "tradingpsychology",
     "tradingmindset",
     "soulngoal",
     "motivation",
-    "mindset",
-    "self",
-    "improvement",
-    "personal"
+    "mindset"
   ],
   "viralChannels": [
     "Let's Learn Stock Market & Finance",
-    "농부의 경제학",
+    "Trends Podcast",
     "Soul N Goal",
-    "the wise apeman",
-    "Anshul Dhakate",
-    "Market & Wisdom"
+    "nadav rock"
   ],
   "videos": [
     {
       "title": "STOCK MARKET TRADING ( 17 Year Experience in Just 15 Minutes )✅",
       "channel": "Let's Learn Stock Market & Finance",
-      "views": 21577,
+      "views": 28187,
       "videoId": "hvpi2YkfLTA"
     },
     {
-      "title": "부자들의 서재에서 찾은 '투자 심리학'",
-      "channel": "농부의 경제학",
-      "views": 5077,
-      "videoId": "dcp-0839kU4"
+      "title": "Warren Buffett: Why Things Can Go On That Don't Make Sense 💡 | #podcast #warrenbuffett #money",
+      "channel": "Trends Podcast",
+      "views": 611,
+      "videoId": "ZYP0kD-EYoc"
     },
     {
-      "title": "Financial goal should never dictate market behavior #TradingPsychology #TradingMindset #SoulNGoal",
-      "channel": "Soul N Goal",
-      "views": 397,
-      "videoId": "8Du1GphIPDk"
-    },
-    {
-      "title": "boom-bust processes always defeat themselves - george soros",
-      "channel": "the wise apeman",
-      "views": 260,
-      "videoId": "lf6tOPn5Tks"
+      "title": "Warren Buffett: Why Temperament Beats Brains in Investing 🧠 | #podcast #warrenbuffett #investing",
+      "channel": "Trends Podcast",
+      "views": 436,
+      "videoId": "-gSLm-qnRpY"
     },
     {
       "title": "Hardest chart to master is the one inside your head #TradingPsychology #TradingMindset #SoulNGoal",
@@ -55,22 +47,28 @@
       "videoId": "p-AVsZv5RtA"
     },
     {
-      "title": "Protect your downside so your upside has time to work #TradingPsychology #TradingMindset #SoulNGoal",
-      "channel": "Soul N Goal",
-      "views": 251,
-      "videoId": "UWQrHWdyosI"
-    },
-    {
       "title": "Every unnecessary trade is a vote against discipline #TradingPsychology #TradingMindset #SoulNGoal",
       "channel": "Soul N Goal",
-      "views": 220,
+      "views": 225,
       "videoId": "Z3jegkhUfv4"
     },
     {
-      "title": "5 Books Every Trader Must Read 📚 (Beginner to Pro) #shorts",
-      "channel": "Anshul Dhakate",
-      "views": 184,
-      "videoId": "eSXDNVPaCSw"
+      "title": "Rules are useless if they're optional #TradingPsychology #TradingMindset #SoulNGoal",
+      "channel": "Soul N Goal",
+      "views": 139,
+      "videoId": "tc63E0ARtAo"
+    },
+    {
+      "title": "Discipline means knowing when to stop #TradingPsychology #TradingMindset #SoulNGoal",
+      "channel": "Soul N Goal",
+      "views": 121,
+      "videoId": "upAouTPzdLY"
+    },
+    {
+      "title": "Investing Psychology: Conquer Fear, Avoid Bubbles #shorts",
+      "channel": "nadav rock",
+      "views": 114,
+      "videoId": "68ReiPWYYXM"
     }
   ]
 }
