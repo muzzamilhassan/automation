@@ -9,8 +9,8 @@
 --------------------------------------------------------------------------- */
 
 @theme inline {
-  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
 
   /* 10-15 DREAMS CONVERSION: sharp 5px corners across the app (rounded-full
@@ -42,18 +42,20 @@
   --color-info: var(--info);
 }
 
-/* 10-15 DREAMS CONVERSION: light tokens now resolve to the Dreams AI Analytics
-   neutral palette. Accent stays QUARRY LAVENDER (#C9B7EF + black text). */
+/* User typography spec:
+   Headings: Inter Bold/Semibold, #171717
+   Paragraphs & text below headings: Inter Regular, #686868
+   Base background: #f9f9f9 */
 :root {
-  --bg: #f6f7f8;
-  --bg-soft: #eef0f2;
+  --bg: #f9f9f9;
+  --bg-soft: #f0f1f3;
   --surface: #ffffff;
   --surface-2: #f1f3f4;
   --line: #e6e8eb;
   --line-strong: #d5d9dc;
-  --ink: #1a1d20;
-  --muted: #5b6670;
-  --faint: #848d95;
+  --ink: #171717;
+  --muted: #686868;
+  --faint: #8e959c;
   --accent: #C9B7EF;
   --accent-ink: #0a0a0a;
   --accent-soft: rgba(201, 183, 239, 0.16);
@@ -439,8 +441,19 @@ table.data tbody tr:hover {
   font-family: var(--font-display);
   font-size: 15px;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.025em;
+  color: var(--ink);
   text-wrap: balance;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  color: var(--ink);
+  letter-spacing: -0.025em;
+}
+
+p, .sub-text {
+  color: var(--muted);
 }
 
 .overline {

@@ -41,10 +41,10 @@ export function CardHead({ title, sub, icon: Icon, right, className }) {
   return (
     <div className={cn('flex items-center justify-between gap-3 px-5 pt-4 pb-3', className)}>
       <div className="flex items-center gap-2.5 min-w-0">
-        {Icon ? <Icon size={16} className="text-faint shrink-0" strokeWidth={2} /> : null}
+        {Icon ? <Icon size={16} className="text-muted shrink-0" strokeWidth={2} /> : null}
         <div className="min-w-0">
           <h2 className="section-title truncate text-balance">{title}</h2>
-          {sub ? <p className="text-xs text-faint mt-0.5 truncate text-pretty">{sub}</p> : null}
+          {sub ? <p className="text-xs text-muted mt-0.5 truncate text-pretty">{sub}</p> : null}
         </div>
       </div>
       {right ? <div className="flex items-center gap-2 shrink-0">{right}</div> : null}

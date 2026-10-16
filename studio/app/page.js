@@ -85,7 +85,7 @@ export default function Overview() {
             {greet}, Muzzamil
           </h1>
           <p className="text-[13px] text-fg-tertiary mt-0.5 flex items-center gap-1.5 text-pretty">
-            <CalendarDays size={13} className="text-faint" />
+            <CalendarDays size={13} className="text-muted" />
             {today} · {active.length} live channels · engine running on GitHub Actions
           </p>
         </div>
