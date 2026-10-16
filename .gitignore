@@ -32,6 +32,10 @@ uploads/
 tmp/
 post-*.jpg
 reel-*.mp4
+scratch_*.png
+test_*.png
+inter_comparison.png
+scripts/scratch/
 
 # OS junk
 .DS_Store
@@ -54,7 +58,13 @@ qa-*.jpg
 music-review/
 research/style-ref/
 studio/.studio-password.txt
+studio/login-payload.json
+studio/*.log
 
 # CloudXBerry audit downloads (copyrighted reference videos — local only)
 audit/
 frames-demo/
+z*.json
+*.tmp.*
+hf-proof/
+cloud-demos/

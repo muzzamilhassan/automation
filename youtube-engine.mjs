@@ -23,11 +23,9 @@ const POOL_DIR = 'pixabay-pool';
 function geminiKey() {
   return process.env.GEMINI_API_KEY || (fs.existsSync('.env') ? (fs.readFileSync('.env', 'utf8').match(/^GEMINI_API_KEY=(.+)$/m) || [])[1]?.trim() : '') || '';
 }
-import { BRANDS as YT_BRAND_KITS } from './yt-brands/brands.mjs';
-import { registryToKit } from './lib/brand-resolve.mjs';
+import { resolveBrand as resolveBrandKit } from './lib/brand-resolve.mjs';
 
-// Resolve the brand for a page. Checks page.ytBrand, yt-brands/brands.mjs,
-// and yt-mcp/studio-channels.json for any newly added product/wizard channels.
+// Resolve the brand for a page/channel. Delegates to unified lib/brand-resolve.mjs.
 function resolveBrand(page) {
   if (page?.ytBrand) {
     const b = page.ytBrand;
@@ -35,35 +33,10 @@ function resolveBrand(page) {
     return { ...b, followName };
   }
   const slug = page?.ytSlug || page?.slug || page?.id;
-  if (slug) {
-    const kit = YT_BRAND_KITS.find((b) => b.slug === slug);
-    if (kit) {
-      const followName = kit.label.split(' ').map((w) => w[0] + w.slice(1).toLowerCase()).join(' ');
-      return { ...kit, followName };
-    }
-    try {
-      const reg = JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8'));
-      const e = (reg.channels || []).find((c) => c.slug === slug);
-      if (e) {
-        const k = registryToKit(e);
-        const followName = k.label.split(' ').map((w) => w[0] + w.slice(1).toLowerCase()).join(' ');
-        return { ...k, followName };
-      }
-    } catch { }
-  }
-  return YT_BRANDS[page?.id] || Object.values(YT_BRANDS)[0];
+  const brand = resolveBrandKit(slug);
+  const followName = brand?.label ? brand.label.split(' ').map((w) => w[0] + w.slice(1).toLowerCase()).join(' ') : 'us';
+  return { ...brand, followName };
 }
-
-// ---------------------------------------------------------------------------
-// YouTube brand configs — separate identity from the FB/IG BRANDS table.
-// ---------------------------------------------------------------------------
-const YT_BRANDS = {
-  '116157974886564': { label: 'SILENT WEALTH', accent: '#F5E31C', keyword: 'money mindset quotes', kwShort: 'wealth wisdom', theme: 'Wealth', niches: ['wealth building', 'financial freedom', 'millionaire mindset'], authority: 'Money Psychology', voice: 'bm_george', tags: ['money mindset', 'wealth psychology', 'success mindset', 'self improvement', 'psychology', 'stoicism'] },
-  '108044922375174': { label: 'STRATEGIC SILENCE', accent: '#4D8DFF', keyword: 'stoic quotes', kwShort: 'stoic wisdom', theme: 'Power', niches: ['dark psychology', 'self mastery', 'power moves'], authority: 'Stoicism Philosophy', voice: 'am_michael', tags: ['stoicism', 'dark psychology', 'machiavelli', 'psychology', 'stoic wisdom', 'self improvement', 'mental strength'] },
-  '1077306835630491': { label: 'EON VENTURES', accent: '#FF7A1A', keyword: 'discipline quotes', kwShort: 'discipline', theme: 'Discipline', niches: ['success habits', 'entrepreneur mindset', 'hard work'], authority: 'Discipline', voice: 'am_fenrir', tags: ['discipline', 'self improvement', 'mental strength', 'success mindset', 'personal growth', 'stoicism'] },
-  '114550268199751': { label: 'RELIQ NORTH', accent: '#C8202D', keyword: 'stoic wisdom', kwShort: 'stoic wisdom', theme: 'Calm', niches: ['inner peace', 'digital minimalism', 'calm mind'], authority: 'Stoicism Philosophy', voice: 'am_michael', tags: ['stoicism', 'stoic wisdom', 'stoic philosophy', 'inner peace', 'emotional resilience', 'personal growth'] },
-  '106473735839651': { label: 'THE BOUNDARIES CLUB', accent: '#FF8A1E', keyword: 'self respect quotes', kwShort: 'self respect', theme: 'Boundaries', niches: ['boundaries', 'emotional intelligence', 'protect your peace'], authority: 'Psychology', voice: 'bm_daniel', tags: ['self respect', 'boundaries', 'emotional intelligence', 'psychology', 'self improvement', 'dark psychology'] }
-};
 
 const HOOK_STYLES = ['direct', 'emphasis', 'curiosity', 'negative'];
 const CURIOSITY_PREFIX = ['NOBODY TELLS YOU THIS:', 'READ THIS TWICE:', 'THIS CHANGES EVERYTHING:'];

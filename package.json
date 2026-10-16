@@ -2,12 +2,13 @@
   "name": "youtube-automation",
   "version": "1.0.0",
   "description": "Autonomous Multi-Brand Content Machine & YouTube Automation",
-  "main": "run-content-machine.mjs",
+  "main": "channel-pipeline.mjs",
   "type": "module",
   "scripts": {
-    "start": "node run-content-machine.mjs",
-    "image-tools": "node image-tools/server.js",
-    "text-posts": "node post-text-engine.mjs"
+    "start": "node channel-pipeline.mjs",
+    "test": "node --test tests/**/*.test.mjs",
+    "ci-doctor": "node ci-doctor.mjs",
+    "image-tools": "node image-tools/server.js"
   },
   "dependencies": {
     "exceljs": "^4.4.0",

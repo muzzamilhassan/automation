@@ -26,6 +26,7 @@ export const NAV = [
       { href: '/topics', label: 'Topic Desk', icon: ListChecks, desc: 'Approve what gets made' },
       { href: '/client', label: 'Client View', icon: UserCheck, desc: 'DFY client workspace' },
       { href: '/create', label: 'Create Video', icon: Sparkles, desc: 'AI-designed vertical shorts' },
+      { href: '/templates', label: 'Video Templates', icon: Clapperboard, desc: '100+ broadcast video engines & demos' },
     ],
   },
   {
