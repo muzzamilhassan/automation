@@ -1,7 +1,14 @@
 {
-  "at": "2026-10-17T13:00:37.977Z",
+  "at": "2026-10-17T15:15:45.342Z",
   "problems": 0,
   "results": [
+    {
+      "slug": "quotequarry",
+      "channel": "QuoteQuarry",
+      "subs": "211",
+      "totalVideos": "353",
+      "status": "OK"
+    },
     {
       "slug": "investors-compass",
       "channel": "Investor's Compass",
@@ -21,13 +28,6 @@
       "channel": "Debt-Free Doctrine",
       "subs": "2",
       "totalVideos": "147",
-      "status": "OK"
-    },
-    {
-      "slug": "quotequarry",
-      "channel": "QuoteQuarry",
-      "subs": "211",
-      "totalVideos": "353",
       "status": "OK"
     }
   ]
