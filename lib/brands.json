@@ -37,7 +37,13 @@
       "boundaries"
     ],
     "hashtags": null,
-    "docDay": "Tue"
+    "docDay": "Tue",
+    "brollQueries": [
+      "misty mountains",
+      "zen water stones",
+      "calm ocean waves",
+      "morning fog lake"
+    ]
   },
   "investors-compass": {
     "label": "INVESTOR'S COMPASS",
@@ -79,7 +85,13 @@
       "stock market for beginners"
     ],
     "hashtags": null,
-    "docDay": "Wed"
+    "docDay": "Wed",
+    "brollQueries": [
+      "city night aerial",
+      "luxury watch closeup",
+      "skyscraper clouds",
+      "clock macro"
+    ]
   },
   "money-rulebook": {
     "label": "THE MONEY RULEBOOK",
@@ -121,7 +133,13 @@
       "build wealth"
     ],
     "hashtags": null,
-    "docDay": "Thu"
+    "docDay": "Thu",
+    "brollQueries": [
+      "sunrise runner silhouette",
+      "gym training dark",
+      "climbing mountain",
+      "working laptop night"
+    ]
   },
   "debt-free-doctrine": {
     "label": "OLD MONEY CODE",
@@ -161,7 +179,13 @@
       "no more debt"
     ],
     "hashtags": null,
-    "docDay": "Fri"
+    "docDay": "Fri",
+    "brollQueries": [
+      "ocean waves storm",
+      "lighthouse waves",
+      "rain window",
+      "alone beach walk"
+    ]
   },
   "escrow-estate": {
     "label": "ESCROW & ESTATE",

@@ -13,15 +13,17 @@ const KEY = envOf('PIXABAY_API_KEY');
 const GEMINI_API_KEY = envOf('GEMINI_API_KEY');
 
 // Curated fallback queries per brand (used when Gemini or search fails)
-// B-roll query seeds per channel — keyed by SLUG (was keyed by legacy FB page
-// ids, so modern callers passing page.id='yt-<slug>' always missed and every
-// channel fell back to the stoic default; issue #18's real half)
-const BRAND_QUERIES = {
-  'quotequarry': ['misty mountains', 'zen water stones', 'calm ocean waves', 'morning fog lake'],
-  'investors-compass': ['city night aerial', 'luxury watch closeup', 'skyscraper clouds', 'clock macro'],
-  'money-rulebook': ['sunrise runner silhouette', 'gym training dark', 'climbing mountain', 'working laptop night'],
-  'debt-free-doctrine': ['ocean waves storm', 'lighthouse waves', 'rain window', 'alone beach walk']
-};
+// B-roll query seeds — brand DATA (lib/brands.json brollQueries / registry kit),
+// not a static code map (owner directive: new Gmail-login channels must work
+// with zero code changes). Derived from niche/tags when the kit has none;
+// one generic aesthetic set as last resort.
+const GENERIC_QUERIES = ['cinematic landscape', 'city night aerial', 'ocean waves slow'];
+function brandQueries(kit) {
+  if (kit?.brollQueries?.length) return kit.brollQueries;
+  const words = String(kit?.niche || '').toLowerCase().match(/[a-z]{4,}/g) || [];
+  const derived = words.slice(0, 3).map((w) => `${w} cinematic`);
+  return derived.length ? derived : GENERIC_QUERIES;
+}
 
 async function geminiClipQuery(postData, brandQueryHint) {
   if (!GEMINI_API_KEY) return null;
@@ -52,8 +54,7 @@ function saveUsed(arr) {
 
 export async function getTopicClip(page, postData, minDur = 12) {
   if (!KEY) throw new Error('PIXABAY_API_KEY missing');
-  const slug = page?.ytSlug || String(page?.id || '').replace(/^yt-/, '');
-  const brandQ = BRAND_QUERIES[slug] || BRAND_QUERIES['quotequarry'];
+  const brandQ = brandQueries(page?.ytBrand);
   const queries = [];
   const geminiQ = await geminiClipQuery(postData, (brandQ[0] || '').split(' ')[0]);
   if (geminiQ) queries.push(geminiQ);

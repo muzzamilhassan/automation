@@ -443,72 +443,39 @@ export async function renderYouTubeShort(page, postData, musicOverride = null) {
 // ===========================================================================
 import path from 'node:path';
 
-const FALLBACK_SCRIPTS = {
-  '116157974886564': { // Silent Wealth
-    hook: '5 quiet money habits that make you rich while others stay broke.',
-    points: [
-      { title: 'PAY YOURSELF FIRST', line: 'Move money to savings before you touch your salary. Wealth is what you keep, not what you earn.' },
-      { title: 'BUY TIME, NOT THINGS', line: 'Rich people spend money to buy hours. Broke people spend hours to save pennies.' },
-      { title: 'STAY SILENT ABOUT MONEY', line: 'Announce less, accumulate more. Every plan you broadcast becomes a target.' },
-      { title: 'OWN ASSETS, NOT BRANDS', line: 'A logo on your chest empties your pocket. Let assets pay for your lifestyle.' },
-      { title: 'MASTER BORING DISCIPLINE', line: 'Boring consistency beats exciting bets. Compounding rewards the patient, not the loud.' }
-    ],
-    closing: 'Stay quiet. Keep building. Let the numbers speak.',
-    thumbHeadline: '5 QUIET HABITS THAT MAKE YOU RICH'
-  },
-  '108044922375174': { // Strategic Silence
-    hook: '5 cold behaviors that make people respect you instantly.',
-    points: [
-      { title: 'SPEAK LESS', line: 'Every extra word gives away power. Say it once, say it calm, then stop.' },
-      { title: 'SLOW DOWN EVERYTHING', line: 'Rushed people look weak. Slow movements, slow replies, slow decisions signal control.' },
-      { title: 'STOP EXPLAINING', line: 'You owe no one a reason for your choices. Explanations invite negotiations.' },
-      { title: 'HOLD EYE CONTACT', line: 'Look until they look away. Silence plus steady eyes wins every room.' },
-      { title: 'KEEP YOUR PLANS HIDDEN', line: 'Move in silence. Surprise is the weapon of the strategic mind.' }
-    ],
-    closing: 'Respect is never demanded. It is engineered.',
-    thumbHeadline: '5 COLD BEHAVIORS THAT COMMAND RESPECT'
-  },
-  '1077306835630491': { // Eon Ventures
-    hook: '5 brutal rules of discipline that build unstoppable people.',
-    points: [
-      { title: 'NO ZERO DAYS', line: 'Do something every single day. One percent daily compounds into an empire.' },
-      { title: 'SCHEDULE OR SUFFER', line: 'Motivation is a mood. A calendar is a decision. Winners decide.' },
-      { title: 'EMBRACE THE BORING', line: 'The work nobody sees is the work that changes everything.' },
-      { title: 'KILL DISTRACTIONS', line: 'Your phone is a slot machine. Every scroll is a bet against your future.' },
-      { title: 'FINISH WHAT YOU START', line: 'Half-done dreams build nothing. Completion is the rarest skill on earth.' }
-    ],
-    closing: 'Discipline is choosing what you want most over what you want now.',
-    thumbHeadline: '5 BRUTAL RULES OF DISCIPLINE'
-  },
-  '114550268199751': { // Reliq North
-    hook: '5 stoic rules that calm an anxious mind instantly.',
-    points: [
-      { title: 'CONTROL THE CONTROLLABLE', line: 'Divide every problem in two. Act on yours. Release the rest to the world.' },
-      { title: 'LOSE THE AUDIENCE', line: 'You rehearse your pain for imaginary judges. Nobody is watching that closely.' },
-      { title: 'PREPARE FOR LOSS', line: 'Expect the worst calmly, and peace follows you into every storm.' },
-      { title: 'GUARD YOUR INPUTS', line: 'An anxious mind is often just an overfed mind. Consume less. Think deeper.' },
-      { title: "ACT, DON'T RUMINATE", line: 'Action kills anxiety faster than thought. Move your body, quiet your mind.' }
-    ],
-    closing: 'Calm is not a gift. It is a daily practice.',
-    thumbHeadline: '5 STOIC RULES TO CALM YOUR MIND'
-  },
-  '106473735839651': { // The Boundaries Club
-    hook: '5 boundaries that protect your peace from toxic people.',
-    points: [
-      { title: 'SAY NO WITHOUT ESSAYS', line: 'A real no needs no explanation. Over-explaining invites over-negotiating.' },
-      { title: 'LIMIT ACCESS', line: 'Availability is a currency. Stop giving discounts to people who drain you.' },
-      { title: 'LEAVE LOUD ROOMS', line: 'You cannot heal in the same environment that made you sick. Walk out early.' },
-      { title: 'STOP OVER-FUNCTIONING', line: 'Doing their work teaches them you always will. Let people carry their own weight.' },
-      { title: "ENFORCE, DON'T ANNOUNCE", line: 'Boundaries whispered and never enforced are just wishes. Follow through quietly.' }
-    ],
-    closing: 'Protect your peace like your life depends on it. It does.',
-    thumbHeadline: '5 BOUNDARIES THAT PROTECT YOUR PEACE'
+// Fallback script — built from the resolved brand kit, not a static per-brand
+// map (issue #12 + owner directive 10-17: channels are DATA in lib/brands.json
+// / the registry, never hardcoded code — a new Gmail-login channel must work
+// with zero code changes). Emergency-grade by design: the 5-provider brain
+// normally returns long before this runs.
+const FALLBACK_LINE_TEMPLATES = [
+  (t) => `Most people treat "${t}" as an idea. Winners treat it as a daily practice — small, deliberate, repeatable.`,
+  (t) => `Nobody is coming to hand you "${t}". You build it in silence, one decision at a time.`,
+  (t) => `Protect your "${t}" like an asset. The moment you guard it, everything downstream gets easier.`,
+  (t) => `"${t}" looks boring on day one. On day one hundred it looks like a superpower.`,
+  (t) => `Cut one thing that drains your "${t}" today. Subtraction is the fastest form of progress.`,
+];
+
+function fallbackScriptFor(brand) {
+  const niche = String(brand?.niche || 'timeless wisdom and self-mastery');
+  const themes = (brand?.tags || []).slice(0, 5);
+  for (const t of niche.split(/[,&]/).map((x) => x.trim()).filter((x) => x.length > 3)) {
+    if (themes.length >= 5) break;
+    if (!themes.includes(t)) themes.push(t);
   }
-};
+  const spare = ['discipline', 'focus', 'patience', 'purpose', 'consistency'];
+  while (themes.length < 5) themes.push(spare[themes.length]);
+  return {
+    hook: `5 principles of ${niche.split(/[,&]/)[0].trim().toLowerCase()} that separate you from 99% of people.`,
+    points: themes.map((t, i) => ({ title: String(t).toUpperCase().slice(0, 36), line: FALLBACK_LINE_TEMPLATES[i % FALLBACK_LINE_TEMPLATES.length](t) })),
+    closing: 'Which one do you live by? Comment the number.',
+    thumbHeadline: '5 PRINCIPLES THAT SEPARATE YOU FROM 99%',
+  };
+}
 
 export async function generateYouTubeScript(page, forcedTheme = null) {
   const brand = resolveBrand(page);
-  const fallback = FALLBACK_SCRIPTS[page?.id] || FALLBACK_SCRIPTS['114550268199751'];
+  const fallback = fallbackScriptFor(brand);
   if (!geminiKey()) return { ...fallback, source: 'fallback' };
   // 09-30: static theme lists are gone. The caller passes a research-derived
   // topic directive; without one, the model chooses from the live trend
