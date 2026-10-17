@@ -1,12 +1,7 @@
 {
-  "at": "2026-10-16T16:20:56.631Z",
-  "problems": 1,
+  "at": "2026-10-17T13:00:37.977Z",
+  "problems": 0,
   "results": [
-    {
-      "slug": "workflows",
-      "status": "BROKEN_WORKFLOW",
-      "error": "channel-autopilot.yml: Cannot read properties of undefined (reading 'load') | channel-debt-free-doctrine.yml: Cannot read properties of undefined (reading 'load') | channel-investors-compass.yml: Cannot read properties of undefined (reading 'load') | channel-money-rulebook.yml: Cannot read properties of undefined (reading 'load') | channel-quotequarry.yml: Cannot read properties of undefined (reading 'load') | ci-doctor.yml: Cannot read properties of undefined (reading 'load') | codeberry-video.yml: Cannot read properties of undefined (reading 'load') | daily-dev-digest.yml: Cannot read properties of undefined (reading 'load') | daily-sweeper.yml: Cannot read properties of undefined (reading 'load') | demo-video.yml: Cannot read properties of undefined (reading 'load') | fb-now.yml: Cannot read properties of undefined (reading 'load') | hyperframes-create.yml: Cannot read properties of undefined (reading 'load') | hyperframes-proof.yml: Cannot read properties of undefined (reading 'load') | ig-slot-poster.yml: Cannot read properties of undefined (reading 'load') | longform-daily.yml: Cannot read properties of undefined (reading 'load') | longform-upload.yml: Cannot read properties of undefined (reading 'load') | reporting-daily.yml: Cannot read properties of undefined (reading 'load') | thumb-ab.yml: Cannot read properties of undefined (reading 'load') | tiktok-post.yml: Cannot read properties of undefined (reading 'load') | weekly-compilation.yml: Cannot read properties of undefined (reading 'load')"
-    },
     {
       "slug": "investors-compass",
       "channel": "Investor's Compass",
@@ -18,7 +13,7 @@
       "slug": "money-rulebook",
       "channel": "The Money Rulebook",
       "subs": "10",
-      "totalVideos": "118",
+      "totalVideos": "119",
       "status": "OK"
     },
     {
@@ -31,8 +26,8 @@
     {
       "slug": "quotequarry",
       "channel": "QuoteQuarry",
-      "subs": "207",
-      "totalVideos": "351",
+      "subs": "211",
+      "totalVideos": "353",
       "status": "OK"
     }
   ]
