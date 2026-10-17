@@ -32,8 +32,8 @@ const durs = JSON.parse(fs.readFileSync(path.join(PUB, "tts-durations.json"), "u
 const durByI = new Map(durs.map((d) => [d.i, d]));
 
 // real mp3 length (word boundaries end before trailing silence)
-const FFPROBE = process.env.FFPROBE_PATH
-  || path.join(DIR, "..", "ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffprobe.exe");
+import { resolveBinary } from '../lib/ffmpeg.mjs';
+const FFPROBE = resolveBinary('ffprobe');
 const probeMs = (file) => {
   try {
     const out = execFileSync(

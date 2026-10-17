@@ -18,8 +18,8 @@ import { spokenScript, buildAssCaptions, renderYouTubeThumbnail } from './youtub
 import { pickMusicTrack } from './music-engine.mjs';
 import { logPost, pktDate } from './reporting/collect.mjs';
 
-const FF = process.env.FFMPEG_PATH || (fs.existsSync('ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe')
-  ? 'ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' : 'ffmpeg');
+import { resolveBinary } from './lib/ffmpeg.mjs';
+const FF = resolveBinary('ffmpeg');
 const POOL_DIR = 'pixabay-pool';
 const ACCENT = '#F5E31C';
 const TEST = process.argv.includes('--test');

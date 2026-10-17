@@ -19,10 +19,9 @@ import { bySlug } from './yt-brands/brands.mjs';
 const { recentUploadTitles, findDup } = await import('./lib/dup-gate.mjs');
 const { resolveBrand } = await import('./lib/brand-resolve.mjs');
 
-const FF = process.env.FFMPEG_PATH || (fs.existsSync('ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe')
-  ? 'ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' : 'ffmpeg');
-const FP = process.env.FFPROBE_PATH || (fs.existsSync('ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffprobe.exe')
-  ? 'ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffprobe.exe' : 'ffprobe');
+import { resolveBinary } from './lib/ffmpeg.mjs';
+const FF = resolveBinary('ffmpeg');
+const FP = resolveBinary('ffprobe');
 const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
 const ENV_PATH = path.resolve(HERE, '.env');
 const envRaw = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';

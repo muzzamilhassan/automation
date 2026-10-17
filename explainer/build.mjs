@@ -5,8 +5,9 @@ import path from "node:path";
 
 const DIR = import.meta.dirname;
 const ROOT = path.resolve(DIR, "..");
-const FF = process.env.FFMPEG_PATH || path.join(ROOT, "ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe");
-const FP = process.env.FFPROBE_PATH || path.join(ROOT, "ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffprobe.exe");
+import { resolveBinary } from '../lib/ffmpeg.mjs';
+const FF = resolveBinary('ffmpeg');
+const FP = resolveBinary('ffprobe');
 const stage = process.argv[2] || "all";
 
 const run = (cmd, args, opts = {}) => {

@@ -7,7 +7,8 @@ import { fetchBroll } from "./broll-pixabay.mjs";
 
 const DIR = import.meta.dirname;
 const ROOT = path.resolve(DIR, "..");
-const FFPROBE = process.env.FFPROBE_PATH || path.join(ROOT, "ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffprobe.exe");
+import { resolveBinary } from '../lib/ffmpeg.mjs';
+const FFPROBE = resolveBinary('ffprobe');
 const specPath = path.resolve(DIR, process.argv[2] || "reels/money.json");
 const spec = JSON.parse(fs.readFileSync(specPath, "utf8"));
 

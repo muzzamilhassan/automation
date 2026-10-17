@@ -11,8 +11,8 @@ import { EMBEDDED_FONTS_CSS } from './typography-poster-engine.mjs';
 const envStr = (() => { try { return fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : ''; } catch (e) { return ''; } })();
 const envOf = (key) => process.env[key] || (envStr.match(new RegExp(`^${key}=(.+)$`, 'm')) || [])[1]?.trim() || '';
 
-const FF = process.env.FFMPEG_PATH || (fs.existsSync('ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe')
-  ? 'ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' : 'ffmpeg');
+import { resolveBinary } from './lib/ffmpeg.mjs';
+const FF = resolveBinary('ffmpeg');
 const POOL_DIR = 'pixabay-pool';
 const KEY = envOf('PIXABAY_API_KEY');
 

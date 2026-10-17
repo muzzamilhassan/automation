@@ -15,8 +15,8 @@ import { EMBEDDED_FONTS_CSS } from './typography-poster-engine.mjs';
 import { ensurePoolClip } from './cinematic-engine.mjs';
 import { getTopicClip } from './youtube-clips.mjs';
 
-const FF = process.env.FFMPEG_PATH || (fs.existsSync('ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe')
-  ? 'ffmpeg-bin/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' : 'ffmpeg');
+import { resolveBinary } from './lib/ffmpeg.mjs';
+const FF = resolveBinary('ffmpeg');
 const POOL_DIR = 'pixabay-pool';
 // BYOK: read lazily (NOT at import) so per-channel keys injected by
 // lib/channel-keys.mjs before the brain runs are always picked up.
