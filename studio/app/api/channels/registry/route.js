@@ -1,6 +1,6 @@
 // Channels connected through the Studio wizard (yt-mcp/studio-channels.json).
 import { requireRole, getUser } from '@/lib/route-auth';
-import { readRegistry, writeRepoJSON, REGISTRY_MODE, hasGithubToken, registryChannels, decryptJSON } from '@/lib/channels-registry';
+import { readRegistry, writeRepoJSON, removeChannel, REGISTRY_MODE, hasGithubToken, registryChannels, decryptJSON } from '@/lib/channels-registry';
 import { appendAudit } from '@/lib/audit';
 import { ENV } from '@/lib/data.mjs';
 export const dynamic = 'force-dynamic';
@@ -61,9 +61,10 @@ export async function DELETE(req) {
     } catch { }
   }
 
-  // 3. remove the registry entry
-  const channels = (reg.channels || []).filter((c) => c.slug !== slug);
-  await writeRepoJSON('yt-mcp/studio-channels.json', { channels }, `flow: disconnected ${slug} (${actor})`);
+  // 3. remove the registry entry — removeChannel() also deletes the Neon row
+  // (readRegistry is DB-first when dbReady, so filtering the repo file alone
+  // let the row resurrect on the next sync — issue #4)
+  await removeChannel(slug, `flow: disconnected ${slug} (${actor})`);
 
   console.log(`[audit] ${actor} → disconnected ${slug} (revoked: ${revoked}, secret deleted: ${secretDeleted})`);
   await appendAudit(actor, 'disconnect', `${slug}${revoked ? ' · key revoked' : ''}`);
