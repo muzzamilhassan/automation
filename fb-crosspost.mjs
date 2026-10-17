@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import https from 'node:https';
 import path from 'node:path';
 import { buildFbVariant } from './fb-variant.mjs';
+import { fbPageId as registryFbPageId } from './lib/registry.mjs';
 import { BRANDS } from './yt-brands/brands.mjs';
 
 const brandOf = (slug) => BRANDS.find(b => b.slug === slug);
@@ -16,13 +17,9 @@ const brandOf = (slug) => BRANDS.find(b => b.slug === slug);
 const envStr = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
 const FB_PAGE_TOKEN = process.env.FB_PAGE_TOKEN || (envStr.match(/^FB_PAGE_TOKEN=(.+)$/m) || [])[1]?.trim() || '';
 
-// YT slug -> FB page (audience-matched)
-const PAGE_MAP = {
-  'quotequarry': '114550268199751',      // Reliq North (8.6k followers, user order 09-20 — replaces Strategic Silence)
-  'investors-compass': '116157974886564', // Silent Wealth (money psychology)
-  'money-rulebook': '1077306835630491',   // Eon Ventures (success habits)
-  'debt-free-doctrine': '106473735839651' // The Boundaries Club (boundaries)
-};
+// YT slug -> FB page (audience-matched) — canonical map lives in lib/registry.mjs
+// (was duplicated 3× with drift; see issue #38)
+const PAGE_MAP = new Proxy({}, { get: (_t, slug) => registryFbPageId(String(slug)) });
 const HASHTAGS = {
   'quotequarry': '#Stoicism #DailyWisdom #Mindset',
   'investors-compass': '#InvestingPsychology #StockMarket #WealthBuilding',

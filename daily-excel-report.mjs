@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import ExcelJS from 'exceljs';
 import { google } from 'googleapis';
+import { fbPageId as registryFbPageId } from './lib/registry.mjs';
 
 const envRaw = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
 for (const m of envRaw.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
@@ -21,10 +22,10 @@ const MODE = (process.argv[2] || 'daily').toLowerCase();
 // FB pairing mirrors fb-crosspost.mjs PAGE_MAP (audience-matched: the YT channel
 // feeds a page whose name is a legacy brand name — both are shown in the report).
 const CHANNELS = [
-  { slug: 'quotequarry', label: 'Quote Quarry', handle: '@quotequarry302', fbPageId: '114550268199751' },
-  { slug: 'investors-compass', label: "Investor's Compass", handle: '@investorscompasshq', fbPageId: '116157974886564' },
-  { slug: 'money-rulebook', label: 'The Money Rulebook', handle: '@themoneyrulebook-p4y', fbPageId: '1077306835630491' },
-  { slug: 'debt-free-doctrine', label: 'Debt-Free Doctrine', handle: '@debtfreedoctrine', fbPageId: '106473735839651' }
+  { slug: 'quotequarry', label: 'Quote Quarry', handle: '@quotequarry302', fbPageId: registryFbPageId('quotequarry') },
+  { slug: 'investors-compass', label: "Investor's Compass", handle: '@investorscompasshq', fbPageId: registryFbPageId('investors-compass') },
+  { slug: 'money-rulebook', label: 'The Money Rulebook', handle: '@themoneyrulebook-p4y', fbPageId: registryFbPageId('money-rulebook') },
+  { slug: 'debt-free-doctrine', label: 'Debt-Free Doctrine', handle: '@debtfreedoctrine', fbPageId: registryFbPageId('debt-free-doctrine') }
 ];
 // Extra owned page, not part of the 4-brand pairing (kept visible for its stats)
 const EXTRA_PAGE_IDS = []; // Reliq North is now QQ's primary FB page (moved 09-20)

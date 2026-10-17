@@ -9,6 +9,7 @@ import { Readable } from 'node:stream';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { google } from 'googleapis';
 import { loadAllStates, saveChannelState } from './lib/state.mjs';
+import { fbPageId } from './lib/registry.mjs';
 
 // NEVER crash the CI — log errors and continue
 process.on('uncaughtException', (e) => { console.error('[yt-daily] Uncaught:', e.message, '— continuing'); });
@@ -274,7 +275,7 @@ if (RUN_SHORTS) {
     // ---- Video frames → FB image posts ----
     try {
       const videoFile = `fb-outbox/${slug}/${stamp}.mp4`;
-      const pageId = { 'investors-compass': '116157974886564', 'money-rulebook': '1077306835630491', 'debt-free-doctrine': '106473735839651', 'quotequarry': '108044922375174' }[slug];
+      const pageId = fbPageId(slug); // canonical map — lib/registry.mjs (was drifted: QQ pointed at the retired page, #38)
       if (pageId && process.env.FB_PAGE_TOKEN) {
         const pageTokenRes = await fetch(`https://graph.facebook.com/v20.0/me/accounts?fields=access_token&access_token=${process.env.FB_PAGE_TOKEN}`);
         const pageData = (await pageTokenRes.json()).data || [];
