@@ -143,6 +143,7 @@ if (RUN_SHORTS) {
   // thin), plus this run's own titles so one run can never repeat itself.
   const recentTitles = await recentUploadTitles(yt);
   const seenThisRun = [];
+  const rejectedSeeds = []; // dup-gate rejections cool their trend source (#91)
   const usedSeeds = Array.isArray(state[slug]?.usedTrendSeeds) ? state[slug].usedTrendSeeds : [];
   const dayIdx = Math.floor(Date.now() / 86400000);
   const waves = page.trend?.videos || [];
@@ -176,7 +177,18 @@ if (RUN_SHORTS) {
         const cand = waves[(dayIdx * b.slots.length + k + off) % waves.length];
         if (!usedSeeds.includes(cand.title) && !themesToday.some((t) => t.seed === cand.title)) { seed = cand; break; }
       }
-      if (!seed) seed = waves[(dayIdx * b.slots.length + k) % waves.length];
+      if (!seed) {
+        // all waves already used — rotate by day-index, but skip seeds whose
+        // last generation was dup-gate rejected (#91: IC looped one Buffett
+        // theme for 5 days because this fallback re-picked the cooled seed)
+        let idx = (dayIdx * b.slots.length + k) % waves.length;
+        const cooled = state[slug]?.cooldownSeeds || [];
+        for (let off = 0; off < waves.length; off++) {
+          const cand = waves[(idx + off) % waves.length];
+          if (!cooled.includes(cand.title)) { idx = (idx + off) % waves.length; break; }
+        }
+        seed = waves[idx];
+      }
       const slotSubNiche = subNicheList[(dayIdx * b.slots.length + k) % subNicheList.length];
       themesToday.push({
         seed: seed.title,
@@ -238,6 +250,7 @@ if (RUN_SHORTS) {
     fs.writeFileSync(`fb-outbox/${slug}/${stamp}.json`, JSON.stringify({ videoFile: `fb-outbox/${slug}/${stamp}.mp4`, publishAt, title: meta.title, description: meta.description, tags: meta.tags, slug }, null, 2));
 
     if (!validateUploadOrSkip(`fb-outbox/${slug}/${stamp}.mp4`, meta.title, (m) => console.log(m))) {
+      if (themesToday[i]?.seed) rejectedSeeds.push(themesToday[i].seed); // cool the source (#91)
       results.push({ videoId: null, publishAt, title: meta.title, gateRejected: true });
       continue;
     }
@@ -245,6 +258,7 @@ if (RUN_SHORTS) {
     const metaDup = findDup(meta.title, recentTitles, seenThisRun);
     if (metaDup) {
       console.log(`  GATE: duplicate upload title "${meta.title}" ≈ "${metaDup}" — upload skipped`);
+      if (themesToday[i]?.seed) rejectedSeeds.push(themesToday[i].seed); // cool the source (#91)
       results.push({ videoId: null, publishAt, title: meta.title, gateRejected: true });
       continue;
     }
@@ -307,6 +321,7 @@ if (RUN_SHORTS) {
       lastRunDate: suppressNext ? new Date(Date.now() + 86400000).toISOString().slice(0, 10) : today,
       ...(TOPUP_N > 0 ? { healedDate: today, healedCount: results.length } : {}),
       usedTrendSeeds: [...usedSeeds, ...themesToday.map(t => t.seed)].slice(-40),
+      cooldownSeeds: [...(state[slug]?.cooldownSeeds || []), ...rejectedSeeds].slice(-12),
       todayTopics: themesToday.map(t => ({ at: today, topic: t.seed })),
       // 10-05: durable title history — lastVideos alone only ever held the last
       // run, which is why cross-day duplicates went unnoticed for weeks
