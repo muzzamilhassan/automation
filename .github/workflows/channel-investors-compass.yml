@@ -91,6 +91,22 @@ jobs:
           path: fb-outbox/investors-compass
           key: ig-outbox-investors-compass-${{ github.run_id }}
 
+      - name: ⬆️ Upload doc render artifact (docDay only)
+        if: ${ hashFiles('tt-lf/lf-investors-compass.mp4') != '' }
+        uses: actions/upload-artifact@v4
+        with:
+          name: lf-investors-compass
+          path: tt-lf/lf-investors-compass.mp4
+          retention-days: 30
+
+      - name: ⬆️ Upload doc meta artifact
+        if: ${ hashFiles('tt-lf/lf-meta-investors-compass.json') != '' }
+        uses: actions/upload-artifact@v4
+        with:
+          name: lf-meta-investors-compass
+          path: tt-lf/lf-meta-investors-compass.json
+          retention-days: 30
+
       - name: 💾 Commit publishing state
         run: |
           git config user.name "quarry-bot"

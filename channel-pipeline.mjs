@@ -123,6 +123,35 @@ if (!SKIP_EPISODE && !episodeDone) {
   log(`Episode skipped (--no-episode or paused)`);
 }
 
+// ---- Phase 6: Stage doc render for TikTok clips (docDay only) ----
+// Ported from channel-quotequarry.yml, which had this as QQ-only YAML logic —
+// MR/IC/DFD docs never reached the TikTok queue (issue #77). Generic per-slug:
+// the channel workflows upload tt-lf/lf-<slug>.* as artifacts named lf-<slug> /
+// lf-meta-<slug>, which longvideo/tiktok-clips.mjs consumes per run.
+try {
+  const epFile = path.join('demos', `deepdive-${slug}`, 'episode.mp4');
+  if (fs.existsSync(epFile)) {
+    fs.mkdirSync('tt-lf', { recursive: true });
+    fs.copyFileSync(epFile, path.join('tt-lf', `lf-${slug}.mp4`));
+    let title = '';
+    try {
+      const files = fs.readdirSync(path.join('fb-outbox', slug)).filter(f => f.endsWith('.json')).reverse();
+      for (const f of files) {
+        const j = JSON.parse(fs.readFileSync(path.join('fb-outbox', slug, f), 'utf8'));
+        if (j.kind === 'episode' && j.title) { title = j.title; break; }
+      }
+    } catch { }
+    if (!title) title = `${b.label} documentary`;
+    const keyword = (b.tags && b.tags[0]) || b.niche || 'documentary';
+    fs.writeFileSync(path.join('tt-lf', `lf-meta-${slug}.json`), JSON.stringify({ title, keyword }, null, 2));
+    log(`✓ staged doc render for TikTok clips: "${title}" (keyword: ${keyword})`);
+  } else {
+    log('no doc rendered today (not docDay) — nothing staged for TikTok');
+  }
+} catch (e) {
+  log(`⚠ TikTok staging failed (non-fatal): ${String(e.message).slice(0, 90)}`);
+}
+
 // ---- Summary ----
 log(`══ PIPELINE COMPLETE ══`);
 log(`  Shorts: ${results.shorts ? '✓' : '✗'}`);

@@ -91,6 +91,22 @@ jobs:
           path: fb-outbox/money-rulebook
           key: ig-outbox-money-rulebook-${{ github.run_id }}
 
+      - name: ⬆️ Upload doc render artifact (docDay only)
+        if: ${ hashFiles('tt-lf/lf-money-rulebook.mp4') != '' }
+        uses: actions/upload-artifact@v4
+        with:
+          name: lf-money-rulebook
+          path: tt-lf/lf-money-rulebook.mp4
+          retention-days: 30
+
+      - name: ⬆️ Upload doc meta artifact
+        if: ${ hashFiles('tt-lf/lf-meta-money-rulebook.json') != '' }
+        uses: actions/upload-artifact@v4
+        with:
+          name: lf-meta-money-rulebook
+          path: tt-lf/lf-meta-money-rulebook.json
+          retention-days: 30
+
       - name: 💾 Commit publishing state
         run: |
           git config user.name "quarry-bot"

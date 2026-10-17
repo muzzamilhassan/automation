@@ -91,6 +91,22 @@ jobs:
           path: fb-outbox/debt-free-doctrine
           key: ig-outbox-debt-free-doctrine-${{ github.run_id }}
 
+      - name: ⬆️ Upload doc render artifact (docDay only)
+        if: ${ hashFiles('tt-lf/lf-debt-free-doctrine.mp4') != '' }
+        uses: actions/upload-artifact@v4
+        with:
+          name: lf-debt-free-doctrine
+          path: tt-lf/lf-debt-free-doctrine.mp4
+          retention-days: 30
+
+      - name: ⬆️ Upload doc meta artifact
+        if: ${ hashFiles('tt-lf/lf-meta-debt-free-doctrine.json') != '' }
+        uses: actions/upload-artifact@v4
+        with:
+          name: lf-meta-debt-free-doctrine
+          path: tt-lf/lf-meta-debt-free-doctrine.json
+          retention-days: 30
+
       - name: 💾 Commit publishing state
         run: |
           git config user.name "quarry-bot"
