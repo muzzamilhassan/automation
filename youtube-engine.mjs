@@ -302,6 +302,17 @@ export async function renderYouTubeThumbnail(headline, cleanFrameFile, opts = {}
 // ---------------------------------------------------------------------------
 // Main renderer — returns { buffer, meta } for the YouTube Short
 // ---------------------------------------------------------------------------
+// Emergency-script line templates — varied copy per theme (see #12/#91: the
+// fallback is kit-driven and must never throw; it is the last line of defense
+// when every LLM provider fails)
+const FALLBACK_LINE_TEMPLATES = [
+  (t) => `Most people treat "${t}" as an idea. Winners treat it as a daily practice — small, deliberate, repeatable.`,
+  (t) => `Nobody is coming to hand you "${t}". You build it in silence, one decision at a time.`,
+  (t) => `Protect your "${t}" like an asset. The moment you guard it, everything downstream gets easier.`,
+  (t) => `"${t}" looks boring on day one. On day one hundred it looks like a superpower.`,
+  (t) => `Cut one thing that drains your "${t}" today. Subtraction is the fastest form of progress.`,
+];
+
 function fallbackScriptFor(brand) {
   const niche = String(brand?.niche || 'timeless wisdom and self-mastery');
   const themes = (brand?.tags || []).slice(0, 5);
