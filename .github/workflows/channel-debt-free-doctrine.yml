@@ -33,7 +33,7 @@ jobs:
           path: pixabay-pool
           key: pixabay-pool-v1
 
-      - name: ⚙️ Setup Node.js 20
+      - name: ⚙️ Setup Node.js 24
         uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -92,7 +92,7 @@ jobs:
           key: ig-outbox-debt-free-doctrine-${{ github.run_id }}
 
       - name: ⬆️ Upload doc render artifact (docDay only)
-        if: ${ hashFiles('tt-lf/lf-debt-free-doctrine.mp4') != '' }
+        if: ${{ hashFiles('tt-lf/lf-debt-free-doctrine.mp4') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: lf-debt-free-doctrine
@@ -100,7 +100,7 @@ jobs:
           retention-days: 30
 
       - name: ⬆️ Upload doc meta artifact
-        if: ${ hashFiles('tt-lf/lf-meta-debt-free-doctrine.json') != '' }
+        if: ${{ hashFiles('tt-lf/lf-meta-debt-free-doctrine.json') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: lf-meta-debt-free-doctrine
