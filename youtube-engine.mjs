@@ -10,6 +10,7 @@
 //   • SEO metadata + scheduled uploads at the 05:45/13:30/18:45 PKT slots
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import path from 'node:path'; // restored — the #72 dead-code range accidentally cut this mid-file import (IC heal regression)
 import sharp from 'sharp';
 import { EMBEDDED_FONTS_CSS } from './typography-poster-engine.mjs';
 import { ensurePoolClip } from './cinematic-engine.mjs';
