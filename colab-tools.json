@@ -1,0 +1,12 @@
+{
+ "connected": false,
+ "tools": {
+  "open_colab_browser_connection": {
+   "description": "Opens a connection to a Google Colab browser session and unlocks notebook editing tools. Returns a boolean representing whether the connection attempt succeeded",
+   "inputSchema": {
+    "properties": {},
+    "type": "object"
+   }
+  }
+ }
+}

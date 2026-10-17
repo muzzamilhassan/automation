@@ -1,0 +1,95 @@
+{
+ "audio": "cap-voice.mp3",
+ "words": [
+  {
+   "w": "In 2013",
+   "t0": 96,
+   "t1": 1430,
+   "key": true
+  },
+  {
+   "w": "one",
+   "t0": 1719,
+   "t1": 1983,
+   "key": false
+  },
+  {
+   "w": "fake",
+   "t0": 1995,
+   "t1": 2284,
+   "key": true
+  },
+  {
+   "w": "tweet",
+   "t0": 2296,
+   "t1": 2632,
+   "key": false
+  },
+  {
+   "w": "erased",
+   "t0": 2692,
+   "t1": 3089,
+   "key": true
+  },
+  {
+   "w": "one",
+   "t0": 3101,
+   "t1": 3305,
+   "key": false
+  },
+  {
+   "w": "hundred",
+   "t0": 3317,
+   "t1": 3630,
+   "key": false
+  },
+  {
+   "w": "thirty",
+   "t0": 3642,
+   "t1": 3942,
+   "key": false
+  },
+  {
+   "w": "six",
+   "t0": 3954,
+   "t1": 4231,
+   "key": false
+  },
+  {
+   "w": "billion",
+   "t0": 4243,
+   "t1": 4567,
+   "key": true
+  },
+  {
+   "w": "dollars",
+   "t0": 4579,
+   "t1": 5036,
+   "key": false
+  },
+  {
+   "w": "in",
+   "t0": 5144,
+   "t1": 5312,
+   "key": false
+  },
+  {
+   "w": "just",
+   "t0": 5324,
+   "t1": 5637,
+   "key": false
+  },
+  {
+   "w": "three",
+   "t0": 5649,
+   "t1": 5889,
+   "key": true
+  },
+  {
+   "w": "minutes",
+   "t0": 5901,
+   "t1": 6394,
+   "key": true
+  }
+ ]
+}
