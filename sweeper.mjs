@@ -9,6 +9,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { google } from 'googleapis';
 import { applyChannelKeys } from './lib/channel-keys.mjs';
+import { LEGACY_SLUGS } from './lib/registry.mjs';
 
 const envStr = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
 for (const m of envStr.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
@@ -16,7 +17,7 @@ const envOf = (k) => process.env[k] || '';
 
 const DRY = process.argv.includes('--dry-run');
 const todayUTC = new Date().toISOString().slice(0, 10);
-const CHANNEL_SLUGS = ['quotequarry', 'investors-compass', 'money-rulebook', 'debt-free-doctrine'];
+const CHANNEL_SLUGS = [...LEGACY_SLUGS]; // canonical list — lib/registry.mjs (issue #76)
 const brands = JSON.parse(fs.readFileSync('lib/brands.json', 'utf8'));
 // 10-05 CHANNEL FACTORY: Studio-wizard channels join the sweep — they heal
 // from their registry entry (slots/handle) instead of lib/brands.json.

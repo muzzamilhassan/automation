@@ -3,11 +3,11 @@
 // Creates a health report and GitHub issue if problems found.
 import fs from 'node:fs';
 import { google } from 'googleapis';
+import { LEGACY_SLUGS as SLUGS } from './lib/registry.mjs';
 
 const envRaw = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
 for (const m of envRaw.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
 
-const SLUGS = ['investors-compass', 'money-rulebook', 'debt-free-doctrine', 'quotequarry'];
 const results = [];
 
 import { validateWorkflows } from './lib/workflow-validator.mjs';
