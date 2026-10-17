@@ -56,7 +56,7 @@ const server = http.createServer(async (req, res) => {
         refresh_token: tokens.refresh_token,
         scope: tokens.scope || SCOPES.join(' '),
         token_type: 'Bearer',
-        expiry_date: Date.now() + 3650 * 86400000
+        expiry_date: Date.now() + 3600 * 1000 // real access-token lifetime (consumers pass refresh_token only)
       }, null, 2));
       console.log(`=== CORRECT — ${WANT} token placed ===`);
       res.end('<html><body style="font-family:sans-serif;text-align:center;padding-top:60px"><h2>✅ That was ' + WANT + '! All set.</h2></body></html>');

@@ -21,7 +21,7 @@ const brands = JSON.parse(fs.readFileSync('lib/brands.json', 'utf8'));
 // yt-mcp/studio-channels.json when lib/brands.json has no entry.
 const { resolveBrand } = await import('./lib/brand-resolve.mjs');
 let b = brands[slug] || await resolveBrand(slug);
-if (!b) { console.error(`[pipeline] unknown slug: ${slug}`); process.exit(0); }
+if (!b) { console.error(`[pipeline] unknown slug: ${slug}`); process.exit(1); }
 
 const today = new Date().toISOString().slice(0, 10);
 // 09-20: per-channel state files are the source of truth (lib/state.mjs)

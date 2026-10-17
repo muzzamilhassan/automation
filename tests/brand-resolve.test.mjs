@@ -40,8 +40,7 @@ test('registryToKit produces a valid engine-compatible brand kit', () => {
   assert.equal(kit.fromRegistry, true);
 });
 
-test('resolveBrand falls back to quotequarry for unknown slug', async () => {
+test('resolveBrand returns null for unknown slug (no silent substitution — issue #72)', async () => {
   const fallback = await resolveBrand('non-existent-channel-12345');
-  assert.ok(fallback, 'Should provide a safe fallback brand');
-  assert.equal(fallback.slug, 'quotequarry');
+  assert.equal(fallback, undefined, 'unknown slugs must NOT silently resolve to quotequarry');
 });

@@ -88,7 +88,7 @@ const server = http.createServer(async (req, res) => {
           refresh_token: pending[ident.slot].refresh_token,
           scope: pending[ident.slot].scope || SCOPES.join(' '),
           token_type: 'Bearer',
-          expiry_date: Date.now() + 3650 * 86400000
+          expiry_date: Date.now() + 3600 * 1000 // real access-token lifetime
         }, null, 2));
         placed.push(`${slug}  <-  "${ident.title}" (${ident.handle})`);
       }

@@ -48,5 +48,6 @@ for (const handle of HANDLES) {
     console.log(`✗ ${handle}: ${String(e.message).slice(0, 100)}`);
   }
 }
+fs.mkdirSync('research', { recursive: true });
 fs.writeFileSync('research/competitor-scan-data.json', JSON.stringify(out, null, 2));
 console.log('\nSaved research/competitor-scan-data.json');

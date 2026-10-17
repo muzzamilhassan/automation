@@ -47,7 +47,12 @@ export async function researchTrend(slug, auth, seeds, cacheDays = 1) {
       const found = search.data.items.map(i => i.id.videoId).filter(Boolean);
       if (found.length >= 3) { ids = found; usedQuery = q; break; }
       if (found.length && !ids) { ids = found; usedQuery = q; } // keep best-effort
-    } catch (e) { lastErr = e; console.log(`[trend] q="${q}" failed: ${String(e.message).slice(0, 60)}`); }
+    } catch (e) {
+      lastErr = e;
+      console.log(`[trend] q="${q}" failed: ${String(e.message).slice(0, 60)}`);
+      // quota exhausted / key dead -> every remaining query will fail too; stop now
+      if (String(e.message).includes('quotaExceeded') || String(e.message).includes('403')) break;
+    }
   }
   if (!ids?.length) throw new Error(lastErr ? `trend search failed: ${String(lastErr.message).slice(0, 60)}` : 'no trend results for any seed');
 

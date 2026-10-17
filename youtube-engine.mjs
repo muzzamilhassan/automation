@@ -131,11 +131,11 @@ function narrate(scriptText, tag, voice = '') {
 // per cue, yellow keyword, pop-in scale, centered at y=1260 (safe zone).
 // ---------------------------------------------------------------------------
 function assTime(sec) {
-  const s = Math.max(0, sec);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const rest = s % 60;
-  return `${h}:${String(m).padStart(2, '0')}:${rest.toFixed(2).padStart(5, '0')}`;
+  const cs = Math.round(Math.max(0, sec) * 100); // integer centiseconds — 59.995+ carries into the next minute
+  const h = Math.floor(cs / 360000);
+  const m = Math.floor((cs % 360000) / 6000);
+  const s = Math.floor((cs % 6000) / 100);
+  return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(cs % 100).padStart(2, '0')}`;
 }
 const escAss = (s) => String(s || '').replace(/[{}\\]/g, '');
 
@@ -258,59 +258,6 @@ async function renderOverlay(pageId, brand, hook, bodyLines, takeaway, withNarra
 // ---------------------------------------------------------------------------
 const capitalized = (s) => titleCase(s);
 
-export function buildYouTubeMeta(page, postData, seed = 0, musicLabel = '') {
-  const brand = resolveBrand(page);
-  const headlineTC = titleCase((postData?.headline || 'Stay Silent and Build').replace(/\.$/, ''));
-  const kw = titleCase(brand.keyword);
-  const formulas = [
-    `${headlineTC} — ${kw}`,
-    `${kw}: ${headlineTC}`,
-    `Read This If You Need ${brand.theme} — ${kw}`,
-    `Daily ${kw} — ${headlineTC}`
-  ];
-  const title = formulas[seed % formulas.length].replace(/\s+/g, ' ').trim().slice(0, 95);
-
-  const descCore = [
-    `${capitalized(brand.keyword)} for anyone building ${brand.niches[0]}.`,
-    `"${String(postData?.insight_body || '').trim()}"`,
-    String(postData?.takeaway || '').trim(),
-    `Follow ${brand.followName || 'Quote Quarry'} for daily ${brand.kwShort}.`,
-    `#motivation #mindset #${brand.keyword.split(' ')[0].replace(/[^a-z]/g, '')}`
-  ].join('\n').slice(0, 300);
-  const description = musicLabel ? `${descCore}\n🎵 ${musicLabel}`.slice(0, 480) : descCore;
-
-  const tags = [brand.keyword, ...brand.niches, 'motivation', 'quotes'].slice(0, 6);
-  return { title, description, tags, format: HOOK_STYLES[seed % HOOK_STYLES.length], keyword: brand.keyword };
-}
-
-// ---------------------------------------------------------------------------
-// Scheduling — 05:45 / 13:30 / 18:45 PKT slots (UTC+5, no DST).
-// nextYouTubeSlotCandidatesISO returns the next N slot timestamps so the
-// uploader can skip slots that already have a full batch scheduled.
-// ---------------------------------------------------------------------------
-export function nextYouTubeSlotCandidatesISO(n = 6, now = new Date()) {
-  const slotsSec = [45 * 60, 8 * 3600 + 30 * 60, 13 * 3600 + 45 * 60];
-  const t = now.getTime() / 1000 + 15 * 60;
-  const dayStart = Math.floor(t / 86400) * 86400;
-  const out = [];
-  for (let d = 0; d <= Math.ceil(n / 3); d++) {
-    for (const s of slotsSec) {
-      const ts = dayStart + d * 86400 + s;
-      if (ts > t) out.push(new Date(ts * 1000).toISOString());
-    }
-  }
-  return out.slice(0, n);
-}
-
-export function nextYouTubeSlotISO(now = new Date()) {
-  return nextYouTubeSlotCandidatesISO(1, now)[0];
-}
-
-// ---------------------------------------------------------------------------
-// Thumbnail — 1280x720 CTR design: CLEAN background frame (no on-screen text!),
-// huge Anton headline with the key word in the brand accent, thick black
-// stroke, Quote Quarry eyebrow.
-// ---------------------------------------------------------------------------
 export async function renderYouTubeThumbnail(headline, cleanFrameFile, opts = {}) {
   const accent = opts.accent || '#F5E31C';
   const eyebrow = opts.eyebrow || 'QUOTE QUARRY';
@@ -355,107 +302,6 @@ export async function renderYouTubeThumbnail(headline, cleanFrameFile, opts = {}
 // ---------------------------------------------------------------------------
 // Main renderer — returns { buffer, meta } for the YouTube Short
 // ---------------------------------------------------------------------------
-export async function renderYouTubeShort(page, postData, musicOverride = null) {
-  const brand = resolveBrand(page);
-  if (!brand) throw new Error('no YouTube config for page ' + page?.id);
-  console.log(`[YouTube Short] ${brand.label} (4K topic clip + human narration + Hormozi captions)...`);
-
-  const clip = (await getTopicClip(page, postData)) || await ensurePoolClip(page.id);
-
-  // premium thumbnail from a CLEAN frame of the raw clip (no on-screen text)
-  let thumb = null;
-  try {
-    const frameFile = `${POOL_DIR}/yt-thumb-frame-${page.id}.jpg`;
-    execFileSync(FF, ['-y', '-v', 'error', '-ss', String(clip.start + 3), '-i', clip.file, '-frames:v', '1', frameFile]);
-    thumb = await renderYouTubeThumbnail(postData?.headline || 'DAILY MOTIVATION', frameFile,
-      { accent: brand.accent, eyebrow: brand.eyebrow || `QUOTE QUARRY // ${brand.label}` });
-    fs.rmSync(frameFile, { force: true });
-  } catch (e) {
-    console.log(`      [YT Short] Thumbnail skipped (${String(e.message).slice(0, 80)})`);
-  }
-
-  const seed = Math.floor(Date.now() / 86400000) + Number(page.id % 7);
-  const hook = buildHook(postData, seed);
-  const narration = narrate(spokenScript(postData), page.id, brand.voice);
-  const bodyLines = narration ? null : wrapTextToLines(postData?.insight_body || '', 24).slice(0, 4);
-  const overlayFile = await renderOverlay(page.id, brand, hook, bodyLines, narration ? null : postData?.takeaway, !!narration);
-
-  const scrimSvg = `<svg width="1080" height="1920" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0" stop-color="rgba(8,8,10,0.42)"/><stop offset="0.45" stop-color="rgba(8,8,10,0.60)"/><stop offset="1" stop-color="rgba(8,8,10,0.82)"/>
-  </linearGradient></defs><rect width="1080" height="1920" fill="url(#g)"/></svg>`;
-  const scrimFile = `${POOL_DIR}/yt-scrim-${page.id}.png`;
-  await sharp(Buffer.from(scrimSvg)).png().toFile(scrimFile);
-
-  const lastWordEnd = narration ? narration.words[narration.words.length - 1].s + narration.words[narration.words.length - 1].d : 12;
-  const dur = narration
-    ? Math.max(11, Math.min(30, Math.round((lastWordEnd + 1.2) * 10) / 10))
-    : 13;
-
-  // ASS captions from exact word timestamps
-  let assFile = null;
-  if (narration) {
-    assFile = `${POOL_DIR}/yt-caps-${page.id}.ass`;
-    fs.writeFileSync(assFile, buildAssCaptions(narration.words), 'utf8');
-  }
-
-  const chain = [
-    `[0:v]crop=ih*9/16:ih,scale=1080:1920,eq=saturation=1.04:contrast=1.06,fade=t=in:st=0:d=0.5,fade=t=out:st=${(dur - 0.8).toFixed(1)}:d=0.8[bv]`,
-    `[1:v]scale=1080:1920[sc]`,
-    `[bv][sc]overlay=0:0[base]`,
-    `[base][3:v]overlay=0:0[ov]`
-  ];
-  let audioChain;
-  if (narration) {
-    chain.push(`[ov]ass=${assFile}:fontsdir=image-tools/fonts[v]`);
-    audioChain = `[4:a]adelay=350|350,apad=pad_dur=2[nar];[2:a]volume=0.14,apad=pad_dur=2[mus];[nar][mus]amix=inputs=2:duration=longest:normalize=0,atrim=0:${dur},afade=t=out:st=${(dur - 1.0).toFixed(1)}:d=1.0[a]`;
-  } else {
-    chain.push(`[ov]null[v]`);
-    audioChain = `[2:a]volume=0.7,afade=t=in:st=0:d=1,afade=t=out:st=${(dur - 1.5).toFixed(1)}:d=1.5[a]`;
-  }
-
-  const args = ['-y', '-ss', String(clip.start), '-i', clip.file, '-i', scrimFile, '-stream_loop', '-1', '-i', (musicOverride?.file || 'image-tools/audio/awakening-dew.mp3'), '-i', overlayFile];
-  if (narration) args.push('-i', narration.file);
-  args.push('-filter_complex', chain.join(';') + ';' + audioChain, '-map', '[v]', '-map', '[a]',
-    '-t', String(dur), '-r', '30',
-    '-c:v', 'libx264', '-preset', 'medium', '-crf', '19', '-pix_fmt', 'yuv420p',
-    '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', `${POOL_DIR}/yt-short-${page.id}.tmp.mp4`);
-
-  try {
-    execFileSync(FF, args, { stdio: ['ignore', 'ignore', 'pipe'] });
-    const buf = fs.readFileSync(`${POOL_DIR}/yt-short-${page.id}.tmp.mp4`);
-    fs.rmSync(`${POOL_DIR}/yt-short-${page.id}.tmp.mp4`, { force: true });
-    fs.rmSync(overlayFile, { force: true });
-    fs.rmSync(assFile, { force: true });
-    console.log(`      ✓ YouTube Short rendered (${Math.round(buf.length / 1024)} KB, ${dur}s, ${narration ? 'narrated' : 'silent fallback'}, hook: ${hook.style}, clip: ${clip.query || 'pool'})`);
-    return { buffer: buf, thumb, meta: buildYouTubeMeta(page, postData, seed, musicOverride ? `${musicOverride.title} — ${musicOverride.credit}` : ''), duration: dur };
-  } catch (e) {
-    fs.rmSync(overlayFile, { force: true });
-    fs.rmSync(assFile, { force: true });
-    const msg = e.stderr ? e.stderr.toString().split('\n').filter((l) => /Error|Invalid|No such|Unable/i.test(l)).join(' | ') : e.message;
-    throw new Error('YouTube Short render failed: ' + msg.slice(0, 300));
-  }
-}
-
-// ===========================================================================
-// SCRIPTED SHORTS — the "5 Cold Behaviours" listicle format (hook → 5 points
-// → closing), narrated section-by-section. PRIMARY YouTube format; single
-// quotes remain the fallback.
-// ===========================================================================
-import path from 'node:path';
-
-// Fallback script — built from the resolved brand kit, not a static per-brand
-// map (issue #12 + owner directive 10-17: channels are DATA in lib/brands.json
-// / the registry, never hardcoded code — a new Gmail-login channel must work
-// with zero code changes). Emergency-grade by design: the 5-provider brain
-// normally returns long before this runs.
-const FALLBACK_LINE_TEMPLATES = [
-  (t) => `Most people treat "${t}" as an idea. Winners treat it as a daily practice — small, deliberate, repeatable.`,
-  (t) => `Nobody is coming to hand you "${t}". You build it in silence, one decision at a time.`,
-  (t) => `Protect your "${t}" like an asset. The moment you guard it, everything downstream gets easier.`,
-  (t) => `"${t}" looks boring on day one. On day one hundred it looks like a superpower.`,
-  (t) => `Cut one thing that drains your "${t}" today. Subtraction is the fastest form of progress.`,
-];
-
 function fallbackScriptFor(brand) {
   const niche = String(brand?.niche || 'timeless wisdom and self-mastery');
   const themes = (brand?.tags || []).slice(0, 5);
