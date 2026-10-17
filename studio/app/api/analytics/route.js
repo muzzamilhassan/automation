@@ -101,20 +101,27 @@ export async function GET(req) {
   const url = new URL(req.url);
   const slug = url.searchParams.get('slug') || 'all';
   const fresh = url.searchParams.get('fresh') === '1';
-  if (!fresh && cache.data && Date.now() - cache.at < 3600_000) {
-    const d = cache.data;
-    return Response.json(slug === 'all' ? d.all : d.channels[slug] || null);
-  }
   // 10-08 CHANNEL FACTORY: wizard channels join the analytics panel
   let allSlugs = [...SLUGS];
   try {
     const { registryChannels } = await import('../../../lib/channels-registry.js');
     for (const e of await registryChannels()) if (!SLUGS.includes(e.slug)) allSlugs.push(e.slug);
   } catch { }
-  // 10-08 P2 CLIENT ROLE: clients only ever get their own channels' numbers
+  // 10-08 P2 CLIENT ROLE: clients only ever get their own channels' numbers.
+  // Resolve the requester's scope BEFORE touching the cache — the cache is
+  // keyed on that scope so it can never leak data across users/roles
+  // (issue #47: one module-level cache returned client aggregates to the
+  // owner, owner aggregates to clients, and null to users whose scope
+  // differed from whoever populated it).
   const user = await getUser(req).catch(() => null);
   const owned = user ? await slugsForUser(user).catch(() => null) : null;
   if (owned) allSlugs = allSlugs.filter((s) => owned.includes(s));
+  const scopeKey = [...allSlugs].sort().join(',');
+
+  if (!fresh && cache.data && cache.scope === scopeKey && Date.now() - cache.at < 3600_000) {
+    const d = cache.data;
+    return Response.json(slug === 'all' ? d.all : d.channels[slug] || null);
+  }
   const channels = {};
   const all = { slug: 'all', range: 28, totals: { views: 0, watchHours: 0, subsGained: 0 }, daily: [], split: { shortsViews: 0, longViews: 0 }, audience: { gender: [], age: [], countries: [] } };
   for (const s of allSlugs) {
@@ -163,6 +170,7 @@ export async function GET(req) {
     : 0;
 
   cache.at = Date.now();
+  cache.scope = scopeKey;
   cache.data = { channels, all };
   return Response.json(slug === 'all' ? all : channels[slug] || null);
 }
