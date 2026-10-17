@@ -23,6 +23,8 @@ export async function POST(req) {
     const { slug, videoIds = [], template = 'poster', accent = '#E8C15A', chip = '', eyebrow = '', shade = '#0A1128', brand = '' } = body || {};
     if (!slug || !Array.isArray(videoIds) || !videoIds.length) return Response.json({ error: 'slug and videoIds required' }, { status: 400 });
     if (!TEMPLATES[template]) return Response.json({ error: 'unknown template' }, { status: 400 });
+    const HEX_COLOR = /^#[0-9a-fA-F]{6}$/; // same guard as thumbs/branding — colors interpolate into SVG attrs raw (issue #59)
+    if (!HEX_COLOR.test(accent) || !HEX_COLOR.test(shade)) return Response.json({ error: 'accent/shade must be #RRGGBB' }, { status: 400 });
     if (!(await canAccessChannelSlug(user, slug))) return Response.json({ error: 'this channel is not linked to your account' }, { status: 403 });
 
     // daily attach quota for this channel (audit-log counted)
