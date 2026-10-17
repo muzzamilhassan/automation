@@ -43,6 +43,11 @@ await sql`
     connected_at TIMESTAMPTZ,
     status TEXT DEFAULT ''
   )`;
+// 10-17 ACTIVATION CONSENT persistence (issue #48) — idempotent column adds,
+// safe to re-run on an existing database
+await sql`ALTER TABLE channels ADD COLUMN IF NOT EXISTS consented_at TIMESTAMPTZ`;
+await sql`ALTER TABLE channels ADD COLUMN IF NOT EXISTS consent JSONB DEFAULT '{}'::jsonb`;
+await sql`ALTER TABLE channels ADD COLUMN IF NOT EXISTS autopilot_started_at TIMESTAMPTZ`;
 await sql`
   CREATE TABLE IF NOT EXISTS topics_queue (
     id TEXT PRIMARY KEY,

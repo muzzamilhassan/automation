@@ -78,6 +78,9 @@ function rowToEntry(r) {
     tokenSecretSaved: Boolean(r.token_secret),
     subs: Number(r.subs || 0),
     connectedAt: r.connected_at ? new Date(r.connected_at).toISOString() : null,
+    consentedAt: r.consented_at ? new Date(r.consented_at).toISOString() : null,
+    consent: r.consent || null,
+    autopilotStartedAt: r.autopilot_started_at ? new Date(r.autopilot_started_at).toISOString() : null,
     status: r.status || '',
     active: true,
     fromRegistry: true,
@@ -179,8 +182,8 @@ export async function upsertChannel(entry, message) {
   if (dbReady) {
     try {
       await db`
-        INSERT INTO channels (slug, owner_email, label, handle, channel_id, niche, style, voice, accent, slots, doc_day, autopilot, kit, yt_description, yt_keywords, token_enc, token_secret, subs, connected_at, status)
-        VALUES (${entry.slug}, ${entry.ownerEmail || ''}, ${entry.label || entry.slug}, ${entry.handle || ''}, ${entry.channelId || ''}, ${entry.niche || ''}, ${entry.style || ''}, ${entry.voice || ''}, ${entry.accent || '#38BDF8'}, ${entry.slots || []}, ${entry.docDay || ''}, ${entry.autopilot !== false}, ${db.json(entry.kit || {})}, ${entry.ytDescription || ''}, ${entry.ytKeywords || ''}, ${entry.tokenEnc || null}, ${entry.tokenSecret || ''}, ${Number(entry.subs || 0)}, ${entry.connectedAt ? new Date(entry.connectedAt) : new Date()}, ${entry.status || ''})
+        INSERT INTO channels (slug, owner_email, label, handle, channel_id, niche, style, voice, accent, slots, doc_day, autopilot, kit, yt_description, yt_keywords, token_enc, token_secret, subs, connected_at, status, consented_at, consent, autopilot_started_at)
+        VALUES (${entry.slug}, ${entry.ownerEmail || ''}, ${entry.label || entry.slug}, ${entry.handle || ''}, ${entry.channelId || ''}, ${entry.niche || ''}, ${entry.style || ''}, ${entry.voice || ''}, ${entry.accent || '#38BDF8'}, ${entry.slots || []}, ${entry.docDay || ''}, ${entry.autopilot !== false}, ${db.json(entry.kit || {})}, ${entry.ytDescription || ''}, ${entry.ytKeywords || ''}, ${entry.tokenEnc || null}, ${entry.tokenSecret || ''}, ${Number(entry.subs || 0)}, ${entry.connectedAt ? new Date(entry.connectedAt) : new Date()}, ${entry.status || ''}, ${entry.consentedAt ? new Date(entry.consentedAt) : null}, ${entry.consent ? db.json(entry.consent) : null}, ${entry.autopilotStartedAt ? new Date(entry.autopilotStartedAt) : null})
         ON CONFLICT (slug) DO UPDATE SET
           owner_email = EXCLUDED.owner_email, label = EXCLUDED.label, handle = EXCLUDED.handle,
           channel_id = EXCLUDED.channel_id, niche = EXCLUDED.niche, style = EXCLUDED.style,
@@ -189,7 +192,10 @@ export async function upsertChannel(entry, message) {
           yt_description = EXCLUDED.yt_description, yt_keywords = EXCLUDED.yt_keywords,
           token_enc = COALESCE(EXCLUDED.token_enc, channels.token_enc),
           token_secret = EXCLUDED.token_secret, subs = EXCLUDED.subs,
-          connected_at = EXCLUDED.connected_at, status = EXCLUDED.status`;
+          connected_at = EXCLUDED.connected_at, status = EXCLUDED.status,
+          consented_at = COALESCE(EXCLUDED.consented_at, channels.consented_at),
+          consent = COALESCE(EXCLUDED.consent, channels.consent),
+          autopilot_started_at = COALESCE(EXCLUDED.autopilot_started_at, channels.autopilot_started_at)`;
       const reg = await readRegistry();
       await syncRegistryRepo(reg.channels, message || `studio: connect channel ${entry.slug}`);
       return { ok: true, mode: 'db' };
