@@ -8,6 +8,8 @@ import { readRepoJSON, writeRepoJSON } from '@/lib/channels-registry';
 import { attachThumb } from '@/lib/yt-attach';
 
 export const dynamic = 'force-dynamic';
+
+const DAILY_CAP = 10; // same cap as thumbs/attach — A/B starts consume thumbnails.set quota too
 export const maxDuration = 60;
 
 const STATE = 'yt-mcp/thumb-tests.json';
@@ -61,6 +63,16 @@ export async function POST(req) {
       periods: [{ variant: 0, from: now }],
     };
     await writeRepoJSON(STATE, state, `thumb-test: ${videoId} started (${bufs.length} variants, ${interval}h)`);
+    // quota guard — an A/B start consumes YouTube thumbnail quota too
+    // (thumbnails.set per variant) but previously bypassed the 10/day cap
+    // that the attach route enforces (issue #60)
+    try {
+      const { listAudit } = await import('@/lib/audit');
+      const logs = await listAudit(200);
+      const today = new Date().toISOString().slice(0, 10);
+      const used = (logs || []).filter((l) => (l.action === 'thumbnail set' || l.action === 'thumbnail A/B started') && String(l.detail || '').startsWith(slug) && String(l.at || '').slice(0, 10) === today).length;
+      if (used >= DAILY_CAP) return Response.json({ error: `daily thumbnail cap reached for ${slug} (${DAILY_CAP}/day)` }, { status: 429 });
+    } catch { } // audit unavailable → allow (quota guard is best-effort, same as attach)
     await attachThumb(slug, videoId, bufs[0]);
     try { await appendAudit(user.email, 'thumbnail A/B started', `${slug} · ${videoId} · ${bufs.length} variants · ${interval}h`); } catch { }
     return Response.json({ ok: true, videoId, variants: bufs.length, intervalHours: interval });

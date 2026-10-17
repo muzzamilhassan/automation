@@ -1,7 +1,7 @@
 // F5/F7 — A/B results + per-video performance. Metrics: views/day and
 // average watch % (impressions CTR is YPP-only; upgrade when channels monetize).
 import { getUser } from '@/lib/route-auth';
-import { canAccessChannelSlug } from '@/lib/access';
+import { canAccessChannelSlug, slugsForUser } from '@/lib/access';
 import { readRepoJSON } from '@/lib/channels-registry';
 import { videoDaily } from '@/lib/yt-attach';
 
@@ -13,11 +13,15 @@ export async function GET(req) {
   const url = new URL(req.url);
   const slug = url.searchParams.get('slug') || '';
   if (slug && !(await canAccessChannelSlug(user, slug))) return Response.json({ error: 'this channel is not linked to your account' }, { status: 403 });
+  // no-slug listing previously leaked EVERY channel's A/B analytics to any
+  // client role — clients now see only their own channels' tests (issue #60)
+  const owned = user.role === 'client' ? ((await slugsForUser(user).catch(() => null)) || []) : null;
   try {
     const state = (await readRepoJSON('yt-mcp/thumb-tests.json')) || {};
     const tests = [];
     for (const [videoId, t] of Object.entries(state)) {
       if (slug && t.slug !== slug) continue;
+      if (owned && !owned.includes(t.slug)) continue;
       const start = (t.periods?.[0]?.from || t.started || '').slice(0, 10);
       const end = new Date().toISOString().slice(0, 10);
       const days = start ? await videoDaily(t.slug, videoId, start, end) : [];

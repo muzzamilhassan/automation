@@ -10,6 +10,9 @@ export const dynamic = 'force-dynamic';
 export async function POST(req) {
   const user = await getUser(req);
   if (!user) return Response.json({ error: 'not allowed' }, { status: 401 });
+  // the header (and the proxy rules) say owner/staff only — actually enforce it
+  // (clients previously reached this server-side URL fetch; issue #60)
+  if (!['owner', 'staff'].includes(user.role)) return Response.json({ error: 'owner/staff only' }, { status: 403 });
   try {
     const body = await req.json().catch(() => ({}));
     const { template = 'clean', title = '', accentWord = '', accent = '#E8C15A', chip = '', eyebrow = '', shade = '#0A1128', brand = '', photoUrl = '', photoDataUrl = '' } = body || {};

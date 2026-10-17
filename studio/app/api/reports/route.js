@@ -3,13 +3,17 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ENV } from '../../../lib/data.mjs';
+import { requireRole } from '@/lib/route-auth';
 
 export const dynamic = 'force-dynamic';
 
 const REPO = ENV.GITHUB_REPO || 'muzzamilhassan/automation';
 const GH_TOKEN = ENV.GITHUB_TOKEN || ENV.GITHUB_PAT || '';
 
-export async function GET() {
+export async function GET(req) {
+  // operator business reports — owner/staff only (issue #60: the route had no
+  // auth, so any signed-in role could list report files)
+  if (!(await requireRole(req, ['owner', 'staff']))) return Response.json({ error: 'not signed in' }, { status: 401 });
   const cloud = process.env.FORCE_GITHUB === '1' || !fs.existsSync(path.resolve(process.cwd(), '..', 'yt-mcp'));
   try {
     if (!cloud) {
