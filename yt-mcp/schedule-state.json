@@ -144,7 +144,7 @@
     "titleHistory": []
   },
   "debt-free-doctrine": {
-    "lastRunDate": "2026-10-16",
+    "lastRunDate": "2026-10-17",
     "usedThemes": [
       "why minimum payments keep you broke",
       "the snowball vs avalanche race",
@@ -152,10 +152,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": null,
-        "publishAt": "2026-10-17T00:35:00Z",
-        "title": "Pov: You Think Like Old Money | Old Money Philosophy",
-        "gateRejected": true
+        "videoId": "4q_lnTMbFss",
+        "publishAt": "2026-10-18T00:35:00Z",
+        "title": "Stop Wearing Logos | Old Money Philosophy"
       }
     ],
     "imageDate": "2026-10-16",
@@ -205,12 +204,13 @@
       "What To Wear When It Says... #oldmoney #mensfashion #dresscode #gentleman",
       "Men, Wear These Colors Together #oldmoney #quietluxury #mensfashion #colorcombos",
       "POV: You Chose Old Money Habits Over Looking Rich — Then Everything Changed",
-      "20 Things Old Money Never Does in Public (No Matter What)"
+      "20 Things Old Money Never Does in Public (No Matter What)",
+      "If Men Dressed Better #oldmoney #mensfashion #streetstyle #gentleman"
     ],
     "todayTopics": [
       {
-        "at": "2026-10-16",
-        "topic": "20 Things Old Money Never Does in Public (No Matter What)"
+        "at": "2026-10-17",
+        "topic": "If Men Dressed Better #oldmoney #mensfashion #streetstyle #gentleman"
       }
     ],
     "titleHistory": [
@@ -237,6 +237,10 @@
       {
         "t": "Old Money Color Codes | Old Money Philosophy",
         "at": "2026-10-15T00:35:00Z"
+      },
+      {
+        "t": "Stop Wearing Logos | Old Money Philosophy",
+        "at": "2026-10-18T00:35:00Z"
       }
     ],
     "usedLongSeeds": [
