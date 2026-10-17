@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node channel-pipeline.mjs",
-    "test": "node --test tests/**/*.test.mjs",
+    "test": "node --test \"tests/**/*.test.mjs\"",
     "ci-doctor": "node ci-doctor.mjs",
     "image-tools": "node image-tools/server.js"
   },

@@ -114,4 +114,4 @@ jobs:
           git add yt-mcp/state/ yt-mcp/schedule-state.json yt-mcp/trends-*.json || true
           git diff --cached --quiet || git commit -m "investors-compass daily state [skip ci]"
           git pull --rebase --autostash origin main || true
-          git push || true || echo "::warning::state push failed for investors-compass — state stays local to this run"
+          git push || echo "::warning::state push failed for investors-compass — state stays local to this run"
