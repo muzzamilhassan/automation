@@ -34,7 +34,7 @@ test('linux does not probe .exe-suffixed paths', () => {
   assert.ok(seen.every((p) => !p.endsWith('.exe')), 'no .exe candidates on posix');
 });
 
-test('real checkout: bundled ffprobe resolves on this Windows machine', () => {
+test('real checkout: bundled ffprobe resolves on this Windows machine', { skip: process.platform !== 'win32' ? 'Windows-only (bundled binary is untracked, absent on Linux CI)' : false }, () => {
   const out = resolveBinary('ffprobe');
   assert.match(out, /ffmpeg-bin.*ffprobe\.exe$/);
 });
