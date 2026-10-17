@@ -22,6 +22,10 @@ on:
         default: ""
   # schedule:
   #   - cron: "0 18 * * *"
+# State commits below need write access (default-token restrictions would silently break them — see issue #70)
+permissions:
+  contents: write
+
 jobs:
   video:
     runs-on: ubuntu-latest

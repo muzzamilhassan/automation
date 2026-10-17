@@ -15,6 +15,10 @@ concurrency:
   group: sweeper
   cancel-in-progress: false
 
+# State commits below need write access (default-token restrictions would silently break them — see issue #70)
+permissions:
+  contents: write
+
 jobs:
   sweep:
     runs-on: ubuntu-latest

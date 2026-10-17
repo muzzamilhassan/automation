@@ -17,6 +17,10 @@ concurrency:
   group: ig-slot-poster
   cancel-in-progress: false
 
+# State commits below need write access (default-token restrictions would silently break them — see issue #70)
+permissions:
+  contents: write
+
 jobs:
   post:
     name: Post one queued reel per channel
