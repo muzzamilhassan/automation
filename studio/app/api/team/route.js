@@ -4,6 +4,7 @@
 import { requireRole, getUser } from '@/lib/route-auth';
 import { appendAudit } from '@/lib/audit';
 import { db, dbReady } from '@/lib/db.mjs';
+import { revokeAllForEmail } from '@/lib/session-db';
 import { readRepoJSON, writeRepoJSON } from '@/lib/channels-registry';
 
 export const dynamic = 'force-dynamic';
@@ -67,8 +68,11 @@ export async function DELETE(req) {
     return Response.json({ error: 'cannot remove the last owner' }, { status: 400 });
   }
   await db`DELETE FROM users WHERE email = ${email}`;
+  // revoke the removed member's sessions immediately — previously they kept
+  // their frozen login-time role/access until the 30-day session expiry (issue #60)
+  const revoked = await revokeAllForEmail(email).catch(() => 0);
   const next = users.filter((u) => String(u.email).toLowerCase() !== email);
   await syncRepoMirror(next);
-  await appendAudit(actor.email, 'team-remove', email);
+  await appendAudit(actor.email, 'team-remove', email + (revoked ? ` · ${revoked} session(s) revoked` : ''));
   return Response.json({ ok: true, users: next });
 }
