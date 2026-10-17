@@ -68,3 +68,22 @@ z*.json
 *.tmp.*
 hf-proof/
 cloud-demos/
+
+# 10-17 cleanup audit (issue #86): never commit these
+proofs/
+shots-dreams/
+.playwright-mcp/
+__pycache__/
+*.pyc
+longvideo/lf-inbox/
+longvideo/out/
+fb-outbox/
+demos/agnes-thumbs/
+thumbnails/demos/
+tt-tmp/
+state/dup-cleanup-log*.json
+state/dup-plan.json
+or-models.json
+sn-models.json
+*.tsbuildinfo
+studio/login-payload.json
