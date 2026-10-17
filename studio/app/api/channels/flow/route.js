@@ -17,17 +17,20 @@ export async function PATCH(req) {
   const user = await getUser(req);
   if (!user) return Response.json({ error: 'not signed in' }, { status: 401 });
   const actor = user.email;
+
+  const body = await req.json().catch(() => ({}));
+  const { slug, on } = body;
+  if (!slug || typeof on !== 'boolean') return Response.json({ error: 'need slug + on(boolean)' }, { status: 400 });
+
   // 10-08 P2 CLIENT ROLE: clients may pause/resume ONLY their own channels
+  // (parse the body FIRST — referencing `slug` before this destructure threw
+  // a TDZ ReferenceError and every client PATCH became a 500; issue #46)
   if (user.role === 'client') {
     const owned = await slugsForUser(user).catch(() => null);
     if (!owned || !owned.includes(slug)) return Response.json({ error: 'not your channel' }, { status: 403 });
   } else if (!['owner', 'staff'].includes(user.role)) {
     return Response.json({ error: 'not signed in' }, { status: 401 });
   }
-
-  const body = await req.json().catch(() => ({}));
-  const { slug, on } = body;
-  if (!slug || typeof on !== 'boolean') return Response.json({ error: 'need slug + on(boolean)' }, { status: 400 });
 
   // 1. registry flag (wizard channels; legacy 4 simply have no entry) —
   // setChannelAutopilot updates the DB and syncs the engine's discovery file
