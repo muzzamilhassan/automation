@@ -83,7 +83,7 @@ async function fetchAll() {
           const start = new Date(Date.now() - 28 * 86400000).toISOString().slice(0, 10);
           const ar = await ya.reports.query({ ids: 'channel==MINE', startDate: start, endDate: end, metrics: 'views,averageViewPercentage,subscribersGained' });
           const row = (ar.data.rows || [])[0];
-          if (row) retention = { views: Number(row[0]) || 0, avgPct: Number(row[1]).toFixed(1) + '%', subsGained: Number(row[2]) || 0 };
+          if (row) retention = { views: Number(row[0]) || 0, avgPct: Number(row[1]), subsGained: Number(row[2]) || 0 };
         } catch (e) { console.log('[report] analytics gap for ' + ch.slug + ': ' + e.message.slice(0, 70)); }
         // Per-video views: last 50 uploads (public data — any working token can read)
         const videoRows = [];
@@ -255,8 +255,8 @@ async function buildExcel(ytData, fbPages, threads) {
   styleHeader(ws2b);
   ytData.forEach(y => {
     const r = y.retention;
-    const verdict = !r ? 'no data' : Number(r.avgPct) >= 80 ? '✅ feed will promote' : Number(r.avgPct) >= 65 ? '🟡 close — tighten hooks' : '🔴 fix scripts (hook + length)';
-    ws2b.addRow([y.label, r ? r.views : '-', r ? r.avgPct : '-', r ? r.subsGained : '-', verdict]);
+    const verdict = !r ? 'no data' : r.avgPct >= 80 ? '✅ feed will promote' : r.avgPct >= 65 ? '🟡 close — tighten hooks' : '🔴 fix scripts (hook + length)';
+    ws2b.addRow([y.label, r ? r.views : '-', r ? Number(r.avgPct).toFixed(1) + '%' : '-', r ? r.subsGained : '-', verdict]);
   });
 
   const ws3 = wb.addWorksheet('Facebook Pages');

@@ -6,6 +6,7 @@ import { getUser } from '@/lib/route-auth';
 import { canAccessChannelSlug } from '@/lib/access';
 import { readRepoJSON, writeRepoJSON } from '@/lib/channels-registry';
 import { appendAudit } from '@/lib/audit';
+import { TEMPLATES } from '@/lib/thumb-templates';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,10 @@ const clean = (b) => ({
   shade: /^#[0-9a-fA-F]{6}$/.test(b.shade || '') ? b.shade : null,
   chip: String(b.chip || '').slice(0, 24),
   eyebrow: String(b.eyebrow || '').slice(0, 40),
-  template: ['clean', 'poster', 'paper'].includes(b.template) ? b.template : null,
+  // accept any template the gallery actually offers (was hardcoded to 3 of
+  // the 28 — other saves silently nulled out while the UI claimed success;
+  // issue #71)
+  template: TEMPLATES[b.template] ? b.template : null,
 });
 
 export async function GET(req) {
