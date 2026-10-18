@@ -8,6 +8,7 @@ import { getUser } from '@/lib/route-auth';
 import { canAccessChannelSlug } from '@/lib/access';
 import { appendAudit, listAudit } from '@/lib/audit';
 import { buildThumbSvg, TEMPLATES } from '@/lib/thumb-templates';
+import { renderV2ById, isV2Template } from '@/lib/thumb-templates-v2';
 import { attachThumb, accessTokenForSlug } from '@/lib/yt-attach';
 
 export const dynamic = 'force-dynamic';
@@ -60,7 +61,9 @@ export async function POST(req) {
         }
         if (!buf) { results.push({ videoId, ok: false, error: 'no current thumbnail' }); continue; }
         const photoHref = `data:image/jpeg;base64,${buf.toString('base64')}`;
-        const svg = buildThumbSvg(template, { title, accent, chip, eyebrow, shade, brand, photoHref });
+        const svg = isV2Template(template)
+          ? renderV2ById(template, { title, accent, chip, eyebrow, shade, brand, photoHref })
+          : buildThumbSvg(template, { title, accent, chip, eyebrow, shade, brand, photoHref });
         const jpeg = await sharp(Buffer.from(svg)).jpeg({ quality: 90 }).toBuffer();
         await attachThumb(slug, videoId, jpeg);
         try { await appendAudit(user.email, 'thumbnail set', `${slug} · ${videoId} · bulk ${(jpeg.length / 1024).toFixed(0)}KB`); } catch { }

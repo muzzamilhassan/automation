@@ -7,6 +7,7 @@ import { canAccessChannelSlug } from '@/lib/access';
 import { readRepoJSON, writeRepoJSON } from '@/lib/channels-registry';
 import { appendAudit } from '@/lib/audit';
 import { TEMPLATES } from '@/lib/thumb-templates';
+import { isV2Template } from '@/lib/thumb-templates-v2';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,7 @@ const clean = (b) => ({
   // accept any template the gallery actually offers (was hardcoded to 3 of
   // the 28 — other saves silently nulled out while the UI claimed success;
   // issue #71)
-  template: TEMPLATES[b.template] ? b.template : null,
+  template: TEMPLATES[b.template] || isV2Template(b.template) ? b.template : null,
 });
 
 export async function GET(req) {

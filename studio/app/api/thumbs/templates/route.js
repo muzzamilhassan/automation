@@ -1,6 +1,7 @@
 // GET /api/thumbs/templates — registry metadata for the /thumbs gallery UI.
 import { getUser } from '@/lib/route-auth';
 import { TEMPLATES } from '@/lib/thumb-templates';
+import { v2List } from '@/lib/thumb-templates-v2';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,5 +16,5 @@ export async function GET(req) {
     needsPhoto: Boolean(t.needsPhoto),
     aiPreset: t.aiPreset || null,
   }));
-  return Response.json({ templates });
+  return Response.json({ templates: [...templates, ...v2List()] });
 }
