@@ -17,7 +17,7 @@ export async function POST(req) {
   try {
     const body = await req.json().catch(() => ({}));
     const { template = 'clean', title = '', accentWord = '', accent = '#E8C15A', chip = '', eyebrow = '', shade = '#0A1128', brand = '', photoUrl = '', photoDataUrl = '' } = body || {};
-    if (!TEMPLATES[template]) return Response.json({ error: 'unknown template' }, { status: 400 });
+    if (!TEMPLATES[template] && !isV2Template(template)) return Response.json({ error: 'unknown template' }, { status: 400 });
     const HEX_COLOR = /^#[0-9a-fA-F]{6}$/; // same guard as thumbs/branding — colors interpolate into SVG attrs raw (issue #59)
     if (!HEX_COLOR.test(accent) || !HEX_COLOR.test(shade)) return Response.json({ error: 'accent/shade must be #RRGGBB' }, { status: 400 });
 
