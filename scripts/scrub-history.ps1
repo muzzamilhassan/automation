@@ -31,8 +31,8 @@ if (-not (Test-Path 'C:\Users\Revnix\Documents\youtube-automation-history-backup
   Write-Error 'backup bundle missing — create it first: git bundle create ..\backup.bundle --all'
   exit 1
 }
-if (-not (Test-Path '.tmp-replace-text.txt')) {
-  Write-Error 'replace-text file missing (.tmp-replace-text.txt)'
+if (-not (Test-Path 'scripts/scrub-replace-text.txt')) {
+  Write-Error 'replace-text file missing (scripts/scrub-replace-text.txt)'
   exit 1
 }
 $remoteUrl = git remote get-url github-personal
@@ -56,7 +56,7 @@ python -m git_filter_repo --force --invert-paths `
   --path ccm-save.js --path ccm-strategy.js `
   --path docker-compose.yml --path n8n.Dockerfile --path preview-posters.html `
   --path thumbnails/tests `
-  --replace-text .tmp-replace-text.txt
+  --replace-text scripts/scrub-replace-text.txt
 
 # 2. restore the remote (filter-repo removes it)
 git remote remove github-personal 2>$null
