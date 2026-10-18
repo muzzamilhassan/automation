@@ -24,6 +24,10 @@ const clean = (b) => ({
   // the 28 — other saves silently nulled out while the UI claimed success;
   // issue #71)
   template: TEMPLATES[b.template] || isV2Template(b.template) ? b.template : null,
+  // template rotation: each bulk-rendered video picks templates[i % len]
+  templateRotation: Array.isArray(b.templateRotation)
+    ? b.templateRotation.filter((id) => TEMPLATES[id] || isV2Template(id)).slice(0, 10)
+    : undefined,
 });
 
 export async function GET(req) {

@@ -9,6 +9,8 @@ import { canAccessChannelSlug } from '@/lib/access';
 import { appendAudit, listAudit } from '@/lib/audit';
 import { buildThumbSvg, TEMPLATES } from '@/lib/thumb-templates';
 import { renderV2ById, isV2Template } from '@/lib/thumb-templates-v2';
+import { readRepoJSON } from '@/lib/channels-registry';
+import { readRepoBinary } from '@/lib/repo-files';
 import { attachThumb, accessTokenForSlug } from '@/lib/yt-attach';
 
 export const dynamic = 'force-dynamic';
@@ -37,6 +39,18 @@ export async function POST(req) {
     } catch { }
     const remaining = Math.max(0, DAILY_CAP - used);
     const batch = videoIds.slice(0, remaining);
+
+    // 10-18 ROTATION + FACES (issue #92 follow-up, owner request): per-channel
+    // template rotation and face library from thumb-branding.json — video i
+    // gets rotation[i % len] and faces[i % len]; falls back to the single
+    // body.template when no rotation is configured.
+    let rotation = []; let faceFiles = [];
+    try {
+      const branding = (await readRepoJSON('yt-mcp/thumb-branding.json')) || {};
+      const entry = branding[slug] || {};
+      rotation = Array.isArray(entry.templateRotation) ? entry.templateRotation.filter((id) => TEMPLATES[id] || isV2Template(id)) : [];
+      faceFiles = Array.isArray(entry.faces) ? entry.faces : [];
+    } catch { }
     const skipped = videoIds.length - batch.length;
 
     // titles for the batch (one videos.list call)
@@ -47,7 +61,8 @@ export async function POST(req) {
     for (const it of vj.items || []) titles[it.id] = it.snippet.title || '';
 
     const results = [];
-    for (const videoId of batch) {
+    for (let videoIdx = 0; videoIdx < batch.length; videoIdx++) {
+      const videoId = batch[videoIdx];
       try {
         const title = (titles[videoId] || '').replace(/\s*[|#].*$/, '').trim() || 'Untitled';
         // background = the video's current thumbnail (maxres, fallback hq)
@@ -61,13 +76,20 @@ export async function POST(req) {
         }
         if (!buf) { results.push({ videoId, ok: false, error: 'no current thumbnail' }); continue; }
         const photoHref = `data:image/jpeg;base64,${buf.toString('base64')}`;
-        const svg = isV2Template(template)
-          ? renderV2ById(template, { title, accent, chip, eyebrow, shade, brand, photoHref })
-          : buildThumbSvg(template, { title, accent, chip, eyebrow, shade, brand, photoHref });
+        const tpl = rotation.length ? rotation[videoIdx % rotation.length] : template;
+        let faceImage = null;
+        if (faceFiles.length) {
+          const fb = await readRepoBinary(faceFiles[videoIdx % faceFiles.length]);
+          if (fb) faceImage = `data:image/jpeg;base64,${fb.toString('base64')}`;
+        }
+        const renderOpts = { title, accent, chip, eyebrow, shade, brand, photoHref, faceImage };
+        const svg = isV2Template(tpl)
+          ? renderV2ById(tpl, renderOpts)
+          : buildThumbSvg(tpl, renderOpts);
         const jpeg = await sharp(Buffer.from(svg)).jpeg({ quality: 90 }).toBuffer();
         await attachThumb(slug, videoId, jpeg);
         try { await appendAudit(user.email, 'thumbnail set', `${slug} · ${videoId} · bulk ${(jpeg.length / 1024).toFixed(0)}KB`); } catch { }
-        results.push({ videoId, ok: true, kb: Math.round(jpeg.length / 1024), title: title.slice(0, 50) });
+        results.push({ videoId, ok: true, kb: Math.round(jpeg.length / 1024), template: tpl.split('/').pop(), title: title.slice(0, 50) });
       } catch (e) {
         results.push({ videoId, ok: false, error: e.message?.slice(0, 100) });
       }

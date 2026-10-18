@@ -186,6 +186,7 @@ export function renderV2(id, opts = {}) {
     shade: opts.shade || '#0A1128',
     brand: String(opts.brand || '').slice(0, 28),
     photoHref: opts.photoHref || '',
+    faceImage: opts.faceImage || '',   // per-channel face cutout (dataURL), composited on spec.face
     accentWord: String(opts.accentWord || '').trim(),
   };
   const t = spec.title;
@@ -289,6 +290,17 @@ const yStart = t.pos === 'center' ? (H - blockH) / 2 + size : t.pos === 'top' ? 
     const r = renderLine({ f, words, x, y, size, fg: lineColor, spacing: t.spacing || 0, treat, stroke, twoTone: null, lineIdx: li });
     els.push(r.el);
   });
+
+  // face cutout — the channel's own face image, composited on EVERY template
+  // that declares a face slot (owner request: faces rotate across all videos)
+  if (o.faceImage && spec.face) {
+    const fc = spec.face;
+    const d = fc.r * 2;
+    const bx = fc.cx - fc.r, by = fc.cy - fc.r;
+    els.push(`<clipPath id="v2faceclip"><circle cx="${fc.cx}" cy="${fc.cy}" r="${fc.r}"/></clipPath>`);
+    els.push(`<image href="${o.faceImage}" x="${bx}" y="${by}" width="${d}" height="${d}" preserveAspectRatio="xMidYMid slice" clip-path="url(#v2faceclip)"/>`);
+    if (fc.ring !== 'none') els.push(`<circle cx="${fc.cx}" cy="${fc.cy}" r="${fc.r}" fill="none" stroke="${fc.ring}" stroke-width="${fc.ringW || 8}"/>`);
+  }
 
   // brand tag (bottom-left small)
   if (o.brand) {
