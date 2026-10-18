@@ -3,13 +3,12 @@
 //   node tiktok-clips.mjs ensure-queue   -- finds the newest successful long-form
 //       render run, downloads its video, cuts it into ~1-minute sentence-aligned
 //       parts, uploads parts as GitHub Release assets, writes the posting queue.
-//   node tiktok-clips.mjs post-next      -- posts the next unposted part via Zernio
+//   node tiktok-clips.mjs post-next      -- PAUSED 10-17: Zernio removed; publishing moves to the own TikTok app (#91/#92 comment)
 //       (1 part per run — the daily cron calls this up to 4x/day).
-// Needs: GITHUB_TOKEN (or GITHUB_PAT), ZERNIO_API_KEY, ffmpeg on PATH.
+// Needs: GITHUB_TOKEN (or GITHUB_PAT), ffmpeg on PATH.
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { publishToTikTok } from "../zernio-tiktok-publisher.mjs";
 
 const DIR = import.meta.dirname;
 const ROOT = path.resolve(DIR, "..");
@@ -183,34 +182,10 @@ async function ensureQueue() {
 
 // ---------- post-next: post one unposted part ----------
 async function postNext() {
-  const state = loadState();
-  const q = state.queue;
-  if (!q || !q.parts?.length) { console.log("[post] no queue"); return; }
-  const next = q.parts.find((p) => !p.posted);
-  if (!next) { console.log("[post] all parts posted"); return; }
-
-  // download the clip from the release
-  const rel = await ghApi(`releases/tags/tt-clips-${state.lastRunId}`);
-  const asset = (rel.assets || []).find((a) => a.name === next.asset);
-  if (!asset) throw new Error("clip asset missing: " + next.asset);
-  const tmp = path.join(ROOT, "tt-tmp", next.asset);
-  fs.mkdirSync(path.dirname(tmp), { recursive: true });
-  const r = await fetch(asset.url, { headers: { Authorization: `Bearer ${TOK}`, Accept: "application/octet-stream", "User-Agent": "quarry-tiktok" } });
-  fs.writeFileSync(tmp, Buffer.from(await r.arrayBuffer()));
-
-  const caption = `${q.keyword}: ${q.title} | Part ${next.part}/${q.total} ${TAGS}`;
-  console.log(`[post] part ${next.part}/${q.total} (${Math.round(fs.statSync(tmp).size / 1048576 * 10) / 10} MB)...`);
-  await publishToTikTok({ videoBuffer: fs.readFileSync(tmp), title: caption });
-  next.posted = true;
-  next.postedAt = new Date().toISOString();
-  fs.rmSync(tmp, { force: true });
-  saveState(state);
-  console.log(`[post] done (${q.parts.filter((p) => p.posted).length}/${q.total} posted)`);
-  try {
-    if (process.env.NTFY_TOPIC) {
-      await fetch(`https://ntfy.sh/${process.env.NTFY_TOPIC}`, { method: "POST", headers: { "Content-Type": "text/plain", Title: `TikTok part ${next.part}/${q.total}` }, body: `${q.title} — Part ${next.part} posted` });
-    }
-  } catch { }
+  // PAUSED 10-17: Zernio publisher removed (owner decision — TikTok moves to
+  // the own developer app once approved, direct-post flow already proven in
+  // quarry-studio-server.mjs). Staged clips in tt-tmp/ + state are preserved.
+  console.log('[tiktok] publishing paused — own TikTok app pending approval (issue #89)');
 }
 
 if (MODE === "ensure-queue") await ensureQueue();
