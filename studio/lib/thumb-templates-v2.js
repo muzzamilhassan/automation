@@ -298,3 +298,8 @@ const yStart = t.pos === 'center' ? (H - blockH) / 2 + size : t.pos === 'top' ? 
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${els.join('')}</svg>`;
 }
+
+// gallery-id alias ('v2/ketchup') used by the bulk/preview routes
+export function renderV2ById(prefixedId, opts = {}) {
+  return renderV2(prefixedId, opts);
+}
