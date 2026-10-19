@@ -1,16 +1,16 @@
 {
-  "lastRunDate": "2026-10-17",
+  "lastRunDate": "2026-10-19",
   "todayTopics": [
     {
-      "at": "2026-10-17",
-      "topic": "WALK ALONE. BUILD YOURSELF. BECOME UNSTOPPABLE. | STOICISM Philosophy"
+      "at": "2026-10-19",
+      "topic": "The power of silence & solitude—knowing your path.🧘‍♀️🦋💕"
     }
   ],
   "lastVideos": [
     {
-      "videoId": "EEGaYgFt4i4",
-      "publishAt": "2026-10-17T22:35:00Z",
-      "title": "Master Your Inner Peace | Timeless Wisdom"
+      "videoId": "zkMUCw3ybaM",
+      "publishAt": "2026-10-19T22:35:00Z",
+      "title": "The Power Of Solitude | Timeless Wisdom"
     }
   ],
   "deepdiveDate": null,
@@ -25,9 +25,10 @@
     "CONTROL YOUR MOUTH, MIND, MOOD & MONEY — MASTER YOUR LIFE | STOICISM Philosophy",
     "Master Detachment: Never Let Anyone Control Your Peace | Stoicism",
     "6 Stoic Lessons to NEVER Lower Yourself for Anyone | Stoicism",
-    "WALK ALONE. BUILD YOURSELF. BECOME UNSTOPPABLE. | STOICISM Philosophy"
+    "WALK ALONE. BUILD YOURSELF. BECOME UNSTOPPABLE. | STOICISM Philosophy",
+    "The power of silence & solitude—knowing your path.🧘‍♀️🦋💕"
   ],
-  "imageDate": "2026-10-18",
+  "imageDate": "2026-10-19",
   "titleHistory": [
     {
       "t": "Seneca's 3 Laws Of Control | Stoicism Philosophy",
@@ -52,6 +53,11 @@
     {
       "t": "Master Your Inner Peace | Timeless Wisdom",
       "at": "2026-10-17T22:35:00Z"
+    },
+    {
+      "t": "The Power Of Solitude | Timeless Wisdom",
+      "at": "2026-10-19T22:35:00Z"
     }
-  ]
+  ],
+  "cooldownSeeds": []
 }
