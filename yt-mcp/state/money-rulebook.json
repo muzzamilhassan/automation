@@ -1,5 +1,5 @@
 {
-  "lastRunDate": "2026-10-17",
+  "lastRunDate": "2026-10-19",
   "usedThemes": [
     "5 things rich people never buy",
     "how to automate your first $100k",
@@ -8,7 +8,7 @@
   "lastVideos": [
     {
       "videoId": null,
-      "publishAt": "2026-10-18T00:05:00Z",
+      "publishAt": "2026-10-20T00:05:00Z",
       "title": "6 Rules For Your First $10,000 | Money Rules",
       "gateRejected": true
     }
@@ -55,13 +55,17 @@
     "9 Old Money Habits That Quietly Replace the Need to Show Off",
     "Your Money Habits Matter More Than Math | October 6, 2026",
     "A Passive Income Mindset That Separates The Rich From The Poor | Money Mindset & Wealth Building",
-    "Garba ka rhythm. Paiso ka bhi 💃 | #NavratriSpecial | #YourFinanceFix with #airpaymoney"
+    "Garba ka rhythm. Paiso ka bhi 💃 | #NavratriSpecial | #YourFinanceFix with #airpaymoney",
+    "I Went Back to My Mother’s Halloween Rules at 52 — And Spent Under $20"
   ],
   "todayTopics": [
     {
-      "at": "2026-10-17",
-      "topic": "Garba ka rhythm. Paiso ka bhi 💃 | #NavratriSpecial | #YourFinanceFix with #airpaymoney"
+      "at": "2026-10-19",
+      "topic": "I Went Back to My Mother’s Halloween Rules at 52 — And Spent Under $20"
     }
   ],
-  "titleHistory": []
+  "titleHistory": [],
+  "cooldownSeeds": [
+    "I Went Back to My Mother’s Halloween Rules at 52 — And Spent Under $20"
+  ]
 }

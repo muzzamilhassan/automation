@@ -1,78 +1,91 @@
 {
-  "at": 1792138854926,
-  "seed": "personal finance money habits",
+  "at": 1792400309796,
+  "seed": "frugal living rules",
+  "activeSubNiche": "frugal living rules",
   "hotKeywords": [
+    "rules",
     "money",
-    "dave",
-    "finance",
-    "ramsey",
-    "show",
+    "japanese",
+    "frugal",
+    "living",
     "habits",
-    "live",
-    "personal",
-    "save",
-    "rachel",
-    "cruze",
-    "saving"
+    "tips",
+    "fashioned",
+    "halloween",
+    "mother",
+    "went",
+    "cleaning"
   ],
   "viralChannels": [
-    "airpay money",
-    "SUBBU FACTS",
-    "Finance with SKT",
-    "telugu news updates ",
-    "Tamilmotivationl_Liya",
-    "SuccessLifeTamil",
-    "The Ramsey Show",
-    "Zenith Wealth"
+    "Samurai Matcha",
+    "Under the Median",
+    "Living Like It's 1950",
+    "Japan Life Within",
+    "Wonders",
+    "Maya Sato",
+    "MoneyMinds",
+    "Back Then With Truel"
   ],
   "videos": [
     {
-      "title": "Garba ka rhythm. Paiso ka bhi 💃 | #NavratriSpecial | #YourFinanceFix with #airpaymoney",
-      "channel": "airpay money",
-      "views": 475008,
-      "videoId": "dpaQvpQjGoU"
+      "title": "The 3 Japanese Money Rules That Make Life Richer",
+      "channel": "Samurai Matcha",
+      "views": 50820,
+      "videoId": "8MNVpVON95w"
     },
     {
-      "title": "5 Simple Money-Saving Habits Everyone Should Follow  | Save More Money Every Day!",
-      "channel": "SUBBU FACTS",
-      "views": 180393,
-      "videoId": "ymN7gojbI8s"
+      "title": "The Frugal Rules You Need in Hard Times",
+      "channel": "Under the Median",
+      "views": 25303,
+      "videoId": "qCjWXX9kpxQ"
     },
     {
-      "title": "अमीर बनने की 5 आदतें!🔥#elonmusk #fws #skt #shorts",
-      "channel": "Finance with SKT",
-      "views": 168431,
-      "videoId": "OEiAt-Zqd9M"
+      "title": "I Went Back to My Mother's Leftover Rules at 52 — And Nothing Went to Waste",
+      "channel": "Living Like It's 1950",
+      "views": 14261,
+      "videoId": "dEeRilDJEtM"
     },
     {
-      "title": "6 Habits That Make Marwaris Rich | Money Lessons Everyone Should Learn #shorts#youtubeshorts",
-      "channel": "telugu news updates ",
-      "views": 130951,
-      "videoId": "Xysef5jbwWo"
+      "title": "8 Japanese Minimalist Money Rules That Keep You Financially Stable",
+      "channel": "Japan Life Within",
+      "views": 12950,
+      "videoId": "zFlsAzWAKdc"
     },
     {
-      "title": "7 Money Habits That Keep You Poor!  Stop Doing These Things to Build Wealth",
-      "channel": "Tamilmotivationl_Liya",
-      "views": 130454,
-      "videoId": "7zB5gZLxePQ"
+      "title": "I Went Back to My Mother’s Grocery List Rules at 52 — And Spent $60 a Week",
+      "channel": "Living Like It's 1950",
+      "views": 6237,
+      "videoId": "kj6M7N2ZaNQ"
     },
     {
-      "title": "5 Smart Things to Do When Your Income Increases!#viralvideo#youtubeshorts#motivation",
-      "channel": "SuccessLifeTamil",
-      "views": 120877,
-      "videoId": "mN66EtX3190"
+      "title": "I Went Back to My Mother’s Halloween Rules at 52 — And Spent Under $20",
+      "channel": "Living Like It's 1950",
+      "views": 5587,
+      "videoId": "uc_Nzmd-UR8"
     },
     {
-      "title": "Your Money Habits Matter More Than Math | October 6, 2026",
-      "channel": "The Ramsey Show",
-      "views": 113768,
-      "videoId": "1kudHmi8-70"
+      "title": "11 Kitchen Rules Americans Break That No 1950s Housewife Would Have Allowed",
+      "channel": "Wonders",
+      "views": 4913,
+      "videoId": "z39stQvP4jk"
     },
     {
-      "title": "A Passive Income Mindset That Separates The Rich From The Poor | Money Mindset & Wealth Building",
-      "channel": "Zenith Wealth",
-      "views": 102640,
-      "videoId": "fzKsRX59jOA"
+      "title": "Why Japanese Families Never Run Out of Money — 4 Home Rules Most Americans Ignore",
+      "channel": "Maya Sato",
+      "views": 2676,
+      "videoId": "Xo0vDppUFaU"
+    },
+    {
+      "title": "10 Frugal Rules That Keep Ordinary People Out of Debt",
+      "channel": "MoneyMinds",
+      "views": 1420,
+      "videoId": "nmudIOXoQp8"
+    },
+    {
+      "title": "7 Old-Fashioned Money Rules That Protect Your Late-Life Peace",
+      "channel": "Back Then With Truel",
+      "views": 623,
+      "videoId": "EGHdqn5-9E4"
     }
   ]
 }
