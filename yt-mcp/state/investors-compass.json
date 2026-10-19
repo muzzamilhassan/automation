@@ -1,5 +1,5 @@
 {
-  "lastRunDate": "2026-10-18",
+  "lastRunDate": "2026-10-19",
   "usedThemes": [
     "how the rich buy the crash",
     "the 90-year rule that beats day trading",
@@ -7,10 +7,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": null,
-      "publishAt": "2026-10-17T23:35:00Z",
-      "title": "The Day The Market Lost $1 Trillion | Market Wisdom",
-      "gateRejected": true
+      "videoId": "Ab6RBy15fOU",
+      "publishAt": "2026-10-19T23:35:00Z",
+      "title": "The Day Stocks Crashed | Market Wisdom"
     }
   ],
   "imageDate": "2026-10-17",
@@ -53,12 +52,13 @@
     "STOCK MARKET TRADING ( 17 Year Experience in Just 15 Minutes )✅",
     "Discipline means knowing when to stop #TradingPsychology #TradingMindset #SoulNGoal",
     "Investing Psychology: Conquer Fear, Avoid Bubbles #shorts",
-    "AMERICANS CELEBRATE CRASH OF INDIAN STOCK MARKET | So Much Hate For Bharat? | By Prashant Dhawan"
+    "AMERICANS CELEBRATE CRASH OF INDIAN STOCK MARKET | So Much Hate For Bharat? | By Prashant Dhawan",
+    "We've Never Seen This Stock Market Signal Since the Great Depression"
   ],
   "todayTopics": [
     {
-      "at": "2026-10-17",
-      "topic": "AMERICANS CELEBRATE CRASH OF INDIAN STOCK MARKET | So Much Hate For Bharat? | By Prashant Dhawan"
+      "at": "2026-10-19",
+      "topic": "We've Never Seen This Stock Market Signal Since the Great Depression"
     }
   ],
   "titleHistory": [
@@ -73,6 +73,10 @@
     {
       "t": "Rule #1 Soros Never Breaks | Investing Psychology",
       "at": "2026-10-12T23:35:00Z"
+    },
+    {
+      "t": "The Day Stocks Crashed | Market Wisdom",
+      "at": "2026-10-19T23:35:00Z"
     }
   ],
   "cooldownSeeds": [

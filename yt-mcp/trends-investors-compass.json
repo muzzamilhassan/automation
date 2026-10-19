@@ -1,89 +1,91 @@
 {
-  "at": 1792259902922,
-  "seed": "stock market",
-  "activeSubNiche": "stock market",
+  "at": 1792397210978,
+  "seed": "market crashes & history",
+  "activeSubNiche": "market crashes & history",
   "hotKeywords": [
     "market",
-    "live",
+    "crash",
     "stock",
-    "business",
+    "black",
+    "monday",
+    "today",
+    "street",
+    "again",
     "news",
-    "share",
-    "first",
-    "trade",
-    "updates",
-    "shamani",
-    "october",
-    "today"
+    "sensex",
+    "fall",
+    "crashes"
   ],
   "viralChannels": [
-    "ICFM - Stock Market Institute",
-    "Casual Finance",
-    "Raj Shamani",
-    "Adda247 Skills",
-    "OuterStories ",
-    "Zee Business"
+    "Market Ghosts",
+    "Abhishek Kar",
+    "Tom Crosshill",
+    "Markets of the Past",
+    "Gareth Soloway",
+    "Capital.com",
+    "WeekendInvesting",
+    "CNBC-TV18"
   ],
   "videos": [
     {
-      "title": "Tag that Beginner Trader 😂📈 #trading #stockmarket #funny",
-      "channel": "ICFM - Stock Market Institute",
-      "views": 2117288,
-      "videoId": "SzBTfGtB4IM"
+      "title": "Is Black Monday Happening Again?",
+      "channel": "Market Ghosts",
+      "views": 415530,
+      "videoId": "qeVAcEZMo4s"
     },
     {
-      "title": "The Stock Market Is Being Used as a Dumping Ground",
-      "channel": "Casual Finance",
-      "views": 1421370,
-      "videoId": "roe3SgezmmU"
+      "title": "Market Crash: ₹10.5 Lakh Cr GAYE! 😱 (Truth Revealed)",
+      "channel": "Abhishek Kar",
+      "views": 202836,
+      "videoId": "27VnAe8I-QE"
     },
     {
-      "title": "Stock Market Crash, Gold, US Stocks & Bulletproof Portfolio | Saurabh Mukherjea | FO573 Raj Shamani",
-      "channel": "Raj Shamani",
-      "views": 1142312,
-      "videoId": "61_ouz8Rr4s"
+      "title": "When I Show Investors This, They Stop Worrying About Market Crashes (European Investor)",
+      "channel": "Tom Crosshill",
+      "views": 173658,
+      "videoId": "KuGQubjk4KI"
     },
     {
-      "title": "AMERICANS CELEBRATE CRASH OF INDIAN STOCK MARKET | So Much Hate For Bharat? | By Prashant Dhawan",
-      "channel": "Adda247 Skills",
-      "views": 1079265,
-      "videoId": "OzCNuqUtHZg"
+      "title": "The True Origin of the 1987 Stock Market Crash: What Historians Get Wrong",
+      "channel": "Markets of the Past",
+      "views": 145298,
+      "videoId": "DYqKaCZlR1E"
     },
     {
-      "title": "How GTA Players Recreated the 1929 Stock Market Crash",
-      "channel": "OuterStories ",
-      "views": 1046085,
-      "videoId": "G1j4m1hfBT4"
+      "title": "Stock Market Crash in October? Why I Don’t Buy It",
+      "channel": "Gareth Soloway",
+      "views": 139189,
+      "videoId": "qDCFlFrpdb0"
     },
     {
-      "title": "First Trade 8th October 2026: Zee Business Live | Share Market Live Updates | Stock Market News",
-      "channel": "Zee Business",
-      "views": 654564,
-      "videoId": "8ELIlDYBTSw"
+      "title": "We've Never Seen This Stock Market Signal Since the Great Depression",
+      "channel": "Capital.com",
+      "views": 115518,
+      "videoId": "RmxLMadOWEM"
     },
     {
-      "title": "First Trade 15th October 2026: Zee Business Live | Share Market Live Updates | Stock Market News",
-      "channel": "Zee Business",
-      "views": 632972,
-      "videoId": "WSgS2owpSco"
+      "title": "Still Waiting For the Market Crash? Watch This Right Now | Weekend Investing | Alok Jain",
+      "channel": "WeekendInvesting",
+      "views": 77461,
+      "videoId": "mgyiitUenKU"
     },
     {
-      "title": "First Trade 12th October 2026: Zee Business Live | Share Market Live Updates | Stock Market News",
-      "channel": "Zee Business",
-      "views": 629475,
-      "videoId": "O4BNOZYlSBo"
+      "title": "26 Years, 6 Big Shocks: How Market Crashes Changed Indian Equities | COVID-19 | Oil Shock | N18V",
+      "channel": "CNBC-TV18",
+      "views": 66126,
+      "videoId": "ZFM-9FVPDao"
     },
     {
-      "title": "First Trade 14th October 2026: Zee Business Live | Share Market Live Updates | Stock Market News",
-      "channel": "Zee Business",
-      "views": 568416,
-      "videoId": "_iykDC4zv-o"
+      "title": "Black Monday Crash Could Come Again tomorrow!",
+      "channel": "1M65",
+      "views": 43250,
+      "videoId": "xPYCO54xYqk"
     },
     {
-      "title": "First Trade 13th October 2026: Zee Business Live | Share Market Live Updates | Stock Market News",
-      "channel": "Zee Business",
-      "views": 543682,
-      "videoId": "yVQp8yCdD7E"
+      "title": "Stock Market Crash! क्या मार्केट और गिरेगा?",
+      "channel": "The KST Show",
+      "views": 34868,
+      "videoId": "qy9_X9IxQQM"
     }
   ]
 }
