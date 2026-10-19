@@ -156,7 +156,7 @@
     ]
   },
   "debt-free-doctrine": {
-    "lastRunDate": "2026-10-17",
+    "lastRunDate": "2026-10-19",
     "usedThemes": [
       "why minimum payments keep you broke",
       "the snowball vs avalanche race",
@@ -164,9 +164,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "4q_lnTMbFss",
-        "publishAt": "2026-10-18T00:35:00Z",
-        "title": "Stop Wearing Logos | Old Money Philosophy"
+        "videoId": "00qPXXXstP8",
+        "publishAt": "2026-10-20T00:35:00Z",
+        "title": "Pov: You Master Silent Wealth | Old Money Philosophy"
       }
     ],
     "imageDate": "2026-10-18",
@@ -217,12 +217,13 @@
       "Men, Wear These Colors Together #oldmoney #quietluxury #mensfashion #colorcombos",
       "POV: You Chose Old Money Habits Over Looking Rich — Then Everything Changed",
       "20 Things Old Money Never Does in Public (No Matter What)",
-      "If Men Dressed Better #oldmoney #mensfashion #streetstyle #gentleman"
+      "If Men Dressed Better #oldmoney #mensfashion #streetstyle #gentleman",
+      "7 Habits That Kill Your Charisma (Without You Realizing It)"
     ],
     "todayTopics": [
       {
-        "at": "2026-10-17",
-        "topic": "If Men Dressed Better #oldmoney #mensfashion #streetstyle #gentleman"
+        "at": "2026-10-19",
+        "topic": "7 Habits That Kill Your Charisma (Without You Realizing It)"
       }
     ],
     "titleHistory": [
@@ -253,6 +254,10 @@
       {
         "t": "Stop Wearing Logos | Old Money Philosophy",
         "at": "2026-10-18T00:35:00Z"
+      },
+      {
+        "t": "Pov: You Master Silent Wealth | Old Money Philosophy",
+        "at": "2026-10-20T00:35:00Z"
       }
     ],
     "usedLongSeeds": [
@@ -261,7 +266,8 @@
     "todayTopic": {
       "at": "2026-10-09",
       "topic": "POV: You adopted old money habits — And everything changed"
-    }
+    },
+    "cooldownSeeds": []
   },
   "quotequarry": {
     "lastRunDate": "2026-10-19",
