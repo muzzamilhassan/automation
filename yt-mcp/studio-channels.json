@@ -1,3 +1,44 @@
 {
-  "channels": []
+  "channels": [
+    {
+      "slug": "quotequarry",
+      "label": "Quote Quarry",
+      "handle": "@quotequarry302",
+      "cron": "13 2 * * *",
+      "docDay": "Tue",
+      "active": true,
+      "autopilot": true,
+      "tokenSecretSaved": true
+    },
+    {
+      "slug": "investors-compass",
+      "label": "Investor's Compass",
+      "handle": "@investorscompasshq",
+      "cron": "47 2 * * *",
+      "docDay": "Wed",
+      "active": true,
+      "autopilot": true,
+      "tokenSecretSaved": true
+    },
+    {
+      "slug": "money-rulebook",
+      "label": "Money Rulebook",
+      "handle": "@moneyrulebook",
+      "cron": "21 3 * * *",
+      "docDay": "Thu",
+      "active": true,
+      "autopilot": true,
+      "tokenSecretSaved": true
+    },
+    {
+      "slug": "debt-free-doctrine",
+      "label": "Debt-Free Doctrine",
+      "handle": "@debtfreedoctrine",
+      "cron": "53 3 * * *",
+      "docDay": "Fri",
+      "active": true,
+      "autopilot": true,
+      "tokenSecretSaved": true
+    }
+  ]
 }
