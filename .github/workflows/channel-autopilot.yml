@@ -160,6 +160,14 @@ jobs:
           path: tt-lf/lf-meta-${{ matrix.slug.slug }}.json
           retention-days: 30
 
+      - name: ⬆️ Upload doc SRT artifact (#96 — clips lane supply)
+        if: ${{ hashFiles(format('tt-lf/lf-srt-{0}.srt', matrix.slug.slug)) != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lf-srt-${{ matrix.slug.slug }}
+          path: tt-lf/lf-srt-${{ matrix.slug.slug }}.srt
+          retention-days: 30
+
       - name: 💾 Commit publishing state
         run: |
           git config user.name "quarry-bot"

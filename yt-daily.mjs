@@ -28,6 +28,7 @@ const { resolveBrand } = await import('./lib/brand-resolve.mjs');
 const { researchTrend } = await import('./trend-research.mjs');
 const { archiveUpload } = await import('./yt-archive.mjs');
 const { recentUploadTitles, findDup } = await import('./lib/dup-gate.mjs');
+import { nextCounter } from './lib/quota-ledger.mjs';
 
 const slug = process.argv[2];
 const FORCE = process.argv.includes('--force');
@@ -274,6 +275,10 @@ if (RUN_SHORTS) {
       media: { body: Readable.from(out.buffer) }
     });
     const videoId = res.data.id;
+    // #99 shared-pool ledger: count this successful upload (persisted by the
+    // end-of-run state write below, which spreads state[slug])
+    state[slug] = state[slug] || {};
+    state[slug].uploadsToday = nextCounter(state[slug].uploadsToday);
     console.log(`  ✓ queued ${videoId} → https://youtube.com/shorts/${videoId}`);
     if (out.thumb) { try { await yt.thumbnails.set({ videoId, media: { body: Readable.from(out.thumb) } }); console.log('  ✓ thumbnail set'); } catch { } }
     try {

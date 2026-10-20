@@ -29,6 +29,9 @@ import { loadAllStates } from './lib/state.mjs';
 // 10-09 BYOK: this channel's own provider keys (encrypted yt-mcp/channel-keys.json)
 // replace the shared keys for the rest of the run — children inherit process.env.
 import { applyChannelKeys, checkChannelKeys, dropChannelKeys } from './lib/channel-keys.mjs';
+// #99 shared YouTube quota budget + #91-style alerts that always report outcome
+import { evaluate } from './lib/quota-ledger.mjs';
+import { sendAlert } from './lib/ntfy-alert.mjs';
 const loadState = () => loadAllStates();
 
 const log = (msg) => console.log(`[${slug}] ${msg}`);
@@ -69,8 +72,19 @@ if (_keysApplied) {
 const shortsDone = state[slug]?.lastRunDate === today;
 const episodeDone = state[slug]?.deepdiveDate === today;
 
+// ---- Phase 0: shared YouTube quota budget (#99) — every channel draws on ONE
+// 10,000 units/day pool (one OAuth client, ~1,700/upload). Fail closed BEFORE
+// any render/LLM spend when one more upload would breach the daily budget.
+async function quotaGate(label) {
+  const q = evaluate(loadState());
+  if (q.allowed) return true;
+  log(`[quota] ${label} skipped — shared pool ${q.usedUnits}/${q.dailyLimit} units today (${q.uploadsToday} uploads) — resets midnight PT`);
+  await sendAlert({ text: `${slug}: ${label} skipped — YouTube API daily budget reached (${q.usedUnits}/${q.dailyLimit} units, ${q.uploadsToday} uploads today). Resets midnight PT.`, title: `[${slug}] daily upload budget reached` });
+  return false;
+}
+
 // ---- Phase 1: YouTube Shorts (3 per day) ----
-if (!shortsDone || FORCE || TOPUP_N > 0) {
+if ((!shortsDone || FORCE || TOPUP_N > 0) && (await quotaGate('Shorts production'))) {
   log(`Phase 1 — Producing ${TOPUP_N > 0 ? `topup ${TOPUP_N}/${b.slots.length}` : b.slots.length} Shorts for ${b.label}...`);
   const ok = run('yt-daily.mjs', [slug, '--no-episode', ...(FORCE ? ['--force'] : []), ...(TOPUP_N > 0 ? [`--topup=${TOPUP_N}`] : [])]);
   if (ok) { results.shorts = true; log(`✓ Shorts queued`); }
@@ -112,7 +126,7 @@ if (run('fb-images.mjs', [slug])) { results.poster = true; log(`✓ Poster done`
 else errors.push('Poster failed');
 
 // ---- Phase 5: Long-form episode (enable when ready) ----
-if (!SKIP_EPISODE && !episodeDone) {
+if (!SKIP_EPISODE && !episodeDone && (await quotaGate('Episode'))) {
   log(`Phase 5 — Producing daily episode...`);
   const ok = run('yt-deepdive.mjs', [slug, ...(FORCE ? ['--force'] : [])]);
   if (ok) { results.episode = true; log(`✓ Episode done`); }
@@ -142,6 +156,9 @@ try {
     if (!title) title = `${b.label} documentary`;
     const keyword = (b.tags && b.tags[0]) || b.niche || 'documentary';
     fs.writeFileSync(path.join('tt-lf', `lf-meta-${slug}.json`), JSON.stringify({ title, keyword }, null, 2));
+    // #96: SRT alongside the render — word-accurate cues for the clips lane (#97)
+    const srtSrc = path.join('demos', `deepdive-${slug}`, 'episode.srt');
+    if (fs.existsSync(srtSrc)) fs.copyFileSync(srtSrc, path.join('tt-lf', `lf-srt-${slug}.srt`));
     log(`✓ staged doc render for TikTok clips: "${title}" (keyword: ${keyword})`);
   } else {
     log('no doc rendered today (not docDay) — nothing staged for TikTok');

@@ -10,6 +10,9 @@ import sharp from 'sharp';
 import { Readable } from 'node:stream';
 import { google } from 'googleapis';
 import { loadAllStates, saveChannelState } from './lib/state.mjs';
+import { isDocDay, docDaysOf } from './lib/doc-days.mjs';
+import { cuesFromWords, toSrt } from './lib/srt.mjs';
+import { nextCounter } from './lib/quota-ledger.mjs';
 import { EMBEDDED_FONTS_CSS } from './typography-poster-engine.mjs';
 import { getTopicClip } from './youtube-clips.mjs';
 import { pickApprovedTrack } from './music-engine.mjs';
@@ -203,9 +206,12 @@ if ((state[slug]?.pausedUntil || '') >= today()) {
 // 10-05 CADENCE — docs are WEEKLY: each channel has a fixed docDay (brands).
 // Daily 10-min docs got 0-37 views and read as mass-production; one weekly
 // episode at a fixed slot is appointment viewing. --force overrides.
+// #96: docDays ['Tue','Fri'] lists raise the cadence for the clips-first lane;
+// the legacy single docDay keeps working. --force overrides.
 const DOC_DAY_NAME = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date().getUTCDay()];
-if (b.docDay && DOC_DAY_NAME !== b.docDay && !FORCE) {
-  console.log(`[${slug}] doc day is ${b.docDay} (today is ${DOC_DAY_NAME}) — episode skipped`);
+if (!isDocDay(b) && !FORCE) {
+  const days = docDaysOf(b);
+  console.log(`[${slug}] doc day${days.length === 1 ? '' : 's'} ${days.join('/') || '(none configured)'} (today is ${DOC_DAY_NAME}) — episode skipped`);
   process.exit(0);
 }
 if (state[slug]?.deepdiveDate === today() && !FORCE) {
@@ -273,6 +279,23 @@ const endSeg = `${work}/seg-end.mp4`;
 await renderCard(await endCard(), endNarr, endSeg, endDur);
 segs.push({ file: endSeg, dur: endDur });
 total += endDur;
+
+// #96 EPISODE SRT — per-chapter word timestamps (narr-*.mp3.meta.json words
+// [{w,s,d}]) mapped onto the episode timeline, so the clips-first lane (#97)
+// can cut sentence-aligned Shorts without re-transcribing. Narration order is
+// intro, chapters 1..n, end — same order as segs.
+const narrNames = ['intro', ...script.chapters.map((_, i) => String(i + 1)), 'end'];
+let srtCursor = 0;
+const srtCues = [];
+for (let i = 0; i < segs.length; i++) {
+  try {
+    const meta = JSON.parse(fs.readFileSync(path.join(work, `narr-${narrNames[i]}.mp3.meta.json`), 'utf8'));
+    srtCues.push(...cuesFromWords(meta.words || [], srtCursor));
+  } catch { }
+  srtCursor += segs[i].dur;
+}
+fs.writeFileSync(path.join(work, 'episode.srt'), toSrt(srtCues));
+console.log(`[long] SRT: ${srtCues.length} cues -> ${work}/episode.srt`);
 
 // concat + music bed
 const list = `${work}/concat.txt`;
@@ -345,6 +368,8 @@ if (longSeed) {
   st[slug].todayTopic = { at: today(), topic: longSeed.title };
 }
 st[slug].deepdiveVideo = { videoId: res.data.id, publishAt, title: `${script.title} | ${b.authority}` };
+// #99 shared-pool ledger: count this successful upload against the daily budget
+st[slug].uploadsToday = nextCounter(st[slug].uploadsToday);
 saveChannelState(slug, st[slug]);
 
 // FB/IG outbox — episode cross-post (fb-crosspost posts it as scheduled video,
