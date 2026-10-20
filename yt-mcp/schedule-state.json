@@ -270,18 +270,19 @@
     "cooldownSeeds": []
   },
   "quotequarry": {
-    "lastRunDate": "2026-10-19",
+    "lastRunDate": "2026-10-20",
     "todayTopics": [
       {
-        "at": "2026-10-19",
-        "topic": "The power of silence & solitude—knowing your path.🧘‍♀️🦋💕"
+        "at": "2026-10-20",
+        "topic": "THE POWER OF SOLITUDE WILL CHANGE YOUR LIFE | Jim Rohn Motivation"
       }
     ],
     "lastVideos": [
       {
-        "videoId": "zkMUCw3ybaM",
-        "publishAt": "2026-10-19T22:35:00Z",
-        "title": "The Power Of Solitude | Timeless Wisdom"
+        "videoId": null,
+        "publishAt": "2026-10-20T22:35:00Z",
+        "title": "The Power Of Solitude | Timeless Wisdom",
+        "gateRejected": true
       }
     ],
     "deepdiveDate": null,
@@ -297,9 +298,10 @@
       "Master Detachment: Never Let Anyone Control Your Peace | Stoicism",
       "6 Stoic Lessons to NEVER Lower Yourself for Anyone | Stoicism",
       "WALK ALONE. BUILD YOURSELF. BECOME UNSTOPPABLE. | STOICISM Philosophy",
-      "The power of silence & solitude—knowing your path.🧘‍♀️🦋💕"
+      "The power of silence & solitude—knowing your path.🧘‍♀️🦋💕",
+      "THE POWER OF SOLITUDE WILL CHANGE YOUR LIFE | Jim Rohn Motivation"
     ],
-    "imageDate": "2026-10-19",
+    "imageDate": "2026-10-20",
     "titleHistory": [
       {
         "t": "Seneca's 3 Laws Of Control | Stoicism Philosophy",
@@ -330,7 +332,9 @@
         "at": "2026-10-19T22:35:00Z"
       }
     ],
-    "cooldownSeeds": []
+    "cooldownSeeds": [
+      "THE POWER OF SOLITUDE WILL CHANGE YOUR LIFE | Jim Rohn Motivation"
+    ]
   },
   "fajrofquran": {
     "pausedUntil": "2099-12-31"
