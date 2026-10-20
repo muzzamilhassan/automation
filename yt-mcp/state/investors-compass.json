@@ -1,5 +1,5 @@
 {
-  "lastRunDate": "2026-10-19",
+  "lastRunDate": "2026-10-20",
   "usedThemes": [
     "how the rich buy the crash",
     "the 90-year rule that beats day trading",
@@ -7,9 +7,10 @@
   ],
   "lastVideos": [
     {
-      "videoId": "Ab6RBy15fOU",
-      "publishAt": "2026-10-19T23:35:00Z",
-      "title": "The Day Stocks Crashed | Market Wisdom"
+      "videoId": null,
+      "publishAt": "2026-10-20T23:35:00Z",
+      "title": "The Day The Market Crashed | Market Wisdom",
+      "gateRejected": true
     }
   ],
   "imageDate": "2026-10-17",
@@ -53,12 +54,13 @@
     "Discipline means knowing when to stop #TradingPsychology #TradingMindset #SoulNGoal",
     "Investing Psychology: Conquer Fear, Avoid Bubbles #shorts",
     "AMERICANS CELEBRATE CRASH OF INDIAN STOCK MARKET | So Much Hate For Bharat? | By Prashant Dhawan",
-    "We've Never Seen This Stock Market Signal Since the Great Depression"
+    "We've Never Seen This Stock Market Signal Since the Great Depression",
+    "Still Waiting For the Market Crash? Watch This Right Now | Weekend Investing | Alok Jain"
   ],
   "todayTopics": [
     {
-      "at": "2026-10-19",
-      "topic": "We've Never Seen This Stock Market Signal Since the Great Depression"
+      "at": "2026-10-20",
+      "topic": "Still Waiting For the Market Crash? Watch This Right Now | Weekend Investing | Alok Jain"
     }
   ],
   "titleHistory": [
@@ -80,6 +82,7 @@
     }
   ],
   "cooldownSeeds": [
-    "AMERICANS CELEBRATE CRASH OF INDIAN STOCK MARKET | So Much Hate For Bharat? | By Prashant Dhawan"
+    "AMERICANS CELEBRATE CRASH OF INDIAN STOCK MARKET | So Much Hate For Bharat? | By Prashant Dhawan",
+    "Still Waiting For the Market Crash? Watch This Right Now | Weekend Investing | Alok Jain"
   ]
 }
