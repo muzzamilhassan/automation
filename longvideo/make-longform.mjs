@@ -21,12 +21,8 @@ const TEST = process.argv.includes("--test");
 const chanArg = process.argv.indexOf("--channel");
 const SLUG = chanArg > 0 ? process.argv[chanArg + 1] : "investors-compass";
 
-try {
-  for (const line of fs.readFileSync(path.join(ROOT, ".env"), "utf8").split("\n")) {
-    const m = line.match(/^([A-Z_0-9]+)=(.*)\s*$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim();
-  }
-} catch { /* CI injects secrets */ }
+import { loadEnv } from "../lib/env.mjs";
+loadEnv();
 
 const CHANNELS = {
   "investors-compass": { theme: "investing", group: "TENSION", slotET: "19:00", voice: "en-US-AndrewNeural", brand: "INVESTOR'S COMPASS", eyebrow: "MARKET DOCUMENTARIES // IC", accent: "#E8C15A", bg: "#0B1220", niche: "stock market crashes and panics, legendary investors, trading disasters, financial history", angles: ["market crash and panic", "legendary investor rise and fall", "trading disaster", "financial history mystery"] },
@@ -52,7 +48,7 @@ const history = (() => { try { return JSON.parse(fs.readFileSync(HIST, "utf8"));
 let recentTitles = history.slice(-25).map((h) => h.title);
 // CROSS-CHANNEL dedup: read the other channels' committed histories so two
 // channels can never tell the same story in the same week.
-const ALL_SLUGS = ["investors-compass", "money-rulebook", "debt-free-doctrine", "quotequarry"];
+import { LEGACY_SLUGS as ALL_SLUGS } from "../lib/registry.mjs";
 const ghTok = process.env.GITHUB_TOKEN || process.env.GITHUB_PAT || "";
 const ghRepo = process.env.GH_REPO || "muzzamilhassan/quarry-render";
 if (ghTok) {

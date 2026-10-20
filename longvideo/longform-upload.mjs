@@ -8,6 +8,10 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { Readable } from "node:stream";
 import { google } from "googleapis";
+import { loadEnv } from "../lib/env.mjs";
+import { LEGACY_SLUGS as CHANNELS } from "../lib/registry.mjs";
+
+loadEnv();
 
 const DIR = import.meta.dirname;
 const ROOT = path.resolve(DIR, "..");
@@ -16,14 +20,8 @@ const GH_TOKEN = process.env.GITHUB_PAT || process.env.GH_TOKEN || "";
 const ONLY = process.argv.indexOf("--channel");
 const ONLY_SLUG = ONLY > 0 ? process.argv[ONLY + 1] : null;
 
-try {
-  for (const line of fs.readFileSync(path.join(ROOT, ".env"), "utf8").split("\n")) {
-    const m = line.match(/^([A-Z_0-9]+)=(.*)\s*$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim();
-  }
-} catch { }
 
-const CHANNELS = ["investors-compass", "money-rulebook", "debt-free-doctrine", "quotequarry"];
+
 const SLOT_ET = { "investors-compass": "19:00", "money-rulebook": "19:45", "debt-free-doctrine": "20:30", "quotequarry": "21:15" };
 // documentary thumbnail style (approved 09-19): brand kicker + serif phrase + giant key word
 const BRAND = {

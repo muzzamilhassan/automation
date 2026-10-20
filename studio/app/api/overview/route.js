@@ -4,7 +4,7 @@ import { slugsForUser } from '@/lib/access';
 
 export const dynamic = 'force-dynamic';
 
-const FB_MAP = { 'investors-compass': '116157974886564', 'money-rulebook': '1077306835630491', 'debt-free-doctrine': '106473735839651', quotequarry: '108044922375174' };
+const FB_MAP = { 'investors-compass': '116157974886564', 'money-rulebook': '1077306835630491', 'debt-free-doctrine': '106473735839651', quotequarry: '114550268199751' };
 
 export async function GET(req) {
   const fresh = new URL(req.url).searchParams.get('fresh') === '1';

@@ -29,11 +29,24 @@ test('listChannels includes all four legacy slugs from lib/brands.json', () => {
   for (const s of LEGACY_SLUGS) assert.ok(slugs.includes(s), `missing ${s}`);
 });
 
-test('getChannel returns the legacy kit for a known slug', () => {
+test('listChannels filters by source (legacy / registry / merged)', () => {
+  const legacyOnly = listChannels({ source: 'legacy' });
+  assert.ok(legacyOnly.every((c) => c.source === 'legacy'));
+  const allMerged = listChannels({ source: 'merged' });
+  assert.ok(allMerged.length >= legacyOnly.length);
+});
+
+test('getChannel returns the legacy kit for a known slug with destinations and ytAuth', () => {
   const qq = getChannel('quotequarry');
   assert.ok(qq, 'quotequarry resolves');
   assert.ok(qq.slots, 'has slots');
   assert.ok(qq.niches, 'has niches');
+  assert.equal(qq.destinations.fbPageId, '114550268199751');
+  assert.equal(qq.ytAuth.envName, 'YT_TOKEN_QUOTEQUARRY');
+  assert.ok(qq.ytAuth.tokenFile.includes('quotequarry'));
+
+  const ic = getChannel('investors-compass');
+  assert.equal(ic.ytAuth.envName, 'YT_TOKEN_INVESTORS_COMPASS');
 });
 
 test('getChannel returns undefined for an unknown slug (no silent fallback)', () => {
