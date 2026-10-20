@@ -1,0 +1,5 @@
+description = """Implement ONE feature end-to-end through the inner delivery loop — load its EARS spec, write the implementation plan, generate the plain-English QA file before coding, implement test-first, run a two-axis code review, then execute the QA file with real evidence. Use when the user asks to build, add, or implement a feature, or when the new-project pipeline hands off a feature to build."""
+prompt = """
+Read and follow the 'build-feature' skill at .agents/skills/build-feature/SKILL.md (also at .claude/skills/build-feature/SKILL.md). Apply it to this request, keeping AGENTS.md non-negotiables:
+{{args}}
+"""
