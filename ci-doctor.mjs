@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import { google } from 'googleapis';
 import { LEGACY_SLUGS as SLUGS } from './lib/registry.mjs';
+import { asciiHeaderValue } from './lib/ntfy-alert.mjs';
 
 const envRaw = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
 for (const m of envRaw.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
@@ -90,7 +91,10 @@ if (bad.length) {
     try {
       const res = await fetch(`https://ntfy.sh/${process.env.NTFY_TOPIC}`, {
         method: 'POST',
-        headers: { Title: '🏥 CI Doctor problems', Priority: 'high', Tags: 'hospital' },
+        // #91: the raw emoji made undici reject the header ("Cannot convert
+        // argument to a ByteString", run 39055331728) — push never reached the
+        // phone. The 🏥 icon still shows via the Tags shortcode on ntfy.
+        headers: { Title: asciiHeaderValue('🏥 CI Doctor problems'), Priority: 'high', Tags: 'hospital' },
         body: summary.slice(0, 400),
       });
       console.log(`[alert] ntfy push: ${res.ok ? 'sent' : 'HTTP ' + res.status}`);

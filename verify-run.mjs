@@ -7,6 +7,7 @@
 import fs from 'node:fs';
 import { google } from 'googleapis';
 import { loadChannelState } from './lib/state.mjs';
+import { sendAlert } from './lib/ntfy-alert.mjs';
 
 const envRaw = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
 for (const m of envRaw.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
@@ -22,14 +23,17 @@ console.log(`[verify] ${slug}: run claims ${claimed.length} upload(s), minimum e
 
 async function alert(text) {
   console.log(`[verify] ALERT: ${text}`);
-  const topic = process.env.NTFY_TOPIC;
-  if (!topic) return;
-  try {
-    await fetch(`https://ntfy.sh/${topic}`, {
-      method: 'POST', headers: { 'Content-Type': 'text/plain', Title: `Upload verification FAILED: ${slug}` },
-      body: text
-    });
-  } catch { }
+  // #91: the old inline push was silent-by-design — missing topic returned
+  // without a word (Oct-9 ALERT died there) and `catch {}` swallowed failures
+  // with no retry and no second channel. sendAlert logs every outcome, retries
+  // ntfy 3x, then files a GitHub issue; a silent skip can never stay silent.
+  const r = await sendAlert({
+    text,
+    title: `Upload verification FAILED: ${slug}`,
+    issueTitle: `verify-run: upload verification FAILED (${slug})`,
+    issueSearch: 'verify-run: upload verification in:title',
+  });
+  console.log(`[verify] alert delivered via ${r.channel}${r.ok ? '' : ' — NOT delivered (all channels failed)'}`);
 }
 
 let missing = [];
