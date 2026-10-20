@@ -5,9 +5,10 @@ import fs from 'node:fs';
 import { google } from 'googleapis';
 import { LEGACY_SLUGS as SLUGS } from './lib/registry.mjs';
 import { asciiHeaderValue } from './lib/ntfy-alert.mjs';
+import { loadEnv } from './lib/env.mjs';
 
-const envRaw = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
-for (const m of envRaw.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
+loadEnv();
+
 
 const results = [];
 

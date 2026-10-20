@@ -8,9 +8,12 @@ import fs from 'node:fs';
 import { google } from 'googleapis';
 import { loadChannelState } from './lib/state.mjs';
 import { sendAlert } from './lib/ntfy-alert.mjs';
+import { loadEnv } from './lib/env.mjs';
 
-const envRaw = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
-for (const m of envRaw.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
+loadEnv();
+
+
+
 
 const slug = process.argv[2];
 const minArg = process.argv.indexOf('--min');

@@ -34,16 +34,8 @@ const BOARD_NAME = 'Daily Wisdom Quotes';
 const TITLE_LIMIT = 100;   // Pinterest hard limits
 const DESC_LIMIT = 500;
 
-let envStr = '';
-try {
-  if (fs.existsSync('.env')) {
-    envStr = fs.readFileSync('.env', 'utf8');
-  } else if (fs.existsSync('C:/Users/Revnix/Documents/youtube-automation/.env')) {
-    envStr = fs.readFileSync('C:/Users/Revnix/Documents/youtube-automation/.env', 'utf8');
-  }
-} catch (e) { }
-
-const envOf = (key) => process.env[key] || (envStr.match(new RegExp(`^${key}=(.+)$`, 'm')) || [])[1]?.trim() || '';
+import { loadEnv, envOf } from './lib/env.mjs';
+loadEnv();
 const APP_ID = envOf('PINTEREST_APP_ID');
 const APP_SECRET = envOf('PINTEREST_APP_SECRET');
 const REDIRECT_URI = envOf('PINTEREST_REDIRECT_URI') || LOCAL_REDIRECT;

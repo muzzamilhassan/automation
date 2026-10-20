@@ -5,8 +5,8 @@ import fs from 'node:fs';
 import { google } from 'googleapis';
 
 const HANDLES = ['thestoicmode', 'LegacyMindset-c2e', 'Psygena5', 'StoicLegend-MR'];
-const envStr = fs.readFileSync('.env', 'utf8');
-const envOf = (k) => process.env[k] || (envStr.match(new RegExp(`^${k}=(.+)$`, 'm')) || [])[1]?.trim() || '';
+import { loadEnv, envOf } from './lib/env.mjs';
+loadEnv();
 
 const o = new google.auth.OAuth2(envOf('YOUTUBE_CLIENT_ID'), envOf('YOUTUBE_CLIENT_SECRET'), 'http://localhost:3000/oauth2callback');
 o.setCredentials({ refresh_token: envOf('YOUTUBE_REFRESH_TOKEN') });

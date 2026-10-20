@@ -4,8 +4,9 @@
 // Usage: node fb-dedupe.mjs [--apply]
 import fs from 'node:fs';
 
-const envStr = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
-const FB_PAGE_TOKEN = process.env.FB_PAGE_TOKEN || (envStr.match(/^FB_PAGE_TOKEN=(.+)$/m) || [])[1]?.trim() || '';
+import { loadEnv } from './lib/env.mjs';
+loadEnv();
+const FB_PAGE_TOKEN = process.env.FB_PAGE_TOKEN || '';
 const APPLY = process.argv.includes('--apply');
 const PAGES = {
   'Silent Wealth (IC)': '116157974886564',

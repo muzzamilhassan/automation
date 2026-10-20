@@ -8,8 +8,8 @@ import { execFileSync } from 'node:child_process';
 import sharp from 'sharp';
 import { EMBEDDED_FONTS_CSS } from './typography-poster-engine.mjs';
 
-const envStr = (() => { try { return fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : ''; } catch (e) { return ''; } })();
-const envOf = (key) => process.env[key] || (envStr.match(new RegExp(`^${key}=(.+)$`, 'm')) || [])[1]?.trim() || '';
+import { loadEnv, envOf } from './lib/env.mjs';
+loadEnv();
 
 import { resolveBinary } from './lib/ffmpeg.mjs';
 const FF = resolveBinary('ffmpeg');

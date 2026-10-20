@@ -16,9 +16,11 @@ process.on('uncaughtException', (e) => { console.error('[yt-daily] Uncaught:', e
 process.on('unhandledRejection', (e) => { console.error('[yt-daily] Unhandled:', String(e).slice(0, 200), '— continuing'); });
 
 // Load .env BEFORE importing the engine (it snapshots keys at module load).
-const ENV_PATH = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '.env');
-const envRaw = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';
-for (const m of envRaw.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
+import { loadEnv } from './lib/env.mjs';
+loadEnv();
+
+
+
 
 const { generateYouTubeScript, renderYouTubeScriptShort, buildScriptMeta } = await import('./youtube-engine.mjs');
 const { pickApprovedTrack, pickMusicTrack } = await import('./music-engine.mjs');
@@ -39,8 +41,8 @@ const TOPUP_N = topupArg ? Math.max(0, Number(topupArg.split('=')[1]) || 0) : 0;
 const b = await resolveBrand(slug);
 if (!b) { console.error('unknown slug (no legacy kit and no registry entry):', slug); process.exit(1); }
 
-const CLIENT_ID = process.env.YOUTUBE_CLIENT_ID || envRaw.match(/^YOUTUBE_CLIENT_ID=(.+)$/m)?.[1]?.trim() || '';
-const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET || envRaw.match(/^YOUTUBE_CLIENT_SECRET=(.+)$/m)?.[1]?.trim() || '';
+const CLIENT_ID = process.env.YOUTUBE_CLIENT_ID || '';
+const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET || '';
 if (!CLIENT_ID || !CLIENT_SECRET) { console.error('YouTube OAuth client credentials missing (env or .env)'); process.exit(1); }
 // 10-05 FIX: this was referenced but never defined in this file since the
 // 10-03 music-lock commit — the ReferenceError was swallowed by try/catch and

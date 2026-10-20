@@ -4,10 +4,13 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import { loadEnv } from './lib/env.mjs';
+
+loadEnv();
 
 const PORT = 8787;
-const ENV_PATH = path.resolve(new URL('.', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'), '.env');
-for (const m of fs.readFileSync(ENV_PATH, 'utf8').matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
+
+
 // New app keys take priority: put the NEW app's key/secret in .env as TIKTOK_APP_KEY / TIKTOK_APP_SECRET
 const CLIENT_KEY = process.env.TIKTOK_APP_KEY || process.env.TIKTOK_CLIENT_KEY || '';
 const CLIENT_SECRET = process.env.TIKTOK_APP_SECRET || process.env.TIKTOK_CLIENT_SECRET || '';

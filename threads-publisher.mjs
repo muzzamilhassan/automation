@@ -28,16 +28,8 @@ const LOCAL_REDIRECT = `http://localhost:${PORT}/callback`;
 const SCOPES = 'threads_basic,threads_content_publish';
 const TEXT_LIMIT = 480; // Threads accepts up to 500 chars of text/caption
 
-let envStr = '';
-try {
-  if (fs.existsSync('.env')) {
-    envStr = fs.readFileSync('.env', 'utf8');
-  } else if (fs.existsSync('C:/Users/Revnix/Documents/youtube-automation/.env')) {
-    envStr = fs.readFileSync('C:/Users/Revnix/Documents/youtube-automation/.env', 'utf8');
-  }
-} catch (e) { }
-
-const envOf = (key) => process.env[key] || (envStr.match(new RegExp(`^${key}=(.+)$`, 'm')) || [])[1]?.trim() || '';
+import { loadEnv, envOf } from './lib/env.mjs';
+loadEnv();
 const REDIRECT_URI = envOf('THREADS_REDIRECT_URI') || LOCAL_REDIRECT;
 // Threads OAuth uses the Threads-specific app credentials (found under the
 // app's Threads API product settings), NOT the Facebook app ID/secret.

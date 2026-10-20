@@ -12,13 +12,8 @@ const FFPROBE = resolveBinary('ffprobe');
 const specPath = path.resolve(DIR, process.argv[2] || "reels/money.json");
 const spec = JSON.parse(fs.readFileSync(specPath, "utf8"));
 
-// .env for PIXABAY_API_KEY
-try {
-  for (const line of fs.readFileSync(path.join(ROOT, ".env"), "utf8").split("\n")) {
-    const m = line.match(/^([A-Z0-9_]+)=(.*)\s*$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim();
-  }
-} catch {}
+import { loadEnv } from '../lib/env.mjs';
+loadEnv();
 
 const PAD_MS = 260;
 const SILENT_MS = 3000;

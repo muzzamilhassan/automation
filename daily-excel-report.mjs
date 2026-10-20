@@ -10,9 +10,12 @@ import path from 'node:path';
 import ExcelJS from 'exceljs';
 import { google } from 'googleapis';
 import { fbPageId as registryFbPageId } from './lib/registry.mjs';
+import { loadEnv } from './lib/env.mjs';
 
-const envRaw = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
-for (const m of envRaw.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
+loadEnv();
+
+
+
 
 const CLIENT_ID = process.env.YOUTUBE_CLIENT_ID;
 const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET;

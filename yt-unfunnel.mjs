@@ -8,9 +8,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { google } from 'googleapis';
+import { loadEnv } from './lib/env.mjs';
 
-const envStr = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
-for (const m of envStr.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
+loadEnv();
+
+
+
 const DRY = process.argv.includes('--dry-run');
 const CHANNELS = ['quotequarry', 'investors-compass', 'money-rulebook', 'debt-free-doctrine'];
 

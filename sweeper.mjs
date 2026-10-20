@@ -10,10 +10,13 @@ import { execFileSync } from 'node:child_process';
 import { google } from 'googleapis';
 import { applyChannelKeys } from './lib/channel-keys.mjs';
 import { LEGACY_SLUGS } from './lib/registry.mjs';
+import { loadEnv, envOf } from './lib/env.mjs';
 
-const envStr = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
-for (const m of envStr.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
-const envOf = (k) => process.env[k] || '';
+loadEnv();
+
+
+
+
 
 const DRY = process.argv.includes('--dry-run');
 const todayUTC = new Date().toISOString().slice(0, 10);

@@ -7,8 +7,8 @@ import { execFileSync } from 'node:child_process';
 
 const POOL_DIR = 'pixabay-pool';
 const USED_FILE = `${POOL_DIR}/yt-used.json`;
-const envStr = (() => { try { return fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : ''; } catch (e) { return ''; } })();
-const envOf = (key) => process.env[key] || (envStr.match(new RegExp(`^${key}=(.+)$`, 'm')) || [])[1]?.trim() || '';
+import { loadEnv, envOf } from './lib/env.mjs';
+loadEnv();
 const KEY = envOf('PIXABAY_API_KEY');
 const GEMINI_API_KEY = envOf('GEMINI_API_KEY');
 

@@ -11,12 +11,13 @@ const ROOT = path.resolve(DIR, "..");
 const EXPL = path.join(ROOT, "explainer");
 const PUB = path.join(EXPL, "public");
 import { resolveBinary } from '../lib/ffmpeg.mjs';
+import { loadEnv } from '../lib/env.mjs';
+
+loadEnv();
 const FFPROBE = resolveBinary('ffprobe');
 
-for (const line of fs.readFileSync(path.join(ROOT, ".env"), "utf8").split("\n")) {
-  const m = line.match(/^([A-Z_0-9]+)=(.*)\s*$/);
-  if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim();
-}
+
+
 
 const VIDEOS = [
   { n: 1, topic: "The Fake Tweet That Erased 136 Billion Dollars in 3 Minutes", brand: "investors-compass",

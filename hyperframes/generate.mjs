@@ -9,14 +9,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DNAS, dnaPrompt, GENRES, genrePrompt } from './dna.mjs';
 
+import { loadEnv } from '../lib/env.mjs';
+
 // load repo .env (keys stay out of code)
+loadEnv();
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-try {
-  for (const line of fs.readFileSync(path.join(ROOT, '.env'), 'utf8').split(/\r?\n/)) {
-    const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim();
-  }
-} catch { }
 const HF_DIR = path.join(ROOT, 'hyperframes');
 const HF_VER = '0.8.152';
 const args = process.argv.slice(2);

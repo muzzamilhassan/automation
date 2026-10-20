@@ -10,8 +10,8 @@ import path from 'node:path';
 import { google } from 'googleapis';
 
 const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
-const envRaw = fs.readFileSync(path.join(HERE, '.env'), 'utf8');
-for (const m of envRaw.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
+import { loadEnv } from './lib/env.mjs';
+loadEnv();
 
 const CLIENT_ID = process.env.YOUTUBE_CLIENT_ID;
 const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET;

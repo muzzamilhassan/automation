@@ -13,6 +13,9 @@ import fs from 'node:fs';
 import http from 'node:http';
 import { exec } from 'node:child_process';
 import { google } from 'googleapis';
+import { loadEnv } from './lib/env.mjs';
+
+loadEnv();
 
 const slug = process.argv[2];
 if (!slug || !/^[a-z0-9-]+$/i.test(slug)) {
@@ -20,9 +23,8 @@ if (!slug || !/^[a-z0-9-]+$/i.test(slug)) {
   process.exit(1);
 }
 
-const envStr = fs.readFileSync('.env', 'utf8');
-const CLIENT_ID = envStr.match(/^YOUTUBE_CLIENT_ID=(.+)$/m)?.[1]?.trim();
-const CLIENT_SECRET = envStr.match(/^YOUTUBE_CLIENT_SECRET=(.+)$/m)?.[1]?.trim();
+const CLIENT_ID = process.env.YOUTUBE_CLIENT_ID;
+const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET;
 const REDIRECT_URI = 'http://localhost:3000/oauth2callback';
 
 const oauth2Client = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);

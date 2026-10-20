@@ -17,12 +17,15 @@ import { ensurePoolClip } from './cinematic-engine.mjs';
 import { getTopicClip } from './youtube-clips.mjs';
 
 import { resolveBinary } from './lib/ffmpeg.mjs';
+import { loadEnv } from './lib/env.mjs';
+
+loadEnv();
 const FF = resolveBinary('ffmpeg');
 const POOL_DIR = 'pixabay-pool';
 // BYOK: read lazily (NOT at import) so per-channel keys injected by
 // lib/channel-keys.mjs before the brain runs are always picked up.
 function geminiKey() {
-  return process.env.GEMINI_API_KEY || (fs.existsSync('.env') ? (fs.readFileSync('.env', 'utf8').match(/^GEMINI_API_KEY=(.+)$/m) || [])[1]?.trim() : '') || '';
+  return process.env.GEMINI_API_KEY || '';
 }
 import { resolveBrand as resolveBrandKit } from './lib/brand-resolve.mjs';
 
@@ -384,7 +387,7 @@ Return ONLY valid JSON:
   }
   // Fallback brain 1: Groq gpt-oss-120b (free tier ~14,400 req/day)
   try {
-    const gk = process.env.GROQ_API_KEY || (fs.existsSync('.env') ? (fs.readFileSync('.env', 'utf8').match(/^GROQ_API_KEY=(.+)$/m) || [])[1]?.trim() : '');
+    const gk = process.env.GROQ_API_KEY || '';
     if (!gk) throw new Error('no Groq key');
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST', headers: { Authorization: `Bearer ${gk}`, 'Content-Type': 'application/json' },
@@ -403,7 +406,7 @@ Return ONLY valid JSON:
   }
   // Fallback brain 2: Cerebras (1M tokens/day free)
   try {
-    const ck = process.env.CEREBRAS_API_KEY || (fs.existsSync('.env') ? (fs.readFileSync('.env', 'utf8').match(/^CEREBRAS_API_KEY=(.+)$/m) || [])[1]?.trim() : '');
+    const ck = process.env.CEREBRAS_API_KEY || '';
     if (!ck) throw new Error('no Cerebras key');
     const res = await fetch('https://api.cerebras.ai/v1/chat/completions', {
       method: 'POST', headers: { Authorization: `Bearer ${ck}`, 'Content-Type': 'application/json' },
@@ -421,7 +424,7 @@ Return ONLY valid JSON:
   }
   // Fallback brain 3: Mistral (free tier ~1B tokens/month)
   try {
-    const mk = process.env.MISTRAL_API_KEY || (fs.existsSync('.env') ? (fs.readFileSync('.env', 'utf8').match(/^MISTRAL_API_KEY=(.+)$/m) || [])[1]?.trim() : '');
+    const mk = process.env.MISTRAL_API_KEY || '';
     if (!mk) throw new Error('no Mistral key');
     const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST', headers: { Authorization: `Bearer ${mk}`, 'Content-Type': 'application/json' },
@@ -440,7 +443,7 @@ Return ONLY valid JSON:
   // Fallback brain: HuggingFace Inference (free tier, existing HF_TOKEN)
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      const hf = process.env.HF_TOKEN || (fs.existsSync('.env') ? (fs.readFileSync('.env', 'utf8').match(/^HF_TOKEN=(.+)$/m) || [])[1]?.trim() : '');
+      const hf = process.env.HF_TOKEN || '';
       if (!hf) throw new Error('no HF token');
       const res = await fetch('https://router.huggingface.co/v1/chat/completions', {
         method: 'POST',

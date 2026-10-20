@@ -20,12 +20,14 @@ const { recentUploadTitles, findDup } = await import('./lib/dup-gate.mjs');
 const { resolveBrand } = await import('./lib/brand-resolve.mjs');
 
 import { resolveBinary } from './lib/ffmpeg.mjs';
+import { loadEnv } from './lib/env.mjs';
+loadEnv();
 const FF = resolveBinary('ffmpeg');
 const FP = resolveBinary('ffprobe');
 const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
-const ENV_PATH = path.resolve(HERE, '.env');
-const envRaw = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';
-for (const m of envRaw.matchAll(/^([A-Z_0-9]+)=(.*)$/gm)) process.env[m[1]] ??= m[2].trim();
+
+
+
 const slug = process.argv[2];
 const FORCE = process.argv.includes('--force');
 const b = (await resolveBrand(slug)) || bySlug[slug];
@@ -295,8 +297,8 @@ const thumb = await renderYouTubeThumbnail(script.title, `${work}/frame.jpg`, { 
 console.log(`[long] ✅ episode rendered: ${final} (${(total / 60).toFixed(1)} min)`);
 
 // ---------- upload scheduled ----------
-const envStr = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';
-const auth = new google.auth.OAuth2(process.env.YOUTUBE_CLIENT_ID || envStr.match(/^YOUTUBE_CLIENT_ID=(.+)$/m)?.[1]?.trim() || '', process.env.YOUTUBE_CLIENT_SECRET || envStr.match(/^YOUTUBE_CLIENT_SECRET=(.+)$/m)?.[1]?.trim() || '');
+
+const auth = new google.auth.OAuth2(process.env.YOUTUBE_CLIENT_ID || '', process.env.YOUTUBE_CLIENT_SECRET || '');
 const envName = `YT_TOKEN_${slug.toUpperCase().replace(/-/g, '_')}`;
 const tokRaw = process.env[envName] || fs.readFileSync(path.resolve(HERE, `yt-mcp/channels/${slug}/token.json`), 'utf8');
 const tok = JSON.parse(tokRaw);

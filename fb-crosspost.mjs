@@ -14,8 +14,9 @@ import { BRANDS } from './yt-brands/brands.mjs';
 
 const brandOf = (slug) => BRANDS.find(b => b.slug === slug);
 
-const envStr = fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : '';
-const FB_PAGE_TOKEN = process.env.FB_PAGE_TOKEN || (envStr.match(/^FB_PAGE_TOKEN=(.+)$/m) || [])[1]?.trim() || '';
+import { loadEnv } from './lib/env.mjs';
+loadEnv();
+const FB_PAGE_TOKEN = process.env.FB_PAGE_TOKEN || '';
 
 // YT slug -> FB page (audience-matched) — canonical map lives in lib/registry.mjs
 // (was duplicated 3× with drift; see issue #38)

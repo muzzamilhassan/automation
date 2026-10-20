@@ -27,8 +27,8 @@ const DAILY = process.argv.includes('daily') || process.env.LONGFORM_MODE === 'd
 const FB_ONLY = process.argv.includes('fb-only');
 const MAX_QUOTES = TEST ? 3 : 10;
 
-const envStr = (() => { try { return fs.existsSync('.env') ? fs.readFileSync('.env', 'utf8') : ''; } catch (e) { return ''; } })();
-const envOf = (key) => process.env[key] || (envStr.match(new RegExp(`^${key}=(.+)$`, 'm')) || [])[1]?.trim() || '';
+import { loadEnv, envOf } from './lib/env.mjs';
+loadEnv();
 
 function ytClient() {
   const oauth2Client = new google.auth.OAuth2(

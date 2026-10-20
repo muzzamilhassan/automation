@@ -10,14 +10,7 @@ const ROOT = path.resolve(import.meta.dirname, "..");
 const OUT = path.resolve(import.meta.dirname, "public/storyboard.beats.json");
 const MIN_WORDS_PER_CHAPTER = 190;
 
-function loadEnv() {
-  try {
-    for (const line of fs.readFileSync(path.join(ROOT, ".env"), "utf8").split("\n")) {
-      const m = line.match(/^([A-Z0-9_]+)=(.*)\s*$/);
-      if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim();
-    }
-  } catch {}
-}
+import { loadEnv } from '../lib/env.mjs';
 loadEnv();
 
 // ---------------------------------------------------------------------------
