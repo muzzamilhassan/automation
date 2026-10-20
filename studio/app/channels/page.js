@@ -1,11 +1,12 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Tv, Music2, RefreshCw, Mic, Music, Clock, Archive, Plus, PenLine, Pause, Play } from 'lucide-react';
+import { Tv, Music2, RefreshCw, Mic, Music, Clock, Archive, Plus, PenLine, Pause, Play, CalendarDays } from 'lucide-react';
 import { YoutubeIcon, FacebookIcon, InstagramIcon } from '@/components/BrandIcons';
 import { Card, CardHead, Chip, PageHeader, BrandMark, PageSkeleton, EmptyState } from '@/components/ui';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
+import SchedulePanel from '@/components/SchedulePanel';
 import { BRAND_META, MUSIC_MOODS } from '@/lib/site-data';
 import { fmt } from '@/lib/utils';
 
@@ -27,6 +28,7 @@ function PlatformRow({ icon: Icon, color, label, handle, followers, extra }) {
 
 export default function Channels() {
   const [data, setData] = useState(null);
+  const [schedOpen, setSchedOpen] = useState(null);
   const load = () => fetch('/api/overview').then((r) => r.json()).then(setData).catch(() => setData({ channels: [] }));
 
   // 10-08 FLOW CONTROL — per-channel autopilot ON/OFF
@@ -73,6 +75,13 @@ export default function Channels() {
                         tooltip={c.flowPaused ? 'Resume autopilot — the nightly run produces again' : 'Pause autopilot — nothing new is produced; already-scheduled videos still publish'}
                         icon={c.flowPaused ? Play : Pause}
                         onClick={() => toggleFlow(c.slug, c.flowPaused)}
+                      />
+                      <ButtonUtility
+                        size="sm"
+                        color="tertiary"
+                        tooltip="Production scheduling — doc days, Shorts days, clips source, quota"
+                        icon={CalendarDays}
+                        onClick={() => setSchedOpen(schedOpen === c.slug ? null : c.slug)}
                       />
                       <Link href={`/channels/add?edit=${c.slug}`} title="Edit this channel (niche, sub-niches, template, schedule)">
                         <ButtonUtility size="sm" color="tertiary" icon={PenLine} />
@@ -134,6 +143,8 @@ export default function Channels() {
                   </p>
                 </div>
               </div>
+
+              {schedOpen === c.slug ? <SchedulePanel slug={c.slug} accent={c.accent} /> : null}
             </Card>
           );
         })}

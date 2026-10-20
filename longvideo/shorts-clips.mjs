@@ -260,6 +260,14 @@ async function postNext() {
     log(`clip Short already posted today — done`);
     process.exit(0);
   }
+  // #100: scheduled-off day (kit shortDays, Studio-set) — silent skip, no alert
+  const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const todayName = DAY_NAMES[new Date().getUTCDay()];
+  const shortDays = Array.isArray(b.shortDays) ? b.shortDays : [];
+  if (shortDays.length && !shortDays.includes(todayName)) {
+    log(`${todayName} is not a short day (${shortDays.join('/')}) — skipped`);
+    process.exit(0);
+  }
   const queue = st.clipQueue?.clips || [];
   if (!queue.length) {
     log(`clip queue is empty — Shorts skipped today (fail-closed, no recycle)`);
