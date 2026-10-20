@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseSrt } from '../lib/srt.mjs';
-import { candidateWindows, parseSelection, pickTitles, cuesToWords, cardSvg } from '../lib/clipper.mjs';
+import { candidateWindows, parseSelection, pickTitles, cuesToWords, cardSvg, nextUnposted } from '../lib/clipper.mjs';
 
 function srtFixture() {
   // 6 cues, ~10s total — times in seconds
@@ -75,4 +75,26 @@ test('cardSvg renders a 1080x1920 branded title card with the clip title', () =>
   assert.match(svg, /The Lie About/, 'title line 1 (long titles wrap by design)');
   assert.match(svg, /Discipline/, 'title line 2');
   assert.match(svg, /MONEY RULEBOOK/);
+});
+
+test('nextUnposted returns the first unposted clip whose title passes the live dup gate', () => {
+  const clips = [
+    { part: 1, title: 'Already Posted', postedAt: '2026-10-19T10:00:00Z' },
+    { part: 2, title: 'Dup With Live Upload' },
+    { part: 3, title: 'Fresh Clip' },
+  ];
+  const live = ['Dup With Live Upload | Investing Psychology'];
+  const pick = nextUnposted(clips, live, (a, b) => a.includes(b) || b.includes(a));
+  assert.ok(pick, 'a clip is found');
+  assert.equal(pick.clip.title, 'Fresh Clip');
+  assert.equal(pick.skipped.length, 2, 'posted + dup clips are reported as skipped');
+});
+
+test('nextUnposted returns null (with skips) when the queue is exhausted', () => {
+  const clips = [
+    { part: 1, title: 'A', postedAt: 'x' },
+    { part: 2, title: 'B', postedAt: 'y' },
+  ];
+  const pick = nextUnposted(clips, [], (a, b) => false);
+  assert.equal(pick, null);
 });

@@ -83,13 +83,18 @@ async function quotaGate(label) {
   return false;
 }
 
-// ---- Phase 1: YouTube Shorts (3 per day) ----
-if ((!shortsDone || FORCE || TOPUP_N > 0) && (await quotaGate('Shorts production'))) {
-  log(`Phase 1 — Producing ${TOPUP_N > 0 ? `topup ${TOPUP_N}/${b.slots.length}` : b.slots.length} Shorts for ${b.label}...`);
-  const ok = run('yt-daily.mjs', [slug, '--no-episode', ...(FORCE ? ['--force'] : []), ...(TOPUP_N > 0 ? [`--topup=${TOPUP_N}`] : [])]);
-  if (ok) { results.shorts = true; log(`✓ Shorts queued`); }
-  else { errors.push('Shorts production failed'); log(`✗ Shorts failed`); }
-} else {
+// ---- Phase 1: YouTube Shorts ----
+// #98 SHORTS SOURCE: kit field shortsSource 'generated' (default, yt-daily
+// research->script->render) or 'clips' (publisher posts one queued doc clip).
+// Flipping a channel = one kit field; rolling back = flip it back.
+const shortsSource = b.shortsSource || 'generated';
+if (shortsSource === 'clips') {
+  log(`Phase 1 — Clips lane (shortsSource=clips) for ${b.label}...`);
+  if (await quotaGate('Shorts (clips)')) {
+    if (run('longvideo/shorts-clips.mjs', ['post-next', slug])) { results.shorts = true; log(`✓ Clip Short processed`); }
+    else { errors.push('Clip Short posting failed'); log(`✗ Clip posting failed`); }
+  } else { errors.push('Shorts skipped — daily quota budget'); }
+} else if ((!shortsDone || FORCE || TOPUP_N > 0) && (await quotaGate('Shorts production'))) {
   log(`Shorts already produced today — skipping`);
   results.shorts = true;
 }
@@ -97,7 +102,9 @@ if ((!shortsDone || FORCE || TOPUP_N > 0) && (await quotaGate('Shorts production
 // ---- Phase 1b: Proof-of-publication (09-20) ----
 // 09-19 lesson: a dead token printed "✓ Shorts queued / Errors: 0" while
 // nothing was uploaded. Verify the claimed uploads REALLY exist on YouTube.
-if (results.shorts) {
+// (Clips lane self-verifies inside post-next — running it twice would double
+// alert on the same upload.)
+if (results.shorts && shortsSource !== 'clips') {
   if (run('verify-run.mjs', [slug])) log(`✓ Uploads verified on YouTube`);
   else errors.push('Upload verification failed — check ntfy alert');
 }

@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import sharp from 'sharp';
+import { Readable } from 'node:stream';
 import { loadEnv } from '../lib/env.mjs';
 import { parseSrt } from '../lib/srt.mjs';
 import { candidateWindows, parseSelection, pickTitles, cuesToWords, cardSvg } from '../lib/clipper.mjs';
@@ -21,6 +22,10 @@ import { isDupTitle } from '../lib/dup-gate.mjs';
 import { sendAlert } from '../lib/ntfy-alert.mjs';
 import { loadChannelState, saveChannelState } from '../lib/state.mjs';
 import { resolveBrand } from '../lib/brand-resolve.mjs';
+import { nextSlotISO } from '../lib/schedule.mjs';
+import { nextUnposted } from '../lib/clipper.mjs';
+import { recentUploadTitles } from '../lib/dup-gate.mjs';
+import { nextCounter } from '../lib/quota-ledger.mjs';
 
 loadEnv();
 const REPO = process.env.GH_REPO || 'muzzamilhassan/automation';
@@ -31,8 +36,9 @@ const slug = process.argv[3] || null;
 const args = process.argv.slice(4);
 const localDir = args.includes('--local') ? args[args.indexOf('--local') + 1] : null;
 const maxArg = args.includes('--max') ? Number(args[args.indexOf('--max') + 1]) || 3 : 3;
-if (MODE !== 'ensure-queue' || !slug) {
+if (MODE !== 'ensure-queue' && MODE !== 'post-next') {
   console.log('usage: node longvideo/shorts-clips.mjs ensure-queue <slug> [--max K] [--local <dir>]');
+  console.log('       node longvideo/shorts-clips.mjs post-next <slug>');
   process.exit(2);
 }
 
@@ -111,6 +117,7 @@ function cutClip(videoFile, out, startSec, durSec, assFile, cardPng) {
 }
 
 // ---------- ensure-queue ----------
+async function ensureQueue() {
 const st = loadChannelState(slug);
 const docTitle = (meta) => meta?.title || `${b.label} documentary`;
 const tmp = localDir ? null : path.join('longvideo', `sc-tmp-${slug}`);
@@ -236,3 +243,115 @@ st.clipQueue = {
 saveChannelState(slug, st);
 if (tmp) fs.rmSync(tmp, { recursive: true, force: true });
 log(`queue ready: ${clips.length} clips from run ${docRunId} -> yt-mcp/state/${slug}.json clipQueue`);
+}
+
+if (MODE === 'ensure-queue') await ensureQueue();
+else if (MODE === 'post-next') await postNext();
+else console.log('usage: node longvideo/shorts-clips.mjs ensure-queue <slug> | post-next <slug>');
+
+// ---------- post-next (#98): publish one queued clip ----------
+// Fail-closed: empty/exhausted queue = logged skip + ntfy alert, never a
+// re-upload. Title re-checked against LIVE recent uploads (the queue-time
+// check was against titleHistory); dup clips are skipped, not re-titled.
+async function postNext() {
+  const st = loadChannelState(slug);
+  const todayUTC = new Date().toISOString().slice(0, 10);
+  if (st.clipLastPostDate === todayUTC && !process.env.CLIPS_FORCE) {
+    log(`clip Short already posted today — done`);
+    process.exit(0);
+  }
+  const queue = st.clipQueue?.clips || [];
+  if (!queue.length) {
+    log(`clip queue is empty — Shorts skipped today (fail-closed, no recycle)`);
+    await sendAlert({ text: `${slug}: clip queue is EMPTY — no Short posted today. Run ensure-queue after the next docDay render, or check why docs are not producing.`, title: `[${slug}] clip queue empty — Short skipped` });
+    process.exit(0);
+  }
+
+  // live dup gate needs the channel's recent upload titles
+  const { google } = await import('googleapis');
+  const envName = `YT_TOKEN_${slug.toUpperCase().replace(/-/g, '_')}`;
+  const tokenFile = path.join('yt-mcp', 'channels', slug, 'token.json');
+  const tokRaw = process.env[envName] || (fs.existsSync(tokenFile) ? fs.readFileSync(tokenFile, 'utf8') : '');
+  if (!tokRaw) await fail('no YouTube token for live dup gate');
+  const auth = new google.auth.OAuth2(process.env.YOUTUBE_CLIENT_ID, process.env.YOUTUBE_CLIENT_SECRET);
+  auth.setCredentials({ refresh_token: JSON.parse(tokRaw).refresh_token });
+  const yt = new google.youtube({ version: 'v3', auth });
+
+  const liveTitles = await recentUploadTitles(yt, { max: 45 });
+  const pick = nextUnposted(queue, liveTitles, isDupTitle);
+  if (!pick) {
+    log(`queue exhausted (all posted or dup vs live uploads) — Shorts skipped today`);
+    await sendAlert({ text: `${slug}: clip queue EXHAUSTED — every queued clip is posted or dup-flagged. Run ensure-queue after the next docDay render.`, title: `[${slug}] clip queue exhausted — Short skipped` });
+    process.exit(0);
+  }
+  const { clip, skipped } = pick;
+  skipped.forEach((s) => log(`  skip part ${s.part}: ${s.reason}`));
+
+  // fetch the clip file: local path (dev queue) or GitHub Release asset
+  let file = clip.file;
+  if (!file || !fs.existsSync(file)) {
+    if (!clip.url) await fail(`clip part ${clip.part} has neither a local file nor a Release asset URL`);
+    if (!TOK) await fail('GITHUB_TOKEN/GITHUB_PAT missing — cannot download the clip asset');
+    log(`downloading ${clip.asset}...`);
+    const r = await fetch(clip.url, { headers: { Authorization: `Bearer ${TOK}`, 'User-Agent': 'quarry-clips' } });
+    if (!r.ok) await fail(`asset download HTTP ${r.status}`);
+    fs.mkdirSync(`longvideo/sc-tmp-${slug}`, { recursive: true });
+    file = path.join(`longvideo/sc-tmp-${slug}`, clip.asset || `clip-${clip.part}.mp4`);
+    fs.writeFileSync(file, Buffer.from(await r.arrayBuffer()));
+  }
+
+  const publishAt = nextSlotISO((b.slots && b.slots[0]) || '22:35');
+  const description = [
+    clip.title,
+    '',
+    `From our documentary "${st.clipQueue?.docTitle || b.label}".`,
+    `Follow for daily ${b.kwShort || b.niche}.`,
+    ...(b.hashtags ? [b.hashtags] : []),
+  ].join('\n').trim();
+
+  log(`posting "${clip.title}" (part ${clip.part}) -> public ${publishAt}`);
+  const res = await yt.videos.insert({
+    part: ['snippet', 'status'],
+    requestBody: {
+      snippet: { title: clip.title.slice(0, 100), description, tags: (b.tags || []).slice(0, 12), categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
+      status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false },
+    },
+    media: { body: Readable.from(fs.readFileSync(file)) },
+  });
+  const videoId = res.data.id;
+  log(`✓ queued ${videoId} -> https://youtube.com/shorts/${videoId}`);
+
+  // ledger (#99) + state marks (publisher once-per-day, verify claims, history)
+  const now = new Date().toISOString();
+  clip.postedAt = now;
+  st.clipLastPostDate = todayUTC;
+  st.uploadsToday = nextCounter(st.uploadsToday);
+  st.lastVideos = [{ videoId, publishAt, title: clip.title }];
+  st.titleHistory = [...(st.titleHistory || []), { t: clip.title, at: publishAt }].slice(-60);
+  saveChannelState(slug, st);
+
+  // FB/IG outbox — existing crosspost lanes pick it up unchanged
+  fs.mkdirSync(`fb-outbox/${slug}`, { recursive: true });
+  const stamp = `clip-${Date.now()}`;
+  fs.copyFileSync(file, `fb-outbox/${slug}/${stamp}.mp4`);
+  fs.writeFileSync(`fb-outbox/${slug}/${stamp}.json`, JSON.stringify({ videoFile: `fb-outbox/${slug}/${stamp}.mp4`, publishAt, title: clip.title, description, tags: (b.tags || []).slice(0, 12), slug }, null, 2));
+  log(`✓ fb-outbox staged (${stamp}.mp4)`);
+
+  try {
+    await yt.commentThreads.insert({ part: 'snippet', requestBody: { snippet: { videoId, topLevelComment: { snippet: { textOriginal: `Which one hit hardest? 👇 Subscribe for daily ${b.kwShort || b.niche}.` } } } } });
+  } catch { }
+
+  // archive the render (09-14 pattern) so the clip is never YouTube-dependent
+  try {
+    if (process.env.GH_TOKEN || process.env.GITHUB_PAT) {
+      const { archiveUpload } = await import('./yt-archive.mjs');
+      await archiveUpload(videoId, file, (m) => log('  ' + m));
+    }
+  } catch (e) { log(`  [archive] skipped: ${String(e.message).slice(0, 60)}`); }
+
+  // proof-of-publication — verify-run alerts + exits non-zero on a miss
+  const v = spawnSync('node', ['verify-run.mjs', slug], { stdio: 'inherit', timeout: 300000 });
+  process.exit(v.status || 0);
+}
+
+if (MODE === 'post-next') await postNext();
