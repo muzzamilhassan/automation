@@ -16,11 +16,13 @@ const SKIP_EPISODE = process.argv.includes('--no-episode');
 // cron can't double-produce the healed reels.
 const topupArg = process.argv.find(a => a.startsWith('--topup'));
 const TOPUP_N = topupArg ? Math.max(0, Number(topupArg.split('=')[1]) || 0) : 0;
-const brands = JSON.parse(fs.readFileSync('lib/brands.json', 'utf8'));
 // 10-05 CHANNEL FACTORY: registry channels (Studio wizard) resolve from
 // yt-mcp/studio-channels.json when lib/brands.json has no entry.
+// #100: resolve through brand-resolve for EVERY channel — the cadence overlay
+// (yt-mcp/cadence.json: docDays/shortDays/shortsSource) merges there; reading
+// lib/brands.json directly would bypass scheduling for legacy channels.
 const { resolveBrand } = await import('./lib/brand-resolve.mjs');
-let b = brands[slug] || await resolveBrand(slug);
+let b = await resolveBrand(slug);
 if (!b) { console.error(`[pipeline] unknown slug: ${slug}`); process.exit(1); }
 
 const today = new Date().toISOString().slice(0, 10);
