@@ -95,6 +95,18 @@ if (shortsSource === 'clips') {
     else { errors.push('Clip Short posting failed'); log(`✗ Clip posting failed`); }
   } else { errors.push('Shorts skipped — daily quota budget'); }
 } else if ((!shortsDone || FORCE || TOPUP_N > 0) && (await quotaGate('Shorts production'))) {
+  // #98 REGRESSION FIX (2026-10-23 audit): the #98 restructure dropped this
+  // produce body — generated channels logged the skip text and produced
+  // NOTHING since Oct 21 (caught by the 3-day audit; doctor STALE flags +
+  // ntfy alerts were firing the whole time).
+  log(`Phase 1 — Producing ${TOPUP_N > 0 ? `topup ${TOPUP_N}/${b.slots.length}` : b.slots.length} Shorts for ${b.label}...`);
+  const ok = run('yt-daily.mjs', [slug, '--no-episode', ...(FORCE ? ['--force'] : []), ...(TOPUP_N > 0 ? [`--topup=${TOPUP_N}`] : [])]);
+  if (ok) { results.shorts = true; log(`✓ Shorts queued`); }
+  else { errors.push('Shorts production failed'); log(`✗ Shorts failed`); }
+} else if (!shortsDone && !FORCE && TOPUP_N === 0) {
+  // quota gate said no — already logged + alerted inside quotaGate
+  errors.push('Shorts skipped — daily quota budget');
+} else {
   log(`Shorts already produced today — skipping`);
   results.shorts = true;
 }
