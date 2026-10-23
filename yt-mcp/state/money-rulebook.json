@@ -69,5 +69,31 @@
   "cooldownSeeds": [
     "I Went Back to My Mother’s Halloween Rules at 52 — And Spent Under $20",
     "11 Kitchen Rules Americans Break That No 1950s Housewife Would Have Allowed"
-  ]
+  ],
+  "clipQueue": {
+    "lastRunId": "39750079904",
+    "doneRuns": [
+      "39750079904"
+    ],
+    "docTitle": "THE MONEY RULEBOOK documentary",
+    "createdAt": "2026-10-23T08:31:28.300Z",
+    "clips": [
+      {
+        "part": 1,
+        "title": "Crossing $100K Changes Your Financial Biology",
+        "asset": "clip-01.mp4",
+        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/668488230",
+        "startSec": 415.1,
+        "durSec": 23.2
+      },
+      {
+        "part": 2,
+        "title": "The Automated Trick to Build Wealth Fast",
+        "asset": "clip-02.mp4",
+        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/668488290",
+        "startSec": 105.8,
+        "durSec": 22.9
+      }
+    ]
+  }
 }

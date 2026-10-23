@@ -1,0 +1,16 @@
+{
+  "money-rulebook": {
+    "docDays": ["Thu"],
+    "shortDays": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "shortsSource": "clips",
+    "updated": "2026-10-23T08:45:00.000Z",
+    "updatedBy": "owner go — #101 flip (audit day)"
+  },
+  "debt-free-doctrine": {
+    "docDays": ["Fri"],
+    "shortDays": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "shortsSource": "clips",
+    "updated": "2026-10-23T08:45:00.000Z",
+    "updatedBy": "owner go — #101 flip (audit day)"
+  }
+}

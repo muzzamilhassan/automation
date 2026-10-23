@@ -115,5 +115,31 @@
     "at": "2026-10-09",
     "topic": "POV: You adopted old money habits — And everything changed"
   },
-  "cooldownSeeds": []
+  "cooldownSeeds": [],
+  "clipQueue": {
+    "lastRunId": "39921986638",
+    "doneRuns": [
+      "39921986638"
+    ],
+    "docTitle": "OLD MONEY CODE documentary",
+    "createdAt": "2026-10-23T10:10:16.751Z",
+    "clips": [
+      {
+        "part": 1,
+        "title": "Stop Losing $15,000 to Silent Subscriptions",
+        "asset": "clip-01.mp4",
+        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/668733568",
+        "startSec": 89.2,
+        "durSec": 20.5
+      },
+      {
+        "part": 2,
+        "title": "Why Budgeting Apps Keep You Broke",
+        "asset": "clip-02.mp4",
+        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/668733631",
+        "startSec": 55.7,
+        "durSec": 20.6
+      }
+    ]
+  }
 }
