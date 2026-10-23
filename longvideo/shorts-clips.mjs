@@ -144,7 +144,7 @@ if (localDir) {
     chosen = { runId: String(run.id), vid, srt: arts.find((a) => a.name === `lf-srt-${slug}` && !a.expired), meta: arts.find((a) => a.name === `lf-meta-${slug}` && !a.expired) };
     break;
   }
-  if (!chosen) { log('nothing new to clip'); process.exit(0); }
+  if (!chosen) { log('nothing new to clip'); return 'nothing-new'; }
   if (!chosen.srt) await fail(`doc run ${chosen.runId} has no lf-srt-${slug} artifact — it predates #96; wait for the next docDay run`);
   docRunId = chosen.runId;
   fs.mkdirSync(tmp, { recursive: true });
@@ -243,6 +243,7 @@ st.clipQueue = {
 saveChannelState(slug, st);
 if (tmp) fs.rmSync(tmp, { recursive: true, force: true });
 log(`queue ready: ${clips.length} clips from run ${docRunId} -> yt-mcp/state/${slug}.json clipQueue`);
+return 'clipped';
 }
 
 if (MODE === 'ensure-queue') await ensureQueue();
@@ -254,7 +255,7 @@ else console.log('usage: node longvideo/shorts-clips.mjs ensure-queue <slug> | p
 // re-upload. Title re-checked against LIVE recent uploads (the queue-time
 // check was against titleHistory); dup clips are skipped, not re-titled.
 async function postNext() {
-  const st = loadChannelState(slug);
+  let st = loadChannelState(slug);
   const todayUTC = new Date().toISOString().slice(0, 10);
   if (st.clipLastPostDate === todayUTC && !process.env.CLIPS_FORCE) {
     log(`clip Short already posted today — done`);
@@ -268,11 +269,18 @@ async function postNext() {
     log(`${todayName} is not a short day (${shortDays.join('/')}) — skipped`);
     process.exit(0);
   }
-  const queue = st.clipQueue?.clips || [];
+  let queue = st.clipQueue?.clips || [];
   if (!queue.length) {
-    log(`clip queue is empty — Shorts skipped today (fail-closed, no recycle)`);
-    await sendAlert({ text: `${slug}: clip queue is EMPTY — no Short posted today. Run ensure-queue after the next docDay render, or check why docs are not producing.`, title: `[${slug}] clip queue empty — Short skipped` });
-    process.exit(0);
+    // #101 self-feed: nothing queued — try clipping the newest doc before giving up
+    log('queue empty — checking for a new doc to clip...');
+    await ensureQueue();
+    st = loadChannelState(slug);
+    queue = (st.clipQueue && st.clipQueue.clips) || [];
+    if (!queue.length) {
+      log(`clip queue still empty after ensure — Shorts skipped today (fail-closed, no recycle)`);
+      await sendAlert({ text: `${slug}: clip queue is EMPTY after a fresh ensure — no Short posted today. Check why docs are not producing (or why the SRT artifact is missing).`, title: `[${slug}] clip queue empty — Short skipped` });
+      process.exit(0);
+    }
   }
 
   // live dup gate needs the channel's recent upload titles
