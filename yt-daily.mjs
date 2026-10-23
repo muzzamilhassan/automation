@@ -53,7 +53,7 @@ const FF = process.env.FFMPEG_PATH || 'ffmpeg';
 
 function channelAuth(forSlug) {
   const envName = `YT_TOKEN_${forSlug.toUpperCase().replace(/-/g, '_')}`;
-  const tokenFile = path.join(path.dirname(ENV_PATH), `yt-mcp/channels/${forSlug}/token.json`);
+  const tokenFile = path.join(process.cwd(), `yt-mcp/channels/${forSlug}/token.json`);
   const raw = process.env[envName] || (fs.existsSync(tokenFile) ? fs.readFileSync(tokenFile, 'utf8') : '');
   if (!raw) throw new Error('no token for ' + forSlug);
   const t = JSON.parse(raw);

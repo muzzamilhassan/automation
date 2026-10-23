@@ -10,6 +10,7 @@ import { execFileSync } from 'node:child_process';
 import { google } from 'googleapis';
 import { applyChannelKeys } from './lib/channel-keys.mjs';
 import { LEGACY_SLUGS } from './lib/registry.mjs';
+import { resolveBrand } from './lib/brand-resolve.mjs';
 import { loadEnv, envOf } from './lib/env.mjs';
 
 loadEnv();
@@ -104,6 +105,13 @@ for (const slug of CHANNEL_SLUGS) {
       log(`✓ [${slug}] ${count}/${want} reels go live today — healthy`);
       continue;
     }
+    // #98 clips lane: flipped channels are healed by the clips publisher, not
+    // yt-daily topups (a topup here would double-produce generated Shorts)
+    const kit = await resolveBrand(slug).catch(() => null);
+    if (kit?.shortsSource === 'clips') {
+      log(`↷ [${slug}] shortsSource=clips — healing belongs to the clips lane, skipped`);
+      continue;
+    }
     if (DRY) {
       log(`⚠ [${slug}] ${count}/${want} reels go live today — would top-up +${missing} (dry-run)`);
       continue;
@@ -174,6 +182,7 @@ if (healed.length && envOf('NTFY_TOPIC') && !DRY) {
 
 log('\n══ SWEEP COMPLETE ══');
 log(healed.length ? `  Healed: ${healed.join(', ')}` : '  All channels healthy');
-if (pendingDeleted || pendingRestored) log(`  Recycle cleanup: ${pendingDeleted} deleted, ${pendingRestored} restored`);
+// recycle flow was removed 09-18 — the dead references crashed the run after
+// healing (audit F5, 2026-10-23)
 warnings.forEach(w => log('  ! ' + w));
 log(DRY ? '  (dry-run — nothing was changed)' : '  Sweeper done.');
