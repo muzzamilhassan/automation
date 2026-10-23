@@ -129,7 +129,10 @@ for (const slug of CHANNEL_SLUGS) {
 // ---- 2. Drain FB outbox so healed reels cross-post too ----------------------
 // (IG is NOT drained here — reels are posted by ig-slot-poster.yml at fixed
 // slot times; an instant IG drain at 20:15 UTC would double-post slot 3.)
-if (healed.length && !DRY) {
+// 2026-10-23 owner: platforms paused (YouTube-only) — the drain is skipped.
+if (process.env.PLATFORMS_PAUSED !== '0') {
+  log('FB outbox drain skipped (platforms paused — YouTube-only focus)');
+} else if (healed.length && !DRY) {
   for (const s of ['fb-crosspost.mjs']) {
     try { execFileSync('node', [s], { stdio: 'inherit', timeout: 40 * 60 * 1000 }); }
     catch (e) { warnings.push(`${s}: ${String(e.message).slice(0, 80)}`); }

@@ -74,6 +74,12 @@ if (_keysApplied) {
 const shortsDone = state[slug]?.lastRunDate === today;
 const episodeDone = state[slug]?.deepdiveDate === today;
 
+// 2026-10-23 OWNER DIRECTIVE: YouTube-only focus — all non-YouTube platform
+// publishing (FB/IG/TikTok) is paused until YouTube work is fully finished.
+// Default is PAUSED; to resume later set PLATFORMS_PAUSED=0 in the workflow
+// env (or locally) — no other change needed.
+const PLATFORMS_PAUSED = process.env.PLATFORMS_PAUSED !== '0';
+
 // ---- Phase 0: shared YouTube quota budget (#99) — every channel draws on ONE
 // 10,000 units/day pool (one OAuth client, ~1,700/upload). Fail closed BEFORE
 // any render/LLM spend when one more upload would breach the daily budget.
@@ -124,9 +130,13 @@ if (results.shorts && shortsSource !== 'clips') {
 }
 
 // ---- Phase 2: Facebook Reels (cross-post from outbox) ----
-log(`Phase 2 — Cross-posting to Facebook...`);
-if (run('fb-crosspost.mjs')) { results.fbReels = true; log(`✓ FB Reels done`); }
-else errors.push('FB cross-post failed');
+if (PLATFORMS_PAUSED) {
+  log(`Phase 2 — FB Reels skipped (platforms paused — YouTube-only focus)`);
+} else {
+  log(`Phase 2 — Cross-posting to Facebook...`);
+  if (run('fb-crosspost.mjs')) { results.fbReels = true; log(`✓ FB Reels done`); }
+  else errors.push('FB cross-post failed');
+}
 
 // ---- Phase 3: Instagram Reels ----
 // IG has no scheduling API, so posting here meant reels went live whenever the
@@ -142,9 +152,13 @@ else errors.push('FB cross-post failed');
 log(`Phase 3 — IG reels: handled by ig-slot-poster (3x/day at slot times)`);
 
 // ---- Phase 4: Niche poster to FB page ----
-log(`Phase 4 — Posting niche poster...`);
-if (run('fb-images.mjs', [slug])) { results.poster = true; log(`✓ Poster done`); }
-else errors.push('Poster failed');
+if (PLATFORMS_PAUSED) {
+  log(`Phase 4 — FB poster skipped (platforms paused — YouTube-only focus)`);
+} else {
+  log(`Phase 4 — Posting niche poster...`);
+  if (run('fb-images.mjs', [slug])) { results.poster = true; log(`✓ Poster done`); }
+  else errors.push('Poster failed');
+}
 
 // ---- Phase 5: Long-form episode (enable when ready) ----
 if (!SKIP_EPISODE && !episodeDone && (await quotaGate('Episode'))) {

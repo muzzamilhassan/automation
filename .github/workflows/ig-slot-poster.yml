@@ -7,10 +7,12 @@ name: 📸 IG Reels — Slot Poster
 # the actions cache (ig-outbox-<slug>-*).
 
 on:
-  schedule:
-    - cron: '20 11 * * *'   # 07:20 New York — US morning scroll
-    - cron: '20 15 * * *'   # 11:20 New York — US lunch
-    - cron: '20 22 * * *'   # 18:20 New York — US evening prime
+  # 2026-10-23 owner: platforms paused (YouTube-only focus) — schedules off.
+  # To resume: uncomment the three crons below.
+  # schedule:
+  #   - cron: '20 11 * * *'   # 07:20 New York — US morning scroll
+  #   - cron: '20 15 * * *'   # 11:20 New York — US lunch
+  #   - cron: '20 22 * * *'   # 18:20 New York — US evening prime
   workflow_dispatch:
 
 concurrency:

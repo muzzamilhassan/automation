@@ -294,7 +294,10 @@ if (RUN_SHORTS) {
     results.push({ videoId, publishAt, title: meta.title });
 
     // ---- Video frames → FB image posts ----
-    try {
+    // 2026-10-23 owner: platforms paused (YouTube-only focus) — skip FB images
+    if (process.env.PLATFORMS_PAUSED !== '0') {
+      console.log('  [fb-image] skipped (platforms paused — YouTube-only focus)');
+    } else try {
       const videoFile = `fb-outbox/${slug}/${stamp}.mp4`;
       const pageId = fbPageId(slug); // canonical map — lib/registry.mjs (was drifted: QQ pointed at the retired page, #38)
       if (pageId && process.env.FB_PAGE_TOKEN) {
