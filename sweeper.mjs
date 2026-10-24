@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { google } from 'googleapis';
-import { applyChannelKeys } from './lib/channel-keys.mjs';
+import { applyChannelKeys, checkChannelKeys, dropChannelKeys } from './lib/channel-keys.mjs';
 import { LEGACY_SLUGS } from './lib/registry.mjs';
 import { resolveBrand } from './lib/brand-resolve.mjs';
 import { loadEnv, envOf } from './lib/env.mjs';
@@ -117,8 +117,27 @@ for (const slug of CHANNEL_SLUGS) {
       continue;
     }
     log(`⚠ [${slug}] ${count}/${want} reels go live today — re-producing ${missing}...`);
-    applyChannelKeys(slug); // BYOK: this channel's own provider keys for the heal run
+    const appliedKeys = applyChannelKeys(slug); // BYOK: this channel's own provider keys for the heal run
+    // #39: heal runs must run the dead-key guard too (it only existed in the
+    // pipeline) — dead keys are dropped so the SHARED key actually resumes.
+    try {
+      const chk = await checkChannelKeys(slug);
+      if (chk.dead.length) {
+        dropChannelKeys(chk.dead.map((d) => d.provider));
+        const detail = chk.dead.map((d) => `${d.provider} (${d.detail})`).join('; ');
+        log(`⚠ [keys] ${slug}: dead channel keys dropped — shared resuming: ${detail}`);
+        warnings.push(`${slug}: dead channel keys dropped: ${chk.dead.map((d) => d.provider).join(', ')}`);
+        if (envOf('NTFY_TOPIC') && !DRY) {
+          await fetch(`https://ntfy.sh/${envOf('NTFY_TOPIC')}`, {
+            method: 'POST', headers: { 'Title': `[${slug}] dead API keys — shared resuming` }, body: detail,
+          }).catch(() => { });
+        }
+      }
+    } catch { }
     const r = execFileSync('node', ['yt-daily.mjs', slug, '--no-episode', `--topup=${missing}`], { stdio: 'inherit', timeout: 40 * 60 * 1000 });
+    // #39: restore the shared keys — without this, channel A's BYOK keys
+    // leaked into channel B's heal process env
+    dropChannelKeys(appliedKeys || []);
     healed.push(`${b.label} +${missing}`);
   } catch (e) {
     warnings.push(`${slug}: ${String(e.message).slice(0, 100)}`);
