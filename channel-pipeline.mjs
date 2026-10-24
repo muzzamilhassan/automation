@@ -210,8 +210,10 @@ try {
 // own guards handle short-days and duplicates.
 try {
   const feedDir = path.join('tt-lf', `clipfeed-${slug}`);
-  const docToday = state[slug]?.deepdiveDate === today;
-  const fedToday = state[slug]?.clipQueue && String(state[slug].clipQueue.createdAt || '').slice(0, 10) === today;
+  // yt-deepdive (child) wrote deepdiveDate after this pipeline loaded state — reload
+  const freshState = loadState();
+  const docToday = freshState[slug]?.deepdiveDate === today;
+  const fedToday = freshState[slug]?.clipQueue && String(freshState[slug].clipQueue.createdAt || '').slice(0, 10) === today;
   if (shortsSource === 'clips' && docToday && !fedToday && fs.existsSync(path.join('tt-lf', `lf-${slug}.mp4`))) {
     log(`Phase 5b — doc-day clips: feeding today's doc to the clipper...`);
     fs.mkdirSync(feedDir, { recursive: true });

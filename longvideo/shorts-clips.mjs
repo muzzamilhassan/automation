@@ -20,7 +20,7 @@ import { candidateWindows, parseSelection, pickTitles, cuesToWords, cardSvg } fr
 import { buildAssCaptions } from '../youtube-engine.mjs';
 import { isDupTitle } from '../lib/dup-gate.mjs';
 import { sendAlert } from '../lib/ntfy-alert.mjs';
-import { loadChannelState, saveChannelState } from '../lib/state.mjs';
+import { loadChannelState, saveChannelState, loadAllStates } from '../lib/state.mjs';
 import { resolveBrand } from '../lib/brand-resolve.mjs';
 import { nextSlotISO } from '../lib/schedule.mjs';
 import { nextUnposted } from '../lib/clipper.mjs';
@@ -29,7 +29,8 @@ import { nextCounter } from '../lib/quota-ledger.mjs';
 
 loadEnv();
 const REPO = process.env.GH_REPO || 'muzzamilhassan/automation';
-const TOK = process.env.GITHUB_TOKEN || process.env.GITHUB_PAT || '';
+// Actions pass the workflow token as GH_TOKEN; local runs use GITHUB_TOKEN/GITHUB_PAT
+const TOK = process.env.GITHUB_TOKEN || process.env.GITHUB_PAT || process.env.GH_TOKEN || '';
 const FFMPEG = process.env.FFMPEG_PATH || 'ffmpeg';
 const MODE = process.argv[2] || '';
 const slug = process.argv[3] || null;
@@ -267,6 +268,13 @@ async function postNext() {
   const shortDays = Array.isArray(b.shortDays) ? b.shortDays : [];
   if (shortDays.length && !shortDays.includes(todayName)) {
     log(`${todayName} is not a short day (${shortDays.join('/')}) — skipped`);
+    process.exit(0);
+  }
+  // #99 shared-pool ledger: the publisher respects the daily budget too
+  const q = (await import('../lib/quota-ledger.mjs')).evaluate(loadAllStates());
+  if (!q.allowed) {
+    log(`[quota] upload skipped — shared pool ${q.usedUnits}/${q.dailyLimit} units today (${q.uploadsToday} uploads) — resets midnight PT`);
+    await sendAlert({ text: `${slug}: clip upload skipped — YouTube API daily budget reached (${q.usedUnits}/${q.dailyLimit} units). Resets midnight PT.`, title: `[${slug}] clip upload blocked by quota` });
     process.exit(0);
   }
   let queue = st.clipQueue?.clips || [];
