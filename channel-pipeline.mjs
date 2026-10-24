@@ -202,6 +202,30 @@ try {
   log(`⚠ TikTok staging failed (non-fatal): ${String(e.message).slice(0, 90)}`);
 }
 
+// ---- Phase 5b: doc-day clips (clips source only) ----
+// The doc rendered THIS run (deepdiveDate === today): feed it to the clipper
+// from the local files (its GitHub artifacts don't exist until the workflow's
+// upload steps run after this job) and give the publisher its turn — Phase 1
+// ran before the doc existed. Once per doc day (createdAt guard); post-next's
+// own guards handle short-days and duplicates.
+try {
+  const feedDir = path.join('tt-lf', `clipfeed-${slug}`);
+  const docToday = state[slug]?.deepdiveDate === today;
+  const fedToday = state[slug]?.clipQueue && String(state[slug].clipQueue.createdAt || '').slice(0, 10) === today;
+  if (shortsSource === 'clips' && docToday && !fedToday && fs.existsSync(path.join('tt-lf', `lf-${slug}.mp4`))) {
+    log(`Phase 5b — doc-day clips: feeding today's doc to the clipper...`);
+    fs.mkdirSync(feedDir, { recursive: true });
+    fs.copyFileSync(path.join('tt-lf', `lf-${slug}.mp4`), path.join(feedDir, 'video.mp4'));
+    if (fs.existsSync(path.join('tt-lf', `lf-srt-${slug}.srt`))) fs.copyFileSync(path.join('tt-lf', `lf-srt-${slug}.srt`), path.join(feedDir, 'episode.srt'));
+    fs.copyFileSync(path.join('tt-lf', `lf-meta-${slug}.json`), path.join(feedDir, 'meta.json'));
+    if (run('longvideo/shorts-clips.mjs', ['ensure-queue', slug, '--local', feedDir, '--max', '2'])) {
+      run('longvideo/shorts-clips.mjs', ['post-next', slug]);
+    } else { errors.push('Doc-day clip feed failed'); log(`✗ doc-day clip feed failed`); }
+  }
+} catch (e) {
+  log(`⚠ Phase 5b doc-day clips failed (non-fatal): ${String(e.message).slice(0, 90)}`);
+}
+
 // ---- Summary ----
 log(`══ PIPELINE COMPLETE ══`);
 log(`  Shorts: ${results.shorts ? '✓' : '✗'}`);
