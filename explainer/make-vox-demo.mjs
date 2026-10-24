@@ -3,6 +3,7 @@
 // Output: public/vox-collage-demo.json + public/vox-collage/ (images, audio, sfx)
 // Render: npx remotion render remotion/index.ts VoxCollage out/vox-collage-demo.mp4 --props=public/vox-collage-demo.json
 import fs from "node:fs";
+import { fetchBuffer } from "../lib/fetch-safe.mjs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 
@@ -65,12 +66,8 @@ const want = (key) => !ONLY || ONLY === key;
 async function dl(url, outPath, tries = 4) {
   for (let a = 1; a <= tries; a++) {
     try {
-      const ctl = new AbortController();
-      const t = setTimeout(() => ctl.abort(), 150000);
-      const res = await fetch(url, { signal: ctl.signal });
-      clearTimeout(t);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const buf = Buffer.from(await res.arrayBuffer());
+      // #65: deadline covers the body transfer
+      const { buf } = await fetchBuffer(url, { timeoutMs: 150000 });
       if (buf.length < 8000) throw new Error(`too small ${buf.length}b`);
       fs.writeFileSync(outPath, buf);
       return;

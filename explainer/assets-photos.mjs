@@ -1,6 +1,7 @@
 // Pexels PHOTO fetcher (photos, not videos) for sidebar/split layouts.
 // Resilient: returns null on any failure.
 import fs from "node:fs";
+import { fetchBuffer } from "../lib/fetch-safe.mjs";
 import path from "node:path";
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
@@ -27,11 +28,9 @@ export async function fetchPhoto({ key, query, outPath, orientation = "landscape
     }
     fs.mkdirSync(path.dirname(outPath), { recursive: true });
     const c2 = new AbortController();
-    const t2 = setTimeout(() => c2.abort(), 60000);
-    const dl = await fetch(src, { headers: { "User-Agent": UA }, signal: c2.signal });
-    clearTimeout(t2);
-    if (!dl.ok) throw new Error(`dl HTTP ${dl.status}`);
-    fs.writeFileSync(outPath, Buffer.from(await dl.arrayBuffer()));
+    // #65: deadline covers the body transfer
+    const { buf } = await fetchBuffer(src, { timeoutMs: 60000, headers: { "User-Agent": UA } });
+    fs.writeFileSync(outPath, buf);
     return { file: path.resolve(outPath), width: pick.width, height: pick.height };
   } catch (e) {
     console.warn(`  [photo] SKIP (${query}): ${String(e.message).slice(0, 80)}`);
@@ -60,11 +59,9 @@ export async function fetchPhotoPixabay({ key, query, outPath, orientation = "la
     }
     fs.mkdirSync(path.dirname(outPath), { recursive: true });
     const c2 = new AbortController();
-    const t2 = setTimeout(() => c2.abort(), 60000);
-    const dl = await fetch(src, { headers: { "User-Agent": UA }, signal: c2.signal });
-    clearTimeout(t2);
-    if (!dl.ok) throw new Error(`dl HTTP ${dl.status}`);
-    fs.writeFileSync(outPath, Buffer.from(await dl.arrayBuffer()));
+    // #65: deadline covers the body transfer
+    const { buf } = await fetchBuffer(src, { timeoutMs: 60000, headers: { "User-Agent": UA } });
+    fs.writeFileSync(outPath, buf);
     return { file: path.resolve(outPath), width: pick.imageWidth, height: pick.imageHeight };
   } catch (e) {
     console.warn(`  [photo-pix] SKIP (${query}): ${String(e.message).slice(0, 80)}`);

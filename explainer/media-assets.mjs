@@ -2,6 +2,7 @@
 // Chain: Wikimedia Commons -> Openverse -> Met Museum -> Pollinations (AI, no key).
 // Every source is free/public-domain/CC; returns { file, source, credit }.
 import fs from "node:fs";
+import { fetchBuffer } from "../lib/fetch-safe.mjs";
 import path from "node:path";
 
 const UA = "QuarryStudio-Teacher/1.0 (educational video demo)";
@@ -9,11 +10,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function dl(url, outPath, headers = {}) {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 45000);
-  const r = await fetch(url, { headers: { "User-Agent": UA, ...headers }, signal: ctrl.signal });
-  clearTimeout(t);
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  const buf = Buffer.from(await r.arrayBuffer());
+  // #65: deadline covers the body transfer
+  const { buf } = await fetchBuffer(url, { timeoutMs: 45000, headers: { "User-Agent": UA, ...headers } });
   if (buf.length < 8000) throw new Error("too small");
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, buf);

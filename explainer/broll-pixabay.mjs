@@ -1,6 +1,7 @@
 // Pixabay Videos b-roll fetcher. Downloads ONE suitable clip for a beat.
 // Resilient by design: any failure returns null and the beat renders clean.
 import fs from "node:fs";
+import { fetchBuffer } from "../lib/fetch-safe.mjs";
 import path from "node:path";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -53,12 +54,8 @@ export async function fetchBroll({ key, query, minDurationSec, outPath }) {
       console.log(`  [broll] cached ${path.basename(outPath)} (${query})`);
       return { file: outPath, width: pick.width, height: pick.height, duration: pick.duration };
     }
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 120000);
-    const r = await fetch(pick.url, { signal: ctrl.signal });
-    clearTimeout(t);
-    if (!r.ok) throw new Error(`download HTTP ${r.status}`);
-    const buf = Buffer.from(await r.arrayBuffer());
+    // #65: deadline covers the body transfer
+    const { buf } = await fetchBuffer(pick.url, { timeoutMs: 120000 });
     fs.writeFileSync(outPath, buf);
     console.log(`  [broll] ${query} -> ${path.basename(outPath)} ${pick.width}x${pick.height} ${pick.duration}s ${(buf.length / 1024 / 1024).toFixed(1)}MB`);
     return { file: outPath, width: pick.width, height: pick.height, duration: pick.duration };

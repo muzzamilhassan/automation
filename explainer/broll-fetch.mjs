@@ -2,6 +2,7 @@
 // candidates merged and scored (relevance -> duration fit -> size), best wins.
 // Resilient: if one provider fails the other still answers; total failure = null.
 import fs from "node:fs";
+import { fetchBuffer } from "../lib/fetch-safe.mjs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { resolveBinary } from '../lib/ffmpeg.mjs';
@@ -67,13 +68,10 @@ async function download(url, outPath) {
   if (fs.existsSync(outPath) && fs.statSync(outPath).size > 100 * 1024) return true;
   for (let a = 0; a < 2; a++) {
     try {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 180000);
-      const r = await fetch(url, { headers: { "User-Agent": UA }, signal: ctrl.signal });
-      clearTimeout(t);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      // #65: shared helper — the deadline now covers the body transfer too
+      const { buf } = await fetchBuffer(url, { headers: { "User-Agent": UA } });
       fs.mkdirSync(path.dirname(outPath), { recursive: true });
-      fs.writeFileSync(outPath, Buffer.from(await r.arrayBuffer()));
+      fs.writeFileSync(outPath, buf);
       return fs.statSync(outPath).size > 100 * 1024;
     } catch (e) {
       if (a === 1) throw e;
