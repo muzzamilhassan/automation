@@ -11,9 +11,10 @@ import { google } from 'googleapis';
 import { loadAllStates, saveChannelState } from './lib/state.mjs';
 import { fbPageId } from './lib/registry.mjs';
 
-// NEVER crash the CI — log errors and continue
-process.on('uncaughtException', (e) => { console.error('[yt-daily] Uncaught:', e.message, '— continuing'); });
-process.on('unhandledRejection', (e) => { console.error('[yt-daily] Unhandled:', String(e).slice(0, 200), '— continuing'); });
+// NEVER crash the CI mid-production — log and continue, but leave a NON-ZERO
+// exit code (#35: a silent exit 0 made verify-run verify yesterday's uploads).
+process.on('uncaughtException', (e) => { console.error('[yt-daily] Uncaught:', e.message, '— continuing'); process.exitCode = 1; });
+process.on('unhandledRejection', (e) => { console.error('[yt-daily] Unhandled:', String(e).slice(0, 200), '— continuing'); process.exitCode = 1; });
 
 // Load .env BEFORE importing the engine (it snapshots keys at module load).
 import { loadEnv } from './lib/env.mjs';
@@ -210,7 +211,8 @@ if (RUN_SHORTS) {
   const OFF_NICHE = (slug === 'quotequarry' || b.fromRegistry) ? null : /\bstoic\w*|manipulat\w*|toxic|calm your mind|dark psychology\b/i;
 
   const slotLimit = TOPUP_N > 0 ? Math.min(TOPUP_N, b.slots.length) : b.slots.length;
-  for (let i = 0; i < slotLimit; i++) {
+  let slotErrors = 0; // #35: a mid-loop throw used to kill the whole run silently
+  for (let i = 0; i < slotLimit; i++) { try {
     const publishAt = nextSlotISO(b.slots[i]);
     console.log(`\n[${slug}] short ${i + 1}/${b.slots.length} → goes public ${publishAt}`);
     if (!themesToday[i]) {
@@ -333,11 +335,19 @@ if (RUN_SHORTS) {
         }
       }
     } catch (e) { console.log('  [fb-image] skipped:', String(e.message).slice(0, 60)); }
+    } catch (e) {
+      // #35: isolate the slot failure — record it, keep the remaining slots
+      slotErrors++;
+      console.log(`  ✗ slot ${i + 1} failed: ${String(e.message).slice(0, 140)} — continuing to next slot`);
+      results.push({ videoId: null, publishAt: publishAt || null, title: null, slotError: true });
+    }
   }
   if (!EPISODE_ONLY) {
     // Heal run with produced reels covers the next cycle — suppress the morning
     // full run. Heal that produced 0 keeps today, so tomorrow morning retries.
-    const suppressNext = TOPUP_N > 0 && results.length > 0;
+    // #35: error-marker slots must not suppress tomorrow's retry — only real
+    // uploads earn the suppress.
+    const suppressNext = TOPUP_N > 0 && results.some((r) => r.videoId);
     state[slug] = {
       ...(state[slug] || {}),
       lastRunDate: suppressNext ? new Date(Date.now() + 86400000).toISOString().slice(0, 10) : today,
@@ -351,6 +361,17 @@ if (RUN_SHORTS) {
       lastVideos: results, deepdiveDate: state[slug]?.deepdiveDate || null
     };
     saveState(state);
+  }
+  // #35: failed slots must not look like success — the state above already
+  // carries this run's error markers (so verify-run reports THIS run
+  // truthfully, not yesterday's), the owner gets the push, and the pipeline
+  // sees a real failure instead of exit 0.
+  if (slotErrors) {
+    try {
+      const { sendAlert } = await import('./lib/ntfy-alert.mjs');
+      await sendAlert({ text: `${slug}: ${slotErrors} Shorts slot(s) failed mid-run — state saved with error markers, remaining slots were still attempted. Check the run log.`, title: `[${slug}] Shorts slots failed` });
+    } catch { }
+    process.exit(1);
   }
 } else {
   console.log(`[${slug}] Shorts already done today — episode-only pass`);
