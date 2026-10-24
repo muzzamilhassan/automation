@@ -218,9 +218,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "DjPdiIULT_Q",
-        "publishAt": "2026-10-21T00:35:00Z",
-        "title": "Pov: You Master Stealth Wealth Etiquette | Old Money Philosophy"
+        "videoId": "32a5D1wPow4",
+        "publishAt": "2026-10-24T22:35:00Z",
+        "title": "Stop Losing $15,000 to Silent Subscriptions"
       }
     ],
     "imageDate": "2026-10-20",
@@ -317,6 +317,10 @@
       {
         "t": "Pov: You Master Stealth Wealth Etiquette | Old Money Philosophy",
         "at": "2026-10-21T00:35:00Z"
+      },
+      {
+        "t": "Stop Losing $15,000 to Silent Subscriptions",
+        "at": "2026-10-24T22:35:00Z"
       }
     ],
     "usedLongSeeds": [
@@ -341,7 +345,8 @@
           "asset": "clip-01.mp4",
           "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/668733568",
           "startSec": 89.2,
-          "durSec": 20.5
+          "durSec": 20.5,
+          "postedAt": "2026-10-24T09:34:31.528Z"
         },
         {
           "part": 2,
@@ -352,6 +357,11 @@
           "durSec": 20.6
         }
       ]
+    },
+    "clipLastPostDate": "2026-10-24",
+    "uploadsToday": {
+      "date": "2026-10-24",
+      "count": 1
     }
   },
   "quotequarry": {
