@@ -11,6 +11,7 @@ const ROOT = path.resolve(DIR, "..");
 const EXPL = path.join(ROOT, "explainer");
 const PUB = path.join(EXPL, "public");
 import { resolveBinary } from '../lib/ffmpeg.mjs';
+import { textHash } from '../lib/text-hash.mjs';
 import { loadEnv } from '../lib/env.mjs';
 
 loadEnv();

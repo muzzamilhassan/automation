@@ -23,27 +23,21 @@ const sb = JSON.parse(fs.readFileSync(SB, "utf8"));
 const scenes = sb.scenes;
 
 // ---- 1. TTS -----------------------------------------------------------------
-const beatsIn = path.join(PUB, "psych-tts-input.json");
+// #44: psych-private workspace — edge_batch derives its audio/ + durations
+// from the beats file's directory, so psych no longer shares
+// public/audio + public/tts-durations.json with the explainer run (the old
+// shared workspace made "resume" replay psych narration under explainer text).
+const PSYCH_TTS = path.join(PUB, "psych-tts");
+fs.mkdirSync(PSYCH_TTS, { recursive: true });
+const beatsIn = path.join(PSYCH_TTS, "psych-tts-input.json");
 fs.writeFileSync(beatsIn, JSON.stringify(scenes.map((s, i) => ({ i, text: s.narration }))));
 
-// edge_batch's cached-beat path drops word boundaries — carry them over from
-// the previous durations file so word-synced actions survive re-runs.
-const oldDursPath = path.join(PUB, "tts-durations.json");
-const oldWords = new Map();
-if (fs.existsSync(oldDursPath)) {
-  for (const d of JSON.parse(fs.readFileSync(oldDursPath, "utf8"))) {
-    if (Array.isArray(d.words) && d.words.length > 0) oldWords.set(d.i, d.words);
-  }
-}
+const ownDursPath = path.join(PSYCH_TTS, "tts-durations.json");
 
 console.log(`[psych] synthesizing ${scenes.length} scenes (voice: ${sb.voice || process.env.EXPLAINER_VOICE || "en-US-AndrewNeural"})`);
 execFileSync("python", [path.join(DIR, "edge_batch.py"), beatsIn], { stdio: "inherit", env: { ...process.env, EXPLAINER_VOICE: sb.voice || "en-US-AndrewNeural" } });
 
-const durs = JSON.parse(fs.readFileSync(oldDursPath, "utf8")).map((d) => ({
-  ...d,
-  words: Array.isArray(d.words) && d.words.length > 0 ? d.words : oldWords.get(d.i) ?? [],
-}));
-fs.writeFileSync(oldDursPath, JSON.stringify(durs));
+const durs = JSON.parse(fs.readFileSync(ownDursPath, "utf8"));
 const durByI = new Map(durs.map((d) => [d.i, d]));
 
 import { resolveBinary } from '../lib/ffmpeg.mjs';
@@ -62,7 +56,7 @@ const probeMs = (file) => {
 // Edge TTS word boundaries captured during synthesis.
 let cursor = LEAD_MS;
 scenes.forEach((s, i) => {
-  const audio = `audio/beat-${String(i).padStart(2, "0")}.mp3`;
+  const audio = `psych-tts/audio/beat-${String(i).padStart(2, "0")}.mp3`;
   const beat = durByI.get(i);
   const spoken = Math.max(beat?.ms ?? 0, probeMs(audio));
   s.audio = audio;

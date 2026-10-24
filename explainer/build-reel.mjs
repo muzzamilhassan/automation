@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fetchBroll } from "./broll-pixabay.mjs";
+import { textHash } from "../lib/text-hash.mjs";
 
 const DIR = import.meta.dirname;
 const ROOT = path.resolve(DIR, "..");
@@ -32,8 +33,11 @@ const cachedOk = (() => {
   try {
     const cached = JSON.parse(fs.readFileSync(durCache, "utf8"));
     if (cached.length !== spoken.length) return false;
+    // #44: cached audio may only be reused when the beat text is unchanged
     for (const d of cached) {
       const mp3 = path.join(audioDir, "audio", `beat-${String(d.i).padStart(2, "0")}.mp3`);
+      const beat = spoken.find((b) => b.i === d.i);
+      if (!beat || d.textHash !== textHash(beat.text)) return false;
       if (!fs.existsSync(mp3) || fs.statSync(mp3).size < 10 * 1024) return false;
     }
     return true;

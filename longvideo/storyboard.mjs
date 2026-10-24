@@ -11,6 +11,7 @@ const ROOT = path.resolve(DIR, "..");
 const PUB = path.join(ROOT, "explainer", "public");
 import { resolveBinary } from '../lib/ffmpeg.mjs';
 import { extractNumber } from './extract-number.mjs';
+import { textHash } from '../lib/text-hash.mjs';
 const FFPROBE = resolveBinary('ffprobe');
 
 // load .env (PIXABAY_API_KEY, LONGVIDEO_GEMINI_API_KEY, …)
@@ -225,9 +226,12 @@ const cachedOk = (() => {
   try {
     const c = JSON.parse(fs.readFileSync(durCache, "utf8"));
     if (c.length !== spoken.length) return false;
+    // #44: cached audio may only be reused when the beat text is unchanged
     return c.every((d) => {
       const mp3 = path.join(audioDir, "audio", `beat-${String(d.i).padStart(2, "0")}.mp3`);
-      return fs.existsSync(mp3) && fs.statSync(mp3).size > 10 * 1024;
+      const beat = spoken.find((b) => b.i === d.i);
+      return beat && d.textHash === textHash(beat.text) &&
+        fs.existsSync(mp3) && fs.statSync(mp3).size > 10 * 1024;
     });
   } catch { return false; }
 })();

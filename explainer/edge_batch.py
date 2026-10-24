@@ -84,13 +84,15 @@ async def main():
     results = []
     for b in beats:
         mp3 = os.path.join(out_dir, f"beat-{b['i']:02d}.mp3")
-        # resume: keep existing good audio
-        if os.path.exists(mp3) and os.path.getsize(mp3) > 10 * 1024:
+        # resume: keep existing good audio ONLY when its text hash matches
+        # (#44: the cache was text-blind — edited narration resumed the OLD
+        # audio under the NEW text). Mismatch -> fresh synthesis below.
+        cached = words_cache.get(str(b["i"])) or {}
+        hash_ok = cached.get("textHash") == _hash(b["text"])
+        if os.path.exists(mp3) and os.path.getsize(mp3) > 10 * 1024 and hash_ok:
             ms = probe_ms(ffprobe, mp3)
-            cached = words_cache.get(str(b["i"])) or {}
-            cached_words = cached.get("words") or [] if cached.get("textHash") == _hash(b["text"]) else []
-            results.append({"i": b["i"], "ms": ms, "words": cached_words})
-            print(f"  [tts] beat {b['i']:02d}: cached {ms/1000:.1f}s ({len(cached_words)} words)", flush=True)
+            results.append({"i": b["i"], "ms": ms, "words": cached.get("words") or [], "textHash": cached["textHash"]})
+            print(f"  [tts] beat {b['i']:02d}: cached {ms/1000:.1f}s ({len(cached.get('words') or [])} words)", flush=True)
             continue
         words = []
         ok = False
@@ -116,7 +118,7 @@ async def main():
         if ok and words:
             words_cache[str(b["i"])] = {"textHash": _hash(b["text"]), "words": words}
         dur = (words[-1]["s"] + words[-1]["d"]) if words else probe_ms(ffprobe, mp3) / 1000 or 8.0
-        results.append({"i": b["i"], "ms": round(dur * 1000), "words": words})
+        results.append({"i": b["i"], "ms": round(dur * 1000), "words": words, "textHash": _hash(b["text"])})
         print(f"  [tts] beat {b['i']:02d}: {len(words)} words, {dur:.1f}s", flush=True)
 
     with open(os.path.join(base, "tts-durations.json"), "w", encoding="utf8") as f:
