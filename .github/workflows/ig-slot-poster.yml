@@ -16,7 +16,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ig-slot-poster
+  #63: one shared group — both workflows write the same outbox cache;
+  # parallel runs overwrote each other's save, resurrecting posted reels
+  group: outbox-drain
   cancel-in-progress: false
 
 # State commits below need write access (default-token restrictions would silently break them — see issue #70)
