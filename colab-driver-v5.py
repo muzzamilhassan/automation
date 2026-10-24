@@ -13,7 +13,7 @@ for line in open(r"C:\Users\Revnix\Documents\youtube-automation\.env", encoding=
     if m: pat = m.group(1).strip()
 
 proc = subprocess.Popen(
-    [UVX, "git+https://github.com/googlecolab/colab-mcp"],
+    [UVX, "git+https://github.com/googlecolab/colab-mcp@b9ab3899e0f1fa493390b1fd6d54aa2e464ecdf1"],
     stdin=subprocess.PIPE, stdout=subprocess.PIPE,
     stderr=open(r"C:\Users\Revnix\Documents\youtube-automation\colab-mcp-stderr5.log", "wb"),
     text=True, encoding="utf-8", bufsize=1,
@@ -268,8 +268,8 @@ log("step: launching generation FOREGROUND (up to ~65 min) — tab must stay ope
 launch_code = ("import os\n"
                "os.environ['GITHUB_TOKEN'] = " + repr(pat) + "\n"
                "exec(open('/content/generate.py').read())")
-res, txt = call_tool(run_tool["name"], {"cellId": "__never__"}, 5)  # placeholder no-op
-# add + run the generation cell
+# add + run the generation cell (#73: the "__never__" placeholder call was a
+# doomed -32602 whose stale response polluted later rpc calls)
 res, txt = call_tool(add_tool["name"], {"cellIndex": 0, "language": "python", "code": launch_code}, 60)
 if res.get("isError"): log("FATAL add: " + txt[:200]); sys.exit(3)
 cid = None
