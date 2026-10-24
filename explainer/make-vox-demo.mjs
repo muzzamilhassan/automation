@@ -142,6 +142,12 @@ function makeDoc() {
   const beats = BEATS.map((b, i) => {
     const d = durByI.get(i);
     const audio = `vox-collage/audio/beat-${String(i).padStart(2, "0")}.mp3`;
+    // #66: a beat whose TTS produced no file must be SKIPPED — an <Audio> on a
+    // missing staticFile crashes the Remotion render instead of degrading
+    if (!fs.existsSync(path.join(PUB, audio))) {
+      console.warn(`[vox] beat ${i}: audio missing — skipping beat`);
+      return null;
+    }
     const spoken = Math.max(d?.ms || 0, 1200);
     const ms = Math.max(3800, spoken + 650); // >= 4s clip feel + breath
     const beat = {
@@ -153,7 +159,7 @@ function makeDoc() {
     };
     cursor += ms;
     return beat;
-  });
+  }).filter(Boolean);
   const doc = {
     title: "The Paper File: Madoff",
     fps: 30, width: 1920, height: 1080,

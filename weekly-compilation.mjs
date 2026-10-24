@@ -148,11 +148,17 @@ async function renderSegment(quote, index, outDir) {
   execFileSync(resolvePython(), ['youtube-flow/narrate.py', `${outDir}/${tag}.txt`, `${outDir}/${tag}.mp3`, `${outDir}/${tag}.words.json`],
     { stdio: ['ignore', 'ignore', 'pipe'], timeout: 180000 });
   const meta = JSON.parse(fs.readFileSync(`${outDir}/${tag}.mp3.meta.json`, 'utf8'));
-  const words = meta.words;
+  const words = meta.words || [];
   const narrationFile = meta.audio;
+  // #66: Edge can return zero WordBoundary events — fall back to probing the audio
   const last = words[words.length - 1];
+  const audioSec = (() => { try {
+    const r = execFileSync(resolveBinary('ffprobe'), ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', narrationFile], { encoding: 'utf8' });
+    return parseFloat(String(r || '').trim()) || 0;
+  } catch { return 0; } })();
+  const endSec = last ? last.s + last.d : audioSec;
   // tight pacing: only ~1.5s after narration ends — dead air kills retention
-  const dur = Math.max(15, Math.min(75, Math.round((last.s + last.d + 1.5) * 10) / 10));
+  const dur = Math.max(15, Math.min(75, Math.round((endSec + 1.5) * 10) / 10));
 
   const overlay = await quoteCard(postData);
   const scrimSvg = `<svg width="1920" height="1080" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">

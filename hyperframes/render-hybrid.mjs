@@ -193,8 +193,15 @@ html,body{width:${W}px;height:${H}px;overflow:hidden;background:#050505;}
 `;
 
 // ---------- 1. TTS with word timestamps ----------
+import { resolveBinary } from '../lib/ffmpeg.mjs';
+const FFPROBE = resolveBinary('ffprobe'); // #66: bundled binary, not PATH luck
 function probe(f) {
-  return parseFloat(execFileSync('ffprobe', ['-v', 'quiet', '-show_entries', 'format=duration', '-of', 'csv=p=0', f], { encoding: 'utf8' }).trim());
+  return parseFloat(execFileSync(FFPROBE, ['-v', 'quiet', '-show_entries', 'format=duration', '-of', 'csv=p=0', f], { encoding: 'utf8' }).trim());
+}
+// #66: brief text and accent() output are injected into clip markup — escape
+// HTML entities so <, >, & in narration cannot corrupt the composition
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 function tts(text, out, wordsOut) {
   const py = `import asyncio,edge_tts,sys,json\nasync def m():\n  words=[]\n  for i in range(5):\n    try:\n      c=edge_tts.Communicate(sys.argv[1],sys.argv[2],rate="${brief.rate || '-4%'}",boundary='WordBoundary')\n      with open(sys.argv[3],'wb') as f:\n        async for ch in c.stream():\n          if ch['type']=='audio': f.write(ch['data'])\n          elif ch['type']=='WordBoundary': words.append({'t':round(ch['offset']/1e7,2),'w':str(ch['text']).lower()})\n      import os\n      if os.path.getsize(sys.argv[3])>1000:\n        json.dump(words,open(sys.argv[4],'w')); return\n    except Exception as e: print('retry',i,e); await asyncio.sleep(1+i)\n  raise SystemExit(1)\nasyncio.run(m())`;

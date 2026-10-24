@@ -111,10 +111,15 @@ export async function ensurePoolClip(pageId) {
     if (fs.statSync(file).size < 500000) throw new Error(`clip ${clipId} download failed`);
   }
   const dur = Math.floor(await (async () => {
-    const res = await fetch(`https://pixabay.com/api/videos/?key=${KEY}&id=${clipId}`);
-    return (await res.json()).hits?.[0]?.duration || 15;
+    try {
+      const res = await fetch(`https://pixabay.com/api/videos/?key=${KEY}&id=${clipId}`);
+      const got = (await res.json()).hits?.[0]?.duration;
+      return Number.isFinite(got) && got > 0 ? got : 20; // #66: rate-limit/failure must not yield a negative window
+    } catch { return 20; }
   })());
-  return { file, start, maxDur: Math.min(13, dur - start) };
+  // #66: start can exceed a short clip's duration -> negative -t crashed ffmpeg
+  const maxDur = Math.max(1, Math.min(13, dur - start));
+  return { file, start, maxDur };
 }
 
 async function extractFrame(clipFile, start, out, vertical = '4:5') {

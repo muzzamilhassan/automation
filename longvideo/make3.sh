@@ -17,7 +17,6 @@ for entry in "${ENTRIES[@]}"; do
   topic="${entry%%|*}"
   brand="${entry##*|}"
   port=$((3462 + i))
-  echo "[$(date +%H:%M)] === VIDEO $i/$3 : $topic ($brand) ===" >> "$LOG"
 
   cd "$ROOT/longvideo" || exit 1
   node generate-longscript.mjs --topic "$topic" --minutes 9 --brand "$brand" >> "$LOG" 2>&1
@@ -26,7 +25,9 @@ for entry in "${ENTRIES[@]}"; do
     echo "  [gen] failed ($GEN) — retrying once" >> "$LOG"
     node generate-longscript.mjs --topic "$topic" --minutes 9 --brand "$brand" >> "$LOG" 2>&1 || { echo "GEN FAIL $i" >> "$LOG"; exit 1; }
   fi
-  SLUG=$(ls -t out | head -1)
+  # #66: only directories are generated slugs — a stray file in out/ crashed storyboard.mjs
+  SLUG=$(find out -maxdepth 1 -mindepth 1 -type d -printf "%T@ %f
+" 2>/dev/null | sort -rn | head -1 | cut -d" " -f2-)
   echo "  [gen] slug=$SLUG" >> "$LOG"
 
   node storyboard.mjs "$SLUG" >> "$LOG" 2>&1 || { echo "STORYBOARD FAIL $i" >> "$LOG"; exit 1; }
