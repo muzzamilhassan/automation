@@ -285,8 +285,16 @@ async function postNext() {
     st = loadChannelState(slug);
     queue = (st.clipQueue && st.clipQueue.clips) || [];
     if (!queue.length) {
-      log(`clip queue still empty after ensure — Shorts skipped today (fail-closed, no recycle)`);
-      await sendAlert({ text: `${slug}: clip queue is EMPTY after a fresh ensure — no Short posted today. Check why docs are not producing (or why the SRT artifact is missing).`, title: `[${slug}] clip queue empty — Short skipped` });
+      // expected dry day (queue consumed, next doc day ahead) → silent skip;
+      // alert only when docs are STALE (weekly cadence broken = real problem)
+      const dd = st.deepdiveDate ? new Date(st.deepdiveDate).getTime() : 0;
+      const stale = !dd || (Date.now() - dd) > 8 * 86400000;
+      if (stale) {
+        log(`clip queue empty AND docs stale (last ${st.deepdiveDate || 'never'}) — alerting`);
+        await sendAlert({ text: `${slug}: clip queue is EMPTY after a fresh ensure AND docs are stale (last: ${st.deepdiveDate || 'never'}) — no Short posted today. Check doc production.`, title: `[${slug}] clip queue empty + stale docs — Short skipped` });
+      } else {
+        log(`queue consumed — next doc day will refill (last doc ${st.deepdiveDate}) — silent skip`);
+      }
       process.exit(0);
     }
   }
