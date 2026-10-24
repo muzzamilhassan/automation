@@ -58,7 +58,7 @@ let pageTokensCache = null;
 async function getPageToken(pageId) {
   if (!pageTokensCache) {
     pageTokensCache = {};
-    const res = await fetch(`https://graph.facebook.com/v20.0/me/accounts?fields=id,name,access_token&access_token=${FB_PAGE_TOKEN}`);
+    const res = await fetch(`https://graph.facebook.com/v20.0/me/accounts?fields=id,name,access_token&limit=500&access_token=${FB_PAGE_TOKEN}`);
     const data = await res.json();
     for (const p of data.data || []) pageTokensCache[p.id] = p.access_token;
   }

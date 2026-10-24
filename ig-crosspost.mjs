@@ -27,7 +27,7 @@ let tokensCache = null;
 async function getPageToken(pageId) {
   if (!tokensCache) {
     tokensCache = {};
-    const res = await fetch(`https://graph.facebook.com/v20.0/me/accounts?fields=id,name,access_token,instagram_business_account{username,id}&access_token=${encodeURIComponent(FB_PAGE_TOKEN)}`);
+    const res = await fetch(`https://graph.facebook.com/v20.0/me/accounts?fields=id,name,access_token,instagram_business_account{username,id}&limit=500&access_token=${encodeURIComponent(FB_PAGE_TOKEN)}`);
     const data = await res.json();
     for (const p of data.data || []) tokensCache[p.id] = { token: p.access_token, igId: p.instagram_business_account?.id || null };
   }
@@ -57,7 +57,7 @@ async function postIgReel(slug, videoBuffer, meta) {
   const creationId = createData.id;
 
   let status = 'IN_PROGRESS';
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 60; i++) { // #64: 6 min — longer encodes were dropped for the slot at 3 min
     await new Promise(r => setTimeout(r, 6000));
     const stRes = await fetch(`https://graph.facebook.com/v21.0/${creationId}?fields=status_code&access_token=${encodeURIComponent(pageToken)}`);
     status = (await stRes.json()).status_code;

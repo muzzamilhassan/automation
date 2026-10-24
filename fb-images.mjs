@@ -67,6 +67,9 @@ for (const job of MAP) {
   if (ONLY && job.slug !== ONLY) continue;
   const brand = b[job.slug];
   if (!brand) continue;
+  // #64: one bad LLM response or network hiccup must not kill the whole
+  // 4-page poster pass — every per-job failure skips only this page.
+  try {
   const st = loadState();
   if (st[job.slug]?.imageDate === new Date().toISOString().slice(0, 10) && !DRY) {
     console.log(`[fb-img] ${job.slug}: already posted today`); continue;
@@ -82,7 +85,9 @@ for (const job of MAP) {
 Hot keywords right now: ${trend.hotKeywords.join(', ') || brand.tags.slice(0, 4).join(', ')}.
 Return ONLY JSON: {"headline":"punchy <=5 word line in title case (MUST fit 3 short lines)","insight":"1-2 short sentences (max 25 words) that make the reader feel smarter"}`;
   console.log(`[fb-img] ${job.slug}: writing poster...`);
-  const post = await llmJSON(prompt);
+  let post;
+  try { post = await llmJSON(prompt); } catch (e) { console.log(`[fb-img] ${job.slug}: LLM failed — skipping page: ${String(e.message).slice(0, 80)}`); continue; }
+  if (!post?.headline || !post?.insight) { console.log(`[fb-img] ${job.slug}: LLM returned no usable post — skipping page`); continue; }
   console.log(`[fb-img] poster text: "${post.headline}"`);
 
   const out = `demos/fb-img-${job.slug}.jpg`;
@@ -99,8 +104,10 @@ Return ONLY JSON: {"headline":"punchy <=5 word line in title case (MUST fit 3 sh
     continue;
   }
 
-  const pageTokenRes = await fetch(`https://graph.facebook.com/v20.0/me/accounts?fields=access_token&access_token=${process.env.FB_PAGE_TOKEN}`);
-  const pages = (await pageTokenRes.json()).data || [];
+  const pageTokenRes = await fetch(`https://graph.facebook.com/v20.0/me/accounts?fields=access_token&limit=500&access_token=${process.env.FB_PAGE_TOKEN}`);
+  const pj = await pageTokenRes.json().catch(() => ({}));
+  if (pj.error) throw new Error(`me/accounts: ${String(pj.error.message).slice(0, 80)}`);
+  const pages = pj.data || [];
   const pt = pages.find(p => p.id === job.pageId)?.access_token || process.env.FB_PAGE_TOKEN;
   const form = new FormData();
   form.append('source', new Blob([fs.readFileSync(out)], { type: 'image/jpeg' }), 'post.jpg');
@@ -115,6 +122,9 @@ Return ONLY JSON: {"headline":"punchy <=5 word line in title case (MUST fit 3 sh
     saveChannelState(job.slug, st2[job.slug]);
   } else {
     console.log(`  ✗ FB image failed:`, JSON.stringify(data).slice(0, 140));
+  }
+  } catch (e) {
+    console.log(`[fb-img] ${job.slug}: page failed — continuing: ${String(e.message).slice(0, 100)}`);
   }
 }
 function saveState(s) { fs.writeFileSync(stateFile, JSON.stringify(s, null, 2)); }

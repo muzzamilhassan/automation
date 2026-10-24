@@ -66,6 +66,10 @@ async function refreshLongLivedToken(token) {
 async function getThreadsToken() {
   const envToken = envOf('THREADS_ACCESS_TOKEN');
   if (envToken) {
+    // #64: the CI secret cannot auto-refresh (no writable token file) and
+    // hard-expires in 60 days — say so loudly every run instead of failing
+    // silently at day 61.
+    console.warn('[Threads] CI THREADS_ACCESS_TOKEN in use — it hard-expires 60 days after creation; regenerate it before then (local auth can auto-refresh instead).');
     return { token: envToken, userId: envOf('THREADS_USER_ID'), persistent: false };
   }
 
@@ -75,6 +79,10 @@ async function getThreadsToken() {
   // Auto-refresh when < 10 days of the 60-day lifetime remain (local runs only,
   // where we can persist the new token back to the file)
   const expiresAt = file.expires_at || 0;
+  if (!APP_SECRET || !expiresAt) {
+    // #64: refresh requires BOTH — warn instead of silently hard-expiring
+    console.warn('[Threads] token auto-refresh disabled: needs APP_SECRET and expires_at in the token file — the token WILL hard-expire without refresh.');
+  }
   if (APP_SECRET && expiresAt && expiresAt - Date.now() < 10 * 24 * 3600 * 1000) {
     try {
       const refreshed = await refreshLongLivedToken(file.access_token);
@@ -128,7 +136,7 @@ export async function hostImagePublicly(buffer, mime, filename) {
 async function pollVideoContainer(containerId, token) {
   // 09-21: video processing can take minutes AND transient API errors (rate
   // limits) must not abort — only an explicit FAILED status does.
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 120; i++) { // #64: 6 min — longer encodes were silently dropped for the day at 3 min
     try {
       const res = await fetch(`${API}/${containerId}?fields=status_code&access_token=${token}`);
       const data = await res.json();

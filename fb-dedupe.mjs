@@ -23,8 +23,15 @@ const PAGES = {
   for (const [name, id] of Object.entries(PAGES)) {
     const tk = tokens[id];
     if (!tk) { console.log(`${name}: no page token`); continue; }
-    const res = await fetch(`https://graph.facebook.com/v20.0/${id}/videos?fields=id,created_time,description,length&limit=100&access_token=${tk}`);
-    const vids = (await res.json()).data || [];
+    // #64: follow paging.next — the first-100 scan silently missed older dups
+    let vids = [];
+    let url = `https://graph.facebook.com/v20.0/${id}/videos?fields=id,created_time,description,length&limit=100&access_token=${tk}`;
+    for (let page = 0; url && page < 10; page++) {
+      const res = await fetch(url);
+      const j = await res.json().catch(() => ({}));
+      vids.push(...(j.data || []));
+      url = j.paging && j.paging.next;
+    }
     // group by description, but only treat as duplicates when the LENGTH also
     // matches (±3s) — same-template weekly compilations share descriptions but
     // are different videos and must be kept.
