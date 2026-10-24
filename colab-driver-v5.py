@@ -1,7 +1,7 @@
 # Colab MCP driver v5 — FOREGROUND generation (tab must stay open ~50 min).
 # Each finished track uploads to the GitHub release immediately (token via env),
 # so even a mid-run disconnect keeps completed tracks.
-import subprocess, json, sys, os, time, re
+import subprocess, json, sys, os, time, re, threading, queue, urllib.request
 
 UVX = r"C:\Users\Revnix\AppData\Roaming\Python\Python314\Scripts\uvx.exe"
 LOG = r"C:\Users\Revnix\Documents\youtube-automation\colab-run.log"
@@ -25,22 +25,30 @@ def log(s):
 send_id = 6000
 def send(obj): proc.stdin.write(json.dumps(obj) + "\n"); proc.stdin.flush()
 
+# #51: one persistent reader thread feeds a queue — readline() used to block
+# past any deadline when the colab-mcp server went silent without dying
+outq = queue.Queue()
+def _reader():
+    for line in proc.stdout:
+        outq.put(line)
+    outq.put(None)  # EOF sentinel
+threading.Thread(target=_reader, daemon=True).start()
+
 def rpc(method, params, timeout=120):
     global send_id
     send_id += 1
     rid = send_id
     send({"jsonrpc": "2.0", "id": rid, "method": method, "params": params})
     deadline = time.time() + timeout
-    while time.time() < deadline:
-        line = proc.stdout.readline()
-        if not line:
-            time.sleep(0.05)
-            if proc.poll() is not None: return {"error": "server died"}
-            continue
+    while True:
+        remaining = deadline - time.time()
+        if remaining <= 0: return {"error": "timeout"}
+        try: line = outq.get(timeout=min(remaining, 0.5))
+        except queue.Empty: continue
+        if line is None: return {"error": "server died"}  # EOF (#51: poll-aware)
         try: msg = json.loads(line)
         except: continue
         if msg.get("id") == rid: return msg
-    return {"error": "timeout"}
 
 log("=== driver v5 start ===")
 init_res = (rpc("initialize", {"protocolVersion": "2024-11-05", "capabilities": {},
@@ -105,7 +113,10 @@ def pip(args):
     r = subprocess.run([sys.executable, '-m', 'pip', 'install', '-Uq'] + args, capture_output=True, text=True)
     return r.returncode
 def test():
-    r = subprocess.run([sys.executable, '-c', 'from diffusers import AceStepPipeline'], capture_output=True, text=True)
+    # #50: the top-level import passes while from_pretrained's LAZY chain
+    # (diffusers.loaders.lora_pipeline -> torchao.quantization) fails — probe
+    # the deep chain so a bad pin is caught here, not after 70 minutes
+    r = subprocess.run([sys.executable, '-c', 'from diffusers import AceStepPipeline; import diffusers.loaders.lora_pipeline'], capture_output=True, text=True)
     return r.returncode == 0
 print('base install...')
 pip(['diffusers', 'soundfile', 'torchao'])
@@ -146,10 +157,6 @@ def upload(path, name):
     if not GH: return
     import urllib.request
     global _rel
-    try:
-        if _rel is None: raise FileNotFoundError
-    except NameError:
-        _rel = None
     h = {"Authorization": f"Bearer {GH}", "User-Agent": "colab-gen"}
     try:
         if _rel is None:
@@ -251,6 +258,12 @@ out = colab_exec(writer, 120)
 log("generate.py -> " + out[-100:])
 
 # ---- 3. token env + FOREGROUND run with long timeout (~65 min) ----
+# #50: validate the token BEFORE burning 70 minutes (a kernel restart wipes env)
+try:
+    pre = urllib.request.urlopen(urllib.request.Request("https://api.github.com/users/", headers={"Authorization": f"Bearer {pat}", "User-Agent": "colab-gen"}))
+    log("token pre-flight OK")
+except Exception as e:
+    log(f"FATAL: GITHUB_PAT invalid before run: {str(e)[:80]}"); sys.exit(4)
 log("step: launching generation FOREGROUND (up to ~65 min) — tab must stay open")
 launch_code = ("import os\n"
                "os.environ['GITHUB_TOKEN'] = " + repr(pat) + "\n"
@@ -265,7 +278,16 @@ except: pass
 if not cid: log("FATAL: no newCellId"); sys.exit(3)
 log("generation cell running — waiting for completion (this cell takes ~50-70 min)")
 res, txt = call_tool(run_tool["name"], {"cellId": cid}, 4200)
+if res.get("isError"): log("FATAL: generation cell errored -> " + txt[-200:]); sys.exit(5)
 log("generation cell finished -> " + txt[-300:])
+# #50: a 0-track run is a FAILURE, not "complete" (old code exited 0 on it)
+m = re.search(r"GENERATION_DONE (\d+)/(\d+)", txt or "")
+if not m:
+    log("FATAL: no GENERATION_DONE marker in output"); sys.exit(5)
+done_n, total_n = int(m.group(1)), int(m.group(2))
+if done_n == 0:
+    log(f"FATAL: 0/{total_n} tracks generated"); sys.exit(5)
+log(f"tracks generated: {done_n}/{total_n}")
 
 # ---- 4. upload any tracks not yet uploaded (belt) + summary ----
 log("final upload sweep")
@@ -284,7 +306,11 @@ upload_sweep = ("import os, glob, json, urllib.request\n"
                 "    req=urllib.request.Request(f'https://uploads.github.com/repos/{REPO}/releases/{rel[\"id\"]}/assets?name={name}', method='POST', data=open(f,'rb').read(), headers={'Authorization': f'Bearer {GH}', 'Content-Type': 'application/octet-stream', 'User-Agent': 'colab-gen'})\n"
                 "    urllib.request.urlopen(req); n+=1\n"
                 "print('sweep uploaded', n)")
+if not pat:
+    log("FATAL: sweep skipped — no GITHUB_PAT"); sys.exit(6)
 out = colab_exec(upload_sweep, 300)
 log("sweep -> " + out[-150:])
+if "sweep uploaded 0" in (out or "") and done_n < total_n:
+    log(f"FATAL: sweep uploaded 0 with {done_n}/{total_n} generated"); sys.exit(6)
 
-log("=== driver v5 complete ===")
+log(f"=== driver v5 complete ({done_n}/{total_n} tracks) ===")

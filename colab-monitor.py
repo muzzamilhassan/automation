@@ -21,28 +21,41 @@ proc = subprocess.Popen(
 
 send_id = 4000
 def send(obj): proc.stdin.write(json.dumps(obj) + "\n"); proc.stdin.flush()
+
+# #51: threaded reader + queue — readline() used to block past deadlines and
+# the init loop busy-spun at EOF without a poll() check
+import threading, queue as _q
+outq = _q.Queue()
+def _reader():
+    for line in proc.stdout:
+        outq.put(line)
+    outq.put(None)
+threading.Thread(target=_reader, daemon=True).start()
+
 def rpc(method, params, timeout=120):
     global send_id
     send_id += 1
     rid = send_id
     send({"jsonrpc": "2.0", "id": rid, "method": method, "params": params})
     deadline = time.time() + timeout
-    while time.time() < deadline:
-        line = proc.stdout.readline()
-        if not line:
-            if proc.poll() is not None: return {"error": "died"}
-            time.sleep(0.05); continue
+    while True:
+        remaining = deadline - time.time()
+        if remaining <= 0: return {"error": "timeout"}
+        try: line = outq.get(timeout=min(remaining, 0.5))
+        except _q.Empty: continue
+        if line is None: return {"error": "died"}  # EOF — server exited
         try: msg = json.loads(line)
         except: continue
         if msg.get("id") == rid: return msg
-    return {"error": "timeout"}
 
 send({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
     "protocolVersion": "2024-11-05", "capabilities": {},
     "clientInfo": {"name": "q", "version": "1.0"}}})
-deadline = time.time() + 120
-while time.time() < deadline:
-    line = proc.stdout.readline()
+init_deadline = time.time() + 120
+while time.time() < init_deadline:
+    try: line = outq.get(timeout=min(init_deadline - time.time(), 0.5))
+    except _q.Empty: continue
+    if line is None: print("FATAL: server died during init"); sys.exit(1)
     try:
         msg = json.loads(line)
         if msg.get("id") == 1:
