@@ -67,7 +67,14 @@ async function postIgReel(slug, videoBuffer, meta) {
   if (status !== 'FINISHED') { console.log('  ✗ IG: container not FINISHED —', status); return null; }
 
   const pubRes = await fetch(`https://graph.facebook.com/v21.0/${igId}/media_publish?creation_id=${creationId}&access_token=${encodeURIComponent(pageToken)}`, { method: 'POST' });
-  const pubData = await pubRes.json();
+  let pubData = await pubRes.json();
+  // #62: the publish POST may have landed while its response was lost — one
+  // retry against the SAME container (re-publishing a published container
+  // errors, it cannot duplicate) instead of recreating container + hosting
+  if (!pubData.id) {
+    await new Promise(r => setTimeout(r, 4000));
+    pubData = await fetch(`https://graph.facebook.com/v21.0/${igId}/media_publish?creation_id=${creationId}&access_token=${encodeURIComponent(pageToken)}`, { method: 'POST' }).then(r => r.json());
+  }
   if (pubData.id) { console.log(`  ✓ IG Reel PUBLISHED → @${(await getPageToken(pageId), '')}${meta.slug} (post ${pubData.id})`); return pubData.id; }
   console.log('  ✗ IG publish failed:', JSON.stringify(pubData).slice(0, 140));
   return null;
@@ -109,6 +116,27 @@ if (process.argv.includes('--one')) {
     const videoPath = path.resolve(meta.videoFile);
     if (!fs.existsSync(videoPath)) { console.log(`[ig] ${dir}: missing video for ${stampKey} — skipped`); continue; }
     let id = null;
+    // #62 idempotency: a lost media_publish response or a crash between post
+    // and mark must not double-publish — recent IG media captions are checked
+    // first (the caption carries the same meta text every run).
+    try {
+      const { token: dedupToken, igId: dedupIg } = await getPageToken(PAGE_MAP[meta.slug] || '');
+      if (dedupToken && dedupIg) {
+        const mRes = await fetch(`https://graph.facebook.com/v21.0/${dedupIg}/media?fields=caption&limit=15&access_token=${encodeURIComponent(dedupToken)}`);
+        const mJson = await mRes.json();
+        const want = meta.title || '';
+        const hit = (mJson.data || []).find((x) => want && String(x.caption || '').includes(want));
+        if (hit) {
+          console.log(`  = [ig] already published (media ${hit.id}) — marking done`);
+          st[dir] = st[dir] || { posted: [] };
+          st[dir].posted.push(stampKey);
+          if (st[dir].posted.length > 12) st[dir].posted = st[dir].posted.slice(-12);
+          saveSlotState(st);
+          try { fs.renameSync(metaFile, metaFile + '.done'); } catch (e) { console.log(`  ⚠ [ig] mark rename failed: ${e.message} — state marks it posted`); }
+          continue;
+        }
+      }
+    } catch { }
     for (let a = 1; a <= 2 && !id; a++) {
       try { id = await postIgReel(meta.slug, fs.readFileSync(videoPath), meta); }
       catch (e) { console.log(`  ✗ attempt ${a} network error: ${e.message}`); if (a < 2) await new Promise(r => setTimeout(r, 5000)); }
@@ -118,7 +146,7 @@ if (process.argv.includes('--one')) {
       st[dir].posted.push(stampKey);
       if (st[dir].posted.length > 12) st[dir].posted = st[dir].posted.slice(-12);
       saveSlotState(st);
-      try { fs.renameSync(metaFile, metaFile + '.done'); } catch {}
+      try { fs.renameSync(metaFile, metaFile + '.done'); } catch (e) { console.log(`  ⚠ [ig] mark rename failed: ${e.message} — state marks it posted`); }
       console.log(`[ig] ${dir}: slot reel posted (${stampKey})`);
     } else {
       console.log(`[ig] ${dir}: post failed — retrying at next slot`);

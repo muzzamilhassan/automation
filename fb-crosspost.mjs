@@ -77,6 +77,21 @@ function seoDescription(meta) {
   return `${hook}\n\n${body}\n\nFollow ${label} for daily ${kw}. ${hash}`.slice(0, 1200);
 }
 
+// #62: deterministic dedup — the page's recent videos are checked by exact
+// title before posting/retrying, so a lost-response upload can never be
+// posted twice and a crash between post and mark is caught on the next run.
+async function reelAlreadyPosted(slug, title) {
+  const pageId = PAGE_MAP[slug];
+  if (!pageId || !title) return null;
+  try {
+    const token = await getPageToken(pageId);
+    const r = await fetch(`https://graph.facebook.com/v20.0/${pageId}/videos?fields=title&limit=25&access_token=${encodeURIComponent(token)}`);
+    const j = await r.json();
+    const hit = (j.data || []).find((v) => v.title === title);
+    return hit ? hit.id : null;
+  } catch { return null; }
+}
+
 async function postReel(slug, videoBuffer, meta, publishAtIso) {
   const pageId = PAGE_MAP[slug];
   if (!pageId) { console.log(`[fb] no page mapping for ${slug} — skipped`); return null; }
@@ -158,17 +173,37 @@ for (const job of parsed) {
     console.log(`  ⚠ variant failed (${String(e.message).slice(0, 90)}) — posting original file`);
   }
   const usePath = fs.existsSync(variantPath) && fs.statSync(variantPath).size > 10000 ? variantPath : videoPath;
+  // #62 idempotency: a crash between post and mark, or a lost upload response,
+  // must not double-post — the page's recent titles are checked first.
+  const already = await reelAlreadyPosted(job.slug, job.meta.title);
+  if (already) {
+    console.log(`  = "${job.meta.title}" already on the page (id ${already}) — marking done`);
+    try { fs.renameSync(job.metaFile, job.metaFile + '.fb-done'); } catch { }
+    postedSlugs.add(job.slug);
+    continue;
+  }
   let id = null;
   for (let a = 1; a <= 2 && !id; a++) {
     try {
       id = await postReel(job.slug, fs.readFileSync(usePath), job.meta, job.meta.publishAt);
     } catch (e) {
       console.log(`  ✗ attempt ${a} network error: ${e.message}`);
+      // #62: the bytes may have landed even though the response was lost —
+      // never blind-retry a full video upload; check the page first.
+      const landed = await reelAlreadyPosted(job.slug, job.meta.title);
+      if (landed) { id = landed; console.log(`  = found landed upload after error (id ${landed})`); break; }
       if (a < 2) await new Promise(r => setTimeout(r, 5000));
     }
   }
   if (id) {
-    fs.renameSync(job.metaFile, job.metaFile + '.fb-done');
+    let marked = false;
+    for (let m = 1; m <= 3 && !marked; m++) {
+      try { fs.renameSync(job.metaFile, job.metaFile + '.fb-done'); marked = true; }
+      catch (e) {
+        if (m === 3) console.log(`  ✗ MARK FAILED after 3 tries: ${e.message} — re-runs are safe (title dedup)`);
+        else await new Promise(r => setTimeout(r, 1000));
+      }
+    }
     postedSlugs.add(job.slug);
     // same-day siblings: skip (they'd drip out 1/day otherwise)
     for (const other of parsed) {
