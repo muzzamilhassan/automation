@@ -220,7 +220,9 @@ try {
     fs.copyFileSync(path.join('tt-lf', `lf-${slug}.mp4`), path.join(feedDir, 'video.mp4'));
     if (fs.existsSync(path.join('tt-lf', `lf-srt-${slug}.srt`))) fs.copyFileSync(path.join('tt-lf', `lf-srt-${slug}.srt`), path.join(feedDir, 'episode.srt'));
     fs.copyFileSync(path.join('tt-lf', `lf-meta-${slug}.json`), path.join(feedDir, 'meta.json'));
-    if (run('longvideo/shorts-clips.mjs', ['ensure-queue', slug, '--local', feedDir, '--max', '2'])) {
+    // --max 4: 2 doc-days/week × 4 clips = 8/week supply for 7 short-days
+    // (#101) — 2/doc starved the queue ~3 days a week at daily Shorts cadence
+    if (run('longvideo/shorts-clips.mjs', ['ensure-queue', slug, '--local', feedDir, '--max', '4'])) {
       run('longvideo/shorts-clips.mjs', ['post-next', slug]);
     } else { errors.push('Doc-day clip feed failed'); log(`✗ doc-day clip feed failed`); }
   }

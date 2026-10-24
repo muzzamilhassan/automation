@@ -44,3 +44,18 @@ test('resolveBrand returns null for unknown slug (no silent substitution — iss
   const fallback = await resolveBrand('non-existent-channel-12345');
   assert.equal(fallback, undefined, 'unknown slugs must NOT silently resolve to quotequarry');
 });
+
+test('#101 skeleton registry row must not clobber the legacy kit authority', async () => {
+  // IC's wizard row (connect-first save) carries no niche/authority — the old
+  // registryToKit fabricated "everyday wisdom Wisdom" and the merge (registry
+  // wins) clobbered the legacy kit's 'Market Wisdom'. Live data regression.
+  const ic = await resolveBrand('investors-compass');
+  assert.equal(ic.authority, 'Market Wisdom', `skeleton registry entry must fall through to the legacy authority, got "${ic.authority}"`);
+});
+
+test('#101 registryToKit fabricates authority only from a real niche/theme', () => {
+  const skeleton = registryToKit({ slug: 'skeleton', label: 'SKELETON' });
+  assert.equal(skeleton.authority, undefined, 'no niche/theme -> no fabricated authority (merge falls through to legacy)');
+  const withNiche = registryToKit({ slug: 'niched', label: 'NICHED', niche: 'Value investing' });
+  assert.equal(withNiche.authority, 'Value investing Wisdom', 'real niche still fabricates the authority as before');
+});

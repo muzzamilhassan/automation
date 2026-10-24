@@ -1,7 +1,8 @@
 {
   "money-rulebook": {
     "docDays": [
-      "Thu"
+      "Thu",
+      "Sun"
     ],
     "shortDays": [
       "Mon",
@@ -13,12 +14,13 @@
       "Sun"
     ],
     "shortsSource": "clips",
-    "updated": "2026-10-23T08:45:00.000Z",
-    "updatedBy": "owner go — #101 flip (audit day)"
+    "updated": "2026-10-24T10:30:00.000Z",
+    "updatedBy": "owner go — #101 flip completion (all 4 channels, 2 doc-days/week)"
   },
   "debt-free-doctrine": {
     "docDays": [
-      "Fri"
+      "Fri",
+      "Mon"
     ],
     "shortDays": [
       "Mon",
@@ -30,19 +32,43 @@
       "Sun"
     ],
     "shortsSource": "clips",
-    "updated": "2026-10-23T08:45:00.000Z",
-    "updatedBy": "owner go — #101 flip (audit day)"
+    "updated": "2026-10-24T10:30:00.000Z",
+    "updatedBy": "owner go — #101 flip completion (all 4 channels, 2 doc-days/week)"
   },
   "quotequarry": {
     "docDays": [
-      "Sat"
+      "Sat",
+      "Wed"
     ],
     "shortDays": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
       "Sat",
       "Sun"
     ],
     "shortsSource": "clips",
-    "updated": "2026-10-23T17:51:53.267Z",
-    "updatedBy": "muzzamilhassan302@gmail.com"
+    "updated": "2026-10-24T10:30:00.000Z",
+    "updatedBy": "owner go — #101 flip completion (all 4 channels, 2 doc-days/week)"
+  },
+  "investors-compass": {
+    "docDays": [
+      "Wed",
+      "Sun"
+    ],
+    "shortDays": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat",
+      "Sun"
+    ],
+    "shortsSource": "clips",
+    "updated": "2026-10-24T10:30:00.000Z",
+    "updatedBy": "owner go — #101 flip completion (all 4 channels, 2 doc-days/week)"
   }
 }
