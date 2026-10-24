@@ -106,7 +106,10 @@ async def _edge(text, mp3_path):
     import edge_tts
 
     words = []
-    communicate = edge_tts.Communicate(text, "en-US-ChristopherNeural",
+    # #14: honor the channel voice — kokoro names (am_michael) are edge-style
+    # identifiers, so the same kit voice works here; the hardcoded Christopher
+    # Neural ignored every channel's brand voice on the edge fallback path
+    communicate = edge_tts.Communicate(text, os.environ.get("YT_EDGE_VOICE") or KOKORO_VOICE,
                                        rate="+2%", boundary="WordBoundary")
     with open(mp3_path, "wb") as f:
         async for chunk in communicate.stream():
