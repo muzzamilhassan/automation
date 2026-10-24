@@ -1,6 +1,6 @@
 {
   "investors-compass": {
-    "lastRunDate": "2026-10-23",
+    "lastRunDate": "2026-10-24",
     "usedThemes": [
       "how the rich buy the crash",
       "the 90-year rule that beats day trading",
@@ -8,9 +8,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "rHp-cj9VwGo",
-        "publishAt": "2026-10-23T22:35:00Z",
-        "title": "The 1000-Pound Gorilla | everyday wisdom Wisdom"
+        "videoId": "R_04s0cJIzo",
+        "publishAt": "2026-10-24T22:35:00Z",
+        "title": "The Wealth Rule Nobody Talks About | everyday wisdom Wisdom"
       }
     ],
     "imageDate": "2026-10-17",
@@ -56,12 +56,13 @@
       "AMERICANS CELEBRATE CRASH OF INDIAN STOCK MARKET | So Much Hate For Bharat? | By Prashant Dhawan",
       "We've Never Seen This Stock Market Signal Since the Great Depression",
       "Still Waiting For the Market Crash? Watch This Right Now | Weekend Investing | Alok Jain",
-      "ยอมตกรถ ดีกว่าติดดอย! ลงทุนสไตล์ VI ในยุคหุ้น AI ยังไงให้รอด? | Money Matters EP.341"
+      "ยอมตกรถ ดีกว่าติดดอย! ลงทุนสไตล์ VI ในยุคหุ้น AI ยังไงให้รอด? | Money Matters EP.341",
+      "How do Strong Process and Risk Management Help to Manage Investments Better Nippon India Mutual Fund"
     ],
     "todayTopics": [
       {
-        "at": "2026-10-23",
-        "topic": "ยอมตกรถ ดีกว่าติดดอย! ลงทุนสไตล์ VI ในยุคหุ้น AI ยังไงให้รอด? | Money Matters EP.341"
+        "at": "2026-10-24",
+        "topic": "How do Strong Process and Risk Management Help to Manage Investments Better Nippon India Mutual Fund"
       }
     ],
     "titleHistory": [
@@ -84,6 +85,10 @@
       {
         "t": "The 1000-Pound Gorilla | everyday wisdom Wisdom",
         "at": "2026-10-23T22:35:00Z"
+      },
+      {
+        "t": "The Wealth Rule Nobody Talks About | everyday wisdom Wisdom",
+        "at": "2026-10-24T22:35:00Z"
       }
     ],
     "cooldownSeeds": [
@@ -91,7 +96,7 @@
       "Still Waiting For the Market Crash? Watch This Right Now | Weekend Investing | Alok Jain"
     ],
     "uploadsToday": {
-      "date": "2026-10-23",
+      "date": "2026-10-24",
       "count": 1
     }
   },
