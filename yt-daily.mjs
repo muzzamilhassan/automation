@@ -85,7 +85,9 @@ function validateUploadOrSkip(file, title, log = () => {}) {
 // 09-20: per-channel state files are the source of truth (lib/state.mjs) —
 // the shared schedule-state.json is a best-effort mirror for read-only consumers.
 const loadState = () => loadAllStates();
-const saveState = (s) => { for (const [k, v] of Object.entries(s)) saveChannelState(k, v); };
+// #55: write ONLY this run's slug — writing back the whole merged snapshot
+// clobbered concurrent channels' fresher state (staggered crons overlap).
+const saveState = () => saveChannelState(slug, state[slug]);
 
 function nextSlotISO(hhmm, now = new Date()) {
   const [h, m] = hhmm.split(':').map(Number);
@@ -363,7 +365,7 @@ if (RUN_SHORTS) {
       titleHistory: [...(state[slug]?.titleHistory || []), ...results.filter(r => r.videoId).map(r => ({ t: r.title, at: r.publishAt }))].slice(-60),
       lastVideos: results, deepdiveDate: state[slug]?.deepdiveDate || null
     };
-    saveState(state);
+    saveState();
   }
   // #35: failed slots must not look like success — the state above already
   // carries this run's error markers (so verify-run reports THIS run
