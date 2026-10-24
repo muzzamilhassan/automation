@@ -13,6 +13,8 @@ export const PROVIDERS = {
   openai:   { env: 'OPENAI_API_KEY',   label: 'OpenAI',                     url: 'https://platform.openai.com/api-keys',          hint: 'voice + transcription' },
   pixabay:  { env: 'PIXABAY_API_KEY',  label: 'Pixabay',                    url: 'https://pixabay.com/api/docs/',                 hint: '4K footage + photos' },
   pexels:   { env: 'PEXELS_API_KEY',   label: 'Pexels',                     url: 'https://www.pexels.com/api/',                   hint: 'documentary photos' },
+  openrouter: { env: 'OPENROUTER_API_KEY', label: 'OpenRouter',               url: 'https://openrouter.ai/keys',                    hint: '200+ models, one key (#28)' },
+  elevenlabs: { env: 'ELEVENLABS_API_KEY', label: 'ElevenLabs',             url: 'https://elevenlabs.io/app/api-keys',            hint: 'voice cloning & premium narration (#29)' },
 };
 
 export function keysEncKey() {
@@ -69,6 +71,12 @@ export async function validateKey(provider, key) {
         break;
       case 'openai':
         r = await bearer('https://api.openai.com/v1/models');
+        break;
+      case 'openrouter': // #28: OpenAI-compatible — one key, 200+ models
+        r = await bearer('https://openrouter.ai/api/v1/models');
+        break;
+      case 'elevenlabs': // #29: xi-api-key header auth
+        r = await withTimeout(fetch('https://api.elevenlabs.io/v1/user', { headers: { 'xi-api-key': k } }), 12000);
         break;
       case 'hf': {
         r = await bearer('https://huggingface.co/api/whoami-v2');
