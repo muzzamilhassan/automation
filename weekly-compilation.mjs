@@ -186,6 +186,20 @@ function resolvePython() {
   throw new Error('python not found');
 }
 
+// #43: DAILY double-post guard — the old check scanned fetchTopShorts output,
+// which (a) maps away `snippet` entirely and (b) filters to Shorts-length
+// (<= 180s) videos, so a published compilation could never be seen. Walk the
+// uploads playlist directly instead.
+async function compilationAlreadyLive(youtube, today) {
+  const ch = await youtube.channels.list({ part: 'contentDetails', mine: true });
+  const up = ch.data.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+  if (!up) return null;
+  const pl = await youtube.playlistItems.list({ part: 'snippet', playlistId: up, maxResults: 10 });
+  return (pl.data.items || [])
+    .map((i) => i.snippet)
+    .find((s) => s?.title?.includes('Daily Compilation') && String(s.publishedAt || '').startsWith(today)) || null;
+}
+
 // ---------------------------------------------------------------------------
 // 3. Main
 // ---------------------------------------------------------------------------
@@ -195,8 +209,8 @@ const shorts = await fetchTopShorts(youtube);
 // dedupe: if today's daily compilation is already on the channel, stop
 if (DAILY && !TEST) {
   const today = pktDate();
-  const dup = shorts.find((v) => v.snippet?.title?.includes('Daily Compilation') && v.snippet?.publishedAt?.startsWith(today));
-  if (dup && !FB_ONLY) { console.log(`Daily compilation for ${today} already live (${dup.snippet.title}) — skipping YouTube upload.`); process.exit(0); }
+  const dup = await compilationAlreadyLive(youtube, today);
+  if (dup && !FB_ONLY) { console.log(`Daily compilation for ${today} already live ("${dup.title}") — skipping YouTube upload.`); process.exit(0); }
   if (dup && FB_ONLY) console.log('YT already live — fb-only: distributing to Facebook pages.');
 }
 
