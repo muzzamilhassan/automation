@@ -37,7 +37,11 @@ for (const slug of CHANNELS) {
   try {
     const y = google.youtube({ version: 'v3', auth: channelAuth(slug) });
     const r = await y.channelSections.list({ part: 'snippet,contentDetails', mine: true });
-    const cross = (r.data.items || []).filter((s) => (s.contentDetails?.channels || []).length > 0);
+    // #54: only the documented funnel sections — a legit "featured channels"
+    // section (also has contentDetails.channels) must survive
+    const cross = (r.data.items || []).filter((s) =>
+      (s.contentDetails?.channels || []).length > 0 &&
+      /quarry studios/i.test(s.snippet?.title || ''));
     if (!cross.length) { console.log(`✓ [${slug}] no cross-channel sections — nothing to do`); continue; }
     for (const s of cross) {
       console.log(`[${slug}] found section "${s.snippet?.title || s.id}" → channels: ${(s.contentDetails.channels || []).join(', ')}`);
@@ -48,6 +52,9 @@ for (const slug of CHANNELS) {
       if (!DRY) {
         await y.channelSections.delete({ id: s.id });
         console.log(`  ✓ deleted ${s.id}`);
+        // #54: persist immediately — the old write-once-at-end lost every
+        // deleted id if the run died mid-loop (restore then impossible)
+        fs.writeFileSync('yt-mcp/funnel-backup.json', JSON.stringify(backup, null, 2));
       } else {
         console.log(`  (dry-run — kept)`);
       }
