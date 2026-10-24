@@ -44,16 +44,23 @@ jobs:
 
       - name: Write brief
         working-directory: hyperframes
+        env:
+          # #56: inputs via env — the Python reads os.environ, no shell interpolation
+          INPUT_TOPIC: ${{ inputs.topic }}
+          INPUT_PACK: ${{ inputs.pack }}
+          INPUT_MINUTES: ${{ inputs.minutes }}
+          INPUT_BRAND: ${{ inputs.brand }}
+          INPUT_KICKER: ${{ inputs.kicker }}
         run: |
           mkdir -p work
           python3 - <<PY
-          import json
-          topic = "${{ inputs.topic }}"
+          import json, os
+          topic = os.environ["INPUT_TOPIC"]
           slug = 'cb-' + ''.join(c for c in topic.lower().replace(' ', '-') if c.isalnum() or c == '-')[:40]
           brief = {
-            'slug': slug, 'topic': topic, 'pack': '${{ inputs.pack }}',
-            'minutes': float('${{ inputs.minutes }}'), 'brand': '${{ inputs.brand }}',
-            'subline': 'Code, explained simply', 'kicker': '${{ inputs.kicker }}',
+            'slug': slug, 'topic': topic, 'pack': os.environ["INPUT_PACK"],
+            'minutes': float(os.environ.get("INPUT_MINUTES") or 10), 'brand': os.environ["INPUT_BRAND"],
+            'subline': 'Code, explained simply', 'kicker': os.environ["INPUT_KICKER"],
             'voice': 'en-US-AndrewNeural', 'width': 1920, 'height': 1080,
           }
           json.dump(brief, open(f'work/{slug}.brief.json', 'w'), indent=1)
@@ -85,10 +92,13 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          # #56: inputs via env
+          INPUT_TOPIC: ${{ inputs.topic }}
+          INPUT_BRAND: ${{ inputs.brand }}
         run: |
-          TOPIC="${{ inputs.topic }}"
+          TOPIC="$INPUT_TOPIC"
           case "$TOPIC" in *" vs "*) KIND=vs ;; *) KIND=sense ;; esac
-          node gen-pack.mjs --topic "$TOPIC" --kind "$KIND" --brand "${{ inputs.brand }}" --out "work/${{ steps.out.outputs.slug }}/pack" 2>&1 | tail -4
+          node gen-pack.mjs --topic "$TOPIC" --kind "$KIND" --brand "$INPUT_BRAND" --out "work/${{ steps.out.outputs.slug }}/pack" 2>&1 | tail -4
 
       - name: Publish result to hf-out/tech/
         run: |

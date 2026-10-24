@@ -64,16 +64,25 @@ jobs:
           LONGVIDEO_GROQ_API_KEY: ${{ secrets.LONGVIDEO_GROQ_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          # #56: inputs via env — argv reads quoted shell vars, no direct interpolation
+          INPUT_SLUG: ${{ inputs.slug }}
+          INPUT_THEME: ${{ inputs.theme }}
+          INPUT_TITLE: ${{ inputs.title }}
+          INPUT_TOPIC: ${{ inputs.topic }}
+          INPUT_BRAND: ${{ inputs.brand }}
+          INPUT_EYEBROW: ${{ inputs.eyebrow }}
+          INPUT_QUERIES: ${{ inputs.queries }}
+          INPUT_VOICE: ${{ inputs.voice }}
         run: |
           node make-demo.mjs \
-            --slug "${{ inputs.slug }}" \
-            --theme "${{ inputs.theme }}" \
-            --title "${{ inputs.title }}" \
-            --topic "${{ inputs.topic }}" \
-            --brand "${{ inputs.brand }}" \
-            --eyebrow "${{ inputs.eyebrow }}" \
-            --queries "${{ inputs.queries }}" \
-            --voice "${{ inputs.voice }}"
+            --slug "$INPUT_SLUG" \
+            --theme "$INPUT_THEME" \
+            --title "$INPUT_TITLE" \
+            --topic "$INPUT_TOPIC" \
+            --brand "$INPUT_BRAND" \
+            --eyebrow "$INPUT_EYEBROW" \
+            --queries "$INPUT_QUERIES" \
+            --voice "$INPUT_VOICE"
 
       - name: Upload finished video
         uses: actions/upload-artifact@v4

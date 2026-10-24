@@ -21,8 +21,15 @@ jobs:
   render:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      # #56: dispatch inputs pass through env — never interpolated into run shell
+      JOB_ID: ${{ inputs.job_id }}
+      BRIEF_B64: ${{ inputs.brief_b64 }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Validate job id (#56 — the Studio route sanitizes; the workflow must not trust it)
+        run: '[[ "$JOB_ID" =~ ^[a-z0-9-]+$ ]] || { echo "job_id must match ^[a-z0-9-]+$"; exit 1; }' 
 
       - uses: actions/setup-node@v4
         with:
@@ -35,8 +42,8 @@ jobs:
         working-directory: hyperframes
         run: |
           mkdir -p work   # work/ is gitignored — every dispatch runs on a fresh checkout (issue #70)
-          echo "${{ inputs.brief_b64 }}" | base64 -d > "work/${{ inputs.job_id }}.brief.json"
-          python3 -c "import json;json.load(open('work/${{ inputs.job_id }}.brief.json'))" && echo "brief JSON valid"
+          printf '%s' "$BRIEF_B64" | base64 -d > "work/$JOB_ID.brief.json"
+          python3 -c "import json;json.load(open('work/$JOB_ID.brief.json'))" && echo "brief JSON valid"
 
       - name: Generate video (script -> design brain -> check gate -> render -> frame validation)
         working-directory: hyperframes
@@ -46,20 +53,20 @@ jobs:
           CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: node generate.mjs "work/${{ inputs.job_id }}.brief.json"
+        run: node generate.mjs "work/$JOB_ID.brief.json"
 
       - name: Locate output
         id: out
-        working-directory: hyperframes/work/${{ inputs.job_id }}
+        working-directory: hyperframes/work/${{ env.JOB_ID }}
         run: |
           MP4=$(ls gen/renders/*.mp4 fallback/renders/*.mp4 2>/dev/null | head -1)
           echo "mp4=$MP4" >> "$GITHUB_OUTPUT"
           echo "rendered: $MP4"
 
       - name: Publish result to hf-out/
-        working-directory: hyperframes/work/${{ inputs.job_id }}
+        working-directory: hyperframes/work/${{ env.JOB_ID }}
         run: |
-          ID="${{ inputs.job_id }}"
+          ID="$JOB_ID"
           ROOT="$GITHUB_WORKSPACE"
           mkdir -p "$ROOT/hf-out/$ID"
           cp "${{ steps.out.outputs.mp4 }}" "$ROOT/hf-out/$ID/video.mp4"
@@ -90,7 +97,7 @@ jobs:
         if: failure()
         working-directory: .
         run: |
-          ID="${{ inputs.job_id }}"
+          ID="$JOB_ID"
           mkdir -p "hf-out/$ID"
           python3 - "$ID" <<'PY'
           import json, sys, datetime
