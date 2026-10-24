@@ -265,13 +265,18 @@ if (RUN_SHORTS) {
     const meta = buildScriptMeta(page, script, music ? `${music.title} — ${music.credit}` : '');
 
     const stamp = `${Date.now()}-s${i}`;
+    // #53: the .json is the FB/IG cross-post pickup marker — it is written
+    // only after both gates pass, so a rejected render can never be
+    // scheduled downstream. The .mp4 alone (no .json) is invisible to the
+    // drain loops and gets unlinked on rejection.
     fs.mkdirSync(`fb-outbox/${slug}`, { recursive: true });
-    fs.writeFileSync(`fb-outbox/${slug}/${stamp}.mp4`, out.buffer);
-    fs.writeFileSync(`fb-outbox/${slug}/${stamp}.json`, JSON.stringify({ videoFile: `fb-outbox/${slug}/${stamp}.mp4`, publishAt, title: meta.title, description: meta.description, tags: meta.tags, slug }, null, 2));
+    const mp4Path = `fb-outbox/${slug}/${stamp}.mp4`;
+    fs.writeFileSync(mp4Path, out.buffer);
 
-    if (!validateUploadOrSkip(`fb-outbox/${slug}/${stamp}.mp4`, meta.title, (m) => console.log(m))) {
+    if (!validateUploadOrSkip(mp4Path, meta.title, (m) => console.log(m))) {
       if (themesToday[i]?.seed) rejectedSeeds.push(themesToday[i].seed); // cool the source (#91)
       results.push({ videoId: null, publishAt, title: meta.title, gateRejected: true });
+      try { fs.unlinkSync(mp4Path); } catch { }
       continue;
     }
     // GATE: final check on the exact upload title (meta can reword script.title)
@@ -280,8 +285,10 @@ if (RUN_SHORTS) {
       console.log(`  GATE: duplicate upload title "${meta.title}" ≈ "${metaDup}" — upload skipped`);
       if (themesToday[i]?.seed) rejectedSeeds.push(themesToday[i].seed); // cool the source (#91)
       results.push({ videoId: null, publishAt, title: meta.title, gateRejected: true });
+      try { fs.unlinkSync(mp4Path); } catch { }
       continue;
     }
+    fs.writeFileSync(`fb-outbox/${slug}/${stamp}.json`, JSON.stringify({ videoFile: mp4Path, publishAt, title: meta.title, description: meta.description, tags: meta.tags, slug }, null, 2));
     seenThisRun.push(meta.title);
     const res = await yt.videos.insert({
       part: ['snippet', 'status'],
