@@ -29,6 +29,7 @@ const { resolveBrand } = await import('./lib/brand-resolve.mjs');
 const { researchTrend } = await import('./trend-research.mjs');
 const { archiveUpload } = await import('./yt-archive.mjs');
 const { recentUploadTitles, findDup } = await import('./lib/dup-gate.mjs');
+const { shouldSuppressNext } = await import('./lib/schedule.mjs');
 import { nextCounter } from './lib/quota-ledger.mjs';
 
 const slug = process.argv[2];
@@ -344,10 +345,12 @@ if (RUN_SHORTS) {
   }
   if (!EPISODE_ONLY) {
     // Heal run with produced reels covers the next cycle — suppress the morning
-    // full run. Heal that produced 0 keeps today, so tomorrow morning retries.
-    // #35: error-marker slots must not suppress tomorrow's retry — only real
-    // uploads earn the suppress.
-    const suppressNext = TOPUP_N > 0 && results.some((r) => r.videoId);
+    // full run ONLY when tomorrow's slots are actually covered by healed reels
+    // (#37: the old any-result rule suppressed after a reel landed TODAY,
+    // causing day-on/day-off oscillation; partial tomorrow-coverage no longer
+    // blanks the whole day). #35: error/gate slots never count.
+    const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const suppressNext = TOPUP_N > 0 && shouldSuppressNext(results, b.slots.length, tomorrowStr);
     state[slug] = {
       ...(state[slug] || {}),
       lastRunDate: suppressNext ? new Date(Date.now() + 86400000).toISOString().slice(0, 10) : today,
