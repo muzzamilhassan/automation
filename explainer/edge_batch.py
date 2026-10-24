@@ -4,6 +4,7 @@
 # Input:  beats JSON path  [{ "i": int, "text": str }, ...]
 # Output: durations JSON   [{ "i": int, "ms": float, "words": [...] }] (+ audio/beat-XX.mp3)
 import asyncio
+import hashlib
 import json
 import os
 import subprocess
@@ -18,6 +19,10 @@ _WIN_FF = os.path.join(ROOT, "ffmpeg-bin", "ffmpeg-master-latest-win64-gpl", "bi
 _WIN_FP = os.path.join(ROOT, "ffmpeg-bin", "ffmpeg-master-latest-win64-gpl", "bin", "ffprobe.exe")
 FF = os.environ.get("EXPLAINER_FFMPEG") or (_WIN_FF if os.path.exists(_WIN_FF) else "ffmpeg")
 FFPROBE = os.environ.get("EXPLAINER_FFPROBE") or (_WIN_FP if os.path.exists(_WIN_FP) else "ffprobe")
+
+def _hash(text):
+    # #41: resume cache key — re-derive word timings only when the beat text is unchanged
+    return hashlib.sha256(str(text).encode("utf8")).hexdigest()[:16]
 
 
 async def synth_one(edge_tts, text, mp3_path):
@@ -64,6 +69,17 @@ async def main():
     with open(beats_path, encoding="utf8") as f:
         beats = json.load(f)
 
+    # #41: sidecar with per-beat word timings — the resume path used to return
+    # words: [] for cached beats, silently destroying caption word-boundary timing
+    words_cache_path = os.path.join(base, "tts-durations.words.json")
+    words_cache = {}
+    if os.path.exists(words_cache_path):
+        try:
+            with open(words_cache_path, encoding="utf8") as f:
+                words_cache = json.load(f)
+        except Exception:
+            words_cache = {}
+
     ffprobe = FFPROBE
     results = []
     for b in beats:
@@ -71,17 +87,23 @@ async def main():
         # resume: keep existing good audio
         if os.path.exists(mp3) and os.path.getsize(mp3) > 10 * 1024:
             ms = probe_ms(ffprobe, mp3)
-            results.append({"i": b["i"], "ms": ms, "words": []})
-            print(f"  [tts] beat {b['i']:02d}: cached {ms/1000:.1f}s", flush=True)
+            cached = words_cache.get(str(b["i"])) or {}
+            cached_words = cached.get("words") or [] if cached.get("textHash") == _hash(b["text"]) else []
+            results.append({"i": b["i"], "ms": ms, "words": cached_words})
+            print(f"  [tts] beat {b['i']:02d}: cached {ms/1000:.1f}s ({len(cached_words)} words)", flush=True)
             continue
         words = []
-        ok = True
+        ok = False
         for attempt in range(3):
             try:
                 words = await synth_one(edge_tts, b["text"], mp3)
+                # #41: success must clear the failure flag — the old code set
+                # ok=True once BEFORE the loop, so a beat whose attempt 1 failed
+                # but attempt 2/3 succeeded still hit the silence branch and
+                # OVERWROTE the just-written good mp3 with 8s of dead air.
+                ok = True
                 break
             except Exception as e:
-                ok = False
                 print(f"  [tts] beat {b['i']:02d} retry {attempt + 1}: {str(e)[:90]}", flush=True)
                 await asyncio.sleep(2 * (attempt + 1))
         if not ok or not os.path.exists(mp3) or os.path.getsize(mp3) < 2048:
@@ -91,12 +113,16 @@ async def main():
                 print(f"  [tts] beat {b['i']:02d}: silence placeholder failed: {str(e)[:60]}", flush=True)
             words = []
             print(f"  [tts] beat {b['i']:02d}: SILENT PLACEHOLDER (network)", flush=True)
+        if ok and words:
+            words_cache[str(b["i"])] = {"textHash": _hash(b["text"]), "words": words}
         dur = (words[-1]["s"] + words[-1]["d"]) if words else probe_ms(ffprobe, mp3) / 1000 or 8.0
         results.append({"i": b["i"], "ms": round(dur * 1000), "words": words})
         print(f"  [tts] beat {b['i']:02d}: {len(words)} words, {dur:.1f}s", flush=True)
 
     with open(os.path.join(base, "tts-durations.json"), "w", encoding="utf8") as f:
         json.dump(results, f)
+    with open(words_cache_path, "w", encoding="utf8") as f:
+        json.dump(words_cache, f)
     print("[tts] all beats done", flush=True)
 
 
