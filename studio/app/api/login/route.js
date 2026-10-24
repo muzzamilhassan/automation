@@ -29,6 +29,10 @@ export async function POST(req) {
   await recordLoginAttempt(ip, true);
 
   const ua = (req.headers.get('user-agent') || '').slice(0, 200);
+  // #58: fail closed — without STUDIO_PASSWORD the session signer refuses
+  if (!process.env.STUDIO_PASSWORD) {
+    return Response.json({ error: 'login is unavailable: STUDIO_PASSWORD is not configured on the server' }, { status: 503 });
+  }
   // the owner's REAL email comes from the invite list (sessions/audit show it;
   // the email='owner' placeholder broke the sessions list guard)
   const ownerUser = (await accessList().catch(() => [])).find((u) => u.role === 'owner') || { email: 'owner', role: 'owner', name: 'Owner' };

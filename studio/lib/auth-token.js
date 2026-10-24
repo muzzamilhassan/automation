@@ -11,9 +11,11 @@ export async function authToken(password) {
 // 10-05: HMAC for connect links — state the callback can verify in ANY browser
 // without a Studio session (only Studio can mint these; they expire).
 export async function hmacToken(payload, keyMaterial) {
+  // #58: no in-repo fallback key — callers must pass real secret material
+  if (!keyMaterial) throw new Error('hmac key material missing');
   const key = await crypto.subtle.importKey(
     'raw',
-    new TextEncoder().encode(keyMaterial || 'quarry-connect'),
+    new TextEncoder().encode(keyMaterial),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign'],

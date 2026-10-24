@@ -34,7 +34,9 @@ export default async function proxy(req) {
   const claims = await parseSessionCookie(sessCookie);
   if (claims && Number(claims.x) > Date.now()) role = claims.r;
   else {
-    const legacy = req.cookies.get(COOKIE)?.value;
+    // #58: fail closed — with no configured password the legacy qs_key check
+    // compared against the hash of a fixed string (== owner for anyone)
+    const legacy = password ? req.cookies.get(COOKIE)?.value : null;
     if (legacy && legacy === (await authToken(password))) role = 'owner';
   }
   if (!role) {

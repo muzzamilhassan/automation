@@ -38,8 +38,13 @@ export async function GET(req) {
 
   // link mode: signed expiring state (L.<expiry>.<hmac>) — the callback can
   // verify it in ANY browser; no cookie, no server-side storage.
+  // #58: fail closed — without STUDIO_PASSWORD the link cannot be signed
+  if (!process.env.STUDIO_PASSWORD) {
+    return Response.json({ error: 'connect links are unavailable: STUDIO_PASSWORD is not configured on the server' }, { status: 503 });
+  }
   const state = linkMode
-    ? `L.${Date.now() + 15 * 60 * 1000}.${await hmacToken(String(Date.now() + 15 * 60 * 1000), process.env.STUDIO_PASSWORD || clientSecret)}`
+    // #58: connect links sign with STUDIO_PASSWORD only — never CI-held secrets
+    ? `L.${Date.now() + 15 * 60 * 1000}.${await hmacToken(String(Date.now() + 15 * 60 * 1000), process.env.STUDIO_PASSWORD)}`
     : crypto.randomUUID().replace(/-/g, '');
 
   const params = new URLSearchParams({

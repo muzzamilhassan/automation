@@ -56,7 +56,8 @@ async function handle(req) {
   let linkMode = false;
   const m = /^L\.(\d+)\.([a-f0-9]{64})$/.exec(state);
   if (m) {
-    const key = process.env.STUDIO_PASSWORD || ENV.YOUTUBE_CLIENT_SECRET || 'quarry-connect';
+    // #58: links are signed with STUDIO_PASSWORD only (no CI-secret fallback)
+    const key = process.env.STUDIO_PASSWORD || null;
     const want = await hmacToken(m[1], key);
     if (want !== m[2]) return fail(req, 'Connect link invalid — generate a new one in Studio.');
     if (Number(m[1]) < Date.now()) return fail(req, 'Connect link expired — generate a new one (links last 15 minutes).');
