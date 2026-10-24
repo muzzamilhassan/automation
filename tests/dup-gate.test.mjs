@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isDupTitle, normTitle } from '../lib/dup-gate.mjs';
+import { isDupTitle, normTitle, findDup, recentUploadTitles } from '../lib/dup-gate.mjs';
 
 // Real title pairs from the Oct-09..15 investor's-compass runs (#91) — pulled
 // verbatim from GH run logs 37912688508 / 38378589467 / 38700767657.
@@ -77,4 +77,39 @@ test('genuinely different topics stay ALLOWED', () => {
     ),
     false
   );
+});
+
+// ---- #36: the three dead paths ----
+
+test('#36 findDup with an undefined script title returns null (never crashes, never blocks)', () => {
+  assert.equal(findDup(undefined, ['Some Title On The Channel']), null);
+  assert.equal(findDup(undefined, [], []), null);
+});
+
+test('#36 containment floor: sub-3-token titles do not containment-match longer ones', () => {
+  // "buffett rule" is 2 tokens — must not block via containment anymore
+  assert.equal(isDupTitle('Buffett Rule', 'The Buffett Rule Explained For Beginners'), false);
+  // 3+ token containment still blocks (pre-#36 behaviour preserved)
+  assert.equal(isDupTitle('Warren Buffett Rule', 'The Warren Buffett Rule Explained'), true);
+});
+
+test('#36 recentUploadTitles falls back to titleHistory on API failure (gate stays closed)', async () => {
+  const throwing = { channels: { list: async () => { throw new Error('quotaExceeded'); } } };
+  const out = await recentUploadTitles(throwing, { fallback: ['Durable History Title | Channel'] });
+  assert.deepEqual(out, ['Durable History Title | Channel']);
+});
+
+test('#36 recentUploadTitles falls back when the channel has no uploads playlist', async () => {
+  const empty = { channels: { list: async () => ({ data: { items: [] } }) } };
+  const out = await recentUploadTitles(empty, { fallback: ['Hist | Ch'] });
+  assert.deepEqual(out, ['Hist | Ch']);
+});
+
+test('#36 recentUploadTitles still prefers live titles on success', async () => {
+  const ok = {
+    channels: { list: async () => ({ data: { items: [{ contentDetails: { relatedPlaylists: { uploads: 'UU1' } } }] } }) },
+    playlistItems: { list: async () => ({ data: { items: [{ snippet: { title: 'Live Title | Ch' } }] } }) },
+  };
+  const out = await recentUploadTitles(ok, { fallback: ['Hist | Ch'] });
+  assert.deepEqual(out, ['Live Title | Ch']);
 });

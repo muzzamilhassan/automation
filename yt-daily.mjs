@@ -144,7 +144,12 @@ if (RUN_SHORTS) {
   const yt = google.youtube({ version: 'v3', auth: channelAuth(slug) });
   // 10-05 DUPLICATE TITLE GATE — live titles from YouTube (state can be days
   // thin), plus this run's own titles so one run can never repeat itself.
-  const recentTitles = await recentUploadTitles(yt);
+  // #36: on API failure fall back to the durable titleHistory instead of
+  // failing the gate open — quota exhaustion was the exact correlated
+  // condition of the Oct-1 collapse.
+  const recentTitles = await recentUploadTitles(yt, {
+    fallback: (state[slug]?.titleHistory || []).map((h) => h?.t).filter(Boolean),
+  });
   const seenThisRun = [];
   const rejectedSeeds = []; // dup-gate rejections cool their trend source (#91)
   const usedSeeds = Array.isArray(state[slug]?.usedTrendSeeds) ? state[slug].usedTrendSeeds : [];
@@ -219,9 +224,16 @@ if (RUN_SHORTS) {
     }
     // GATE: near-duplicate of anything already on the channel (or made earlier
     // in this run) — skip BEFORE rendering, this is what fed the Oct-1 collapse
-    const preDup = findDup(script.title, recentTitles, seenThisRun);
+    // #36: scripts never had a .title — the gate read undefined and never
+    // fired. thumbHeadline is the meta title's first segment and normTitle
+    // drops everything after "|", so this is the exact meta-title verdict,
+    // one full render earlier.
+    const preTitle = script.thumbHeadline || script.hook || '';
+    const preDup = findDup(preTitle, recentTitles, seenThisRun);
     if (preDup) {
-      console.log(`  GATE: duplicate title "${script.title}" ≈ "${preDup}" — slot skipped before render`);
+      console.log(`  GATE: duplicate title "${preTitle}" ≈ "${preDup}" — slot skipped before render`);
+      if (themesToday[i]?.seed) rejectedSeeds.push(themesToday[i].seed); // cool the source (#91)
+      results.push({ videoId: null, publishAt, title: preTitle, gateRejected: true });
       continue;
     }
     if (script.source === 'fallback') {
