@@ -46,6 +46,6 @@ export async function GET(req) {
     }));
     return Response.json({ videos });
   } catch (e) {
-    return Response.json({ error: e.message?.slice(0, 120) || 'failed', videos: [] }, { status: 200 });
+    return Response.json({ error: e.message?.slice(0, 120) || 'failed', videos: [] }, { status: 500 });
   }
 }

@@ -35,7 +35,7 @@ export async function POST(req) {
     try {
       const logs = await listAudit(200);
       const today = new Date().toISOString().slice(0, 10);
-      used = (logs || []).filter((l) => l.action === 'thumbnail set' && String(l.detail || '').startsWith(slug) && String(l.at || '').slice(0, 10) === today).length;
+      used = (logs || []).filter((l) => l.action === 'thumbnail set' && String(l.detail || '').startsWith(slug + ' · ') && String(l.at || '').slice(0, 10) === today).length;
     } catch { }
     const remaining = Math.max(0, DAILY_CAP - used);
     const batch = videoIds.slice(0, remaining);

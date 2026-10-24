@@ -18,7 +18,7 @@ export async function POST(req) {
   const user = await getUser(req);
   if (!user) return Response.json({ error: 'not allowed' }, { status: 401 });
   const key = process.env.AGNES_API_KEY || '';
-  if (!key) return Response.json({ error: 'AGNES_API_KEY not configured on the server' }, { status: 200 });
+  if (!key) return Response.json({ error: 'AGNES_API_KEY not configured on the server' }, { status: 503 });
   try {
     const body = await req.json().catch(() => ({}));
     const subject = String(body.prompt || '').trim().slice(0, 300);
@@ -34,7 +34,7 @@ export async function POST(req) {
       body: JSON.stringify({ model: 'agnes-image-2.5-flash', prompt, size: '2K', ratio: '16:9', response_format: 'b64_json' }),
       signal: AbortSignal.timeout(55000),
     });
-    if (!r.ok) return Response.json({ error: `Agnes HTTP ${r.status}: ${(await r.text()).slice(0, 100)}` }, { status: 200 });
+    if (!r.ok) return Response.json({ error: `Agnes HTTP ${r.status}: ${(await r.text()).slice(0, 100)}` }, { status: 502 });
     const d = await r.json();
     const item = d.data?.[0] || {};
     let photoBuf = null;
@@ -42,10 +42,10 @@ export async function POST(req) {
       photoBuf = Buffer.from(item.b64_json, 'base64');
     } else if (item.url) {
       const ir = await fetch(item.url, { signal: AbortSignal.timeout(25000) });
-      if (!ir.ok) return Response.json({ error: 'generated image download failed' }, { status: 200 });
+      if (!ir.ok) return Response.json({ error: 'generated image download failed' }, { status: 502 });
       photoBuf = Buffer.from(await ir.arrayBuffer());
     }
-    if (!photoBuf) return Response.json({ error: 'no image in response' }, { status: 200 });
+    if (!photoBuf) return Response.json({ error: 'no image in response' }, { status: 502 });
     // Downscale to editor-friendly size (still > 1280 wide for crisp 720p output).
     const jpeg = await sharp(photoBuf)
       .resize({ width: 1600, withoutEnlargement: true })

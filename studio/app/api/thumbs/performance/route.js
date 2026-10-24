@@ -48,6 +48,6 @@ export async function GET(req) {
     videos.sort((a, b) => b.viewsPerDay - a.viewsPerDay);
     return Response.json({ videos, metric: 'views/day + avg watch %, last 28 days (CTR unlocks at YPP)' });
   } catch (e) {
-    return Response.json({ error: e.message?.slice(0, 140), videos: [] });
+    return Response.json({ error: e.message?.slice(0, 140), videos: [] }, { status: 500 });
   }
 }

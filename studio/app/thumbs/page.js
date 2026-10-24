@@ -41,6 +41,7 @@ export default function ThumbsPage() {
   const debounce = useRef(null);
   const fileRef = useRef(null);
   const faceInputRef = useRef(null);
+  const pickSeqRef = useRef(0); // #71 stale-response guard for pickChannel
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiStyle, setAiStyle] = useState('cinematic');
   const [aiBusy, setAiBusy] = useState(false);
@@ -76,18 +77,11 @@ export default function ThumbsPage() {
       .catch(() => setTpls([]));
   }, []);
 
-  useEffect(() => {
-    fetch('/api/overview')
-      .then((r) => r.json())
-      .then((d) => {
-        const list = (d.channels || []).map((c) => ({ slug: c.slug, label: c.label, accent: c.accent, tags: c.todayTopics ? undefined : undefined, brand: c.label }));
-        setChannels(list);
-        if (list.length) pickChannel(list[0]);
-      })
-      .catch(() => setChannels([]));
-  }, []);
-
   const pickChannel = (c) => {
+    // #71: stale-response guard — a slow response for channel A landing after
+    // channel B was picked used to set videos/branding from the WRONG channel
+    // (attaching under the wrong channel -> YouTube 403 on thumbnails.set)
+    const mine = ++pickSeqRef.current;
     setSlug(c.slug);
     setAccent(c.accent || '#E8C15A');
     setBrand(c.label || '');
@@ -95,13 +89,14 @@ export default function ThumbsPage() {
     setVideos(null);
     fetch(`/api/thumbs/videos?slug=${encodeURIComponent(c.slug)}`)
       .then((r) => r.json())
-      .then((d) => setVideos(d.videos || []))
-      .catch(() => setVideos([]));
+      .then((d) => { if (mine === pickSeqRef.current) setVideos(d.videos || []); })
+      .catch(() => { if (mine === pickSeqRef.current) setVideos([]); });
     setSelected([]);
     setSelMode(false);
     fetch(`/api/thumbs/branding?slug=${encodeURIComponent(c.slug)}`)
       .then((r) => r.json())
       .then((d) => {
+        if (mine !== pickSeqRef.current) return;
         const b = d.branding || {};
         setBranding(b);
         if (b.accent) setAccent(b.accent);
@@ -114,6 +109,7 @@ export default function ThumbsPage() {
       .catch(() => setBranding(null));
     loadFaces(c.slug);
   };
+
 
   const saveBranding = async () => {
     const r = await fetch('/api/thumbs/branding', {
@@ -387,6 +383,17 @@ export default function ThumbsPage() {
 
   const words = title.trim().split(/\s+/).filter(Boolean).length;
   const ck = preview?.checklist;
+
+  useEffect(() => {
+    fetch('/api/overview')
+      .then((r) => r.json())
+      .then((d) => {
+        const list = (d.channels || []).map((c) => ({ slug: c.slug, label: c.label, accent: c.accent, tags: c.todayTopics ? undefined : undefined, brand: c.label }));
+        setChannels(list);
+        if (list.length) pickChannel(list[0]);
+      })
+      .catch(() => setChannels([]));
+  }, []);
 
   return (
     <div>

@@ -43,7 +43,7 @@ export async function POST(req) {
     try {
       const logs = await listAudit(200);
       const today = new Date().toISOString().slice(0, 10);
-      const used = (logs || []).filter((l) => l.action === 'thumbnail set' && String(l.detail || '').startsWith(slug) && String(l.at || '').slice(0, 10) === today).length;
+      const used = (logs || []).filter((l) => l.action === 'thumbnail set' && String(l.detail || '').startsWith(slug + ' · ') && String(l.at || '').slice(0, 10) === today).length;
       if (used >= DAILY_CAP) return Response.json({ error: `daily attach cap reached for ${slug} (${DAILY_CAP}/day)` }, { status: 429 });
     } catch { } // audit unavailable → allow (quota guard is best-effort)
 

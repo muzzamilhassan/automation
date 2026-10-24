@@ -53,6 +53,6 @@ export async function GET(req) {
     tests.sort((a, b) => String(b.started).localeCompare(String(a.started)));
     return Response.json({ tests, metric: 'views/day + avg watch % (CTR unlocks when the channel joins YPP)' });
   } catch (e) {
-    return Response.json({ error: e.message?.slice(0, 140) || 'failed', tests: [] });
+    return Response.json({ error: e.message?.slice(0, 140) || 'failed', tests: [] }, { status: 500 });
   }
 }
