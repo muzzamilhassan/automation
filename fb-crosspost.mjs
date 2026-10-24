@@ -148,7 +148,11 @@ for (const job of parsed) {
   const dayKey = new Date(job.stamp).toISOString().slice(0, 10);
   const variantPath = videoPath.replace(/\.mp4$/, '-fb.mp4');
   try {
-    buildFbVariant(videoPath, job.slug, variantPath);
+    // #45: await — the unawaited call posted the ORIGINAL video (existsSync
+    // ran before ffmpeg finished; the exact Meta demotion the variant feature
+    // prevents) and an async rejection escaped the try/catch, killing the
+    // whole batch pass mid-queue.
+    await buildFbVariant(videoPath, job.slug, variantPath);
     console.log(`  ✓ FB-native variant rendered: ${path.basename(variantPath)}`);
   } catch (e) {
     console.log(`  ⚠ variant failed (${String(e.message).slice(0, 90)}) — posting original file`);
