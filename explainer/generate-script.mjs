@@ -207,18 +207,28 @@ where the plan says.`;
   return null;
 }
 
+// #67: group fallback beats by chapter. Beats BEFORE the first chapter marker
+// (the hook + opening statement — no props.n) belong to chapter 1: the old
+// `cur = null` start keyed them under null, which the per-chapter fallback
+// never fetched — all-chapters-fail videos started cold on a chapter card.
+// Pure + exported for tests.
+export function groupFallbackBeats(beats, firstChapterN = 1) {
+  const byChapter = new Map();
+  let cur = firstChapterN;
+  for (const b of beats) {
+    if (b.tpl === "chapter") cur = b.props.n;
+    if (!byChapter.has(cur)) byChapter.set(cur, []);
+    byChapter.get(cur).push(b);
+  }
+  return byChapter;
+}
+
 async function main() {
   const noLlm = process.argv.includes("--no-llm");
   const out = { title: FALLBACK.title, chapters: FALLBACK.chapters, beats: [] };
   let usedLlm = 0, usedFb = 0;
 
-  const fbByChapter = new Map();
-  let cur = null;
-  for (const b of FALLBACK.beats) {
-    if (b.tpl === "chapter") cur = b.props.n;
-    if (!fbByChapter.has(cur)) fbByChapter.set(cur, []);
-    fbByChapter.get(cur).push(b);
-  }
+  const fbByChapter = groupFallbackBeats(FALLBACK.beats, CHAPTER_PLANS[0].n);
 
   if (!noLlm) {
     for (const ch of CHAPTER_PLANS) {
@@ -256,7 +266,12 @@ async function main() {
   }
 }
 
-main().catch((e) => {
-  console.error("[script] FATAL", e);
-  process.exit(1);
-});
+// Run only as a CLI — importing the module (tests) must not execute the
+// script build.
+import { pathToFileURL } from "node:url";
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  main().catch((e) => {
+    console.error("[script] FATAL", e);
+    process.exit(1);
+  });
+}
