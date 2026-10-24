@@ -8,9 +8,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "muQ1b3HXoRA",
-      "publishAt": "2026-10-23T22:35:00Z",
-      "title": "The Power Of Silence | everyday wisdom Wisdom"
+      "videoId": "HH9dy8QlUpU",
+      "publishAt": "2026-10-24T22:35:00Z",
+      "title": "Rewriting Your Story Changes Your Brain"
     }
   ],
   "deepdiveDate": null,
@@ -63,13 +63,53 @@
     {
       "t": "The Power Of Silence | everyday wisdom Wisdom",
       "at": "2026-10-23T22:35:00Z"
+    },
+    {
+      "t": "Rewriting Your Story Changes Your Brain",
+      "at": "2026-10-24T22:35:00Z"
     }
   ],
   "cooldownSeeds": [
     "THE POWER OF SOLITUDE WILL CHANGE YOUR LIFE | Jim Rohn Motivation"
   ],
   "uploadsToday": {
-    "date": "2026-10-23",
+    "date": "2026-10-24",
     "count": 1
-  }
+  },
+  "clipQueue": {
+    "lastRunId": "40081466325",
+    "doneRuns": [
+      "40081466325"
+    ],
+    "docTitle": "Quote Quarry documentary",
+    "createdAt": "2026-10-24T09:33:47.573Z",
+    "clips": [
+      {
+        "part": 1,
+        "title": "Rewriting Your Story Changes Your Brain",
+        "asset": "clip-01.mp4",
+        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/671850882",
+        "startSec": 300.5,
+        "durSec": 20.9,
+        "postedAt": "2026-10-24T09:33:50.835Z"
+      },
+      {
+        "part": 2,
+        "title": "How to Break the Comparison Trap",
+        "asset": "clip-02.mp4",
+        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/671850914",
+        "startSec": 94.2,
+        "durSec": 20.2
+      },
+      {
+        "part": 3,
+        "title": "The Power of a Single Daily Mantra",
+        "asset": "clip-03.mp4",
+        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/671850935",
+        "startSec": 253.4,
+        "durSec": 23.5
+      }
+    ]
+  },
+  "clipLastPostDate": "2026-10-24"
 }
