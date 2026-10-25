@@ -1,5 +1,5 @@
 {
-  "at": "2026-10-24T22:24:35.295Z",
+  "at": "2026-10-25T08:16:34.950Z",
   "problems": 0,
   "results": [
     {
@@ -7,15 +7,15 @@
       "channel": "QuoteQuarry",
       "subs": "219",
       "totalVideos": "357",
-      "lastUploadHours": 13,
+      "lastUploadHours": 1,
       "status": "OK"
     },
     {
       "slug": "investors-compass",
       "channel": "Investor's Compass",
       "subs": "8",
-      "totalVideos": "157",
-      "lastUploadHours": 15,
+      "totalVideos": "158",
+      "lastUploadHours": 10,
       "status": "OK"
     },
     {
@@ -23,15 +23,15 @@
       "channel": "The Money Rulebook",
       "subs": "10",
       "totalVideos": "120",
-      "lastUploadHours": 13,
+      "lastUploadHours": 23,
       "status": "OK"
     },
     {
       "slug": "debt-free-doctrine",
       "channel": "Debt-Free Doctrine",
       "subs": "2",
-      "totalVideos": "152",
-      "lastUploadHours": 13,
+      "totalVideos": "151",
+      "lastUploadHours": 23,
       "status": "OK"
     }
   ]
