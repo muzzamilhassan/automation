@@ -8,9 +8,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "HH9dy8QlUpU",
-      "publishAt": "2026-10-24T22:35:00Z",
-      "title": "Rewriting Your Story Changes Your Brain"
+      "videoId": "cXs3h7QV5uY",
+      "publishAt": "2026-10-25T22:35:00Z",
+      "title": "How to Break the Comparison Trap"
     }
   ],
   "deepdiveDate": null,
@@ -67,13 +67,17 @@
     {
       "t": "Rewriting Your Story Changes Your Brain",
       "at": "2026-10-24T22:35:00Z"
+    },
+    {
+      "t": "How to Break the Comparison Trap",
+      "at": "2026-10-25T22:35:00Z"
     }
   ],
   "cooldownSeeds": [
     "THE POWER OF SOLITUDE WILL CHANGE YOUR LIFE | Jim Rohn Motivation"
   ],
   "uploadsToday": {
-    "date": "2026-10-24",
+    "date": "2026-10-25",
     "count": 1
   },
   "clipQueue": {
@@ -99,7 +103,8 @@
         "asset": "clip-02.mp4",
         "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/671850914",
         "startSec": 94.2,
-        "durSec": 20.2
+        "durSec": 20.2,
+        "postedAt": "2026-10-25T07:34:00.075Z"
       },
       {
         "part": 3,
@@ -111,5 +116,5 @@
       }
     ]
   },
-  "clipLastPostDate": "2026-10-24"
+  "clipLastPostDate": "2026-10-25"
 }
