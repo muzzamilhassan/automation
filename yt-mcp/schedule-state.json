@@ -223,9 +223,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "32a5D1wPow4",
-        "publishAt": "2026-10-24T22:35:00Z",
-        "title": "Stop Losing $15,000 to Silent Subscriptions"
+        "videoId": "xXZ6UgyTifc",
+        "publishAt": "2026-10-25T22:35:00Z",
+        "title": "Why Budgeting Apps Keep You Broke"
       }
     ],
     "imageDate": "2026-10-20",
@@ -326,6 +326,10 @@
       {
         "t": "Stop Losing $15,000 to Silent Subscriptions",
         "at": "2026-10-24T22:35:00Z"
+      },
+      {
+        "t": "Why Budgeting Apps Keep You Broke",
+        "at": "2026-10-25T22:35:00Z"
       }
     ],
     "usedLongSeeds": [
@@ -359,13 +363,14 @@
           "asset": "clip-02.mp4",
           "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/668733631",
           "startSec": 55.7,
-          "durSec": 20.6
+          "durSec": 20.6,
+          "postedAt": "2026-10-25T08:48:47.057Z"
         }
       ]
     },
-    "clipLastPostDate": "2026-10-24",
+    "clipLastPostDate": "2026-10-25",
     "uploadsToday": {
-      "date": "2026-10-24",
+      "date": "2026-10-25",
       "count": 1
     }
   },
