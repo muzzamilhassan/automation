@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateRegistryMeta, loadRegistryTemplates, resolveAssignment } from '../studio/lib/template-registry.js';
+import { validateRegistryMeta, loadRegistryTemplates, resolveAssignment, validateAssignment } from '../studio/lib/template-registry.js';
 import { REGISTRY_META } from '../studio/lib/template-registry.data.js';
 
 const valid = {
@@ -145,4 +145,70 @@ test('resolver: picks highest patch within same minor (numeric, not lexicographi
   const r = resolveAssignment({ familyId: 'f', pinned_major: 1 }, blocks);
   assert.equal(r.ok, true);
   assert.equal(r.resolvedVersion, '1.0.10');
+});
+
+// ---- Task 4: compatibility validator with stable reason codes ----
+
+// Capability map that satisfies `valid` meta's required_capabilities + its renderer.
+const fullCaps = { 'script-gen': true, tts: true, captions: true, remotion: true };
+const matchingChannel = { formats: ['short'], niches: ['history'], brand_kit: true };
+
+test('validator: compatible assignment passes', () => {
+  assert.deepEqual(validateAssignment(valid, matchingChannel, fullCaps), { ok: true });
+});
+
+test('validator: unavailable required capability -> missing_capability:<cap>', () => {
+  const r = validateAssignment(valid, matchingChannel, { ...fullCaps, tts: false });
+  assert.equal(r.ok, false);
+  assert.deepEqual(r.reasons, [{ code: 'missing_capability:tts', detail: r.reasons[0].detail }]);
+});
+
+test('validator: capability present but not exactly true counts as unavailable', () => {
+  const r = validateAssignment(valid, matchingChannel, { ...fullCaps, captions: 'yes' });
+  assert.equal(r.ok, false);
+  assert.ok(r.reasons.some(reason => reason.code === 'missing_capability:captions'));
+});
+
+test('validator: no format overlap -> format_mismatch', () => {
+  const r = validateAssignment(valid, { ...matchingChannel, formats: ['long'] }, fullCaps);
+  assert.equal(r.ok, false);
+  assert.ok(r.reasons.some(reason => reason.code === 'format_mismatch'));
+});
+
+test('validator: no niche overlap -> niche_mismatch', () => {
+  const r = validateAssignment(valid, { ...matchingChannel, niches: ['finance'] }, fullCaps);
+  assert.equal(r.ok, false);
+  assert.ok(r.reasons.some(reason => reason.code === 'niche_mismatch'));
+});
+
+test('validator: renderer not available -> renderer_unavailable', () => {
+  const r = validateAssignment(valid, matchingChannel, { 'script-gen': true, tts: true, captions: true });
+  assert.equal(r.ok, false);
+  assert.ok(r.reasons.some(reason => reason.code === 'renderer_unavailable'));
+});
+
+test('validator: deprecated meta -> deprecated_template', () => {
+  const r = validateAssignment({ ...valid, deprecated: true, deprecated_on: '2026-10-01' }, matchingChannel, fullCaps);
+  assert.equal(r.ok, false);
+  assert.ok(r.reasons.some(reason => reason.code === 'deprecated_template'));
+});
+
+test('validator: collects ALL blocking reasons, not first-only', () => {
+  const r = validateAssignment(
+    { ...valid, deprecated: true, deprecated_on: '2026-10-01' },
+    { formats: ['long'], niches: ['finance'], brand_kit: false },
+    { 'script-gen': true },
+  );
+  assert.equal(r.ok, false);
+  assert.deepEqual(
+    r.reasons.map(reason => reason.code).sort(),
+    [
+      'deprecated_template',
+      'format_mismatch',
+      'missing_capability:captions',
+      'missing_capability:tts',
+      'niche_mismatch',
+      'renderer_unavailable',
+    ],
+  );
 });

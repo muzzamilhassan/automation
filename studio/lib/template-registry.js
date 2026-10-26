@@ -168,3 +168,52 @@ export function resolveAssignment(assignment, registryBlocks) {
 
   return { ok: true, resolvedVersion: highest.join('.'), majorUpdateAvailable };
 }
+
+/**
+ * Validate a template assignment against a channel's configuration and the
+ * environment capability map (spec D4). Pure and fail-closed: a capability
+ * (or renderer) counts as available only when the map holds it as exactly
+ * `true`. Collects ALL blocking reasons — never first-only.
+ * Stable blocking codes: `missing_capability:<cap>`, `format_mismatch`,
+ * `niche_mismatch`, `renderer_unavailable`, `deprecated_template`.
+ * @param {object} meta validated registry metadata block
+ * @param {{ formats?: string[], niches?: string[], brand_kit?: boolean }} channelConfig
+ * @param {Record<string, boolean>} capabilityMap
+ * @returns {{ ok: true } | { ok: false, reasons: Array<{ code: string, detail: string }> }}
+ */
+export function validateAssignment(meta, channelConfig, capabilityMap) {
+  if (meta === null || typeof meta !== 'object' || Array.isArray(meta)) {
+    return { ok: false, reasons: [{ code: 'invalid_meta', detail: 'meta: must be an object' }] };
+  }
+
+  const reasons = [];
+  const caps = Array.isArray(meta.required_capabilities) ? meta.required_capabilities : [];
+  for (const cap of caps) {
+    if (capabilityMap === null || typeof capabilityMap !== 'object' || capabilityMap[cap] !== true) {
+      reasons.push({ code: `missing_capability:${cap}`, detail: `required capability "${cap}" is not available (map value must be exactly true)` });
+    }
+  }
+
+  const metaFormats = Array.isArray(meta.formats) ? meta.formats : [];
+  const channelFormats = channelConfig && Array.isArray(channelConfig.formats) ? channelConfig.formats : [];
+  if (!metaFormats.some(f => channelFormats.includes(f))) {
+    reasons.push({ code: 'format_mismatch', detail: `template formats [${metaFormats.join(', ')}] have no overlap with channel formats [${channelFormats.join(', ')}]` });
+  }
+
+  const metaNiches = Array.isArray(meta.niches) ? meta.niches : [];
+  const channelNiches = channelConfig && Array.isArray(channelConfig.niches) ? channelConfig.niches : [];
+  if (!metaNiches.some(n => channelNiches.includes(n))) {
+    reasons.push({ code: 'niche_mismatch', detail: `template niches [${metaNiches.join(', ')}] have no overlap with channel niches [${channelNiches.join(', ')}]` });
+  }
+
+  if (capabilityMap === null || typeof capabilityMap !== 'object' || capabilityMap[meta.renderer] !== true) {
+    reasons.push({ code: 'renderer_unavailable', detail: `renderer ${JSON.stringify(meta.renderer)} is not available (map value must be exactly true)` });
+  }
+
+  if (meta.deprecated === true) {
+    reasons.push({ code: 'deprecated_template', detail: `template version ${meta.version} is deprecated${meta.deprecated_on ? ` on ${meta.deprecated_on}` : ''}` });
+  }
+
+  if (reasons.length > 0) return { ok: false, reasons };
+  return { ok: true };
+}
