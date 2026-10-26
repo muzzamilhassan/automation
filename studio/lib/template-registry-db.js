@@ -272,16 +272,29 @@ export function makeRegistryDb(client) {
 }
 
 /**
+ * Bridge a real postgres.js `sql` function to the positional client contract
+ * this module uses. postgres.js REJECTS positional calls
+ * (`client(sqlText, params)` → NOT_TAGGED_CALL: Query not called as a tagged
+ * template literal); `sql.unsafe(text, params)` is its documented escape
+ * hatch for pre-built parameterized queries. Still injection-safe: the text
+ * contains only placeholders, the values travel in `params`.
+ */
+export function adaptPostgres(sql) {
+  return (text, params) => sql.unsafe(text, params);
+}
+
+/**
  * Production entry point (Tasks 6/7/9). Lazy-imports db.mjs so importing
  * this module never touches the DB layer — unit tests and non-Neon machines
- * stay safe until this is actually called.
+ * stay safe until this is actually called. Throws fail-closed when the
+ * database is not configured.
  */
 export async function getRegistryDb() {
   const { db, dbReady } = await import('./db.mjs');
   if (!dbReady || !db) {
-    throw new Error('registry db: database not configured (set DATABASE_URL)');
+    throw new Error('registry db: DATABASE_URL missing / db not ready — cannot construct registry DB layer');
   }
-  return makeRegistryDb(db);
+  return makeRegistryDb(adaptPostgres(db));
 }
 
 export default getRegistryDb;

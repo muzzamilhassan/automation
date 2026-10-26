@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { makeRegistryDb, getRegistryDb } from '../studio/lib/template-registry-db.js';
+import { makeRegistryDb, getRegistryDb, adaptPostgres } from '../studio/lib/template-registry-db.js';
 
 // ---------------------------------------------------------------------------
 // Stub client contract (fixture seam — no live Neon in tests).
@@ -371,4 +371,25 @@ test('listUsage returns active channels for a family', async () => {
 test('getRegistryDb and default export exist for production callers (lazy, not invoked in tests)', () => {
   assert.equal(typeof getRegistryDb, 'function');
   assert.equal(typeof makeRegistryDb, 'function');
+});
+
+test('adaptPostgres bridges a postgres.js unsafe()-style client to the positional contract', async () => {
+  // Stub-level check of the adapter shape only: makeRegistryDb must work
+  // when handed adaptPostgres({ unsafe }) and must route text + params
+  // through unsafe(). The real NOT_TAGGED_CALL failure mode is proven live
+  // at Task 11 E2E against real Neon — NOT simulated here.
+  const seen = [];
+  const fakePostgres = {
+    unsafe: (text, params) => {
+      seen.push({ text, params });
+      return Promise.resolve([{ family_id: FAMILY_A, pinned_major: 1, pinned_version: '1.2.3', assigned_by: 'tester' }]);
+    },
+  };
+  const db = makeRegistryDb(adaptPostgres(fakePostgres));
+  const rows = await db.listAssignments('chan-1');
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].family_id, FAMILY_A);
+  assert.equal(seen.length, 1);
+  assert.ok(seen[0].text.includes('FROM channel_template_assignments'));
+  assert.deepEqual(seen[0].params, ['chan-1']);
 });
