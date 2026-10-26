@@ -113,8 +113,9 @@ if (TEMPLATE_PREFLIGHT_ENABLED) {
     const reg = JSON.parse(fs.readFileSync(path.join('yt-mcp', 'studio-channels.json'), 'utf8'));
     channelEntry = (reg.channels || []).find((c) => c.slug === slug) || null;
   } catch { channelEntry = null; }
+  let pre;
   try {
-    const pre = await runPreflight({
+    pre = await runPreflight({
       channelId: slug,
       registryDb: await getRegistryDb(),
       catalog: TEMPLATES_DATA,
@@ -122,34 +123,47 @@ if (TEMPLATE_PREFLIGHT_ENABLED) {
       channelEntry,
       capabilityMap: capabilityMapFromAppliedProviders(_keysApplied),
     });
-    if (pre.mode === 'enforce') {
-      if (!pre.verdict.ok) {
-        const codes = pre.verdict.reasons.map((r) => r.code).join(', ');
-        log(`✗ template preflight BLOCKED — generation stopped before any spend (${codes})`);
-        await sendAlert({
-          text: `${slug}: generation BLOCKED by template preflight — ${codes}. Fix the mismatch in Studio > Templates, or unassign the channel there.`,
-          title: `[${slug}] template preflight blocked generation`,
-        });
-        process.exit(1);
-      }
-      const v = pre.verdict;
-      // Phase-1 run record = these log lines + the job console output (the
-      // pipeline keeps no structured run record of its own — AC-7/AC-13
-      // "present and logged in Phase 1"; the JSON line is machine-readable).
-      log(`[template] enforce: ${v.template_id} @ v${v.resolved_version}${v.pinned_version && v.pinned_version !== v.resolved_version ? ` (auto-adopted from pinned v${v.pinned_version})` : ''}${v.major_update_available ? ' — MAJOR update available (re-pin in Studio to adopt)' : ''}`);
-      log(`[template] ${JSON.stringify({ template_id: v.template_id, resolved_version: v.resolved_version, variation_rules: v.metaSummary.variation_rules, safety: v.metaSummary.safety })}`);
-    }
-    // legacy mode: nothing logged, nothing changed (spec D5)
   } catch (e) {
-    // Fail-closed: a preflight that cannot run (DB down/unconfigured) must
-    // never silently pass an assigned channel through to generation.
-    log(`✗ template preflight unavailable — failing closed (${String(e.message).slice(0, 120)})`);
-    await sendAlert({
-      text: `${slug}: template preflight could not run (${String(e.message).slice(0, 160)}) — run failed CLOSED before any generation spend. Check DATABASE_URL / Neon.`,
-      title: `[${slug}] template preflight unavailable - run failed closed`,
-    });
-    process.exit(1);
+    // FIX ROUND 1 (spec D5 governs): anything that is NOT a known blocked
+    // assignment falls back to today's exact path — an unreachable or
+    // unconfigured registry DB must never halt production (the Oct 21-23 P0
+    // class: all channels dark, workflows green). This catch covers the
+    // db-layer construction (getRegistryDb throws without DATABASE_URL);
+    // getActiveAssignment failures are converted inside runPreflight.
+    pre = {
+      mode: 'legacy',
+      verdict: null,
+      warning: 'registry db unavailable — legacy path, no template enforcement',
+      warning_detail: String(e && e.message ? e.message : e).slice(0, 160),
+    };
   }
+  if (pre.warning) {
+    // ONE visibility warning, labeled WARNING (not a block) — then proceed
+    // exactly as today.
+    log(`[template] WARN ${pre.warning}${pre.warning_detail ? ` (${pre.warning_detail})` : ''}`);
+    await sendAlert({
+      text: `${slug}: WARNING — ${pre.warning}${pre.warning_detail ? ` (${pre.warning_detail})` : ''}. No template enforcement ran; production proceeded on the legacy path.`,
+      title: `[${slug}] template preflight warning - legacy path`,
+    });
+  }
+  if (pre.mode === 'enforce') {
+    if (!pre.verdict.ok) {
+      const codes = pre.verdict.reasons.map((r) => r.code).join(', ');
+      log(`✗ template preflight BLOCKED — generation stopped before any spend (${codes})`);
+      await sendAlert({
+        text: `${slug}: generation BLOCKED by template preflight — ${codes}. Fix the mismatch in Studio > Templates, or unassign the channel there.`,
+        title: `[${slug}] template preflight blocked generation`,
+      });
+      process.exit(1);
+    }
+    const v = pre.verdict;
+    // Phase-1 run record = these log lines + the job console output (the
+    // pipeline keeps no structured run record of its own — AC-7/AC-13
+    // "present and logged in Phase 1"; the JSON line is machine-readable).
+    log(`[template] enforce: ${v.template_id} @ v${v.resolved_version}${v.pinned_version && v.pinned_version !== v.resolved_version ? ` (auto-adopted from pinned v${v.pinned_version})` : ''}${v.major_update_available ? ' — MAJOR update available (re-pin in Studio to adopt)' : ''}`);
+    log(`[template] ${JSON.stringify({ template_id: v.template_id, resolved_version: v.resolved_version, variation_rules: v.metaSummary.variation_rules, safety: v.metaSummary.safety })}`);
+  }
+  // legacy mode (with or without warning): nothing else changed (spec D5)
 }
 
 // ---- Phase 1: YouTube Shorts ----

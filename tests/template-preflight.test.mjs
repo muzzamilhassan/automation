@@ -135,14 +135,26 @@ test('preflight: pinned major with no catalog version -> ok:false no_version_in_
 });
 
 // ---------------------------------------------------------------------------
-// 6. Registry DB error -> throws (fail-closed; a preflight that cannot run
-//    must never wave an assigned channel through to generation).
+// 6. Registry DB error -> legacy path + warning (FIX ROUND 1, spec D5 governs:
+//    an unreachable DB is not a block — fail-closed is reserved for channels
+//    with a KNOWN active assignment whose verdict is not-ok).
 // ---------------------------------------------------------------------------
-test('preflight: DB error -> throws with the underlying reason', async () => {
-  await assert.rejects(
-    () => run(stubDb([], { reject: new Error('db down') })),
-    /db down/,
-  );
+test('preflight: DB error -> legacy + warning, never a throw', async () => {
+  const pre = await run(stubDb([], { reject: new Error('db down') }));
+  assert.deepEqual(pre, {
+    mode: 'legacy',
+    verdict: null,
+    warning: 'registry db unavailable — legacy path, no template enforcement',
+    warning_detail: 'db down',
+  });
+});
+
+// Caller-contract violations still throw (programmer error, pre-DB) — the
+// throw boundary stays sharp: infra unavailability never throws.
+test('preflight: missing channelId / registryDb still throw (caller bug, not infra)', () => {
+  const base = { catalog: CATALOG, meta: REGISTRY_META_FIXTURE, channelEntry: CHANNEL_ENTRY, capabilityMap: CAPS };
+  assert.rejects(() => runPreflight({ ...base, channelId: '', registryDb: stubDb([]) }), /channelId/);
+  assert.rejects(() => runPreflight({ ...base, channelId: 'money-rulebook', registryDb: null }), /registryDb/);
 });
 
 // ---------------------------------------------------------------------------
