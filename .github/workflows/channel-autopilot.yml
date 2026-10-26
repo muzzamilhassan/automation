@@ -135,6 +135,9 @@ jobs:
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          # Template registry preflight (issue #102): unassigned channels keep the legacy
+          # path (preflight degrades to legacy+ntfy warning if the DB is unreachable).
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: node channel-pipeline.mjs "$SLUG" ${{ inputs.topup && format('--topup={0}', inputs.topup) || '' }}
 
       - name: 📦 Keep reels for IG slot poster
