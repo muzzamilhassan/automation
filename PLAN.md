@@ -33,8 +33,11 @@
 
 - [~] TikTok "Quarry Studio" own-app approval (multi-brand publishing product; site + audit kit ready)
 - [~] Archive keeps growing automatically (every new render is stored; no action needed)
+- [~] 2026-10-26 — P30-0 Platform Own-30 Phase 0 (stabilize): ✅ consent screen → In production (2026-10-26); ✅ main-channel YOUTUBE_REFRESH_TOKEN re-authed (QuoteQuarry @quotequarry302, secret set + token verified live 2026-10-26; final confirmation = next sweeper run's long-form check passes). Remaining: MCP-server credential rotation workbox (deferred); #101 rollout (in-flight lane). F2/F5 already fixed by #41-#73 wave; youtube.readonly already in OAuth wizard (verified 2026-10-26)
 
 ## 📌 TODO (agreed future work — pick by number when ready)
+
+- [ ] P30 — Platform Own-30 build (owner approved 2026-10-26, max 30 channels, scale-ready): master plan at docs/superpowers/plans/2026-10-25-platform-own30-master.md — Phase 1 template registry → Phase 2 BYOK vault v2 + usage ledger → Phase 3 RAG sidecar (pgvector /context + variation gate) → Phase 4 pipeline hardening + admin completeness → Phase 5 catalog to 30+ templates + thumbnails → Phase 6 scale-out to 30 channels + Cloud Run render. Each phase: EARS spec → owner approval → task plan → build → QA evidence. Research basis: research/platform-*-2026-10-24.md + research/own-portfolio-30-channels-2026-10-25.md
 
 - [ ] T1 — Fix FB photo bug: execFileSync not imported in yt-daily.mjs (FB frame-post feature is silently dead) — 10 min
 - [ ] T2 — ⭐ LONG-FORM documentaries: 1 per week per finance brand (IC/MR/DFD) using the existing long-video engine — finance RPM $4-20 vs Shorts $0.01-0.07 — ~1 day
