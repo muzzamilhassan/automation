@@ -5,7 +5,7 @@
 import { getUser } from '@/lib/route-auth';
 import { readRegistry, readRepoJSON } from '@/lib/channels-registry';
 import { decryptKeys } from '@/lib/keys-vault';
-import { loadRegistryTemplates, validateAssignment } from '@/lib/template-registry';
+import { loadRegistryTemplates, validateAssignment, channelConfigFromRegistryEntry } from '@/lib/template-registry';
 import { TEMPLATES_DATA } from '@/lib/templates-catalog';
 import { REGISTRY_META } from '@/lib/template-registry.data';
 import { getRegistryDb } from '@/lib/template-registry-db';
@@ -29,22 +29,9 @@ const CAPABILITY_PROVIDERS = {
   'image-gen': [],
 };
 
-// channelConfig from the channel registry's real shape (spec D4 "live data"):
-// - niches: the channel's main niche plus its configured sub-niches
-// - formats: the channel registry stores no per-channel format field; every
-//   lane is a Shorts-first vertical lane, so 'short' is always produced, and
-//   a channel with a long-form slot configured (kit.longSlot) also gets
-//   'long'. PHASE-2 UPGRADE: add an explicit per-channel formats field to the
-//   channels table instead of deriving it.
-// - brand_kit: present when the channel has any kit data saved.
-function buildChannelConfig(entry) {
-  const kit = entry?.kit || {};
-  const niches = [...new Set([entry?.niche, ...(Array.isArray(kit.niches) ? kit.niches : [])]
-    .filter((n) => typeof n === 'string' && n.length > 0))];
-  const formats = kit.longSlot ? ['short', 'long'] : ['short'];
-  const brand_kit = Boolean(entry?.kit && Object.keys(entry.kit).length > 0);
-  return { formats, niches, brand_kit };
-}
+// channelConfig derivation lives in the lib now (channelConfigFromRegistryEntry)
+// — the GET templates route needs the same niches/formats for the channel view,
+// and both callers must feed the validator identical inputs (Task 7 review M20).
 
 // capabilityMap from the BYOK vault (per-channel provider keys, keyed by slug).
 // Fail-closed: an unreadable vault means every capability is unavailable and
@@ -101,7 +88,7 @@ export async function POST(req) {
   if (!entry) return Response.json({ error: `unknown channel "${channelId}"` }, { status: 404 });
 
   // Validator gate BEFORE anything touches the DB (spec D4: blocks the save).
-  const channelConfig = buildChannelConfig(entry);
+  const channelConfig = channelConfigFromRegistryEntry(entry);
   const capabilityMap = await buildCapabilityMap(entry.slug || channelId);
   // Phase 1 renderers all ship in-repo with the CI render lane, so renderer
   // availability is trivially true for registry-declared renderers.

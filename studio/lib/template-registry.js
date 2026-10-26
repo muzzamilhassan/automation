@@ -170,6 +170,30 @@ export function resolveAssignment(assignment, registryBlocks) {
 }
 
 /**
+ * Derive the validator's channelConfig from the channel registry's real
+ * entry shape (spec D4 "live data"). Shared by the GET templates route
+ * (channel view) and the POST assign route so both always feed the
+ * validator the same niches/formats the UI orders on:
+ * - niches: the channel's main niche plus its configured sub-niches
+ * - formats: the channel registry stores no per-channel format field; every
+ *   lane is a Shorts-first vertical lane, so 'short' is always produced, and
+ *   a channel with a long-form slot configured (kit.longSlot) also gets
+ *   'long'. PHASE-2 UPGRADE: add an explicit per-channel formats field to the
+ *   channels table instead of deriving it.
+ * - brand_kit: present when the channel has any kit data saved.
+ * @param {object} entry channel registry entry (slug, niche, kit)
+ * @returns {{ formats: string[], niches: string[], brand_kit: boolean }}
+ */
+export function channelConfigFromRegistryEntry(entry) {
+  const kit = entry?.kit || {};
+  const niches = [...new Set([entry?.niche, ...(Array.isArray(kit.niches) ? kit.niches : [])]
+    .filter((n) => typeof n === 'string' && n.length > 0))];
+  const formats = kit.longSlot ? ['short', 'long'] : ['short'];
+  const brand_kit = Boolean(entry?.kit && Object.keys(entry.kit).length > 0);
+  return { formats, niches, brand_kit };
+}
+
+/**
  * Validate a template assignment against a channel's configuration and the
  * environment capability map (spec D4). Pure and fail-closed: a capability
  * (or renderer) counts as available only when the map holds it as exactly

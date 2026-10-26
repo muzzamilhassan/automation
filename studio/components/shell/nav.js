@@ -13,6 +13,7 @@ import {
   Image as ImageIcon,
   Users as UsersIcon,
   Sparkles,
+  Layers,
 } from 'lucide-react';
 
 export const NAV = [
@@ -33,6 +34,7 @@ export const NAV = [
     group: 'Network',
     items: [
       { href: '/channels', label: 'Channels', icon: Tv, desc: '16 brands, 4 live' },
+      { href: '/templates/registry', label: 'Template Registry', icon: Layers, desc: 'Versioned template catalog — niches, pins, assignments' },
     ],
   },
   {
