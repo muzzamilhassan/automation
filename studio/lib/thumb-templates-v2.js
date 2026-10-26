@@ -100,33 +100,37 @@ function autofit(f, text, maxWidth, { min = 64, max = 160, maxLines = 3, spacing
   return min;
 }
 
-// per-word treatments are resolved inline by renderLine via treat.pick
-
 // one wrapped line -> svg elements (word paths + optional highlight rect + bars)
+// treat.targets[kind] is a resolved {li, wi} pair (see resolveWord), so each
+// treatment fires on exactly one word of the headline.
 function renderLine({ f, words, x, y, size, fg, spacing = 0, treat = {}, stroke = null, twoTone = null, lineIdx = 0 }) {
   const els = [];
   let cx = x;
   const lineColor = twoTone ? twoTone[lineIdx % twoTone.length] : fg;
+  const hit = (kind, wi) => {
+    const t = treat.targets && treat.targets[kind];
+    return Boolean(t) && t.li === lineIdx && t.wi === wi;
+  };
   words.forEach((w, wi) => {
-    const s = treat.pick(w, wi, words.join(' '));
-    const fill = s.highlight ? s.highlight.fg : lineColor;
+    const isHl = hit('highlight', wi);
+    const fill = isHl ? treat.hlFg : lineColor;
     const wp = f.getPath(w, cx, y, size);
     const bb = wp.getBoundingBox();
     const wpx = adv(f, w, size, 0);
-    if (s.highlight) {
-      els.push(bar(bb.x1 - treat.hlPad, bb.y1 - treat.hlPad, (bb.x2 - bb.x1) + treat.hlPad * 2, (bb.y2 - bb.y1) + treat.hlPad * 2, s.highlight.bg));
+    if (isHl) {
+      els.push(bar(bb.x1 - treat.hlPad, bb.y1 - treat.hlPad, (bb.x2 - bb.x1) + treat.hlPad * 2, (bb.y2 - bb.y1) + treat.hlPad * 2, treat.hlBg));
     }
     const attrs = stroke && stroke.w > 0
       ? ` fill="${fill}" stroke="${stroke.c}" stroke-width="${stroke.w}" paint-order="stroke fill" stroke-linejoin="round"`
       : ` fill="${fill}"`;
     els.push(`<path d="${wp.toPathData(1)}"${attrs}/>`);
-    if (treat.underline && (treat.underline.word === 'keyword' ? wi === treat.kwIdx : wi === treat.underline.word - 1)) {
+    if (treat.underline && hit('underline', wi)) {
       els.push(bar(cx, y + size * 0.14, wpx, treat.underline.h, treat.underline.c));
     }
-    if (treat.overline && (treat.overline.word === 'keyword' ? wi === treat.kwIdx : wi === treat.overline.word - 1)) {
+    if (treat.overline && hit('overline', wi)) {
       els.push(bar(cx, y - size * 0.82, wpx, treat.overline.h, treat.overline.c));
     }
-    if (treat.strike && (treat.strike.word === 'keyword' ? wi === treat.kwIdx : wi === treat.strike.word - 1)) {
+    if (treat.strike && hit('strike', wi)) {
       els.push(bar(cx, y - size * 0.32, wpx, treat.strike.h || size * 0.09, treat.strike.c));
     }
     cx += wpx + f.getAdvanceWidth(' ', size);
@@ -222,7 +226,7 @@ export function renderV2(id, opts = {}) {
     const tw = adv(f, text, kick.size || 30, kick.spacing || 4);
     const kx = spec.panel && spec.panel.side !== 'left' ? INSET : INSET;
     if (kick.bg && kick.bg !== '#00000000') els.push(bar(kx, INSET - 10, tw + 24, (kick.size || 30) + 22, kick.bg));
-    els.push(textPath(f, text, kx + (kick.bg ? 12 : 0), INSET + (kick.size || 30) - 6, kick.size || 30, { fill: kick.fg || o.shade, spacing: kick.spacing || 4 }).el);
+    els.push(textPath(f, text, kx + (kick.bg ? 12 : 0), INSET + (kick.size || 30) - 6, kick.size || 30, { fill: kick.fg || (kick.bg && kick.bg !== '#00000000' ? o.shade : '#FFFFFF'), spacing: kick.spacing || 4 }).el);
   }
 
   // badge (corner) — rect or circle (VS medallion)
@@ -259,27 +263,54 @@ export function renderV2(id, opts = {}) {
   const isCenter = t.align === 'center' || t['align-center'] === true;
 const yStart = t.pos === 'center' ? (H - blockH) / 2 + size : t.pos === 'top' ? INSET + 90 + size : H - INSET - (lines.length - 1) * lineH;
 
-  const kwIdx = (() => {
-    const key = String(o.accentWord || pickAccentWord(title)).toLowerCase().replace(/[^a-z0-9]/g, '');
-    let idx = lines.findIndex((l) => l.toLowerCase().includes(key));
-    return idx >= 0 ? idx : 0;
-  })();
-  const words0 = lines[0].split(' ');
+  const normWord = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+  const keyWord = normWord(String(o.accentWord || pickAccentWord(title)));
+  const wordCount = (li) => (lines[li] || '').split(' ').filter(Boolean).length;
+
+  // Resolves a catalog `word` selector to a concrete {li, wi} target.
+  //   'keyword' -> the accent word (matched by text)
+  //   'first'   -> the opening word of the headline
+  //   'last'    -> the closing word of the headline
+  //   N         -> the Nth word (1-based) across the whole headline
+  const resolveWord = (sel) => {
+    if (sel === undefined || sel === null) return null;
+    if (sel === 'keyword') {
+      for (let li = 0; li < lines.length; li++) {
+        const ws = lines[li].split(' ');
+        const wi = ws.findIndex((w) => normWord(w) === keyWord);
+        if (wi >= 0) return { li, wi };
+      }
+      return { li: 0, wi: 0 };
+    }
+    if (sel === 'first') return { li: 0, wi: 0 };
+    if (sel === 'last') {
+      const li = lines.length - 1;
+      return { li, wi: Math.max(0, wordCount(li) - 1) };
+    }
+    let rem = Number(sel);
+    if (!Number.isInteger(rem) || rem < 1) return null;
+    for (let li = 0; li < lines.length; li++) {
+      const c = wordCount(li);
+      if (rem <= c) return { li, wi: rem - 1 };
+      rem -= c;
+    }
+    return null;
+  };
+
   const treat = {
     hlPad: 14,
-    kwIdx,
-    pick: (w, wi) => {
-      const norm = String(w).toLowerCase().replace(/[^a-z0-9]/g, '');
-      const hl = t.highlight;
-      const key = String(o.accentWord || pickAccentWord(title)).toLowerCase().replace(/[^a-z0-9]/g, '');
-      if (hl && (hl.word === 'keyword' ? norm === key : hl.word === wi + 1)) return { highlight: { bg: o.accent || hl.bg, fg: hl.fg } };
-      return {};
+    targets: {
+      highlight: resolveWord(t.highlight && t.highlight.word),
+      underline: resolveWord(t.underline && t.underline.word),
+      overline: resolveWord(t.overline && t.overline.word),
+      strike: resolveWord(t.strike && t.strike.word),
     },
-    underline: t.underline ? { ...t.underline, word: t.underline.word } : null,
+    hlBg: t.highlight ? (o.accent || t.highlight.bg) : null,
+    hlFg: t.highlight ? t.highlight.fg : null,
+    underline: t.underline || null,
     overline: t.overline || null,
     strike: t.strike || null,
   };
-  const accent = o.accent || null;
   lines.forEach((line, li) => {
     const words = line.split(' ');
     const y = yStart + li * lineH;
@@ -288,7 +319,7 @@ const yStart = t.pos === 'center' ? (H - blockH) / 2 + size : t.pos === 'top' ? 
     const lineColor = Array.isArray(t.tone) ? t.tone[li % t.tone.length] : t.fg;
     const stroke = t.stroke && t.stroke.w > 0 ? { c: o.accent && t.stroke.followAccent ? o.accent : t.stroke.c, w: t.stroke.w } : null;
     const r = renderLine({ f, words, x, y, size, fg: lineColor, spacing: t.spacing || 0, treat, stroke, twoTone: null, lineIdx: li });
-    els.push(r.el);
+    els.push(...r.els);
   });
 
   // face cutout — the channel's own face image, composited on EVERY template
