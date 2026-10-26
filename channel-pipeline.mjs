@@ -91,6 +91,67 @@ async function quotaGate(label) {
   return false;
 }
 
+// ---- Phase 0.5: #102 TEMPLATE PREFLIGHT — enforce only for assigned channels ----
+// Channels WITH an active registry assignment (Phase 1: the pilot only) get
+// their pinned template resolved against catalog registry data + compatibility
+// validated BEFORE any generation spend; a blocked verdict ntfy-alerts and
+// exits non-zero. Everyone else takes the legacy path — zero new code (D5).
+// ROLLBACK: flip this constant to false (or delete this block) — the pipeline
+// is then byte-for-byte today's behavior; the preflight module isn't imported.
+const TEMPLATE_PREFLIGHT_ENABLED = true;
+if (TEMPLATE_PREFLIGHT_ENABLED) {
+  const { runPreflight, capabilityMapFromAppliedProviders } = await import('./lib/template-preflight.mjs');
+  const { TEMPLATES_DATA } = await import('./studio/lib/templates-catalog.js');
+  const { REGISTRY_META } = await import('./studio/lib/template-registry.data.js');
+  const { getRegistryDb } = await import('./studio/lib/template-registry-db.js');
+  // Same raw channel registry entry the Studio assign route validated against
+  // at save time (yt-mcp/studio-channels.json is the CI feed of the Neon
+  // registry). Absent/unreadable -> null -> empty config -> assigned channels
+  // fail closed on niche_mismatch; legacy channels are unaffected (no lookup).
+  let channelEntry = null;
+  try {
+    const reg = JSON.parse(fs.readFileSync(path.join('yt-mcp', 'studio-channels.json'), 'utf8'));
+    channelEntry = (reg.channels || []).find((c) => c.slug === slug) || null;
+  } catch { channelEntry = null; }
+  try {
+    const pre = await runPreflight({
+      channelId: slug,
+      registryDb: await getRegistryDb(),
+      catalog: TEMPLATES_DATA,
+      meta: REGISTRY_META,
+      channelEntry,
+      capabilityMap: capabilityMapFromAppliedProviders(_keysApplied),
+    });
+    if (pre.mode === 'enforce') {
+      if (!pre.verdict.ok) {
+        const codes = pre.verdict.reasons.map((r) => r.code).join(', ');
+        log(`✗ template preflight BLOCKED — generation stopped before any spend (${codes})`);
+        await sendAlert({
+          text: `${slug}: generation BLOCKED by template preflight — ${codes}. Fix the mismatch in Studio > Templates, or unassign the channel there.`,
+          title: `[${slug}] template preflight blocked generation`,
+        });
+        process.exit(1);
+      }
+      const v = pre.verdict;
+      // Phase-1 run record = these log lines + the job console output (the
+      // pipeline keeps no structured run record of its own — AC-7/AC-13
+      // "present and logged in Phase 1"; the JSON line is machine-readable).
+      log(`[template] enforce: ${v.template_id} @ v${v.resolved_version}${v.pinned_version && v.pinned_version !== v.resolved_version ? ` (auto-adopted from pinned v${v.pinned_version})` : ''}${v.major_update_available ? ' — MAJOR update available (re-pin in Studio to adopt)' : ''}`);
+      log(`[template] ${JSON.stringify({ template_id: v.template_id, resolved_version: v.resolved_version, variation_rules: v.metaSummary.variation_rules, safety: v.metaSummary.safety })}`);
+    }
+    // legacy mode: nothing logged, nothing changed (spec D5)
+  } catch (e) {
+    // Fail-closed: a preflight that cannot run (DB down/unconfigured) must
+    // never silently pass an assigned channel through to generation.
+    log(`✗ template preflight unavailable — failing closed (${String(e.message).slice(0, 120)})`);
+    await sendAlert({
+      text: `${slug}: template preflight could not run (${String(e.message).slice(0, 160)}) — run failed CLOSED before any generation spend. Check DATABASE_URL / Neon.`,
+      title: `[${slug}] template preflight unavailable - run failed closed`,
+    });
+    process.exit(1);
+  }
+}
+
 // ---- Phase 1: YouTube Shorts ----
 // #98 SHORTS SOURCE: kit field shortsSource 'generated' (default, yt-daily
 // research->script->render) or 'clips' (publisher posts one queued doc clip).

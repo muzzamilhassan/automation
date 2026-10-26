@@ -1,0 +1,185 @@
+// Task 9 (#102 Phase 1): generation preflight tests.
+// runPreflight is a pure-ish orchestrator — the registry DB is injected, so
+// these fixtures use a stub client (same seam style as
+// tests/template-registry-db.test.mjs). No live Neon, no pipeline spawn.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync as readFs } from 'node:fs';
+import { runPreflight, capabilityMapFromAppliedProviders } from '../lib/template-preflight.mjs';
+
+// ---------------------------------------------------------------------------
+// Fixtures — same shapes the real pipeline call site passes.
+// ---------------------------------------------------------------------------
+
+// Schema-valid registry metadata (same shape tests/template-registry.test.mjs uses).
+const META_V120 = {
+  version: '1.2.0',
+  niches: ['personal finance'],
+  formats: ['short'],
+  renderer: 'remotion',
+  required_capabilities: ['script-gen', 'tts'],
+  variation_rules: ['distinct storyline per video', 'no repeated hook across last 5'],
+  safety: { required_sources: true, review_required: [] },
+  deprecated: false,
+  changelog: [{ version: '1.2.0', date: '2026-10-26', note: 'initial seed' }],
+};
+
+const CATALOG = [
+  { id: 'finance-explainer', name: 'Finance Explainer', family: 'finance-explainer', aspectRatios: ['9:16'] },
+];
+
+const REGISTRY_META_FIXTURE = { 'finance-explainer': META_V120 };
+
+// Channel registry entry (yt-mcp/studio-channels.json entry shape — the same
+// shape the Studio assign route validated against at save time).
+const CHANNEL_ENTRY = {
+  slug: 'money-rulebook',
+  niche: 'personal finance',
+  kit: { niches: ['personal finance'], longSlot: null },
+};
+
+// Both capabilities available; renderer intentionally absent (route parity:
+// Phase-1 renderers ship in-repo, the preflight mirrors the route's assertion).
+const CAPS = { 'script-gen': true, 'tts': true };
+
+const ASSIGNMENT_ROW = {
+  channel_id: 'money-rulebook',
+  family_id: 'finance-explainer',
+  pinned_major: 1,
+  pinned_version: '1.1.0',
+  assigned_by: 'owner@example.com',
+};
+
+function stubDb(rows, opts = {}) {
+  const calls = [];
+  return {
+    calls,
+    getActiveAssignment: async (channelId) => {
+      calls.push(channelId);
+      if (opts.reject) throw opts.reject;
+      return rows.find((r) => r.channel_id === channelId) || null;
+    },
+  };
+}
+
+const run = (db, over = {}) => runPreflight({
+  channelId: 'money-rulebook',
+  registryDb: db,
+  catalog: CATALOG,
+  meta: REGISTRY_META_FIXTURE,
+  channelEntry: CHANNEL_ENTRY,
+  capabilityMap: CAPS,
+  ...over,
+});
+
+// ---------------------------------------------------------------------------
+// 1. No active assignment -> legacy mode, verdict null (spec D5: zero change).
+// ---------------------------------------------------------------------------
+test('preflight: no active assignment -> legacy mode with null verdict', async () => {
+  const db = stubDb([]);
+  const pre = await run(db);
+  assert.deepEqual(pre, { mode: 'legacy', verdict: null });
+  assert.deepEqual(db.calls, ['money-rulebook'], 'looks up by the passed channelId');
+});
+
+// ---------------------------------------------------------------------------
+// 2. Assigned + compatible -> enforce ok, enrichment fields correct (AC-7).
+//    Pinned major 1 with catalog at 1.2.0 auto-adopts the minor (AC-5).
+// ---------------------------------------------------------------------------
+test('preflight: assigned + compatible -> enforce ok with template_id, resolved_version, metaSummary', async () => {
+  const pre = await run(stubDb([ASSIGNMENT_ROW]));
+  assert.equal(pre.mode, 'enforce');
+  assert.equal(pre.verdict.ok, true);
+  assert.equal(pre.verdict.template_id, 'finance-explainer');
+  assert.equal(pre.verdict.resolved_version, '1.2.0'); // auto-adopted from pinned 1.1.0
+  assert.deepEqual(pre.verdict.metaSummary, {
+    variation_rules: META_V120.variation_rules,
+    safety: META_V120.safety,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 3. Renderer parity with the assign route: capability map without the
+//    renderer key still passes (Phase-1 renderers ship in-repo).
+// ---------------------------------------------------------------------------
+test('preflight: renderer mirrored like the assign route -> not renderer_unavailable', async () => {
+  const pre = await run(stubDb([ASSIGNMENT_ROW]));
+  assert.equal(pre.verdict.ok, true, 'remotion absent from CAPS must not block');
+});
+
+// ---------------------------------------------------------------------------
+// 4. Assigned + incompatible -> enforce, ok:false, stable reason codes.
+//    Caller (pipeline) fails the run on a not-ok verdict (AC-8).
+// ---------------------------------------------------------------------------
+test('preflight: assigned + blocked -> ok:false verdict carrying reason codes', async () => {
+  const pre = await run(stubDb([ASSIGNMENT_ROW]), {
+    capabilityMap: { 'script-gen': true }, // tts missing
+    channelEntry: { slug: 'money-rulebook', niche: 'history', kit: { niches: ['history'] } },
+  });
+  assert.equal(pre.mode, 'enforce');
+  assert.equal(pre.verdict.ok, false);
+  const codes = pre.verdict.reasons.map((r) => r.code);
+  assert.ok(codes.includes('missing_capability:tts'), `got ${codes}`);
+  assert.ok(codes.includes('niche_mismatch'), `got ${codes}`);
+});
+
+// ---------------------------------------------------------------------------
+// 5. Assignment resolvable against nothing (bad pin / family gone from the
+//    catalog registry data) -> blocked verdict, not a silent pass, not a crash.
+// ---------------------------------------------------------------------------
+test('preflight: pinned major with no catalog version -> ok:false no_version_in_major', async () => {
+  const pre = await run(stubDb([{ ...ASSIGNMENT_ROW, pinned_major: 9 }]));
+  assert.equal(pre.mode, 'enforce');
+  assert.equal(pre.verdict.ok, false);
+  assert.ok(pre.verdict.reasons.some((r) => r.code === 'no_version_in_major'));
+});
+
+// ---------------------------------------------------------------------------
+// 6. Registry DB error -> throws (fail-closed; a preflight that cannot run
+//    must never wave an assigned channel through to generation).
+// ---------------------------------------------------------------------------
+test('preflight: DB error -> throws with the underlying reason', async () => {
+  await assert.rejects(
+    () => run(stubDb([], { reject: new Error('db down') })),
+    /db down/,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// 7. Capability map builder mirrors the assign route's provider table.
+// ---------------------------------------------------------------------------
+test('capabilityMapFromAppliedProviders: route parity for the vault provider table', () => {
+  const map = capabilityMapFromAppliedProviders(['gemini', 'openai']);
+  assert.equal(map['script-gen'], true); // gemini covers script-gen
+  assert.equal(map['tts'], true);       // openai covers tts
+  assert.equal(map['captions'], true);  // openai covers captions
+  assert.equal(map['image-gen'], false); // no vault generator in Phase 1
+  assert.deepEqual(capabilityMapFromAppliedProviders(null), {
+    'script-gen': false, 'tts': false, 'captions': false, 'image-gen': false,
+  }, 'no applied channel keys -> everything unavailable (fail-closed)');
+});
+
+// ---------------------------------------------------------------------------
+// 8. Guard shape: the pipeline insertion sits behind TEMPLATE_PREFLIGHT_ENABLED.
+//    The pipeline itself spawns children + exits, so it cannot run in unit
+//    tests — these source-shape assertions pin the rollback (flip the constant
+//    to false -> the preflight module is never even imported).
+// ---------------------------------------------------------------------------
+test('guard: pipeline preflight is gated by TEMPLATE_PREFLIGHT_ENABLED', () => {
+  const src = readFs(new URL('../channel-pipeline.mjs', import.meta.url), 'utf8');
+  const constantAt = src.indexOf('const TEMPLATE_PREFLIGHT_ENABLED = true;');
+  const guardAt = src.indexOf('if (TEMPLATE_PREFLIGHT_ENABLED) {');
+  const callAt = src.indexOf('runPreflight(');
+  assert.ok(constantAt !== -1, 'module-top constant must exist');
+  assert.ok(guardAt > constantAt, 'guard must sit after the constant');
+  assert.ok(callAt > guardAt, 'runPreflight call must be inside the guarded block');
+  assert.ok(!src.slice(guardAt + 1).includes('const TEMPLATE_PREFLIGHT_ENABLED'), 'one gate, one call site');
+});
+
+test('guard: legacy contract — disabled preflight lib still exports the flag contract', async () => {
+  // The lib is only imported by the pipeline inside the guard; assert the
+  // exported surface the guard relies on stays intact.
+  const lib = await import('../lib/template-preflight.mjs');
+  assert.equal(typeof lib.runPreflight, 'function');
+  assert.equal(typeof lib.capabilityMapFromAppliedProviders, 'function');
+});
