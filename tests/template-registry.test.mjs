@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateRegistryMeta, loadRegistryTemplates, resolveAssignment, validateAssignment, channelConfigFromRegistryEntry } from '../studio/lib/template-registry.js';
 import { REGISTRY_META } from '../studio/lib/template-registry.data.js';
+import { TEMPLATES_DATA } from '../studio/lib/templates-catalog.js';
 
 const valid = {
   version: '1.0.0',
@@ -160,7 +161,12 @@ test('validator: compatible assignment passes', () => {
 test('validator: unavailable required capability -> missing_capability:<cap>', () => {
   const r = validateAssignment(valid, matchingChannel, { ...fullCaps, tts: false });
   assert.equal(r.ok, false);
-  assert.deepEqual(r.reasons, [{ code: 'missing_capability:tts', detail: r.reasons[0].detail }]);
+  // M7 fix (Task 3+4 ledgered minor): assert the real detail string, not
+  // r.reasons[0].detail against itself (was a tautology).
+  assert.deepEqual(r.reasons, [{
+    code: 'missing_capability:tts',
+    detail: 'required capability "tts" is not available (map value must be exactly true)',
+  }]);
 });
 
 test('validator: capability present but not exactly true counts as unavailable', () => {
@@ -249,4 +255,112 @@ test('channelConfig: brand_kit is Boolean truthiness of a non-empty kit', () => 
   assert.equal(channelConfigFromRegistryEntry({ niche: 'n', kit: {} }).brand_kit, false);
   assert.equal(channelConfigFromRegistryEntry({ niche: 'n', kit: { voice: 'deep' } }).brand_kit, true);
   assert.equal(channelConfigFromRegistryEntry({ niche: 'n', kit: { niches: ['sub'] } }).brand_kit, true);
+});
+
+// ---- Task 10: the six seeded registry blocks (history + finance lanes) ----
+// Contract pins carried from Task 7 review:
+//   P2 — seed `niches` must be VERBATIM channel-registry niche strings
+//        (exact-string matching in validateAssignment; no normalization).
+//   P3 — NO seed may declare `image-gen` (Phase 1 vault has no generator
+//        provider; photo families draw from the stock/assets lane).
+//   M1 — fold-in: the validator collects ALL errors on one broken block.
+
+const SEED_IDS = [
+  'documentary-frames',
+  'timeline-history',
+  'photo-stories',
+  'finance-explainers',
+  'stats-counters',
+  'chart-animations',
+];
+const FINANCE_SEED_IDS = ['finance-explainers', 'stats-counters', 'chart-animations'];
+const HISTORY_SEED_IDS = ['documentary-frames', 'timeline-history', 'photo-stories'];
+
+// Aspect-ratio -> format mapping the seeds must honor.
+const ASPECT_TO_FORMAT = { '16:9': 'long', '9:16': 'short' };
+function formatsForAspectRatios(aspectRatios) {
+  return aspectRatios.map((a) => ASPECT_TO_FORMAT[a]);
+}
+
+test('seeds: REGISTRY_META contains exactly the six seeded families', () => {
+  assert.deepEqual(Object.keys(REGISTRY_META).sort(), [...SEED_IDS].sort());
+});
+
+test('seeds: every seed passes validateRegistryMeta', () => {
+  for (const id of SEED_IDS) {
+    assert.deepEqual(validateRegistryMeta(REGISTRY_META[id]), { ok: true }, `seed ${id} must validate`);
+  }
+});
+
+test('seeds: every seeded family exists in the catalog', () => {
+  const catalogIds = new Set(TEMPLATES_DATA.map((t) => t.family || t.id));
+  for (const id of SEED_IDS) {
+    assert.ok(catalogIds.has(id), `seed ${id} must exist in TEMPLATES_DATA`);
+  }
+});
+
+test('seeds: formats declared are a subset of the catalog aspectRatios', () => {
+  for (const id of SEED_IDS) {
+    const family = TEMPLATES_DATA.find((t) => (t.family || t.id) === id);
+    const declared = REGISTRY_META[id].formats;
+    const supported = formatsForAspectRatios(family.aspectRatios);
+    for (const f of declared) {
+      assert.ok(supported.includes(f), `seed ${id} declares format "${f}" not supported by catalog aspectRatios [${family.aspectRatios.join(', ')}]`);
+    }
+  }
+});
+
+test('seeds: finance seeds carry required_sources + review_required ["finance"]', () => {
+  for (const id of FINANCE_SEED_IDS) {
+    assert.deepEqual(REGISTRY_META[id].safety, { required_sources: true, review_required: ['finance'] }, `seed ${id}`);
+  }
+});
+
+test('seeds: history seeds carry required_sources with no review_required', () => {
+  for (const id of HISTORY_SEED_IDS) {
+    assert.deepEqual(REGISTRY_META[id].safety, { required_sources: true, review_required: [] }, `seed ${id}`);
+  }
+});
+
+test('seeds: no seed declares image-gen (pin P3 — Phase 1 vault has no generator)', () => {
+  for (const id of SEED_IDS) {
+    assert.equal(
+      REGISTRY_META[id].required_capabilities.includes('image-gen'), false,
+      `seed ${id} must not declare image-gen`,
+    );
+  }
+});
+
+test('seeds: version 1.0.0, not deprecated, changelog initial entry, >=2 variation rules', () => {
+  for (const id of SEED_IDS) {
+    const meta = REGISTRY_META[id];
+    assert.equal(meta.version, '1.0.0', `seed ${id}`);
+    assert.equal(meta.deprecated, false, `seed ${id}`);
+    assert.equal(meta.deprecated_on, undefined, `seed ${id}`);
+    assert.deepEqual(meta.changelog, [{ version: '1.0.0', date: '2026-10-26', note: 'initial registry entry' }], `seed ${id}`);
+    assert.ok(meta.variation_rules.length >= 2, `seed ${id} needs >=2 variation rules`);
+    assert.ok(meta.variation_rules.every((r) => typeof r === 'string' && r.length > 0), `seed ${id}`);
+  }
+});
+
+test('seeds: all six resolve as registry-assignable (6 templates, 0 invalid)', () => {
+  const { templates, invalid } = loadRegistryTemplates(TEMPLATES_DATA, REGISTRY_META);
+  assert.deepEqual(invalid, []);
+  assert.deepEqual(templates.map((t) => t.familyId).sort(), [...SEED_IDS].sort());
+});
+
+// M1 fold-in (Task 1+2 ledgered minor): pin the collect-all-errors contract —
+// one block with several broken fields yields >=2 named errors, not first-only.
+test('validator: collects >=2 errors on a single multi-broken block (not first-only)', () => {
+  const r = validateRegistryMeta({
+    ...valid,
+    version: 'not-semver',        // error 1: version
+    formats: ['vertical'],        // error 2: formats
+    renderer: '',                 // error 3: renderer
+    changelog: [{ version: 'x', date: 'tomorrow', note: '' }], // errors 4-6
+  });
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.length >= 2, `expected >=2 collected errors, got ${r.errors.length}: ${JSON.stringify(r.errors)}`);
+  assert.ok(r.errors.some((e) => e.includes('version')));
+  assert.ok(r.errors.some((e) => e.includes('formats')));
 });
