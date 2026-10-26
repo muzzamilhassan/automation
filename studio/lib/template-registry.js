@@ -131,3 +131,40 @@ export function loadRegistryTemplates(catalogFamilies, metaData) {
 
   return { templates, invalid };
 }
+
+/**
+ * Resolve a channel's pinned template assignment to the highest version
+ * within the pinned major. Pure and fail-closed.
+ * Adoption rules: minor/patch updates within the pinned major auto-adopt;
+ * a higher major never auto-adopts — it is surfaced via
+ * majorUpdateAvailable so the caller can decide (spec D2).
+ * @param {{ familyId: string, pinned_major: number }} assignment
+ * @param {Array<{ familyId?: string, version: string }>} registryBlocks registry metadata blocks (one per version)
+ * @returns {{ ok: true, resolvedVersion: string, majorUpdateAvailable: boolean } | { ok: false, errors: string[] }}
+ */
+export function resolveAssignment(assignment, registryBlocks) {
+  const inputErrors = [];
+  if (assignment === null || typeof assignment !== 'object' || Array.isArray(assignment) || !Number.isInteger(assignment.pinned_major)) {
+    inputErrors.push('assignment: must be an object with an integer pinned_major');
+  }
+  if (!Array.isArray(registryBlocks)) {
+    inputErrors.push('registryBlocks: must be an array of metadata blocks');
+  }
+  if (inputErrors.length > 0) return { ok: false, errors: inputErrors };
+
+  const versions = registryBlocks
+    .filter(b => b !== null && typeof b === 'object' && !Array.isArray(b)
+      && b.familyId === assignment.familyId
+      && isNonEmptyString(b.version) && SEMVER_RE.test(b.version))
+    .map(b => b.version.split('.').map(Number));
+
+  const inMajor = versions.filter(v => v[0] === assignment.pinned_major);
+  if (inMajor.length === 0) {
+    return { ok: false, errors: ['no_version_in_major'] };
+  }
+
+  const highest = inMajor.reduce((a, b) => (b[1] > a[1] || (b[1] === a[1] && b[2] > a[2]) ? b : a));
+  const majorUpdateAvailable = versions.some(v => v[0] > assignment.pinned_major);
+
+  return { ok: true, resolvedVersion: highest.join('.'), majorUpdateAvailable };
+}

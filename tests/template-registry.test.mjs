@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateRegistryMeta, loadRegistryTemplates } from '../studio/lib/template-registry.js';
+import { validateRegistryMeta, loadRegistryTemplates, resolveAssignment } from '../studio/lib/template-registry.js';
 import { REGISTRY_META } from '../studio/lib/template-registry.data.js';
 
 const valid = {
@@ -104,4 +104,45 @@ test('data module exposes an object REGISTRY_META (seeded in a later task)', () 
   assert.equal(typeof REGISTRY_META, 'object');
   assert.notEqual(REGISTRY_META, null);
   assert.equal(Array.isArray(REGISTRY_META), false);
+});
+
+// ---- Task 3: semver resolver — minor/patch auto-adopt, major holds ----
+
+const familyBlocks = [
+  { familyId: 'documentary-frames', version: '1.0.0' },
+  { familyId: 'documentary-frames', version: '1.1.0' },
+  { familyId: 'documentary-frames', version: '1.1.3' },
+  { familyId: 'documentary-frames', version: '2.0.0' },
+];
+
+test('resolver: highest version within pinned major, flags higher major available', () => {
+  const r = resolveAssignment({ familyId: 'documentary-frames', pinned_major: 1 }, familyBlocks);
+  assert.deepEqual(r, { ok: true, resolvedVersion: '1.1.3', majorUpdateAvailable: true });
+});
+
+test('resolver: pin on the highest major resolves it, no major update available', () => {
+  const r = resolveAssignment({ familyId: 'documentary-frames', pinned_major: 2 }, familyBlocks);
+  assert.deepEqual(r, { ok: true, resolvedVersion: '2.0.0', majorUpdateAvailable: false });
+});
+
+test('resolver: pin with no versions in that major errors no_version_in_major', () => {
+  const r = resolveAssignment({ familyId: 'documentary-frames', pinned_major: 3 }, familyBlocks);
+  assert.deepEqual(r, { ok: false, errors: ['no_version_in_major'] });
+});
+
+test('resolver: only considers blocks of the assigned family', () => {
+  const otherFamily = [{ familyId: 'kinetic-quotes', version: '1.5.0' }];
+  const r = resolveAssignment({ familyId: 'documentary-frames', pinned_major: 1 }, otherFamily);
+  assert.deepEqual(r, { ok: false, errors: ['no_version_in_major'] });
+});
+
+test('resolver: picks highest patch within same minor (numeric, not lexicographic)', () => {
+  const blocks = [
+    { familyId: 'f', version: '1.0.9' },
+    { familyId: 'f', version: '1.0.10' },
+    { familyId: 'f', version: '1.0.2' },
+  ];
+  const r = resolveAssignment({ familyId: 'f', pinned_major: 1 }, blocks);
+  assert.equal(r.ok, true);
+  assert.equal(r.resolvedVersion, '1.0.10');
 });
