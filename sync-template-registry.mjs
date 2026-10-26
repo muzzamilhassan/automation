@@ -45,6 +45,7 @@ if (DRY) {
 } else {
   try {
     const db = await (await import('./studio/lib/template-registry-db.js')).getRegistryDb();
+    await db.ensureSchema(); // fresh database needs its tables before the first sync
     const result = await db.syncRegistry(templates);
     log(`placed/updated: ${result.synced.length} of ${templates.length} registry-assignable family(ies)`);
     if (result.synced.length) log(`  written: ${result.synced.join(', ')}`);
