@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateRegistryMeta, loadRegistryTemplates, resolveAssignment, validateAssignment } from '../studio/lib/template-registry.js';
+import { validateRegistryMeta, loadRegistryTemplates, resolveAssignment, validateAssignment, channelConfigFromRegistryEntry } from '../studio/lib/template-registry.js';
 import { REGISTRY_META } from '../studio/lib/template-registry.data.js';
 
 const valid = {
@@ -211,4 +211,42 @@ test('validator: collects ALL blocking reasons, not first-only', () => {
       'renderer_unavailable',
     ],
   );
+});
+
+// ---- channelConfigFromRegistryEntry (Task 8 hoist of the assign route's
+// verbatim channelConfig derivation — pins the validator-input contract) ----
+
+test('channelConfig: null/absent entry and kit -> empty niches, shorts-only, no kit', () => {
+  const empty = { formats: ['short'], niches: [], brand_kit: false };
+  assert.deepEqual(channelConfigFromRegistryEntry(null), empty);
+  assert.deepEqual(channelConfigFromRegistryEntry(undefined), empty);
+  assert.deepEqual(channelConfigFromRegistryEntry({ slug: 'x' }), empty);
+  assert.deepEqual(channelConfigFromRegistryEntry({ slug: 'x', kit: null }), empty);
+  assert.deepEqual(channelConfigFromRegistryEntry({ slug: 'x', kit: {} }), empty);
+});
+
+test('channelConfig: main niche plus sub-niches, Set-deduped with main first', () => {
+  const r = channelConfigFromRegistryEntry({ niche: 'History stories', kit: { niches: ['History stories', 'biographies', 'ancient civilizations'] } });
+  assert.deepEqual(r.niches, ['History stories', 'biographies', 'ancient civilizations']);
+  const r2 = channelConfigFromRegistryEntry({ niche: 'Finance explainers', kit: { niches: ['Finance explainers', 'Finance explainers'] } });
+  assert.deepEqual(r2.niches, ['Finance explainers']);
+});
+
+test('channelConfig: non-string niches are dropped, not passed to the validator', () => {
+  const r = channelConfigFromRegistryEntry({ niche: 'History stories', kit: { niches: ['', 42, null, 'war stories'] } });
+  assert.deepEqual(r.niches, ['History stories', 'war stories']);
+});
+
+test('channelConfig: longSlot ternary drives formats (short always, long only with longSlot)', () => {
+  assert.deepEqual(channelConfigFromRegistryEntry({ niche: 'n' }).formats, ['short']);
+  assert.deepEqual(channelConfigFromRegistryEntry({ niche: 'n', kit: { longSlot: '18:00' } }).formats, ['short', 'long']);
+  assert.deepEqual(channelConfigFromRegistryEntry({ niche: 'n', kit: { longSlot: '' } }).formats, ['short']);
+  assert.deepEqual(channelConfigFromRegistryEntry({ niche: 'n', kit: { longSlot: null } }).formats, ['short']);
+});
+
+test('channelConfig: brand_kit is Boolean truthiness of a non-empty kit', () => {
+  assert.equal(channelConfigFromRegistryEntry({ niche: 'n' }).brand_kit, false);
+  assert.equal(channelConfigFromRegistryEntry({ niche: 'n', kit: {} }).brand_kit, false);
+  assert.equal(channelConfigFromRegistryEntry({ niche: 'n', kit: { voice: 'deep' } }).brand_kit, true);
+  assert.equal(channelConfigFromRegistryEntry({ niche: 'n', kit: { niches: ['sub'] } }).brand_kit, true);
 });

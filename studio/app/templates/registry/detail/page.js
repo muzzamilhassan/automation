@@ -103,14 +103,22 @@ export default function TemplateDetailPage() {
           <CardHead title="Not a registry template" sub="This family has no valid registry metadata, so it is not assignable." icon={AlertTriangle} />
           <div className="px-5 pb-5">
             {invalidEntry ? (
-              <div className="inset-tile p-3">
-                <p className="text-[12px] font-semibold text-ink mb-1.5">Schema v1 errors{isOwner ? '' : ' (owner sees the full list)'}</p>
-                <ul className="space-y-1">
-                  {invalidEntry.errors.map((e, i) => (
-                    <li key={i} className="text-[11.5px] text-muted font-mono">— {e}</li>
-                  ))}
-                </ul>
-              </div>
+              isOwner ? (
+                <div className="inset-tile p-3">
+                  <p className="text-[12px] font-semibold text-ink mb-1.5">Schema v1 errors</p>
+                  <ul className="space-y-1">
+                    {invalidEntry.errors.map((e, i) => (
+                      <li key={i} className="text-[11.5px] text-muted font-mono">— {e}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <div className="inset-tile p-3">
+                  <p className="text-[12px] text-muted">
+                    {invalidEntry.errors.length} schema v1 error{invalidEntry.errors.length === 1 ? '' : 's'} — owner view for details.
+                  </p>
+                </div>
+              )
             ) : (
               <EmptyState icon={Layers} title={`"${family}" has no registry metadata`} sub="Families without a registry block stay out of browse and assignment by design." />
             )}
