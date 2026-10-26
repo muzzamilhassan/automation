@@ -101,3 +101,33 @@ export function validateRegistryMeta(meta) {
   if (errors.length > 0) return { ok: false, errors };
   return { ok: true };
 }
+
+/**
+ * Resolve registry-assignable templates over catalog families, fail-closed.
+ * - Families without registry metadata are simply absent from the result.
+ * - Families whose metadata fails validation are excluded AND reported (AC-1).
+ * Never throws on invalid metadata.
+ * @param {Array<{id: string, name: string, family?: string, [k: string]: unknown}>} catalogFamilies
+ * @param {Record<string, unknown>} metaData catalog family id -> metadata block
+ * @returns {{ templates: Array<{familyId: string, name: string, catalog: object, registry: object}>, invalid: Array<{familyId: string, errors: string[]}> }}
+ */
+export function loadRegistryTemplates(catalogFamilies, metaData) {
+  const templates = [];
+  const invalid = [];
+
+  for (const entry of catalogFamilies) {
+    const familyId = entry.family || entry.id;
+    const meta = metaData[familyId];
+    if (!meta) continue; // no registry metadata -> not registry-assignable, simply absent
+
+    const result = validateRegistryMeta(meta);
+    if (!result.ok) {
+      invalid.push({ familyId, errors: result.errors });
+      continue;
+    }
+
+    templates.push({ familyId, name: entry.name, catalog: entry, registry: meta });
+  }
+
+  return { templates, invalid };
+}
