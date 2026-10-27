@@ -250,6 +250,7 @@ Quoted from the real local build/server (`STUDIO_PASSWORD` throwaway override; n
   - unauthenticated `GET /keys` → `308 -> http://localhost:3000/channels`
   - `GET /keys?slug=x` → `308 -> http://localhost:3000/channels?slug=x`
   - `GET /keys` with owner session cookie → `308 -> http://localhost:3000/channels`
+  - **production** `https://quarry-studio.vercel.app/keys` → `308 -> https://quarry-studio.vercel.app/channels`; `/channels` signed-out → `307` to login (gate unchanged)
 - **Row 4 (AC-4, API half)** — owner session, channel `quotequarry`: `POST /api/channels/keys {provider: pixabay, key: "BAD-KEY-000"}` → `HTTP 400` `{"error":"key rejected: HTTP 400"}`; immediate re-GET shows `"pixabay":{... "set":false,"masked":null}` — nothing stored.
 - **Row 2/12 (AC-2/AC-12, data shape)** — `GET /api/channels/keys?slug=quotequarry` returns the full registry-driven provider list with `set`/`masked` fields; `/api/overview` already filters channels per role (clients see only bound channels), so the denial path is the residual guard.
 - **Two-axis code review** — spec axis flagged one major (AC-12 denial rendered as eternal spinner) — fixed in commit `4547cf3` along with `remove()` response honesty; standards axis: APPROVE (stale comment fixed same commit).
