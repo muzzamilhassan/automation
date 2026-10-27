@@ -16,6 +16,7 @@
     "js-yaml": "^5.4.1",
     "libsodium-wrappers": "^0.7.15",
     "pdfkit": "^0.20.2",
+    "postgres": "^3.4.7",
     "playwright-core": "^1.63.0",
     "sharp": "^0.33.5",
     "undici": "^8.10.2",
