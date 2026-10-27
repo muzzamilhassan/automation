@@ -14,18 +14,32 @@ export const dynamic = 'force-dynamic';
 
 const KEYS_FILE = 'yt-mcp/channel-keys.json';
 
-// Vault provider -> registry capability (spec D4: a capability counts as
-// available only when a configured provider covers it; every key in the vault
-// passed live validateKey() at save time, so "configured" implies "working").
-// Engine knowledge, not brand data — brand specifics stay in kit/registry.
+// Phase 1: pipeline-truth baseline — what the production pipeline fulfills
+// TODAY with no owner action: script-gen via the script-brain chain (server
+// keys), tts via the local edge-tts/Kokoro lanes, captions via the local
+// faster-whisper/SRT lane — all ship in-repo and run in the current workflows,
+// so they count as available WITHOUT any vault key. image-gen has no in-repo
+// generator (pixabay/pexels are stock *search* keys, not generators).
+// Phase 1: pipeline-truth baseline — the vault refines per-provider routing
+// in Phase 2 (capability registry).
+const CAPABILITY_BASELINE = {
+  'script-gen': true,
+  'tts': true,
+  'captions': true,
+  // PHASE-2 UPGRADE: no in-repo image generator — stays unavailable until
+  // Phase 2 adds a generator lane / capability-registry entry.
+  'image-gen': false,
+};
+
+// Vault provider -> registry capability. Every key in the vault passed live
+// validateKey() at save time, so "configured" implies "working". REFINEMENT
+// ONLY: a vault key can ADD availability on top of the baseline and can never
+// revoke it. Engine knowledge, not brand data — brand specifics stay in
+// kit/registry. Phase 2 replaces the baseline with per-provider truth.
 const CAPABILITY_PROVIDERS = {
   'script-gen': ['gemini', 'groq', 'cerebras', 'mistral', 'hf', 'openrouter'],
   'tts': ['openai', 'elevenlabs'],
   'captions': ['openai'],
-  // PHASE-2 UPGRADE: the vault holds no image-generation provider today
-  // (pixabay/pexels are stock *search* keys, not generators), so image-gen
-  // cannot be expressed — it stays unavailable here until Phase 2 adds a
-  // generator provider to the vault.
   'image-gen': [],
 };
 
@@ -33,9 +47,10 @@ const CAPABILITY_PROVIDERS = {
 // — the GET templates route needs the same niches/formats for the channel view,
 // and both callers must feed the validator identical inputs (Task 7 review M20).
 
-// capabilityMap from the BYOK vault (per-channel provider keys, keyed by slug).
-// Fail-closed: an unreadable vault means every capability is unavailable and
-// the validator blocks the assignment with exact missing_capability codes.
+// capabilityMap = pipeline-truth baseline, refined by the BYOK vault
+// (per-channel provider keys, keyed by slug). The vault is add-only: an
+// unreadable vault leaves the baseline intact (the pipeline still fulfills
+// its lanes), while a configured vault key can only ADD availability.
 async function buildCapabilityMap(slug) {
   const map = {};
   let keys = null;
@@ -44,10 +59,11 @@ async function buildCapabilityMap(slug) {
     const entry = file[slug];
     keys = entry?.enc ? decryptKeys(entry.enc) : null;
   } catch {
-    keys = null; // vault unreachable -> nothing counts as available
+    keys = null; // vault unreachable -> baseline still holds (pipeline truth)
   }
   for (const [cap, providers] of Object.entries(CAPABILITY_PROVIDERS)) {
-    map[cap] = providers.some((p) => keys?.[p]);
+    // Phase 1: pipeline-truth baseline — the vault refines per-provider routing in Phase 2 (capability registry)
+    map[cap] = CAPABILITY_BASELINE[cap] === true || providers.some((p) => keys?.[p]);
   }
   return map;
 }
