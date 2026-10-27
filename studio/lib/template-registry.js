@@ -8,6 +8,31 @@ const ALLOWED_FORMATS = ['short', 'long'];
 const ALLOWED_CAPABILITIES = ['script-gen', 'tts', 'captions', 'image-gen'];
 const ALLOWED_REVIEW_REQUIRED = ['health', 'finance', 'all'];
 
+/**
+ * Pipeline-truth capability baseline (Phase 1): what the production pipeline
+ * fulfills TODAY with no owner action — script-gen via the script-brain chain
+ * (server keys), tts via the local edge-tts/Kokoro lanes, captions via the
+ * local faster-whisper/SRT lane. All ship in-repo and run in the current
+ * workflows, so they count as available WITHOUT any vault key. image-gen has
+ * no in-repo generator (pixabay/pexels are stock *search* keys, not
+ * generators).
+ * SHARED by both validator moments — the Studio assign route
+ * (app/api/templates/assign/route.js) and the pipeline preflight
+ * (lib/template-preflight.mjs) — so the same ruling can never drift into two
+ * implementations (the E2E round-2 finding: route said tts/captions available,
+ * preflight said unavailable, and an assigned channel fail-closed at
+ * generation). The BYOK vault is REFINEMENT ONLY: a configured key can add
+ * availability on top of this baseline and can never revoke it.
+ * PHASE-2 UPGRADE: replace the baseline with per-provider truth (capability
+ * registry) instead of asserting lane availability.
+ */
+export const CAPABILITY_BASELINE = {
+  'script-gen': true,
+  'tts': true,
+  'captions': true,
+  'image-gen': false,
+};
+
 function isNonEmptyString(v) {
   return typeof v === 'string' && v.length > 0;
 }

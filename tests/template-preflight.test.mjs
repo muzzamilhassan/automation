@@ -158,17 +158,31 @@ test('preflight: missing channelId / registryDb still throw (caller bug, not inf
 });
 
 // ---------------------------------------------------------------------------
-// 7. Capability map builder mirrors the assign route's provider table.
+// 7. Capability map = SHARED pipeline-truth baseline refined add-only by the
+//    vault (fix round 3 — the assign route and the preflight cannot drift).
 // ---------------------------------------------------------------------------
-test('capabilityMapFromAppliedProviders: route parity for the vault provider table', () => {
+test('capabilityMapFromAppliedProviders: baseline holds with zero vault keys; vault adds only', () => {
   const map = capabilityMapFromAppliedProviders(['gemini', 'openai']);
-  assert.equal(map['script-gen'], true); // gemini covers script-gen
-  assert.equal(map['tts'], true);       // openai covers tts
-  assert.equal(map['captions'], true);  // openai covers captions
-  assert.equal(map['image-gen'], false); // no vault generator in Phase 1
+  assert.equal(map['script-gen'], true); // baseline true regardless; gemini also covers
+  assert.equal(map['tts'], true);
+  assert.equal(map['captions'], true);
+  assert.equal(map['image-gen'], false); // baseline false AND no vault generator
   assert.deepEqual(capabilityMapFromAppliedProviders(null), {
-    'script-gen': false, 'tts': false, 'captions': false, 'image-gen': false,
-  }, 'no applied channel keys -> everything unavailable (fail-closed)');
+    'script-gen': true, 'tts': true, 'captions': true, 'image-gen': false,
+  }, 'no vault keys -> the pipeline-truth baseline still holds, image-gen stays unavailable');
+});
+
+// ---------------------------------------------------------------------------
+// 6b. Zero vault keys -> assigned channel still passes enforce (fix round 3,
+//     E2E round-2 finding: the CI runner has no vault keys, so the old
+//     vault-only map blocked on missing_capability:tts,missing_capability:captions).
+// ---------------------------------------------------------------------------
+test('preflight: zero applied providers -> assigned channel verdict ok via shared baseline', async () => {
+  const pre = await run(stubDb([ASSIGNMENT_ROW]), {
+    capabilityMap: capabilityMapFromAppliedProviders(null),
+  });
+  assert.equal(pre.mode, 'enforce');
+  assert.equal(pre.verdict.ok, true, `baseline must cover script-gen/tts/captions, got ${JSON.stringify(pre.verdict.reasons)}`);
 });
 
 // ---------------------------------------------------------------------------

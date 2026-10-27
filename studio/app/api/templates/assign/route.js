@@ -5,7 +5,7 @@
 import { getUser } from '@/lib/route-auth';
 import { readRegistry, readRepoJSON } from '@/lib/channels-registry';
 import { decryptKeys } from '@/lib/keys-vault';
-import { loadRegistryTemplates, validateAssignment, channelConfigFromRegistryEntry } from '@/lib/template-registry';
+import { loadRegistryTemplates, validateAssignment, channelConfigFromRegistryEntry, CAPABILITY_BASELINE } from '@/lib/template-registry';
 import { TEMPLATES_DATA } from '@/lib/templates-catalog';
 import { REGISTRY_META } from '@/lib/template-registry.data';
 import { getRegistryDb } from '@/lib/template-registry-db';
@@ -14,22 +14,12 @@ export const dynamic = 'force-dynamic';
 
 const KEYS_FILE = 'yt-mcp/channel-keys.json';
 
-// Phase 1: pipeline-truth baseline — what the production pipeline fulfills
-// TODAY with no owner action: script-gen via the script-brain chain (server
-// keys), tts via the local edge-tts/Kokoro lanes, captions via the local
-// faster-whisper/SRT lane — all ship in-repo and run in the current workflows,
-// so they count as available WITHOUT any vault key. image-gen has no in-repo
-// generator (pixabay/pexels are stock *search* keys, not generators).
-// Phase 1: pipeline-truth baseline — the vault refines per-provider routing
-// in Phase 2 (capability registry).
-const CAPABILITY_BASELINE = {
-  'script-gen': true,
-  'tts': true,
-  'captions': true,
-  // PHASE-2 UPGRADE: no in-repo image generator — stays unavailable until
-  // Phase 2 adds a generator lane / capability-registry entry.
-  'image-gen': false,
-};
+// CAPABILITY_BASELINE lives in the shared lib now (template-registry.js) —
+// imported above — so the assign route and the pipeline preflight
+// (lib/template-preflight.mjs) rule identically and cannot drift (E2E round-2
+// finding: two local copies diverged and blocked an assigned channel at
+// generation). The vault provider table below stays route-local engine
+// knowledge for the vault refinement.
 
 // Vault provider -> registry capability. Every key in the vault passed live
 // validateKey() at save time, so "configured" implies "working". REFINEMENT
