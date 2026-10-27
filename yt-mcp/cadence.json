@@ -3,7 +3,7 @@
     "docDays": [
       "Thu",
       "Sun",
-      "Mon"
+      "Tue"
     ],
     "shortDays": [
       "Mon",
@@ -15,8 +15,8 @@
       "Sun"
     ],
     "shortsSource": "clips",
-    "updated": "2026-10-27T15:35:16.614Z",
-    "updatedBy": "E2E temp: Mon added for manual registry-path proof (issue #102) — revert after"
+    "updated": "2026-10-27T15:39:27.842Z",
+    "updatedBy": "E2E temp: Tue added (corrected day) for manual registry-path proof (issue #102) — revert after"
   },
   "debt-free-doctrine": {
     "docDays": [
