@@ -282,8 +282,12 @@ function formatsForAspectRatios(aspectRatios) {
   return aspectRatios.map((a) => ASPECT_TO_FORMAT[a]);
 }
 
-test('seeds: REGISTRY_META contains exactly the six seeded families', () => {
-  assert.deepEqual(Object.keys(REGISTRY_META).sort(), [...SEED_IDS].sort());
+test('seeds: REGISTRY_META contains at least the six seeded families', () => {
+  // The registry grows as data (exit gate added editorial-headlines as #7) —
+  // pin the six launch seeds as REQUIRED, not exhaustive; every additional
+  // entry must still pass validateRegistryMeta (covered by the loader test).
+  const keys = Object.keys(REGISTRY_META);
+  for (const id of SEED_IDS) assert.ok(keys.includes(id), `missing seed ${id}`);
 });
 
 test('seeds: every seed passes validateRegistryMeta', () => {
@@ -343,10 +347,12 @@ test('seeds: version 1.0.0, not deprecated, changelog initial entry, >=2 variati
   }
 });
 
-test('seeds: all six resolve as registry-assignable (6 templates, 0 invalid)', () => {
+test('seeds: all seeds resolve as registry-assignable (>= 6 templates, 0 invalid)', () => {
   const { templates, invalid } = loadRegistryTemplates(TEMPLATES_DATA, REGISTRY_META);
   assert.deepEqual(invalid, []);
-  assert.deepEqual(templates.map((t) => t.familyId).sort(), [...SEED_IDS].sort());
+  const ids = templates.map((t) => t.familyId);
+  for (const id of SEED_IDS) assert.ok(ids.includes(id), `seed ${id} must resolve`);
+  assert.ok(templates.length >= SEED_IDS.length, `expected >= ${SEED_IDS.length} templates, got ${templates.length}`);
 });
 
 // M1 fold-in (Task 1+2 ledgered minor): pin the collect-all-errors contract —

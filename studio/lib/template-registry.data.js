@@ -123,4 +123,18 @@ export const REGISTRY_META = {
     deprecated: false,
     changelog: [{ version: '1.0.0', date: '2026-10-26', note: 'initial registry entry' }],
   },
+  'editorial-headlines': {
+    version: '1.0.0',
+    niches: ['History stories'],
+    formats: ['long', 'short'],
+    renderer: 'remotion',
+    required_capabilities: ['script-gen', 'tts', 'captions'],
+    variation_rules: [
+      'distinct storyline/focus per video — each video investigates a different event, era, or document set (no repeats)',
+      'no repeated hook across the channel\'s last 5 videos',
+    ],
+    safety: { required_sources: true, review_required: [] },
+    deprecated: false,
+    changelog: [{ version: '1.0.0', date: '2026-10-27', note: 'registry entry #7 — exit-gate proof: data-only addition' }],
+  },
 };
