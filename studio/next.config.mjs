@@ -11,6 +11,10 @@ const nextConfig = {
     '/api/action': ['./lib/brands.json'],
     '/api/thumbs/preview': ['./lib/fonts/**'],
   },
+  async redirects() {
+    // #103 — /keys retired; key operations live inline on /channels now.
+    return [{ source: '/keys', destination: '/channels', permanent: true }];
+  },
 };
 
 export default nextConfig;
