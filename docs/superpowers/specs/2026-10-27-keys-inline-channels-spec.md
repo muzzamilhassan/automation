@@ -53,7 +53,7 @@ The QA file quotes these verbatim, row per criterion.
 
 ## Implementation Decisions
 
-- New shared component: an owner-facing per-channel API keys panel, props limited to the channel slug (plus accent for theming). Behavior lifted from the retired page; provider cards stay driven by the existing provider registry — no hardcoded provider lists in the component (no-static-maps rule).
+- New shared component: an owner-facing per-channel API keys panel, props limited to the channel slug (recorded deviation: the accent theming allowance is unused — panel styling follows the shared inset-tile idiom like the template panel, which also takes slug only). Behavior lifted from the retired page; provider cards stay driven by the existing provider registry — no hardcoded provider lists in the component (no-static-maps rule).
 - The Channels page gains a third panel toggle in each active channel card header (key icon next to the schedule and template icons), same open/close state pattern as the existing two panels.
 - Parked brand tiles become expandable, revealing the same panel component (key management only — no scheduling/template panels for parked brands).
 - The retired page's unique explanatory content — "channel keys run before shared keys" and the encrypted/never-viewed-again note — moves into the panel's footnote area.

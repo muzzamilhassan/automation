@@ -117,7 +117,8 @@ export default function ClientPage() {
 
 
 // Compact per-channel key manager for DFY clients — same API the owner's
-// /keys page uses; the server only allows the channel bound to the client.
+// ChannelKeysPanel (inline on /channels) uses; the server only allows the
+// channel bound to the client.
 function KeysInline({ slug }) {
   const [open, setOpen] = useState(false);
   const [providers, setProviders] = useState(null);

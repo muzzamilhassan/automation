@@ -14,16 +14,19 @@ export default function ChannelKeysPanel({ slug }) {
   const [msg, setMsg] = useState({});         // provider -> {ok, text}
   const [meta, setMeta] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadErr, setLoadErr] = useState(null); // friendly denial / network error (AC-12)
 
   const load = () => {
     setLoading(true);
+    setLoadErr(null);
     fetch(`/api/channels/keys?slug=${encodeURIComponent(slug)}`)
-      .then((r) => r.json())
-      .then((d) => {
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || `request failed (${r.status})`);
         setProviders(d.providers || null);
         setMeta({ updated: d.updated, updatedBy: d.updatedBy });
       })
-      .catch(() => setProviders(null))
+      .catch((e) => setLoadErr(String(e.message || e)))
       .finally(() => setLoading(false));
   };
 
@@ -52,13 +55,14 @@ export default function ChannelKeysPanel({ slug }) {
   const remove = async (provider) => {
     setBusy(provider);
     try {
-      await fetch('/api/channels/keys', {
+      const r = await fetch('/api/channels/keys', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slug, provider }),
       });
-      setMsg((m) => ({ ...m, [provider]: { ok: true, text: 'removed — shared key takes over' } }));
-      load();
+      const d = await r.json().catch(() => ({}));
+      setMsg((m) => ({ ...m, [provider]: r.ok ? { ok: true, text: 'removed — shared key takes over' } : { ok: false, text: d.error || `remove failed (${r.status})` } }));
+      if (r.ok) load();
     } finally {
       setBusy('');
     }
@@ -77,7 +81,11 @@ export default function ChannelKeysPanel({ slug }) {
         </div>
       ) : null}
 
-      {loading || !providers ? (
+      {loadErr ? (
+        <div className="flex items-center gap-2 text-[12px] py-1" style={{ color: 'var(--bad)' }}>
+          <XCircle size={13} className="shrink-0" /> {loadErr}
+        </div>
+      ) : loading || !providers ? (
         <div className="flex items-center gap-2 text-muted text-[12px] py-4"><Loader2 size={14} className="animate-spin" /> Loading…</div>
       ) : (
         <div className="space-y-2">
