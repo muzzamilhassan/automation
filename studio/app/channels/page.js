@@ -1,13 +1,14 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Tv, Music2, RefreshCw, Mic, Music, Clock, Archive, Plus, PenLine, Pause, Play, CalendarDays, Layers } from 'lucide-react';
+import { Tv, Music2, RefreshCw, Mic, Music, Clock, Archive, Plus, PenLine, Pause, Play, CalendarDays, Layers, KeyRound } from 'lucide-react';
 import { YoutubeIcon, FacebookIcon, InstagramIcon } from '@/components/BrandIcons';
 import { Card, CardHead, Chip, PageHeader, BrandMark, PageSkeleton, EmptyState } from '@/components/ui';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
 import SchedulePanel from '@/components/SchedulePanel';
 import TemplateAssignPanel from '@/components/TemplateAssignPanel';
+import ChannelKeysPanel from '@/components/ChannelKeysPanel';
 import { BRAND_META, MUSIC_MOODS } from '@/lib/site-data';
 import { fmt } from '@/lib/utils';
 
@@ -31,6 +32,8 @@ export default function Channels() {
   const [data, setData] = useState(null);
   const [schedOpen, setSchedOpen] = useState(null);
   const [tplOpen, setTplOpen] = useState(null);   // #102 — template registry panel per channel
+  const [keysOpen, setKeysOpen] = useState(null); // #103 — inline API keys panel per channel
+  const [parkedKeys, setParkedKeys] = useState(null); // #103 — parked brand keys (full-width panel below grid)
   const load = () => fetch('/api/overview').then((r) => r.json()).then(setData).catch(() => setData({ channels: [] }));
 
   // 10-08 FLOW CONTROL — per-channel autopilot ON/OFF
@@ -91,6 +94,13 @@ export default function Channels() {
                         tooltip="Template registry — assigned template, pinned version, assign/unassign"
                         icon={Layers}
                         onClick={() => setTplOpen(tplOpen === c.slug ? null : c.slug)}
+                      />
+                      <ButtonUtility
+                        size="sm"
+                        color="tertiary"
+                        tooltip="API keys — per-channel provider keys (paste, Save & test, remove)"
+                        icon={KeyRound}
+                        onClick={() => setKeysOpen(keysOpen === c.slug ? null : c.slug)}
                       />
                       <Link href={`/channels/add?edit=${c.slug}`} title="Edit this channel (niche, sub-niches, template, schedule)">
                         <ButtonUtility size="sm" color="tertiary" icon={PenLine} />
@@ -155,6 +165,7 @@ export default function Channels() {
 
               {schedOpen === c.slug ? <SchedulePanel slug={c.slug} accent={c.accent} /> : null}
               {tplOpen === c.slug ? <TemplateAssignPanel slug={c.slug} /> : null}
+              {keysOpen === c.slug ? <ChannelKeysPanel slug={c.slug} /> : null}
             </Card>
           );
         })}
@@ -168,16 +179,27 @@ export default function Channels() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 px-4 pb-4">
             {parked.map((c) => (
-              <div key={c.slug} className="inset-tile p-3 flex items-center gap-2.5">
+              <button
+                key={c.slug}
+                onClick={() => setParkedKeys(parkedKeys === c.slug ? null : c.slug)}
+                title="API keys — pre-load this brand's provider keys before wake-up"
+                className="inset-tile p-3 flex items-center gap-2.5 text-left hover:bg-surface-2 transition-colors"
+              >
                 <BrandMark short={BRAND_META[c.slug]?.short || '•'} accent={c.accent} size={28} />
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-[11.5px] font-semibold text-ink truncate">{c.label}</p>
                   <p className="text-[10.5px] text-faint truncate">{c.niche}</p>
                 </div>
-              </div>
+                <KeyRound size={12} className={parkedKeys === c.slug ? 'text-ink shrink-0' : 'text-faint shrink-0'} />
+              </button>
             ))}
           </div>
         )}
+        {parkedKeys ? (
+          <div className="px-4 pb-4">
+            <ChannelKeysPanel slug={parkedKeys} />
+          </div>
+        ) : null}
       </Card>
     </div>
   );
