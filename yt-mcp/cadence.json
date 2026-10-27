@@ -2,7 +2,8 @@
   "money-rulebook": {
     "docDays": [
       "Thu",
-      "Sun"
+      "Sun",
+      "Mon"
     ],
     "shortDays": [
       "Mon",
@@ -14,8 +15,8 @@
       "Sun"
     ],
     "shortsSource": "clips",
-    "updated": "2026-10-24T10:30:00.000Z",
-    "updatedBy": "owner go — #101 flip completion (all 4 channels, 2 doc-days/week)"
+    "updated": "2026-10-27T15:35:16.614Z",
+    "updatedBy": "E2E temp: Mon added for manual registry-path proof (issue #102) — revert after"
   },
   "debt-free-doctrine": {
     "docDays": [
