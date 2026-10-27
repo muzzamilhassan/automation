@@ -24,7 +24,7 @@ const CAP_LABEL = {
 export function friendlyReason({ code, detail }) {
   if (typeof code === 'string' && code.startsWith('missing_capability:')) {
     const cap = code.slice('missing_capability:'.length);
-    return `Missing capability: no ${CAP_LABEL[cap] || cap} provider is configured for this channel. Fix: add a key on the API Keys page.`;
+    return `Missing capability: no ${CAP_LABEL[cap] || cap} provider is configured for this channel. Fix: add a key in this channel's API keys panel (key icon on its Channels card).`;
   }
   switch (code) {
     case 'format_mismatch':
