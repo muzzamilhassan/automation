@@ -240,3 +240,18 @@ The proxy role matrix was edited (dead rule removed).
 ## Summary
 
 Rows: 13 feature (1 automated, 6 manual, 4 visual, 2 manual-with-CLI) + 4 regression smoke. Criterion → row coverage: 12/12 ACs + invariants; every AC has exactly one row (none merged).
+
+## Build-time evidence (gathered 2026-10-27, before human execution)
+
+Quoted from the real local build/server (`STUDIO_PASSWORD` throwaway override; no production secret touched):
+
+- **Row 13 (automated)** — `node --test tests/*.mjs`: `tests 173 / pass 173 / fail 0`; vault file alone: `tests 7 / pass 7 / fail 0`. Studio build: `✓ Compiled successfully`, `25/25` static pages, route table contains **no** `/keys`.
+- **Row 9 (AC-9)** — local server:
+  - unauthenticated `GET /keys` → `308 -> http://localhost:3000/channels`
+  - `GET /keys?slug=x` → `308 -> http://localhost:3000/channels?slug=x`
+  - `GET /keys` with owner session cookie → `308 -> http://localhost:3000/channels`
+- **Row 4 (AC-4, API half)** — owner session, channel `quotequarry`: `POST /api/channels/keys {provider: pixabay, key: "BAD-KEY-000"}` → `HTTP 400` `{"error":"key rejected: HTTP 400"}`; immediate re-GET shows `"pixabay":{... "set":false,"masked":null}` — nothing stored.
+- **Row 2/12 (AC-2/AC-12, data shape)** — `GET /api/channels/keys?slug=quotequarry` returns the full registry-driven provider list with `set`/`masked` fields; `/api/overview` already filters channels per role (clients see only bound channels), so the denial path is the residual guard.
+- **Two-axis code review** — spec axis flagged one major (AC-12 denial rendered as eternal spinner) — fixed in commit `4547cf3` along with `remove()` response honesty; standards axis: APPROVE (stale comment fixed same commit).
+
+Human-executed rows (visual/manual, incl. rows 1, 3-browser-half, 5–8, 10–12, R1–R4) remain for the owner against the deployed Studio — Actual/Evidence/Status stay blank above until then.
