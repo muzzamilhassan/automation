@@ -45,12 +45,18 @@ test('resolveBrand returns null for unknown slug (no silent substitution — iss
   assert.equal(fallback, undefined, 'unknown slugs must NOT silently resolve to quotequarry');
 });
 
-test('#101 skeleton registry row must not clobber the legacy kit authority', async () => {
-  // IC's wizard row (connect-first save) carries no niche/authority — the old
-  // registryToKit fabricated "everyday wisdom Wisdom" and the merge (registry
-  // wins) clobbered the legacy kit's 'Market Wisdom'. Live data regression.
+test('#101 IC authority: registry niche fabricates the authority now that the mirror carries real kit data', async () => {
+  // DEPENDENCY: reads the live mirror yt-mcp/studio-channels.json (resolveBrand
+  // has no fixture seam). d72c495 (E2E prep) gave investors-compass a real
+  // niche + kit.niches, so the row is no longer the connect-first skeleton the
+  // original assertion assumed: registryToKit now legitimately fabricates
+  // "<niche> Wisdom" and the merge (registry wins) makes it the authority —
+  // replacing the legacy kit's 'Market Wisdom'. The skeleton fall-through half
+  // of the original #101 intent is covered by the pure-fixture test below
+  // (registryToKit fabricates authority only from a real niche/theme) —
+  // immune to future real-data backfills.
   const ic = await resolveBrand('investors-compass');
-  assert.equal(ic.authority, 'Market Wisdom', `skeleton registry entry must fall through to the legacy authority, got "${ic.authority}"`);
+  assert.equal(ic.authority, 'Investing psychology & market wisdom Wisdom', `mirror niche must fabricate the authority, got "${ic.authority}"`);
 });
 
 test('#101 registryToKit fabricates authority only from a real niche/theme', () => {
