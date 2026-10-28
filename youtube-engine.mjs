@@ -15,6 +15,8 @@ import sharp from 'sharp';
 import { EMBEDDED_FONTS_CSS } from './typography-poster-engine.mjs';
 import { ensurePoolClip } from './cinematic-engine.mjs';
 import { getTopicClip } from './youtube-clips.mjs';
+import { routeAndCall } from './lib/ai-adapter.mjs';
+import { capabilityProviders } from './studio/lib/provider-catalog.js';
 
 import { resolveBinary } from './lib/ffmpeg.mjs';
 import { loadEnv } from './lib/env.mjs';
@@ -22,11 +24,9 @@ import { loadEnv } from './lib/env.mjs';
 loadEnv();
 const FF = resolveBinary('ffmpeg');
 const POOL_DIR = 'pixabay-pool';
-// BYOK: read lazily (NOT at import) so per-channel keys injected by
-// lib/channel-keys.mjs before the brain runs are always picked up.
-function geminiKey() {
-  return process.env.GEMINI_API_KEY || '';
-}
+// BYOK (#104): provider keys for the script brain are applied per channel
+// THROUGH the adapter (routeAndCall -> applyChannelKeys, capability-filtered)
+// at call time — provider selection never reads env directly anymore.
 import { resolveBrand as resolveBrandKit } from './lib/brand-resolve.mjs';
 
 // Resolve the brand for a page/channel. Delegates to unified lib/brand-resolve.mjs.
@@ -334,10 +334,176 @@ function fallbackScriptFor(brand) {
   };
 }
 
-export async function generateYouTubeScript(page, forcedTheme = null) {
+// ---------------------------------------------------------------------------
+// #104 Task 6 — the script brain routes through the capability registry
+// (lib/ai-adapter.mjs). The hand-coded provider chains (doc: gemini → groq →
+// cloudflare; shorts: gemini → groq → cerebras → mistral → hf) are GONE per
+// AC-P2-10: provider ORDER and FALLBACK now belong to routeAndCall('script-gen')
+// — channel routes → workspace default → catalog baseline. What stays
+// caller-owned is the JSON CONTRACT (prompt + shape validation — only the
+// brain knows what a usable script looks like) and the escalation-retry walk
+// (the retired per-provider "reply with raw JSON ONLY" retries, now
+// chain-wide). Two seams preserve the retired chains' semantics across the
+// swap:
+//   - scriptGenRouting(): hf is FILTERED at the selection seam (dead paid
+//     lane — zero free credits, Task 1 review carry-forward) and openai is
+//     only ever reachable via an EXPLICIT route (a paid lane must never enter
+//     the zero-config baseline);
+//   - scriptShapeGate(): a provider reply that parses but fails the brain's
+//     shape check is surfaced to the adapter as unusable content, so
+//     fail-continue still walks to the next provider (the retired chains'
+//     bad-shape fall-through).
+// ---------------------------------------------------------------------------
+
+// Shared loose parse (deepdive's old parseLoose): tolerates code fences and
+// prose around the JSON object. Throws when no JSON object is present.
+export function parseScriptJson(content) {
+  const t = String(content || '').replace(/```json|```/g, '').trim();
+  return JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1));
+}
+
+// Dead paid lane — never routed, never a fallback candidate (research
+// 2026-10-28: HF free tier ships zero monthly credits; Llama-3.1-8B was the
+// known long-JSON truncator).
+export const SCRIPT_GEN_DEAD_LANES = ['hf'];
+// Paid lanes excluded from the IMPLICIT baseline only: with zero routes
+// configured the brain stays on today's free behavior; an explicit route
+// (user story 10's slot-0 UI action) reaches openai's adapter-pinned chat lane.
+export const SCRIPT_GEN_BASELINE_PAID = ['openai'];
+
+export function filterScriptGenRoutes(routes) {
+  return (Array.isArray(routes) ? routes : []).filter((r) => r && !SCRIPT_GEN_DEAD_LANES.includes(r.providerId));
+}
+
+export function baselineScriptGenRoutes() {
+  return capabilityProviders('script-gen')
+    .filter((id) => !SCRIPT_GEN_DEAD_LANES.includes(id) && !SCRIPT_GEN_BASELINE_PAID.includes(id))
+    .map((providerId, i) => ({ providerId, priority: i + 1, source: 'baseline' }));
+}
+
+// Routing wrapper passed to routeAndCall as injected.routing: delegates to the
+// real Task-3 routing (lazy — importing this module never touches the DB),
+// filters the dead lanes, and substitutes the FILTERED baseline whenever
+// routing is unavailable or empty (otherwise routeAndCall would build its own
+// UNfiltered baseline). Non-script-gen capabilities delegate verbatim and
+// return [] on failure — routeAndCall's own baseline is correct for those.
+export function scriptGenRouting(realRouting = null) {
+  return {
+    async resolveCapability(capability, channelId) {
+      if (capability !== 'script-gen') {
+        if (!realRouting) return [];
+        try { return await realRouting.resolveCapability(capability, channelId); } catch { return []; }
+      }
+      let routes = [];
+      try {
+        if (!realRouting) {
+          const { getProviderRouting } = await import('./studio/lib/provider-routing.js');
+          realRouting = await getProviderRouting();
+        }
+        routes = await realRouting.resolveCapability(capability, channelId);
+      } catch (e) {
+        console.log(`[script-brain] routing unavailable — filtered baseline (${String(e?.message || e).slice(0, 80)})`);
+        routes = [];
+      }
+      const filtered = filterScriptGenRoutes(routes);
+      return filtered.length > 0 ? filtered : baselineScriptGenRoutes();
+    },
+  };
+}
+
+// Mirror of the adapter's content extraction (callGemini reads
+// candidates[0].content.parts[0].text; the one OpenAI-compatible client reads
+// choices[0].message.content) so the gate inspects exactly what the adapter
+// will return. Returns null for non-JSON bodies — those pass through and the
+// adapter classifies parse_error itself.
+export function extractScriptText(url, text) {
+  let j;
+  try { j = JSON.parse(text); } catch { return null; }
+  if (String(url).includes('generativelanguage.googleapis.com')) {
+    return j?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  }
+  return j?.choices?.[0]?.message?.content || '';
+}
+
+// Fetch wrapper: a usable reply passes through byte-identical; a reply whose
+// content fails the brain's shape check is rebuilt with an EMPTY body at the
+// same status, which the adapter reads as parse_error and fail-continues to
+// the next provider (no doomed retries, no lost fallback).
+export function scriptShapeGate(fetchImpl, isUsableContent) {
+  const rebuild = (text, res) => {
+    try {
+      return new Response(text, { status: res.status || 200, statusText: res.statusText || '', headers: res.headers || undefined });
+    } catch { return res; }
+  };
+  const usable = (content) => {
+    try { return isUsableContent(content); } catch { return false; } // a throwing validator = unusable
+  };
+  return async (url, init) => {
+    const res = await fetchImpl(url, init);
+    if (!res || !res.ok) return res;
+    const text = await res.text();
+    const extracted = extractScriptText(url, text);
+    if (extracted === null || usable(extracted)) return rebuild(text, res);
+    return rebuild('', res);
+  };
+}
+
+// Adapter error classes worth an escalation walk: the provider RESPONDED but
+// the payload was unusable, so the raw-JSON-only suffix can help. HTTP/network
+// failures never re-walk (outage economics preserved: one walk, fail fast).
+const SHAPE_RETRY_CLASSES = new Set(['parse_error', 'empty_response']);
+
+/**
+ * One script-brain request over the capability registry. Walks routeAndCall
+ * up to maxAttempts times (attempt n>1 appends `suffix` to the prompt chain-
+ * wide — the retired per-provider escalation retries). The shape gate keeps
+ * bad-shape replies flowing to later providers WITHIN a walk. Never throws.
+ * @param {object} o { slug, jobId, prompt, isValidJson(parsed)=>bool, maxAttempts, suffix, injected }
+ * @returns {Promise<{ ok: true, parsed: object, provider: string, model: string|null, attempts: object[], walk: number }
+ *                   |{ ok: false, attempts: object[], error: string }>}
+ */
+export async function callScriptBrain({ slug = null, jobId = null, prompt, isValidJson, maxAttempts = 1, suffix = '', injected = null }) {
+  const isUsableContent = (content) => {
+    try { return isValidJson(parseScriptJson(content)); } catch { return false; }
+  };
+  const injectedAdapter = {
+    routing: scriptGenRouting(injected?.realRouting || null),
+    keys: injected?.keys,
+    writer: injected?.writer,
+    fetch: scriptShapeGate(injected?.fetch || fetch, isUsableContent),
+    env: injected?.env,
+  };
+  let last = null;
+  for (let attempt = 1; attempt <= Math.max(1, maxAttempts); attempt++) {
+    const res = await routeAndCall('script-gen', {
+      slug: slug || undefined,
+      jobId: jobId || undefined,
+      prompt: attempt > 1 ? prompt + suffix : prompt,
+      injected: injectedAdapter,
+    });
+    last = res;
+    if (res.ok) {
+      let parsed = null;
+      try { parsed = parseScriptJson(res.content); } catch { parsed = null; }
+      if (parsed && isValidJson(parsed)) {
+        return { ok: true, parsed, provider: res.usage?.provider || 'unknown', model: res.usage?.model || null, attempts: res.attempts, walk: attempt };
+      }
+    }
+    if (!(res.attempts || []).some((a) => SHAPE_RETRY_CLASSES.has(a.error_class))) break;
+  }
+  return { ok: false, attempts: last?.attempts || [], error: last?.error || 'script_brain_exhausted' };
+}
+
+// The shorts JSON contract — identical check across every retired provider arm.
+const validShortsScript = (p) => p?.hook && Array.isArray(p.points) && p.points.length >= 4;
+
+export async function generateYouTubeScript(page, forcedTheme = null, opts = {}) {
   const brand = resolveBrand(page);
   const fallback = fallbackScriptFor(brand);
-  if (!geminiKey()) return { ...fallback, source: 'fallback' };
+  // The retired `if (!geminiKey()) return fallback` gate died with the chain
+  // config: eligibility is whatever the registry resolves. With nothing
+  // configured the walk below still lands on the template fallback — the
+  // zero-config terminal behavior is unchanged (source 'fallback').
   // 09-30: static theme lists are gone. The caller passes a research-derived
   // topic directive; without one, the model chooses from the live trend
   // signals (or the niche itself as last resort).
@@ -371,100 +537,26 @@ ${structureLine}
 Return ONLY valid JSON:
 {"hook":"<=12 words","thumb_headline":"<=6 word ALL CAPS thumbnail headline","points":[{"title":"2-5 word ALL CAPS title","line":"1-2 short sentences"},{"title":"...","line":"..."},{"title":"...","line":"..."},{"title":"...","line":"..."}],"closing":"<=12 words"}`;
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${geminiKey()}`;
-    const res = await fetch(url, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.9, responseMimeType: 'application/json' } })
+    const slug = page?.ytSlug || page?.slug || page?.id || null;
+    const res = await callScriptBrain({
+      slug,
+      jobId: `ytscript:${slug || 'unknown'}:${new Date().toISOString().slice(0, 10)}`,
+      prompt,
+      isValidJson: validShortsScript,
+      // the retired HF second-try escalation, now chain-wide (walk 2 appends
+      // the suffix to whichever providers are routed)
+      maxAttempts: 2,
+      suffix: '\nIMPORTANT: reply with the raw JSON object ONLY, no other text.',
+      injected: opts.injected || null, // real path: registry routing + vault keys + usage ledger
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(`gemini HTTP ${res.status}: ${String(data?.error?.message || '').slice(0, 80)}`);
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    const parsed = text ? JSON.parse(text.replace(/^```json\s*/, '').replace(/```$/, '').trim()) : null;
-    if (!parsed?.hook || !Array.isArray(parsed.points) || parsed.points.length < 4) throw new Error(`bad script shape: ${String(text).slice(0, 100)}`);
-    return { ...parsed, points: parsed.points.slice(0, 5), closing: parsed.closing || '', thumbHeadline: parsed.thumb_headline || `${parsed.points.length} RULES`, source: 'gemini' };
-  } catch (e) {
-    console.log(`      [YT Script] Gemini failed (${String(e.message).slice(0, 80)}) — trying Pollinations...`);
-  }
-  // Fallback brain 1: Groq gpt-oss-120b (free tier ~14,400 req/day)
-  try {
-    const gk = process.env.GROQ_API_KEY || '';
-    if (!gk) throw new Error('no Groq key');
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST', headers: { Authorization: `Bearer ${gk}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'openai/gpt-oss-120b', messages: [{ role: 'user', content: prompt }], temperature: 0.9, max_tokens: 1500 })
-    });
-    if (!res.ok) throw new Error('Groq HTTP ' + res.status);
-    const data = await res.json();
-    const text = (data.choices?.[0]?.message?.content || '').trim();
-    const start = text.indexOf('{'), end = text.lastIndexOf('}');
-    const parsed = JSON.parse(text.slice(start, end + 1));
-    if (!parsed?.hook || !Array.isArray(parsed.points) || parsed.points.length < 4) throw new Error('bad script shape');
-    console.log('      [YT Script] Groq script OK');
-    return { ...parsed, points: parsed.points.slice(0, 5), closing: parsed.closing || '', thumbHeadline: parsed.thumb_headline || `${parsed.points.length} RULES`, source: 'groq' };
-  } catch (e) {
-    console.log(`      [YT Script] Groq failed (${String(e.message).slice(0, 80)}) — trying HF...`);
-  }
-  // Fallback brain 2: Cerebras (1M tokens/day free)
-  try {
-    const ck = process.env.CEREBRAS_API_KEY || '';
-    if (!ck) throw new Error('no Cerebras key');
-    const res = await fetch('https://api.cerebras.ai/v1/chat/completions', {
-      method: 'POST', headers: { Authorization: `Bearer ${ck}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'gpt-oss-120b', messages: [{ role: 'user', content: prompt }], temperature: 0.9, max_tokens: 1500 })
-    });
-    if (!res.ok) throw new Error("Cerebras HTTP " + res.status);
-    const data = await res.json();
-    const text = (data.choices?.[0]?.message?.content || "").trim();
-    const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
-    if (!parsed?.hook || !Array.isArray(parsed.points) || parsed.points.length < 4) throw new Error("bad script shape");
-    console.log("      [YT Script] Cerebras script OK");
-    return { ...parsed, points: parsed.points.slice(0, 5), closing: parsed.closing || "", thumbHeadline: parsed.thumb_headline || `${parsed.points.length} RULES`, source: "cerebras" };
-  } catch (e) {
-    console.log(`      [YT Script] Cerebras failed (${String(e.message).slice(0, 70)}) — trying Mistral...`);
-  }
-  // Fallback brain 3: Mistral (free tier ~1B tokens/month)
-  try {
-    const mk = process.env.MISTRAL_API_KEY || '';
-    if (!mk) throw new Error('no Mistral key');
-    const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
-      method: 'POST', headers: { Authorization: `Bearer ${mk}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'mistral-small-latest', messages: [{ role: 'user', content: prompt }], temperature: 0.9, max_tokens: 1500 })
-    });
-    if (!res.ok) throw new Error("Mistral HTTP " + res.status);
-    const data = await res.json();
-    const parsed = JSON.parse((data.choices?.[0]?.message?.content || "").trim());
-    if (!parsed?.hook || !Array.isArray(parsed.points) || parsed.points.length < 4) throw new Error("bad shape");
-    console.log("      [YT Script] Mistral script OK");
-    return { ...parsed, points: parsed.points.slice(0, 5), closing: parsed.closing || "", thumbHeadline: parsed.thumb_headline || `${parsed.points.length} RULES`, source: "mistral" };
-  } catch (e) {
-    console.log(`      [YT Script] Mistral failed (${String(e.message).slice(0, 70)}) — trying HF...`);
-  }
-
-  // Fallback brain: HuggingFace Inference (free tier, existing HF_TOKEN)
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    try {
-      const hf = process.env.HF_TOKEN || '';
-      if (!hf) throw new Error('no HF token');
-      const res = await fetch('https://router.huggingface.co/v1/chat/completions', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${hf}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'meta-llama/Llama-3.1-8B-Instruct', messages: [{ role: 'user', content: prompt + (attempt > 1 ? '\nIMPORTANT: reply with the raw JSON object ONLY, no other text.' : '') }], temperature: 0.9, max_tokens: 800 })
-      });
-      if (!res.ok) throw new Error('HF HTTP ' + res.status);
-      const data = await res.json();
-      const raw = data.choices?.[0]?.message?.content || '';
-      const text = raw.replace(/^```json\s*/, '').replace(/```$/, '').trim();
-      const start = text.indexOf('{'), end = text.lastIndexOf('}');
-      if (start === -1 || end === -1) throw new Error('no JSON in HF reply');
-      const parsed = JSON.parse(text.slice(start, end + 1));
-      if (!parsed?.hook || !Array.isArray(parsed.points) || parsed.points.length < 4) throw new Error('bad script shape');
-      console.log(`      [YT Script] HF Llama script OK (attempt ${attempt})`);
-      return { ...parsed, points: parsed.points.slice(0, 5), closing: parsed.closing || '', thumbHeadline: parsed.thumb_headline || `${parsed.points.length} RULES`, source: 'hf' };
-    } catch (e) {
-      console.log(`      [YT Script] HF attempt ${attempt} failed (${String(e.message).slice(0, 80)})`);
-      if (attempt === 2) return { ...fallback, source: 'fallback' };
+    if (res.ok) {
+      console.log(`      [YT Script] ${res.provider} script OK${res.walk > 1 ? ` (attempt ${res.walk})` : ''}`);
+      return { ...res.parsed, points: res.parsed.points.slice(0, 5), closing: res.parsed.closing || '', thumbHeadline: res.parsed.thumb_headline || `${res.parsed.points.length} RULES`, source: res.provider };
     }
+  } catch (e) {
+    console.log(`      [YT Script] script brain failed (${String(e?.message || e).slice(0, 80)}) — template fallback`);
   }
+  return { ...fallback, source: 'fallback' };
 }
 
 async function renderSectionCard(pageId, accent, section, handle, kwShort) {

@@ -17,7 +17,7 @@ import { EMBEDDED_FONTS_CSS } from './typography-poster-engine.mjs';
 import { getTopicClip } from './youtube-clips.mjs';
 import { pickApprovedTrack } from './music-engine.mjs';
 const APPROVED_MUSIC = JSON.parse(fs.readFileSync(new URL('./yt-brands/approved-music.json', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'), 'utf8'));
-import { renderYouTubeThumbnail } from './youtube-engine.mjs';
+import { renderYouTubeThumbnail, callScriptBrain } from './youtube-engine.mjs';
 import { bySlug } from './yt-brands/brands.mjs';
 const { recentUploadTitles, findDup } = await import('./lib/dup-gate.mjs');
 const { resolveBrand } = await import('./lib/brand-resolve.mjs');
@@ -43,66 +43,33 @@ applyChannelKeys(slug);
 // 09-20: per-channel state files are the source of truth (lib/state.mjs)
 const loadState = () => loadAllStates();
 
-// ---------- script brain: Gemini -> Groq -> Cloudflare -> Mistral-ready ----------
-function parseLoose(text) {
-  const t = String(text || '').replace(/```json|```/g, '').trim();
-  return JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1));
-}
+// ---------- script brain: the capability registry (lib/ai-adapter.mjs) ----------
+// #104 Task 6 (AC-P2-10): the hand-coded Gemini -> Groq -> Cloudflare chain is
+// GONE — provider order/fallback belongs to routeAndCall('script-gen') now
+// (channel routes -> workspace default -> catalog baseline; per-channel vault
+// keys and usage_events are the adapter's job). Caller-owned and untouched:
+// the LONG_PROMPT contract, validEpisode shape validation, and the 3-walk
+// escalation (walk 2+ appends groq's old raw-JSON-only suffix chain-wide).
+// Throws on total failure exactly as before — the run exits nonzero and the
+// episode is picked up on the next doc day.
 function validEpisode(p) {
   return p?.title && Array.isArray(p.chapters) && p.chapters.length >= 5 &&
     p.chapters.every(c => (c.text || '').split(/\s+/).length >= 70) && p.intro && p.outro;
 }
 async function llmScript(prompt) {
-  // #102: gemini-3.5-flash is retired (empty responses) — 3.8-flash primary,
-  // 3.5-flash-lite fallback. maxOutputTokens 16384 + thinkingBudget 0 so the
-  // full script JSON fits in one call with retry headroom (free-doc-script-apis research).
-  if (process.env.GEMINI_API_KEY) {
-    for (const model of ['gemini-3.8-flash', 'gemini-3.5-flash-lite']) {
-      try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.85, responseMimeType: 'application/json', maxOutputTokens: 16384, thinkingConfig: { thinkingBudget: 0 } } })
-        });
-        const d = await res.json();
-        const parsed = parseLoose(d.candidates?.[0]?.content?.parts?.[0]?.text || '');
-        if (validEpisode(parsed)) { console.log(`[long] ${model} script OK (${parsed.chapters.length} chapters)`); return { ...parsed, provider: model === 'gemini-3.8-flash' ? 'gemini' : 'gemini-flash-lite' }; }
-        throw new Error('bad shape');
-      } catch (e) { console.log(`[long] ${model} failed: ${String(e.message).slice(0, 70)}`); }
-    }
-    console.log('[long] Gemini failed — trying Groq...');
+  const res = await callScriptBrain({
+    slug,
+    jobId: `deepdive:${slug}:${today()}`,
+    prompt,
+    isValidJson: validEpisode,
+    maxAttempts: 3,
+    suffix: '\nReply with the raw JSON object ONLY.',
+  });
+  if (res.ok) {
+    console.log(`[long] ${res.provider} script OK (${res.parsed.chapters.length} chapters${res.walk > 1 ? `, attempt ${res.walk}` : ''})`);
+    return { ...res.parsed, provider: res.provider };
   }
-  // #102: gpt-oss-120b is a REASONING model — max_tokens 6000 was eaten by hidden
-  // reasoning tokens (mid-array truncation at ~2.7-7k chars). 16000 + low effort.
-  if (process.env.GROQ_API_KEY) {
-    for (let a = 1; a <= 3; a++) {
-      try {
-        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST', headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: 'openai/gpt-oss-120b', messages: [{ role: 'user', content: prompt + (a > 1 ? '\nReply with the raw JSON object ONLY.' : '') }], temperature: 0.85, max_tokens: 16000, reasoning_effort: 'low' })
-        });
-        if (!res.ok) throw new Error('Groq HTTP ' + res.status);
-        const parsed = parseLoose((await res.json()).choices?.[0]?.message?.content || '');
-        if (validEpisode(parsed)) { console.log(`[long] Groq script OK (${parsed.chapters.length} chapters, attempt ${a})`); return { ...parsed, provider: 'groq' }; }
-        throw new Error('bad shape');
-      } catch (e) { console.log(`[long] Groq attempt ${a} failed: ${String(e.message).slice(0, 70)}`); }
-    }
-  }
-  // #102: Cloudflare Workers AI fallback (OpenAI-compatible). max_tokens MUST be
-  // explicit — the endpoint defaults to 256, which silently truncates. Skips
-  // cleanly when the CF secrets are absent (slot may not exist in CI yet).
-  if (process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_API_TOKEN) {
-    try {
-      const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/ai/v1/chat/completions`, {
-        method: 'POST', headers: { Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: '@cf/openai/gpt-oss-120b', messages: [{ role: 'user', content: prompt }], temperature: 0.85, max_tokens: 8000 })
-      });
-      if (!res.ok) throw new Error('Cloudflare HTTP ' + res.status);
-      const parsed = parseLoose((await res.json()).choices?.[0]?.message?.content || '');
-      if (validEpisode(parsed)) { console.log(`[long] Cloudflare script OK (${parsed.chapters.length} chapters)`); return { ...parsed, provider: 'cloudflare' }; }
-    } catch (e) { console.log(`[long] Cloudflare failed: ${String(e.message).slice(0, 70)}`); }
-  }
-  // #102: HF slot REMOVED — free credits are zero (research 2026-10-28) and
-  // Llama-3.1-8B was the known long-JSON truncator.
+  console.log(`[long] script brain exhausted (${res.error})`);
   throw new Error('all script providers failed');
 }
 
