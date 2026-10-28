@@ -6,10 +6,10 @@
 export const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const DAY_SET = new Set(DAY_NAMES);
 const PER_UPLOAD = 1700;   // insert 1,600 + thumbnail 50 + pinned comment 50
-const READS_MARGIN = 100;  // daily read-calls reservation — keep in lockstep with lib/quota-ledger.mjs
+const READS_MARGIN = 100;  // daily read-calls reservation — keep in lockstep with ./quota-ledger.mjs
 
 // #104 — quota model as data. projection() consumes an optional quota-model
-// object (the shape loadQuotaModel() returns in lib/quota-ledger.mjs); when
+// object (the shape loadQuotaModel() returns in ./quota-ledger.mjs); when
 // one is present and explicit opts are not, the pool/per-upload/budget come
 // from the model and an ADVISORY (non-blocking) warning is emitted when the
 // worst projected day would exceed the model's insert bucket.
@@ -97,7 +97,11 @@ export function projection({ docDays = [], shortDays = [], dailyLimit, perUpload
 export async function projectWithQuotaModel({ docDays = [], shortDays = [], projectId, dbClient = null, margin = READS_MARGIN, loadQuotaModel: loader } = {}) {
   let load = loader;
   if (typeof load !== 'function') {
-    ({ loadQuotaModel: load } = await import('../../lib/quota-ledger.mjs'));
+    // Fix round 1 (#104): the quota-model core lives at studio/lib/quota-ledger.mjs —
+    // INSIDE the Turbopack root, so this resolves at build time (the earlier
+    // repo-root import — even with turbopackIgnore — broke `next build`).
+    // The repo-root lib/quota-ledger.mjs is a re-export shim for pipeline callers.
+    ({ loadQuotaModel: load } = await import('./quota-ledger.mjs'));
   }
   const model = await load(projectId, dbClient);
   return { ...projection({ docDays, shortDays, margin, model }), model };

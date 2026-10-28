@@ -1,7 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ptDate, evaluate, nextCounter, DEFAULT_QUOTA_MODEL, loadQuotaModel, ensureQuotaModelSchema } from '../lib/quota-ledger.mjs';
+import { ptDate, evaluate, nextCounter, DEFAULT_QUOTA_MODEL, loadQuotaModel, ensureQuotaModelSchema } from '../studio/lib/quota-ledger.mjs';
 import { projection, projectWithQuotaModel } from '../studio/lib/schedule-projection.js';
+// Fix round 1 (#104): repo-root lib/quota-ledger.mjs is a re-export shim —
+// the pipeline callers' import path must keep resolving to the same core.
+import * as rootShim from '../lib/quota-ledger.mjs';
+import * as studioCore from '../studio/lib/quota-ledger.mjs';
 
 // ---------------------------------------------------------------------------
 // Stub client contract (fixture seam — no live Neon in tests), same style as
@@ -277,4 +281,21 @@ test('projectWithQuotaModel accepts a fully injected loader (no dbClient needed)
 test('compat pin: ptDate and nextCounter signatures unchanged', () => {
   assert.equal(ptDate(new Date('2026-10-20T07:00:00Z')), '2026-10-20');
   assert.deepEqual(nextCounter({ date: '2026-10-19', count: 6 }, NOW), { date: '2026-10-20', count: 1 });
+});
+
+// ---- fix round 1: root shim resolves to the same core (pipeline contract) ----
+
+test('repo-root lib/quota-ledger.mjs shim re-exports every named export from the studio core', async () => {
+  for (const name of ['ptDate', 'nextCounter', 'evaluate', 'DEFAULT_QUOTA_MODEL', 'loadQuotaModel', 'ensureQuotaModelSchema']) {
+    assert.equal(typeof rootShim[name], typeof studioCore[name], `shim must re-export ${name}`);
+    assert.ok(rootShim[name] === studioCore[name] || typeof rootShim[name] === 'function', `${name} must resolve`);
+  }
+  assert.equal(rootShim.evaluate, studioCore.evaluate, 'shim evaluate must be the SAME function as the core');
+  assert.equal(rootShim.DEFAULT_QUOTA_MODEL, studioCore.DEFAULT_QUOTA_MODEL);
+  // Behavior through the shim matches the core (pipeline callers unchanged):
+  const throughShim = rootShim.evaluate(states(5), { now: NOW });
+  assert.equal(throughShim.perUpload, 1700);
+  assert.equal(throughShim.allowed, false);
+  const m = await rootShim.loadQuotaModel('proj-x', null);
+  assert.equal(m.insertCostUnits, 100);
 });
