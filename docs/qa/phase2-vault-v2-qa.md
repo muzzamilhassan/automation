@@ -236,3 +236,100 @@ Human-executed rows (visual/manual, incl. Rows 1–5, 6 browser half, 7–9, R1�
 
 1. **Blocked main-tree build (pre-existing, not Task 4):** Task 8's d405445 made `studio/lib/schedule-projection.js` (client-reachable via `SchedulePanel`) dynamically import repo-root `lib/quota-ledger.mjs`, which is outside the studio Turbopack root — every `next build` of the main tree fails until Task 8's owner fixes it (e.g. move the import behind a server-only seam or vendored projection data). Task 4's own constraint evidence is Build A/B above; Task 4 deliberately did not touch another task's file.
 2. AC-P2-2's runtime half (fallback actually firing on provider failure) lands with Task 5's adapter + the Task 9 live E2E; this file pins the config surface only.
+
+---
+
+## Rows — Task 7: Cost dashboard (D6 / AC-P2-5) · appended 2026-10-28
+
+Feature slice: the `/usage` Studio page + the `GET /api/usage` route (owner+staff read, GET-only). Consumes the `usage_events` ledger written by the Task 5 adapter (schema D5). Executor: a human against the **deployed Studio** (or `cd studio && npm run dev` with `DATABASE_URL` set). Evidence slots accept a screenshot path or a quoted output line; desktop 1440 / mobile 375 for `visual` rows.
+
+### Row T7-1 — Dashboard empty state · `visual` · [runs pre-ledger]
+
+Criterion (AC-P2-5): the dashboard renders cleanly before the first routed AI call — no crash, no raw SQL error, no 502 surfaced as a broken page.
+
+- Precondition: owner signed in; `usage_events` empty (or all rows older than 90 days).
+- Steps:
+  1. Open `/usage`. Expect the empty state titled exactly "No usage recorded yet — events appear after the first routed AI call" with the explainer under it, and NO error banner.
+  2. Expect the three rollup tables (By channel / By provider / By capability) and Recent events to be ABSENT — the empty state replaces them, not stacks above them.
+- Expected: clean empty state; no console errors; skeleton resolves (no infinite loading).
+- Boundary probe: `DROP TABLE usage_events` in Neon, reload `/usage`. The route re-creates the table (idempotent CREATE TABLE IF NOT EXISTS — same DDL as the Task 5 writer) and the empty state still shows. Leave the table in place afterwards.
+- Actual:
+- Evidence:
+- Status:
+
+### Row T7-2 — Window switching (7 / 30 / 90) · `visual` · [needs seeds]
+
+Criterion (D6): rollups re-compute over the selected window; the choice survives a refresh (URL state).
+
+- Precondition: owner signed in; at least one usage event inside the last 7 days and one event 8–31 days old.
+- Steps:
+  1. Open `/usage` (defaults to 30 days). Note the "Tokens · 30 days" stat and table row counts.
+  2. Click **7 days**. Expect the header sub-line, stat label, and all rollups + Recent events to shrink to events ≤7 days old only.
+  3. Click **90 days**. Expect older events to reappear and totals to grow accordingly.
+  4. Refresh on `?days=90`. Expect the 90-day view to persist (URLSearchParams pattern).
+  5. Hand-edit the URL to `?days=banana`. Expect graceful fall-back to the 30-day view (no error).
+- Expected: every table and stat re-scopes with the window; URL always reflects the active window.
+- Actual:
+- Evidence:
+- Status:
+
+### Row T7-3 — Rollup arithmetic spot-check · `manual+automated` · [needs seeds]
+
+Criterion (AC-P2-5): per-channel / per-provider / per-capability totals equal the ledger rows they summarize; ok/fail and measured/estimated splits add up.
+
+- Precondition: seed exactly these four events into `usage_events`, then open `/usage?days=30`:
+
+  | job_id | channel_id | provider | capability | tokens | usage_source | ok |
+  |---|---|---|---|---|---|---|
+  | j1 | qa-ch | gemini | script-gen | 100 | measured | true |
+  | j2 | qa-ch | groq | script-gen | 50 | estimated | false (error_class `http_429`) |
+  | j3 | (null) | elevenlabs | tts | 30 | estimated | true |
+  | j4 | qa-other | gemini | tts | 20 | measured | true |
+
+- Expected:
+  - Stat cards: tokens **200**, calls **4**, OK **3**, failed **1**.
+  - By channel: `qa-ch` → 2 calls (1 ok / 1 fail), 150 tokens (100 measured / 50 estimated); `qa-other` → 1 call, 20 tokens (20 / 0); `(none)` row (j3's null channel) → 1 call, 30 tokens (0 / 30).
+  - By provider: gemini 120, groq 50, elevenlabs 30 — ordered by tokens desc.
+  - By capability: script-gen 150, tts 50.
+  - Recent events: 4 rows newest-first; j2 shows a `fail · http_429` status chip.
+  - Every measured + estimated pair sums to the row's total (no arithmetic drift).
+- Automated half: the same rollup SQL (GROUP BY + FILTER aggregates, make_interval window) is what the route runs — see `studio/app/api/usage/route.js`; the route's rollups are verified by this row against the seeded fixture, not re-derived in JS.
+- Cleanup: `DELETE FROM usage_events WHERE job_id IN ('j1','j2','j3','j4') AND channel_id IN ('qa-ch','qa-other')`.
+- Actual:
+- Evidence:
+- Status:
+
+### Row T7-4 — Staff read-only access · `manual`
+
+Criterion (AC-P2-5 auth): owner and staff can read the dashboard; the surface has no write path.
+
+- Precondition: staff account (role `staff` per Settings → Team).
+- Steps:
+  1. As staff, open `/usage`. Expect the same workspace-wide dashboard the owner sees.
+  2. As staff, `GET /api/usage?days=7` (browser tab). Expect HTTP 200 with rollup JSON.
+  3. Signed-out (incognito): open `/usage` and `GET /api/usage`. Expect the UI error state and the API returning `{"error":"not signed in"}` with HTTP 401.
+  4. DevTools console: `fetch('/api/usage', {method:'POST'})`. Expect 405 Method Not Allowed — no POST/PATCH/DELETE handlers exist on the route.
+- Expected: staff = full read; anonymous = 401; write verbs = 405.
+- Actual:
+- Evidence:
+- Status:
+
+### Row T7-5 — Degraded state when DB unreachable · `automated`
+
+Criterion: DB failure surfaces as the house error shape — `{"error": …}` with HTTP 502 — and the page shows a human-readable "Usage ledger unavailable" banner, never a raw stack.
+
+- Precondition: owner signed in; ability to break the DB connection (pause Neon, or point `DATABASE_URL` at a dead host locally).
+- Steps:
+  1. With the DB unreachable, `GET /api/usage?days=30` (owner session). Expect HTTP **502** and `{"error":"…"}` — message ≤200 chars, redacted, no connection string or stack.
+  2. Load `/usage` with the DB still down. Expect the "Usage ledger unavailable" banner — no crash, no half-rendered tables.
+  3. Restore the DB, reload. Expect recovery without a server restart.
+- Expected: 502 + `{error}` from the route; graceful banner; full recovery.
+- Actual:
+- Evidence:
+- Status:
+
+### Task 7 build-time evidence (gathered 2026-10-28)
+
+- `cd studio && npx next build` → **EXIT 0**, route table contains `○ /usage` and `"/api/usage/route": "/api/usage"` in `.next/app-path-routes-manifest.json`. (The pre-existing `schedule-projection.js` → `quota-ledger.mjs` cross-root import break called out under Concerns was fixed in the working tree as "#104 fix round 1" — canonical `quota-ledger.mjs` now lives at `studio/lib/quota-ledger.mjs` with a repo-root shim; Task 7 neither caused nor committed that fix.)
+- Full suite: `npm test` → `tests 255 / pass 255 / fail 0` (baseline 254 + 1 test landed by the parallel fix round).
+- Live-SQL rollup arithmetic was NOT executed against Neon by the task agent (write access to the shared DB was correctly denied by the permission gate) — Row T7-3's seeded fixture is the verification path.
