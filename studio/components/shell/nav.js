@@ -13,6 +13,7 @@ import {
   Users as UsersIcon,
   Sparkles,
   Layers,
+  PlugZap,
 } from 'lucide-react';
 
 export const NAV = [
@@ -33,6 +34,7 @@ export const NAV = [
     group: 'Network',
     items: [
       { href: '/channels', label: 'Channels', icon: Tv, desc: '16 brands, 4 live' },
+      { href: '/providers', label: 'Providers', icon: PlugZap, desc: 'BYOK catalog, keys & per-task routing (#104)' },
       { href: '/templates/registry', label: 'Template Registry', icon: Layers, desc: 'Versioned template catalog — niches, pins, assignments' },
     ],
   },

@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Tv, Music2, RefreshCw, Mic, Music, Clock, Archive, Plus, PenLine, Pause, Play, CalendarDays, Layers, KeyRound } from 'lucide-react';
+import { Tv, Music2, RefreshCw, Mic, Music, Clock, Archive, Plus, PenLine, Pause, Play, CalendarDays, Layers, KeyRound, Route } from 'lucide-react';
 import { YoutubeIcon, FacebookIcon, InstagramIcon } from '@/components/BrandIcons';
 import { Card, CardHead, Chip, PageHeader, BrandMark, PageSkeleton, EmptyState } from '@/components/ui';
 import { Button } from '@/components/untitledui/base/buttons/button';
@@ -9,6 +9,7 @@ import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utili
 import SchedulePanel from '@/components/SchedulePanel';
 import TemplateAssignPanel from '@/components/TemplateAssignPanel';
 import ChannelKeysPanel from '@/components/ChannelKeysPanel';
+import ProviderRoutingPanel from '@/components/ProviderRoutingPanel';
 import { BRAND_META, MUSIC_MOODS } from '@/lib/site-data';
 import { fmt } from '@/lib/utils';
 
@@ -33,6 +34,7 @@ export default function Channels() {
   const [schedOpen, setSchedOpen] = useState(null);
   const [tplOpen, setTplOpen] = useState(null);   // #102 — template registry panel per channel
   const [keysOpen, setKeysOpen] = useState(null); // #103 — inline API keys panel per channel
+  const [routeOpen, setRouteOpen] = useState(null); // #104 — per-capability provider routing panel per channel
   const [parkedKeys, setParkedKeys] = useState(null); // #103 — parked brand keys (full-width panel below grid)
   const load = () => fetch('/api/overview').then((r) => r.json()).then(setData).catch(() => setData({ channels: [] }));
 
@@ -102,6 +104,13 @@ export default function Channels() {
                         icon={KeyRound}
                         onClick={() => setKeysOpen(keysOpen === c.slug ? null : c.slug)}
                       />
+                      <ButtonUtility
+                        size="sm"
+                        color="tertiary"
+                        tooltip="Provider routing — per-capability provider priority, channel override vs workspace default (#104)"
+                        icon={Route}
+                        onClick={() => setRouteOpen(routeOpen === c.slug ? null : c.slug)}
+                      />
                       <Link href={`/channels/add?edit=${c.slug}`} title="Edit this channel (niche, sub-niches, template, schedule)">
                         <ButtonUtility size="sm" color="tertiary" icon={PenLine} />
                       </Link>
@@ -166,6 +175,7 @@ export default function Channels() {
               {schedOpen === c.slug ? <SchedulePanel slug={c.slug} accent={c.accent} /> : null}
               {tplOpen === c.slug ? <TemplateAssignPanel slug={c.slug} /> : null}
               {keysOpen === c.slug ? <ChannelKeysPanel slug={c.slug} /> : null}
+              {routeOpen === c.slug ? <ProviderRoutingPanel slug={c.slug} /> : null}
             </Card>
           );
         })}
