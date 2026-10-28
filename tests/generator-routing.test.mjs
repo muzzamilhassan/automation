@@ -442,6 +442,13 @@ test('yt-deepdive: doc brain routes through the registry — zero hand chain con
   assert.ok(src.includes("throw new Error('all script providers failed')"), 'total-failure throw stays (cron retries tomorrow)');
 });
 
+test('yt-deepdive: 3-walk escalation config is pinned (commit-2 review follow-up)', () => {
+  const src = readSrc('yt-deepdive.mjs');
+  assert.ok(src.includes('maxAttempts: 3'), 'doc brain must keep its 3-walk escalation ceiling — dropping it to 1 must fail the suite');
+  // the exact legacy suffix literal (groq attempt 2/3 wording, kept verbatim)
+  assert.ok(src.includes("'\\nReply with the raw JSON object ONLY.'"), 'the exact raw-JSON-only escalation suffix must stay verbatim');
+});
+
 test('youtube-engine: shorts brain routes through the registry — zero hand chain config left', () => {
   const src = readSrc('youtube-engine.mjs');
   for (const gone of ['api.groq.com', 'api.cerebras.ai', 'api.mistral.ai', 'router.huggingface.co', 'GEMINI_API_KEY ||', 'process.env.GROQ_API_KEY', 'meta-llama/Llama-3.1-8B-Instruct', "max_tokens: 1500"]) {
