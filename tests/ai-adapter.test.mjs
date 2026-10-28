@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { routeAndCall, makeUsageWriter, capabilityMapFromProviders } from '../lib/ai-adapter.mjs';
 import { filterProviderKeysForCapabilities, applyChannelKeys } from '../lib/channel-keys.mjs';
+import { PROVIDERS } from '../studio/lib/provider-catalog.js';
 
 // ---------------------------------------------------------------------------
 // #104 Phase 2 Task 5 — universal AI adapter + usage_events ledger.
@@ -646,4 +647,203 @@ test('applyChannelKeys accepts a capabilities filter (read-only probe on an unkn
   const applied = applyChannelKeys('zz-ai-adapter-nonexistent-probe', fake, ['script-gen']);
   assert.equal(applied, null, 'no vault entry -> null, env untouched');
   assert.equal(fake.GROQ_API_KEY, 'shared');
+});
+
+// ---------------------------------------------------------------------------
+// Fix round 1 (review verdict on Task 5):
+//   C1 — openai serves THREE capabilities; a single models[0] cannot pick
+//        across lanes. Models must be pinned per (provider, capability) IN
+//        THE ADAPTER: transcriptions -> whisper-1, hosted tts ->
+//        gpt-4o-mini-tts, script-gen chat -> gpt-4o-mini (catalog-grounded).
+//   I2 — chain walk dedupes provider ids (defensive against duplicate
+//        routes, removes coupling on Task 3 never emitting duplicates).
+//   I3 — the fail-continue catch on a REJECTING fetch is pinned by a test.
+// ---------------------------------------------------------------------------
+
+test('openai script-gen dispatch uses the pinned CHAT model, not the tts model', async () => {
+  const { writer, events } = makeWriterStub();
+  const fetchStub = makeFetchStub([
+    { match: 'api.openai.com', body: { choices: [{ message: { content: 'OPENAI CHAT SCRIPT' } }], usage: { total_tokens: 99 } } },
+  ]);
+  const result = await routeAndCall('script-gen', {
+    prompt: 'paid slot-0 story',
+    injected: {
+      routing: routingWith([{ providerId: 'openai', priority: 1, source: 'default' }]),
+      keys: keysFrom({ OPENAI_API_KEY: 'sk_test_openai' }),
+      writer,
+      fetch: fetchStub,
+      env: {},
+    },
+  });
+
+  assert.equal(result.ok, true);
+  const body = JSON.parse(fetchStub.calls[0].init.body);
+  assert.equal(fetchStub.calls[0].url.includes('/chat/completions'), true);
+  assert.equal(body.model, 'gpt-4o-mini', 'chat lane must pin the chat model — models[0] is the TTS id');
+  assert.equal(result.usage.model, 'gpt-4o-mini');
+  assert.equal(events[0].model, 'gpt-4o-mini');
+});
+
+test('openai captions dispatch hits /audio/transcriptions with whisper-1 (not the tts model)', async () => {
+  const { writer, events } = makeWriterStub();
+  const dir = tmpDir();
+  const audioPath = path.join(dir, 'audio.mp3');
+  fs.writeFileSync(audioPath, 'FAKE_AUDIO');
+  const fetchStub = makeFetchStub([
+    { match: '/audio/transcriptions', body: '1\n00:00:00,000 --> 00:00:02,000\nhello\n' },
+  ]);
+  const result = await routeAndCall('captions', {
+    audioPath,
+    injected: {
+      routing: routingWith([{ providerId: 'openai', priority: 1, source: 'default' }]),
+      keys: keysFrom({ OPENAI_API_KEY: 'sk_test_openai' }),
+      writer,
+      fetch: fetchStub,
+      env: {},
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(fetchStub.calls[0].url.includes('/audio/transcriptions'), true);
+  assert.equal(fetchStub.calls[0].init.body.get('model'), 'whisper-1', 'captions lane must pin whisper-1');
+  assert.equal(fetchStub.calls[0].init.body.get('response_format'), 'srt');
+  assert.equal(fetchStub.calls[0].init.headers.Authorization, 'Bearer sk_test_openai');
+  assert.equal(result.usage.model, 'whisper-1');
+  assert.ok(String(result.content).includes('-->'));
+  assert.equal(events[0].capability, 'captions');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('openai tts dispatch hits /audio/speech with gpt-4o-mini-tts (not the chat model)', async () => {
+  const { writer, events } = makeWriterStub();
+  const fetchStub = makeFetchStub([
+    { match: '/audio/speech', body: 'OPENAI_TTS_AUDIO' },
+  ]);
+  const result = await routeAndCall('tts', {
+    text: 'Say this',
+    voice: 'alloy',
+    injected: {
+      routing: routingWith([{ providerId: 'openai', priority: 1, source: 'default' }]),
+      keys: keysFrom({ OPENAI_API_KEY: 'sk_test_openai' }),
+      writer,
+      fetch: fetchStub,
+      env: {},
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(fetchStub.calls[0].url.includes('/audio/speech'), true);
+  const body = JSON.parse(fetchStub.calls[0].init.body);
+  assert.equal(body.model, 'gpt-4o-mini-tts', 'tts lane must pin the tts model');
+  assert.equal(body.voice, 'alloy');
+  assert.equal(body.input, 'Say this');
+  assert.equal(Buffer.isBuffer(result.content), true);
+  assert.equal(result.usage.model, 'gpt-4o-mini-tts');
+});
+
+test('pinned model ids are catalog-grounded (D9: no model id outside the catalog)', () => {
+  assert.ok(PROVIDERS.openai.models.includes('gpt-4o-mini'), 'openai chat entry must exist in the catalog');
+  assert.ok(PROVIDERS.openai.models.includes('gpt-4o-mini-tts'));
+  assert.ok(PROVIDERS.openai.models.includes('whisper-1'));
+  assert.ok(PROVIDERS.groq.models.includes('whisper-large-v3'), 'groq transcription pin must be catalog-grounded');
+});
+
+test('lane without an adapter is skipped cleanly — no doomed call, no event', async () => {
+  const { writer, events } = makeWriterStub();
+  const fetchStub = makeFetchStub([]); // any call = unexpected url throw
+  const { result } = await captureLogs(() => routeAndCall('tts', {
+    text: 'narrate',
+    voice: 'alloy',
+    outPath: path.join(tmpDir(), 'narration.mp3'),
+    injected: {
+      routing: routingWith([
+        { providerId: 'gemini', priority: 1, source: 'default' }, // gemini has no tts lane
+        { providerId: 'edge-tts-local', priority: 2, source: 'default' },
+      ]),
+      keys: keysFrom({ GEMINI_API_KEY: 'AIza_present' }),
+      writer,
+      fetch: fetchStub,
+      spawn: async (cmd, args) => {
+        const i = args.indexOf('--write-media');
+        fs.writeFileSync(args[i + 1], 'FALLBACK_MP3');
+        return { stdout: '', stderr: '' };
+      },
+      env: {},
+    },
+  }));
+
+  assert.equal(result.ok, true, 'chain continues past the adapter-less lane');
+  assert.equal(result.usage.provider, 'edge-tts-local');
+  assert.equal(fetchStub.calls.length, 0, 'gemini must NOT receive a doomed generateContent tts call');
+  assert.equal(result.attempts[0].provider, 'gemini');
+  assert.equal(result.attempts[0].skipped, true);
+  assert.equal(result.attempts[0].error_class, 'no_adapter');
+  assert.equal(events.length, 1, 'skip writes no usage event');
+});
+
+test('duplicate providerId in routes is deduped — provider attempted once per failure', async () => {
+  const { writer, events } = makeWriterStub();
+  let groqHits = 0;
+  const base = makeFetchStub([
+    { match: 'api.groq.com', status: 500, body: { error: 'boom' } },
+    { match: 'api.mistral.ai', body: { choices: [{ message: { content: 'MISTRAL OK' } }] } },
+  ]);
+  const fetchStub = async (url, init) => {
+    if (String(url).includes('api.groq.com')) groqHits += 1;
+    return base(url, init);
+  };
+  const result = await routeAndCall('script-gen', {
+    prompt: 'p',
+    injected: {
+      routing: routingWith([
+        { providerId: 'groq', priority: 1, source: 'channel' },
+        { providerId: 'groq', priority: 1, source: 'default' }, // duplicate (defensive: Task 3 must not emit these, we do not depend on it)
+        { providerId: 'mistral', priority: 2, source: 'default' },
+      ]),
+      keys: keysFrom({ GROQ_API_KEY: 'gsk_dup', MISTRAL_API_KEY: 'mlt_dup' }),
+      writer,
+      fetch: fetchStub,
+      env: {},
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(groqHits, 1, 'duplicate route must not re-call a failed provider');
+  assert.deepEqual(result.attempts.map((a) => a.provider), ['groq', 'mistral'], 'duplicate collapses into the first attempt');
+  assert.equal(events.length, 2, 'one event per real call, not per route row');
+});
+
+test('network throw (rejecting fetch) is recorded network_error and the chain continues', async () => {
+  const { writer, events } = makeWriterStub();
+  const fallback = makeFetchStub([
+    { match: 'api.mistral.ai', body: { choices: [{ message: { content: 'SURVIVED THE THROW' } }] } },
+  ]);
+  const fetchStub = async (url, init) => {
+    if (String(url).includes('api.groq.com')) throw new TypeError('fetch failed: ECONNRESET');
+    return fallback(url, init);
+  };
+  const result = await routeAndCall('script-gen', {
+    prompt: 'p',
+    jobId: 'job-throw',
+    injected: {
+      routing: routingWith([
+        { providerId: 'groq', priority: 1, source: 'default' },
+        { providerId: 'mistral', priority: 2, source: 'default' },
+      ]),
+      keys: keysFrom({ GROQ_API_KEY: 'gsk_throw', MISTRAL_API_KEY: 'mlt_throw' }),
+      writer,
+      fetch: fetchStub,
+      env: {},
+    },
+  });
+
+  assert.equal(result.ok, true, 'a rejected fetch must fail-continue, never throw past the adapter');
+  assert.equal(result.usage.provider, 'mistral');
+  assert.equal(result.attempts[0].provider, 'groq');
+  assert.equal(result.attempts[0].ok, false);
+  assert.equal(result.attempts[0].error_class, 'network_error');
+  assert.equal(events[0].ok, false);
+  assert.equal(events[0].error_class, 'network_error', 'regression pin: deleting the catch must fail the suite');
+  assert.equal(events[0].job_id, 'job-throw');
+  assert.equal(events.length, 2);
 });

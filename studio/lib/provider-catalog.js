@@ -99,7 +99,7 @@ export const PROVIDERS = {
     capabilities: ['tts', 'captions'],
     envVars: ['OPENAI_API_KEY'],
     baseUrl: 'https://api.openai.com/v1',
-    models: ['gpt-4o-mini-tts', 'whisper-1'],
+    models: ['gpt-4o-mini-tts', 'whisper-1', 'gpt-4o-mini'],
     freeTier: { rpd: null, maxOutputTokens: null, fetched: '2026-10-24' },
     licenseClass: 'paid',
     notes: 'NO free API tier exists (pricing page, via 10-24 file). Paid vault key slots as tts/captions slot 0 with zero code change. whisper-1 powers the SRT captions lane; API data not used for training.',
