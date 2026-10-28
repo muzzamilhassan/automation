@@ -1,7 +1,8 @@
 // BYOK vault core (Studio side). Keep the crypto in sync with /lib/channel-keys.mjs (CI side).
-// The encryption key is DELIBERATELY tied to YOUTUBE_CLIENT_SECRET (not STUDIO_PASSWORD):
-// both the Vercel server and every CI workflow already hold that exact value, so the
-// channel-keys file is readable in both places with zero extra secrets.
+// #104 (D8): the AES key is derived from MASTER_KEY when set; the legacy derivation
+// (YOUTUBE_CLIENT_SECRET-based) remains as a deprecated fallback so pre-existing rows
+// keep reading — readKeys() migrates them to key_version 2 on first read under MASTER_KEY.
+// Legacy rows never lock out: without MASTER_KEY everything decrypts exactly as before.
 import crypto from 'node:crypto';
 
 export const PROVIDERS = {
@@ -17,26 +18,98 @@ export const PROVIDERS = {
   elevenlabs: { env: 'ELEVENLABS_API_KEY', label: 'ElevenLabs',             url: 'https://elevenlabs.io/app/api-keys',            hint: 'voice cloning & premium narration (#29)' },
 };
 
-export function keysEncKey() {
+export const KEY_VERSION_LEGACY = 1; // derived from YOUTUBE_CLIENT_SECRET (deprecated)
+export const KEY_VERSION_MASTER = 2; // derived from MASTER_KEY
+
+let legacyWarned = false;
+function warnLegacyDerivationOnce() {
+  if (legacyWarned) return;
+  legacyWarned = true;
+  console.warn('[keys-vault] DEPRECATED: MASTER_KEY is not set — falling back to the legacy YOUTUBE_CLIENT_SECRET key derivation. Set MASTER_KEY and re-save channel keys to migrate to key_version 2.');
+}
+
+export function masterEncKey() {
+  return crypto.createHash('sha256').update('quarry-channel-keys-v2|' + String(process.env.MASTER_KEY || '')).digest();
+}
+
+// Legacy derivation (key_version 1) — kept byte-identical to the pre-#104 vault
+// so existing stored rows remain readable (no lockout ever).
+export function legacyEncKey() {
   return crypto.createHash('sha256').update('quarry-channel-keys-v1|' + String(process.env.YOUTUBE_CLIENT_SECRET || '')).digest();
 }
 
-export function encryptKeys(obj) {
+// version: KEY_VERSION_LEGACY | KEY_VERSION_MASTER; omitted → prefer MASTER_KEY,
+// falling back to the legacy derivation with a one-per-process deprecation warning.
+export function keysEncKey(version) {
+  if (version === KEY_VERSION_MASTER) return masterEncKey();
+  if (version === KEY_VERSION_LEGACY) return legacyEncKey();
+  if (process.env.MASTER_KEY) return masterEncKey();
+  warnLegacyDerivationOnce();
+  return legacyEncKey();
+}
+
+export function currentKeyVersion() {
+  return process.env.MASTER_KEY ? KEY_VERSION_MASTER : KEY_VERSION_LEGACY;
+}
+
+function encryptWith(obj, key) {
   const iv = crypto.randomBytes(12);
-  const c = crypto.createCipheriv('aes-256-gcm', keysEncKey(), iv);
+  const c = crypto.createCipheriv('aes-256-gcm', key, iv);
   const ct = Buffer.concat([c.update(JSON.stringify(obj), 'utf8'), c.final()]);
   return [iv.toString('base64'), c.getAuthTag().toString('base64'), ct.toString('base64')].join('.');
 }
 
-export function decryptKeys(s) {
+export function encryptKeys(obj) {
+  return encryptWith(obj, keysEncKey());
+}
+
+function decryptWith(s, key) {
   try {
     const [iv, tag, ct] = String(s).split('.');
-    const d = crypto.createDecipheriv('aes-256-gcm', keysEncKey(), Buffer.from(iv, 'base64'));
+    const d = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(iv, 'base64'));
     d.setAuthTag(Buffer.from(tag, 'base64'));
     return JSON.parse(Buffer.concat([d.update(Buffer.from(ct, 'base64')), d.final()]).toString('utf8'));
   } catch {
     return null;
   }
+}
+
+export function decryptKeys(s) {
+  // With MASTER_KEY set, try the master derivation first, then the legacy one —
+  // pre-migration rows must keep decrypting (wrong MASTER_KEY → null, never garbage).
+  if (process.env.MASTER_KEY) {
+    const viaMaster = decryptWith(s, masterEncKey());
+    if (viaMaster !== null) return viaMaster;
+  }
+  return decryptWith(s, legacyEncKey());
+}
+
+// Read a vault record ({ enc, key_version? }) → { keys, enc, key_version, migrated }.
+// Migration-on-read (#104): a legacy (v1, or version-less) row read while MASTER_KEY
+// is set is re-encrypted under the master key (content unchanged) and returned with
+// key_version 2 — the caller persists enc/key_version on the record. Without
+// MASTER_KEY, legacy rows read exactly as before and are returned untouched.
+// Fail-closed: wrong/missing key material → keys null, never garbage.
+export function readKeys(entry) {
+  if (!entry?.enc) return { keys: null, enc: entry?.enc, key_version: KEY_VERSION_LEGACY, migrated: false };
+  const declared = Number(entry.key_version) || KEY_VERSION_LEGACY;
+  let version = declared;
+  let keys = decryptWith(entry.enc, keysEncKey(declared));
+  if (keys === null && declared !== KEY_VERSION_MASTER && process.env.MASTER_KEY) {
+    // row declared/assumed legacy but is actually master-encrypted (or vice versa) — try v2 before failing
+    keys = decryptWith(entry.enc, masterEncKey());
+    if (keys !== null) version = KEY_VERSION_MASTER;
+  }
+  if (keys === null) return { keys: null, enc: entry.enc, key_version: declared, migrated: false };
+  if (version === KEY_VERSION_MASTER || !process.env.MASTER_KEY) {
+    return { keys, enc: entry.enc, key_version: version, migrated: false };
+  }
+  return { keys, enc: encryptWith(keys, masterEncKey()), key_version: KEY_VERSION_MASTER, migrated: true };
+}
+
+// Test-only: reset the once-per-process deprecation flag (used by the test suite).
+export function _resetLegacyWarnForTests() {
+  legacyWarned = false;
 }
 
 export function maskKey(k) {
