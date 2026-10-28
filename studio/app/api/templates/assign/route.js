@@ -5,7 +5,8 @@
 import { getUser } from '@/lib/route-auth';
 import { readRegistry, readRepoJSON } from '@/lib/channels-registry';
 import { decryptKeys } from '@/lib/keys-vault';
-import { loadRegistryTemplates, validateAssignment, channelConfigFromRegistryEntry, CAPABILITY_BASELINE } from '@/lib/template-registry';
+import { loadRegistryTemplates, validateAssignment, channelConfigFromRegistryEntry } from '@/lib/template-registry';
+import { capabilityProviders, CAPABILITY_BASELINE } from '@/lib/provider-catalog';
 import { TEMPLATES_DATA } from '@/lib/templates-catalog';
 import { REGISTRY_META } from '@/lib/template-registry.data';
 import { getRegistryDb } from '@/lib/template-registry-db';
@@ -14,24 +15,14 @@ export const dynamic = 'force-dynamic';
 
 const KEYS_FILE = 'yt-mcp/channel-keys.json';
 
-// CAPABILITY_BASELINE lives in the shared lib now (template-registry.js) —
-// imported above — so the assign route and the pipeline preflight
-// (lib/template-preflight.mjs) rule identically and cannot drift (E2E round-2
-// finding: two local copies diverged and blocked an assigned channel at
-// generation). The vault provider table below stays route-local engine
-// knowledge for the vault refinement.
-
-// Vault provider -> registry capability. Every key in the vault passed live
-// validateKey() at save time, so "configured" implies "working". REFINEMENT
-// ONLY: a vault key can ADD availability on top of the baseline and can never
-// revoke it. Engine knowledge, not brand data — brand specifics stay in
-// kit/registry. Phase 2 replaces the baseline with per-provider truth.
-const CAPABILITY_PROVIDERS = {
-  'script-gen': ['gemini', 'groq', 'cerebras', 'mistral', 'hf', 'openrouter'],
-  'tts': ['openai', 'elevenlabs'],
-  'captions': ['openai'],
-  'image-gen': [],
-};
+// CAPABILITY_BASELINE lives in the shared lib (template-registry.js) and the
+// vault provider table lives in the provider catalog (#104, Task 1) — both
+// imported above from one source of truth each, so the assign route and the
+// pipeline preflight (lib/template-preflight.mjs) rule identically and cannot
+// drift (E2E round-2 finding: two local copies diverged and blocked an
+// assigned channel at generation; M31/M34: the two hand-mirrored
+// CAPABILITY_PROVIDERS tables — retired here in favor of
+// studio/lib/provider-catalog.js capabilityProviders()).
 
 // channelConfig derivation lives in the lib now (channelConfigFromRegistryEntry)
 // — the GET templates route needs the same niches/formats for the channel view,
@@ -51,9 +42,13 @@ async function buildCapabilityMap(slug) {
   } catch {
     keys = null; // vault unreachable -> baseline still holds (pipeline truth)
   }
-  for (const [cap, providers] of Object.entries(CAPABILITY_PROVIDERS)) {
-    // Phase 1: pipeline-truth baseline — the vault refines per-provider routing in Phase 2 (capability registry)
-    map[cap] = CAPABILITY_BASELINE[cap] === true || providers.some((p) => keys?.[p]);
+  for (const cap of Object.keys(CAPABILITY_BASELINE)) {
+    // Phase 1: pipeline-truth baseline — the vault refines per-provider routing in Phase 2 (capability registry).
+    // Providers from the shared catalog (#104); every key in the vault passed
+    // live validateKey() at save time, so "configured" implies "working".
+    // REFINEMENT ONLY: a vault key can ADD availability on top of the
+    // baseline and can never revoke it. Engine knowledge, not brand data.
+    map[cap] = CAPABILITY_BASELINE[cap] === true || capabilityProviders(cap).some((p) => keys?.[p]);
   }
   return map;
 }
