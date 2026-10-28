@@ -71,8 +71,18 @@ test('projection: gemini first for script-gen (research primary), per baseline o
   // Drift pin vs the retired M31/M34 literal (['gemini', 'groq', 'cerebras',
   // 'mistral', 'hf', 'openrouter']): the catalog keeps that as an exact
   // PREFIX, then appends cloudflare — the research-added FALLBACK #2 the old
-  // hand-mirrors predated (see free-doc-script-apis-2026-10-28 §4.1 slot 4).
-  assert.deepEqual(providers, ['gemini', 'groq', 'cerebras', 'mistral', 'hf', 'openrouter', 'cloudflare']);
+  // hand-mirrors predated (see free-doc-script-apis-2026-10-28 §4.1 slot 4) —
+  // then appends openai (Task 5 re-review follow-up: the paid chat lane must
+  // be ROUTABLE via real key application — user story 10's slot-0 UI action).
+  assert.deepEqual(providers, ['gemini', 'groq', 'cerebras', 'mistral', 'hf', 'openrouter', 'cloudflare', 'openai']);
+});
+
+test('projection: openai declares script-gen (paid slot-0 routable, Task 5 re-review follow-up)', () => {
+  assert.ok(PROVIDERS.openai.capabilities.includes('script-gen'), 'openai must cover script-gen so a route/key can reach the chat lane');
+  // the tts/captions lanes keep their defaults — the chat entry was appended,
+  // not prepended (Task 5 fix round 1 invariant)
+  assert.deepEqual(capabilityProviders('tts'), ['openai', 'elevenlabs', 'edge-tts-local']);
+  assert.deepEqual(capabilityProviders('captions'), ['openai', 'whisper-local']);
 });
 
 test('projection: tts and captions keep the retired tables as prefix, local lanes appended', () => {

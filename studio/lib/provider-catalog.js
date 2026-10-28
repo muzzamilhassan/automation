@@ -96,13 +96,13 @@ export const PROVIDERS = {
   },
   openai: {
     id: 'openai',
-    capabilities: ['tts', 'captions'],
+    capabilities: ['tts', 'captions', 'script-gen'],
     envVars: ['OPENAI_API_KEY'],
     baseUrl: 'https://api.openai.com/v1',
     models: ['gpt-4o-mini-tts', 'whisper-1', 'gpt-4o-mini'],
     freeTier: { rpd: null, maxOutputTokens: null, fetched: '2026-10-24' },
     licenseClass: 'paid',
-    notes: 'NO free API tier exists (pricing page, via 10-24 file). Paid vault key slots as tts/captions slot 0 with zero code change. whisper-1 powers the SRT captions lane; API data not used for training.',
+    notes: 'NO free API tier exists (pricing page, via 10-24 file). Paid vault key slots as tts/captions slot 0 with zero code change. whisper-1 powers the SRT captions lane; API data not used for training. script-gen added per the Task 5 re-review follow-up: the paid chat lane (gpt-4o-mini, adapter-pinned) is ROUTABLE via real key application — user story 10\'s slot-0 UI action — never a zero-config baseline lane (paid lane must be opted into by an explicit route).',
   },
   tavily: {
     id: 'tavily',
