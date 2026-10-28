@@ -75,7 +75,15 @@ async function loadScheduleQuotaModel() {
   if (!rowPresent) {
     quotaLog(`no row for project "${QUOTA_PROJECT_ID}" — DEFAULT model in effect (100 units/upload, 100 inserts/day)`);
   }
-  const model = await loadQuotaModel(QUOTA_PROJECT_ID, client);
+  let model = null;
+  try {
+    model = await loadQuotaModel(QUOTA_PROJECT_ID, client);
+  } catch (e) {
+    // reachable-but-erroring store (transient failure, malformed row) — same
+    // fail-soft contract as the schema path above: legacy constants, never a 500
+    quotaLog(`store ERROR loading model for "${QUOTA_PROJECT_ID}" (${String(e?.message || e).slice(0, 120)}) — legacy projection constants`);
+    return null;
+  }
   for (const advisory of insertCostAdvisories(model)) quotaLog(`ADVISORY: ${advisory}`);
   return model;
 }
@@ -88,13 +96,21 @@ async function scheduleProjection(schedule) {
   const { docDays = [], shortDays = [] } = schedule || {};
   const model = await loadScheduleQuotaModel();
   if (!model) return { proj: projection({ docDays, shortDays }), advisories: [] };
-  const proj = await projectWithQuotaModel({
-    docDays,
-    shortDays,
-    projectId: QUOTA_PROJECT_ID,
-    dbClient: adaptPostgres(db),
-    loadQuotaModel: async () => model,
-  });
+  let proj;
+  try {
+    proj = await projectWithQuotaModel({
+      docDays,
+      shortDays,
+      projectId: QUOTA_PROJECT_ID,
+      dbClient: adaptPostgres(db),
+      loadQuotaModel: async () => model,
+    });
+  } catch (e) {
+    // a throw inside the model-aware projection must never fail the request —
+    // degrade to the legacy verdict (a broken quota store never blocks saves)
+    quotaLog(`projection ERROR with live model (${String(e?.message || e).slice(0, 120)}) — legacy projection constants`);
+    return { proj: projection({ docDays, shortDays }), advisories: [] };
+  }
   const advisories = insertCostAdvisories(model);
   proj.warnings = [...(proj.warnings || []), ...advisories];
   return { proj, advisories };

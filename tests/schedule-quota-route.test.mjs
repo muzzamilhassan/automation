@@ -15,6 +15,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { projection, projectWithQuotaModel } from '../studio/lib/schedule-projection.js';
 
 const src = fs.readFileSync('studio/app/api/channels/schedule/route.js', 'utf8');
 
@@ -54,4 +55,57 @@ test('blocking + response contract unchanged: validateSchedule first, blocked st
   assert.ok(src.includes('validateSchedule('), 'schedule validation must stay');
   assert.ok(/proj\.blocked/.test(src), 'the blocked verdict must still gate the save');
   assert.ok(/status: 400/.test(src), 'blocked saves must still return 400');
+});
+
+// ---------------------------------------------------------------------------
+// Fix round 1 (review verdict on 5ec0d32, two Importants):
+//   I1 — the load tail (loadQuotaModel) and the projectWithQuotaModel call
+//        were UNGUARDED: a quota store that is reachable-and-erroring
+//        (transient failure after the guarded row-check, malformed row, a
+//        throw inside the projection) propagated out of the handler -> 500 on
+//        GET AND POST, contradicting the route's own fail-soft invariant.
+//        Both awaits must sit in catch-to-legacy (log names the failure
+//        class, legacy constants engage, the save never 500s).
+//   I2 — proj.budget in the blocked message: VERIFIED defined on the legacy
+//        path (studio/lib/schedule-projection.js projection() returns
+//        budget = dailyLimitEff - margin = 10,000 - 100 = 9,900 — exactly the
+//        pre-change hardcoded figure); pinned by the behavioral test below.
+// ---------------------------------------------------------------------------
+
+test('I1: the load tail is guarded — store error -> legacy constants, never a 500', () => {
+  const guarded = /try \{[\s\S]{0,200}await loadQuotaModel\(QUOTA_PROJECT_ID, client\);[\s\S]{0,300}\} catch \(e\) \{[\s\S]{0,300}store ERROR loading model[\s\S]{0,300}return null;/;
+  assert.ok(guarded.test(src), 'loadQuotaModel must be wrapped in catch-to-legacy naming the failure class');
+});
+
+test('I1: the model-aware projection call is guarded — projection error -> legacy verdict', () => {
+  const guarded = /try \{[\s\S]{0,300}await projectWithQuotaModel\(\{[\s\S]{0,400}\} catch \(e\) \{[\s\S]{0,300}projection ERROR with live model[\s\S]{0,300}projection\(\{ docDays, shortDays \}\)/;
+  assert.ok(guarded.test(src), 'projectWithQuotaModel must be wrapped in catch-to-legacy returning the legacy projection');
+});
+
+test('I1 residue behavior: a THROWING loader propagates from the lib — legacy verdict stays saveable', async () => {
+  // The library layer propagates (this is the residue the route's guard must
+  // convert; removing the route try/catch fails the structural pins above):
+  await assert.rejects(
+    projectWithQuotaModel({
+      docDays: ['Mon'], shortDays: [], projectId: 'proj-x',
+      dbClient: null,
+      loadQuotaModel: async () => { throw new Error('store mid-request failure'); },
+    }),
+    /store mid-request failure/,
+  );
+  // The route's fallback composition on that rejection: the legacy projection
+  // -> a well-formed verdict -> the save proceeds (no 500, no undefined math).
+  const proj = projection({ docDays: ['Mon'], shortDays: [] });
+  assert.equal(proj.blocked, false);
+  assert.equal(typeof proj.budget, 'number');
+  assert.equal(proj.tone, 'ok');
+});
+
+test('I2: blocked message budget is defined on the no-model path (legacy math = 9,900)', () => {
+  const proj = projection({ docDays: ['Mon', 'Tue'], shortDays: ['Mon'] });
+  assert.equal(proj.budget, 9900, 'legacy projection budget must equal the pre-change hardcoded 10000 - 100');
+  // the route's exact blocked-message template renders a DEFINED pool figure
+  const msg = `blocked: the busiest day would use ${proj.worstDayUnits} of the shared ${proj.budget} unit daily pool (${proj.worstDayUploads} uploads) — spread the days or lower the cadence`;
+  assert.ok(msg.includes('the shared 9900 unit daily pool'), 'no "shared undefined" render possible');
+  assert.ok(src.includes('${proj.budget} unit daily pool'), 'blocked message must interpolate proj.budget (model-aware pool figure)');
 });
