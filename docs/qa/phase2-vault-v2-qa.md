@@ -66,7 +66,7 @@ Criterion (verbatim): "When a capability has multiple providers with priorities,
 
 - Precondition: owner signed in; `/providers` → "Routing — workspace defaults" panel; Neon reachable.
 - Steps:
-  1. In the script-generation row, pick Groq in the add select, click **Add** — expect it appended (priority 100), and the effective-order line updates.
+  1. In the script-generation row, pick Groq in the add select, click **Add** — expect it appended to the chain list (priority 100). (The effective-order preview lives on the per-channel mount — covered in Row 5.)
   2. In script-generation add a **second** keyed provider (e.g. Gemini after Groq). Expect priorities 100, 200 in list order.
   3. Click the **up** arrow on the second provider. Expect the order to swap, priorities re-spaced (100/200), and the row refresh without a page reload.
   4. Verify persistence: reload `/providers` — the order survived; check Neon `provider_route_audit` — one `set` row per moved provider, actor = your owner email.
@@ -252,7 +252,8 @@ Criterion (AC-P2-5): the dashboard renders cleanly before the first routed AI ca
   1. Open `/usage`. Expect the empty state titled exactly "No usage recorded yet — events appear after the first routed AI call" with the explainer under it, and NO error banner.
   2. Expect the three rollup tables (By channel / By provider / By capability) and Recent events to be ABSENT — the empty state replaces them, not stacks above them.
 - Expected: clean empty state; no console errors; skeleton resolves (no infinite loading).
-- Boundary probe: `DROP TABLE usage_events` in Neon, reload `/usage`. The route re-creates the table (idempotent CREATE TABLE IF NOT EXISTS — same DDL as the Task 5 writer) and the empty state still shows. Leave the table in place afterwards.
+- Boundary probe (LOCAL DEV DATABASE_URL ONLY — never the shared production Neon: DROP destroys ledger rows, re-CREATE restores the table but not the data): `DROP TABLE usage_events`, reload `/usage`. The route re-creates the table (idempotent CREATE TABLE IF NOT EXISTS — same DDL as the Task 5 writer) and the empty state still shows. Leave the table in place afterwards.
+     ⚠️ SCOPE: run this probe ONLY against a local dev DATABASE_URL — never against the shared production Neon database (DROP destroys the ledger rows; re-CREATE restores the table but not the data).
 - Actual:
 - Evidence:
 - Status:
@@ -333,3 +334,7 @@ Criterion: DB failure surfaces as the house error shape — `{"error": …}` wit
 - `cd studio && npx next build` → **EXIT 0**, route table contains `○ /usage` and `"/api/usage/route": "/api/usage"` in `.next/app-path-routes-manifest.json`. (The pre-existing `schedule-projection.js` → `quota-ledger.mjs` cross-root import break called out under Concerns was fixed in the working tree as "#104 fix round 1" — canonical `quota-ledger.mjs` now lives at `studio/lib/quota-ledger.mjs` with a repo-root shim; Task 7 neither caused nor committed that fix.)
 - Full suite: `npm test` → `tests 255 / pass 255 / fail 0` (baseline 254 + 1 test landed by the parallel fix round).
 - Live-SQL rollup arithmetic was NOT executed against Neon by the task agent (write access to the shared DB was correctly denied by the permission gate) — Row T7-3's seeded fixture is the verification path.
+
+### Owner sign-off — model identity change (2026-10-29)
+
+**ACCEPTED by owner (chat, 2026-10-29):** the Shorts script brain's primary model changed gemini-3.5-flash-lite@temp 0.9 → **gemini-3.8-flash@temp 0.85** as part of the Task 6 capability-registry wiring (the old model name was dead in Google's catalog; the unification also fixed the Groq 1,500-token truncation). Recorded per Task 6 review requirement (explicit owner acceptance before deploy). Any future model-identity change requires the same explicit sign-off.

@@ -2,6 +2,14 @@
 
 ## Agent skills
 
+### GitHub & Account Identity (Strictly Personal)
+
+- **Owner & Personal Account**: `muzzamilhassan` (Email: `muzzamilhassan302@gmail.com`).
+- **Remote Origin**: `muzzamilhassan/automation` (`git@github-personal:muzzamilhassan/automation.git` using personal SSH key `~/.ssh/id_ed25519_github_personal`).
+- **NEVER use work account**: This repository must NEVER be associated with, pushed to, or operated under the work account `muzzamil-rx`.
+- **GitHub CLI (`gh`)**: Always ensure active account is `muzzamilhassan` (`gh auth switch --user muzzamilhassan`).
+- **Git Author**: Commits must always use `user.name = "Muzzamil Hassan"` and `user.email = "muzzamilhassan302@gmail.com"`.
+
 ### Issue tracker
 
 GitHub issues (repo `muzzamilhassan/automation` via `gh` CLI). See `docs/agents/issue-tracker.md`.
@@ -36,6 +44,7 @@ The FullStack Agent OS pipeline is installed in `.agents/skills/` + `.claude/ski
 2. One issue at a time; small commits referencing the issue number.
 3. Never break the CI production master (channel-*.yml workflows are production).
 4. This repo's PLAN.md rules (add-only) and the OS rules both apply; where they conflict, PLAN.md wins.
+5. Personal account only: Always verify GitHub operations and git commits use personal account `muzzamilhassan` (`muzzamilhassan302@gmail.com`), never work account `muzzamil-rx`.
 
 ### Where things live
 
