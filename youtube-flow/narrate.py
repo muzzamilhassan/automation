@@ -13,12 +13,20 @@
 import asyncio
 import json
 import os
+import re
 import subprocess
 import sys
 
 VOICE = os.environ.get("YT_TTS_VOICE", "onyx")
 KOKORO_VOICE = os.environ.get("YT_KOKORO_VOICE", "am_michael")
 KOKORO_SPEED = float(os.environ.get("YT_KOKORO_SPEED", "1.0"))
+# edge-tts voice names have the locale shape 'en-US-BrianMultilingualNeural';
+# kokoro ids (am_michael/bm_daniel) do NOT and edge-tts rejects them with
+# "Invalid voice ..." (run 40631681473: the deepdive edge fallback died there
+# right after a successful script). Kokoro ids stay honored on the kokoro
+# path (YT_KOKORO_VOICE); the edge fallback never borrows them.
+EDGE_VOICE_DEFAULT = "en-US-BrianMultilingualNeural"
+EDGE_VOICE_RE = re.compile(r"^[a-z]{2}-[A-Z]{2}-\w+")
 NARRATOR_INSTRUCTIONS = (
     "You are a calm, confident documentary narrator with quiet intensity. "
     "Speak slightly slower than normal with deliberate short pauses between "
@@ -98,6 +106,19 @@ def kokoro_tts(text, base_path):
     return wav_path, out, duration
 
 
+def resolve_edge_voice():
+    """YT_EDGE_VOICE only counts when it has the edge-tts name shape; anything
+    else (unset, or a kokoro id leaking in via a shared voice env) resolves to
+    a known-valid default instead of an edge-tts ValueError mid-run."""
+    v = os.environ.get("YT_EDGE_VOICE", "").strip()
+    if v and EDGE_VOICE_RE.match(v):
+        return v
+    if v:
+        print(f"edge voice '{v}' is not an edge-tts name (kokoro id?) - using {EDGE_VOICE_DEFAULT}",
+              file=sys.stderr)
+    return EDGE_VOICE_DEFAULT
+
+
 def edge_tts(text, mp3_path):
     asyncio.run(_edge(text, mp3_path))
 
@@ -106,11 +127,13 @@ async def _edge(text, mp3_path):
     import edge_tts
 
     words = []
-    # #14: honor the channel voice — kokoro names (am_michael) are edge-style
-    # identifiers, so the same kit voice works here; the hardcoded Christopher
-    # Neural ignored every channel's brand voice on the edge fallback path
-    communicate = edge_tts.Communicate(text, os.environ.get("YT_EDGE_VOICE") or KOKORO_VOICE,
-                                       rate="+2%", boundary="WordBoundary")
+    # The voice must be an edge-tts name (locale shape) — never a kokoro id.
+    # Channel brand voices reach this lane through YT_EDGE_VOICE; kokoro ids
+    # reach it through the kokoro path above. The old `or KOKORO_VOICE` here
+    # crashed the fallback with "Invalid voice 'am_michael'" (run 40631681473).
+    voice = resolve_edge_voice()
+    print(f"edge-tts voice: {voice}", file=sys.stderr)
+    communicate = edge_tts.Communicate(text, voice, rate="+2%", boundary="WordBoundary")
     with open(mp3_path, "wb") as f:
         async for chunk in communicate.stream():
             if chunk["type"] == "audio":
