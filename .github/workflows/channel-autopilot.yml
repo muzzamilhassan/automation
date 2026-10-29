@@ -122,6 +122,21 @@ jobs:
           fi
           echo "${ENV_NAME}=${DYN_TOKEN}" >> "$GITHUB_ENV"
 
+      - name: 🧠 Start brain sidecar (issue #105)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          pip install -q -r services/ai/requirements.txt
+          (cd services/ai && nohup python -m uvicorn app:app --host 127.0.0.1 --port 8000 > brain-sidecar.log 2>&1 &)
+          # readiness wait: model load + pg probe within the 30s budget (spec D1/D7)
+          for i in $(seq 1 15); do
+            if curl -sf http://127.0.0.1:8000/health > /dev/null 2>&1; then
+              echo "brain sidecar ready (attempt $i)"; break
+            fi
+            sleep 2
+          done
+          curl -sf http://127.0.0.1:8000/health || echo "::warning::brain sidecar not ready — generators fail open (legacy path)"
+
       - name: 🚀 Channel Pipeline — Shorts (+ weekly episode on docDay)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -138,6 +153,11 @@ jobs:
           # Template registry preflight (issue #102): unassigned channels keep the legacy
           # path (preflight degrades to legacy+ntfy warning if the DB is unreachable).
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # Brain (issue #105): context injection + variation gate + usage ledger.
+          # BRAIN_ENABLED unset = zero-config legacy path (byte-identical prompts).
+          BRAIN_ENABLED: '1'
+          BRAIN_EMBED_ENABLED: '1'
+          BRAIN_PORT: '8000'
         run: node channel-pipeline.mjs "$SLUG" ${{ inputs.topup && format('--topup={0}', inputs.topup) || '' }}
 
       - name: 📦 Keep reels for IG slot poster
