@@ -338,3 +338,34 @@ Criterion: DB failure surfaces as the house error shape — `{"error": …}` wit
 ### Owner sign-off — model identity change (2026-10-29)
 
 **ACCEPTED by owner (chat, 2026-10-29):** the Shorts script brain's primary model changed gemini-3.5-flash-lite@temp 0.9 → **gemini-3.8-flash@temp 0.85** as part of the Task 6 capability-registry wiring (the old model name was dead in Google's catalog; the unification also fixed the Groq 1,500-token truncation). Recorded per Task 6 review requirement (explicit owner acceptance before deploy). Any future model-identity change requires the same explicit sign-off.
+
+## Rows — Fix wave: model-aware advisory rendered + /usage nav · appended 2026-10-29
+
+Final whole-branch review fixes (I-1 + M-P2-20): the schedule panel now shows the server's model-aware projection warnings, and /usage is reachable from the sidebar.
+
+### Row F-1 — SchedulePanel renders the quota-model advisory · `manual` + `automated`
+
+Criterion (review I-1): the model-aware advisory ("no row for project … DEFAULT model in effect (100 units/upload, 100 inserts/day)" + insert-bucket warnings) returned by `GET /api/channels/schedule` in `projection.warnings` is USER-VISIBLE in the scheduling panel — not fetched and discarded — and on save the panel shows `j.projection.warnings` merged with `j.warnings` (deduped). No change to save behavior, validation, or the POST contract.
+
+- Precondition: owner signed in; a channel card with the scheduling panel; DevTools Network tab.
+- Steps:
+  1. Open the scheduling panel on `/channels`. In DevTools, confirm `GET /api/channels/schedule?slug=…` returns `projection.warnings` (with Neon reachable and no quota row: the DEFAULT-model advisory). Expect an amber line with the ⚠ icon rendering exactly those strings inside the panel.
+  2. Toggle days and **Save scheduling**. On success with advisories present, expect the warn message to include both the projection warnings and the route's top-level `warnings` — no duplicate advisory text.
+  3. Save behavior unchanged: valid drafts still save (`ok` toast), over-budget drafts still block the button via the legacy projection; the POST request body is identical to before the fix.
+- Expected: advisory text visible on load AND after save; zero behavioral change to saves.
+- Boundary probe: with `DATABASE_URL` unset (legacy math), GET carries no `projection.warnings` — the panel renders with no amber line and no crash.
+- Automated: `cd studio && npx next build` → EXIT 0; full suite `npm test` → 291 pass / 0 fail (baseline 291).
+- Actual:
+- Evidence:
+- Status:
+
+### Row F-2 — /usage sidebar entry · `visual`
+
+Criterion (review M-P2-20): the System group of the sidebar carries a **Usage** entry (house icon + label + desc convention) pointing to `/usage`.
+
+- Precondition: signed in.
+- Steps: open the sidebar — System group shows **Usage** (Gauge icon, "Quota ledger — units spent per day") between Tasks and Users; click it — lands on the usage ledger page.
+- Expected: one entry, house style, correct route; no layout break.
+- Actual:
+- Evidence:
+- Status:

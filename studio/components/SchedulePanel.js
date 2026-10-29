@@ -39,13 +39,19 @@ function DayPicker({ label, days, onToggle }) {
 
 export default function SchedulePanel({ slug, accent }) {
   const [schedule, setSchedule] = useState(null);
+  const [modelWarnings, setModelWarnings] = useState([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
 
   useEffect(() => {
     fetch(`/api/channels/schedule?slug=${encodeURIComponent(slug)}`)
       .then((r) => r.json())
-      .then((d) => setSchedule(d.schedule || { docDays: [], shortDays: [], shortsSource: 'generated' }))
+      .then((d) => {
+        setSchedule(d.schedule || { docDays: [], shortDays: [], shortsSource: 'generated' });
+        // #104 I-1: surface the server's model-aware projection warnings (quota-model
+        // advisory + insert-bucket notes) — the client-side projection() below is legacy math.
+        setModelWarnings(d.projection?.warnings || []);
+      })
       .catch(() => setSchedule({ docDays: [], shortDays: [], shortsSource: 'generated' }));
   }, [slug]);
 
@@ -71,7 +77,8 @@ export default function SchedulePanel({ slug, accent }) {
       if (!r.ok) setMsg({ tone: 'error', text: j.error || 'save failed' });
       else {
         setMsg({ tone: 'ok', text: 'saved — next runs pick this up' });
-        if (j.warnings?.length) setMsg({ tone: 'warn', text: j.warnings.join(' ') });
+        const saveWarnings = [...new Set([...(j.projection?.warnings || []), ...(j.warnings || [])])];
+        if (saveWarnings.length) setMsg({ tone: 'warn', text: saveWarnings.join(' ') });
       }
     } catch (e) {
       setMsg({ tone: 'error', text: String(e.message || e) });
@@ -126,6 +133,13 @@ export default function SchedulePanel({ slug, accent }) {
         <div className={`flex items-start gap-1.5 text-[12px] mb-2 ${msg.tone === 'error' ? 'text-red-400' : msg.tone === 'warn' ? 'text-amber-400' : 'text-emerald-400'}`}>
           {msg.tone === 'warn' ? <AlertTriangle size={13} className="mt-0.5" /> : null}
           <span>{msg.text}</span>
+        </div>
+      ) : null}
+
+      {modelWarnings.length ? (
+        <div className="flex items-start gap-1.5 text-[12px] mb-2 text-amber-400">
+          <AlertTriangle size={13} className="mt-0.5" />
+          <span>{modelWarnings.join(' ')}</span>
         </div>
       ) : null}
 
