@@ -202,11 +202,19 @@ if (shortsSource === 'clips') {
 // and the run continues. Re-POSTing the same script is safe (content-hash
 // keyed UPDATE in the brain, no duplicates).
 if (results.shorts && shortsSource !== 'clips') {
-  const { embedPublishedScripts } = await import('./lib/brain-embed.mjs');
-  const entries = (loadState()[slug]?.lastVideos || [])
-    .filter((v) => v?.videoId && v?.text)
-    .map((v) => ({ videoId: v.videoId, text: v.text }));
-  await embedPublishedScripts({ slug, kind: 'shorts', entries, log });
+  // Import guarded too (fix round 1): a partial deploy / corrupt checkout
+  // must behave exactly like an unreachable brain — one log line, run
+  // continues. embedPublishedScripts itself never throws; the dynamic
+  // import is the only remaining fatal path.
+  try {
+    const { embedPublishedScripts } = await import('./lib/brain-embed.mjs');
+    const entries = (loadState()[slug]?.lastVideos || [])
+      .filter((v) => v?.videoId && v?.text)
+      .map((v) => ({ videoId: v.videoId, text: v.text }));
+    await embedPublishedScripts({ slug, kind: 'shorts', entries, log });
+  } catch (e) {
+    log(`[brain] WARN publish embedding skipped (non-fatal): ${String(e?.message || e).slice(0, 120)}`);
+  }
 }
 
 // ---- Phase 1b: Proof-of-publication (09-20) ----
@@ -267,10 +275,15 @@ if (!SKIP_EPISODE && !episodeDone && (await quotaGate('Episode'))) {
 // state on deepdiveVideo.
 const docState = loadState();
 if (docState[slug]?.deepdiveDate === today) {
-  const { embedPublishedScripts } = await import('./lib/brain-embed.mjs');
-  const dv = docState[slug]?.deepdiveVideo;
-  const entries = dv?.videoId && dv?.text ? [{ videoId: dv.videoId, text: dv.text }] : [];
-  await embedPublishedScripts({ slug, kind: 'doc', entries, log });
+  // Import guarded too (fix round 1) — same contract as Phase 1a.
+  try {
+    const { embedPublishedScripts } = await import('./lib/brain-embed.mjs');
+    const dv = docState[slug]?.deepdiveVideo;
+    const entries = dv?.videoId && dv?.text ? [{ videoId: dv.videoId, text: dv.text }] : [];
+    await embedPublishedScripts({ slug, kind: 'doc', entries, log });
+  } catch (e) {
+    log(`[brain] WARN publish embedding skipped (non-fatal): ${String(e?.message || e).slice(0, 120)}`);
+  }
 }
 
 // ---- Phase 6: Stage doc render for TikTok clips (docDay only) ----
