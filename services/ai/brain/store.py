@@ -6,15 +6,19 @@ ledger, AC-P3-12).
 
 The DB client is INJECTED via makeStore(dbClient) so unit tests run against
 an in-memory stub — the Python mirror of studio/lib/template-registry-db.js
-(the JS prior art). Client contract (positional style):
+(the JS prior art). Client contract (MIXED placeholder style):
 
     client(sql_text, params) -> list[dict rows]   # snake_case columns
 
 Values travel in `params` — never string-interpolated (SQL-injection safe by
-construction). Placeholders are psycopg3 pyformat `%s` (the JS `$n` style is
-NOT valid psycopg — found by the live backfill run against real Neon).
+construction). Placeholders are psycopg3 pyformat (the JS `$n` style is NOT
+valid psycopg — found by the live backfill run against real Neon):
+- scalar/write paths use positional `%s` with a list of params;
+- search_similar repeats the embedding placeholder twice, and pyformat does
+  not support positional reuse — it uses NAMED `%(vec)s`-style placeholders
+  with params as a DICT.
 Embeddings are passed as pgvector literal strings '[0.1,0.2,...]' via
-parameters and cast with `%s::vector`.
+parameters and cast with `%s::vector` / `%(vec)s::vector`.
 
 Production wiring is lazy: get_store() builds a psycopg adapter from
 DATABASE_URL — importing THIS module never imports psycopg nor touches the
@@ -42,7 +46,12 @@ def _jsonb(value) -> str:
 
 
 class BrainStore:
-    """Store operations over an injected positional-style DB client."""
+    """Store operations over an injected DB client.
+
+    Client contract is MIXED: list params with positional `%s` placeholders
+    on scalar/write paths; dict params with repeatable named `%(name)s`
+    placeholders on search_similar (its embedding placeholder appears twice,
+    which pyformat cannot express positionally)."""
 
     def __init__(self, db_client):
         if not callable(db_client):
@@ -254,7 +263,9 @@ class BrainStore:
 
 
 def makeStore(db_client) -> BrainStore:
-    """Factory: build a BrainStore over an injected positional client."""
+    """Factory: build a BrainStore over an injected client (mixed contract —
+    see the module docstring: %s lists on scalar paths, %(name)s dicts on
+    search)."""
     return BrainStore(db_client)
 
 
@@ -263,11 +274,14 @@ make_store = makeStore
 
 
 def adapt_postgres(conn):
-    """Bridge a psycopg3 connection to the positional client contract.
+    """Bridge a psycopg3 connection to the store's mixed client contract.
 
     BEGIN/COMMIT/ROLLBACK are transaction(), not SQL: psycopg3 manages its
     transaction implicitly, so they map to connection methods. Everything
-    else executes with positional params and returns dict rows.
+    else executes and returns dict rows. Params pass through by shape:
+    DICT params go to execute UNCHANGED (psycopg3 binds %(name)s queries
+    natively; tuple(dict) would collapse the dict to its KEYS and fail);
+    list/tuple params are tupled for the %s positional paths.
     """
     def client(sql_text, params=()):
         cmd = str(sql_text).strip().upper()
@@ -280,7 +294,10 @@ def adapt_postgres(conn):
             conn.rollback()
             return []
         with conn.cursor() as cur:
-            cur.execute(sql_text, tuple(params))
+            cur.execute(
+                sql_text,
+                params if isinstance(params, dict) else tuple(params),
+            )
             if cur.description is None:
                 return []
             cols = [d.name for d in cur.description]

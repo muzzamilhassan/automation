@@ -3,10 +3,14 @@
 Python mirror of tests/template-registry-db.test.mjs (the JS prior art):
 a discriminating in-memory stub client that understands EXACTLY the SQL
 shapes brain/store.py emits — nothing more — so a passing test cannot be
-trivially green. The client contract is positional
-(`client(sql_text, params) -> list[dict]`, psycopg3 `%s` placeholders, snake_case
-rows); embeddings travel as pgvector literal strings via parameters.
-No live Neon, no psycopg import at store module level.
+trivially green. The client contract is MIXED
+(`client(sql_text, params) -> list[dict]`, snake_case rows): positional
+psycopg3 `%s` placeholders with a params LIST on scalar/write paths,
+repeatable named `%(name)s` placeholders with a params DICT on search_similar
+(pyformat has no positional reuse). Embeddings travel as pgvector literal
+strings via parameters. adapt_postgres (the production bridge) is exercised
+against a fake connection — including the dict-params path. No live Neon,
+no psycopg import at store module level.
 """
 
 import copy
@@ -18,7 +22,7 @@ import sys
 
 import pytest
 
-from brain.store import get_store, makeStore
+from brain.store import adapt_postgres, get_store, makeStore
 
 
 # ---------------------------------------------------------------------------
@@ -499,6 +503,97 @@ def test_top_performance_returns_performance_by_id():
     perf = store.top_performance(ids)
     assert perf[ids[0]] == {"views": 1000}
     assert perf[ids[1]] == {"views": 5}
+
+
+# ---------------------------------------------------------------- adapt_postgres
+
+class _Col:
+    """psycopg cursor.description carries Column objects exposing .name."""
+
+    def __init__(self, name):
+        self.name = name
+
+
+class _FakeCursor:
+    def __init__(self, conn):
+        self._conn = conn
+        self.description = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def execute(self, sql, params):
+        self._conn.executed.append((sql, params))
+        self.description = \
+            [_Col("id"), _Col("chunk_kind"), _Col("channel_id")] \
+            if self._conn.result else None
+
+    def fetchall(self):
+        return self._conn.result
+
+
+class _FakeConn:
+    """Minimal psycopg3-connection double: records execute() calls so tests
+    can assert the EXACT params shape adapt_postgres hands to psycopg."""
+
+    def __init__(self, result=None):
+        self.executed = []
+        self.result = result or []
+        self.description = None
+        self.commits = 0
+        self.rollbacks = 0
+
+    def cursor(self):
+        return _FakeCursor(self)
+
+    def commit(self):
+        self.commits += 1
+
+    def rollback(self):
+        self.rollbacks += 1
+
+
+def test_adapt_postgres_passes_dict_params_through_unchanged():
+    """Round-3 regression (live-path Critical): `tuple()` on a dict collapses
+    it to a tuple of KEYS, which psycopg3 rejects against %(name)s queries.
+    Dict params (search_similar) must reach psycopg UNCHANGED; the dict rows
+    must come back mapped."""
+    conn = _FakeConn(result=[(7, "pooled", "chan-a")])
+    client = adapt_postgres(conn)
+    rows = client(
+        "SELECT id, chunk_kind, channel_id FROM script_memory "
+        "ORDER BY embedding <=> %(vec)s::vector LIMIT %(lim)s",
+        {"vec": "[1.0,0.0]", "lim": 5},
+    )
+    assert rows == [{"id": 7, "chunk_kind": "pooled", "channel_id": "chan-a"}]
+    sql, params = conn.executed[0]
+    assert params == {"vec": "[1.0,0.0]", "lim": 5}, \
+        "dict params must not be tupled (tuple(dict) yields keys)"
+    assert isinstance(params, dict)
+
+
+def test_adapt_postgres_tuples_positional_params():
+    conn = _FakeConn()
+    client = adapt_postgres(conn)
+    client("SELECT id FROM script_memory "
+           "WHERE content_hash = %s AND chunk_kind = %s", ["hash-1", "pooled"])
+    _, params = conn.executed[0]
+    assert params == ("hash-1", "pooled"), "%s paths must be positional tuples"
+
+
+def test_adapt_postgres_maps_transactions_to_connection_methods():
+    """BEGIN/COMMIT/ROLLBACK are transaction(), not SQL: they must become
+    conn methods and never reach cursor.execute."""
+    conn = _FakeConn()
+    client = adapt_postgres(conn)
+    assert client("BEGIN") == []
+    assert client("COMMIT") == []
+    assert client("ROLLBACK") == []
+    assert conn.executed == [], "transaction commands must not hit cursor.execute"
+    assert conn.commits == 1 and conn.rollbacks == 1
 
 
 # ---------------------------------------------------------------- get_store
