@@ -1,0 +1,10 @@
+# Brain sidecar (Phase 3, issue #105) — pinned per spec D1.
+# Verified 2026-10-29; see docs/superpowers/specs/2026-10-29-phase3-rag-brain-spec.md
+fastapi==0.162.0
+uvicorn==0.54.0
+fastembed==0.9.1
+psycopg[binary]==3.3.6
+
+# Dev / test
+pytest==9.2.0
+httpx==0.28.1
