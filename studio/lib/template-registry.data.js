@@ -1,6 +1,14 @@
 // Template registry metadata — schema v1 (validated by template-registry.js).
 // Keyed by catalog family id (studio/lib/templates-catalog.js `family` field).
 //
+// Brain thresholds (#105 Phase 3, spec D8 / review R-1): `variation_threshold`
+// and `cross_channel_threshold` are per-template DATA consumed by the
+// generator wiring (youtube-engine.mjs registryThresholds). Templates WITHOUT
+// explicit values inherit the documented defaults — variation 0.85 cosine,
+// cross-channel 0.90 (variation + 0.05) — identical to the brain service's
+// BRAIN_DEFAULT_THRESHOLD / BRAIN_CROSS_CHANNEL_BAND. Declare the fields on a
+// template only to deviate from those defaults.
+//
 // Seed notes (issue #102 Task 10):
 // - niches are VERBATIM channel-registry strings (validateAssignment does exact
 //   matching — never paraphrase):
@@ -81,6 +89,10 @@ export const REGISTRY_META = {
       'no repeated hook across the channel\'s last 5 videos',
       'each video\'s numbers come from cited sources; no recycled figures from prior videos',
     ],
+    // #105 Phase 3 (D8/R-1): finance is the YMYL lane — the brain's variation
+    // gate thresholds are pinned explicitly here rather than inherited.
+    variation_threshold: 0.85,
+    cross_channel_threshold: 0.90,
     safety: { required_sources: true, review_required: ['finance'] },
     deprecated: false,
     changelog: [{ version: '1.0.0', date: '2026-10-26', note: 'initial registry entry' }],

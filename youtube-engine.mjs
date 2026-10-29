@@ -17,6 +17,7 @@ import { ensurePoolClip } from './cinematic-engine.mjs';
 import { getTopicClip } from './youtube-clips.mjs';
 import { routeAndCall } from './lib/ai-adapter.mjs';
 import { capabilityProviders } from './studio/lib/provider-catalog.js';
+import { REGISTRY_META } from './studio/lib/template-registry.data.js';
 
 import { resolveBinary } from './lib/ffmpeg.mjs';
 import { loadEnv } from './lib/env.mjs';
@@ -448,6 +449,149 @@ export function scriptShapeGate(fetchImpl, isUsableContent) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// #105 Task 7 — the generators ask the brain (Phase 3 RAG wiring).
+//
+// Zero-config = committed behavior: with BRAIN_BRAIN_ENABLED unset nothing
+// below fetches, prompts stay byte-identical, and the walk/terminal
+// contracts are untouched (pinned by tests/brain-wiring.test.mjs).
+//
+// Enabled + sidecar reachable (one cached /health probe per process):
+//   - /context is fetched BEFORE prompt assembly and the retrieved
+//     exemplars+performance are appended as the labeled "YOUR PAST VIDEOS"
+//     section; the retrieved ids are logged machine-parseably
+//     (`[brain-context] ... ids=`) so the E2E task can prove provenance.
+//   - /dedupe gates the walk between shape validation and return: BLOCK
+//     consumes an escalation walk (shape-failure-equivalent) and the NEXT
+//     walk's prompt gains vary-guidance naming the top match; PASS/WARN
+//     proceed with the verdict recorded (`[brain-dedupe] ... verdict=`).
+//     Exhausted walks land on the lane's existing terminal unchanged.
+//
+// Fail-open per D6: disabled = silent; enabled-but-down = exactly one
+// warning, then legacy behavior. The sidecar lives on localhost inside the
+// CI job (port via BRAIN_PORT, default 8000). The dispatch flag name
+// BRAIN_BRAIN_ENABLED is used verbatim (single rename point below).
+// ---------------------------------------------------------------------------
+
+export const BRAIN_ENABLED_ENV = 'BRAIN_BRAIN_ENABLED';
+const BRAIN_TRUTHY = new Set(['1', 'true', 'yes', 'on']);
+const BRAIN_HEALTH_TIMEOUT_MS = 2000;  // one fast probe, fail fast
+const BRAIN_CALL_TIMEOUT_MS = 10000;   // context/dedupe round-trips
+const BRAIN_CONTEXT_K = 3;             // exemplars injected per prompt
+const BRAIN_DEFAULT_VARIATION_THRESHOLD = 0.85;      // D8 default
+const BRAIN_DEFAULT_CROSS_CHANNEL_THRESHOLD = 0.90;  // D8 default (variation + 0.05)
+
+export function brainBaseUrl(env = process.env) {
+  const port = String(env.BRAIN_PORT ?? '').replace(/[^0-9]/g, '');
+  return `http://127.0.0.1:${port || '8000'}`;
+}
+
+// Per-process reachability cache: one /health probe per flag value (the flag
+// value keys the cache so tests can flip the env without a reset seam —
+// resetBrainHealth() exists for explicit isolation anyway).
+let brainHealthCache = null;
+export function resetBrainHealth() { brainHealthCache = null; }
+
+export async function brainReachable(injected = null) {
+  const flag = String(process.env[BRAIN_ENABLED_ENV] || '').trim().toLowerCase();
+  if (!BRAIN_TRUTHY.has(flag)) return false; // disabled: silent, zero calls
+  if (brainHealthCache && brainHealthCache.flag === flag) return brainHealthCache.reachable;
+  let reachable = false;
+  try {
+    const res = await (injected?.brainFetch || fetch)(
+      `${brainBaseUrl()}/health`, { signal: AbortSignal.timeout(BRAIN_HEALTH_TIMEOUT_MS) });
+    reachable = Boolean(res && res.ok);
+  } catch { reachable = false; }
+  brainHealthCache = { flag, reachable };
+  if (!reachable) console.log('[brain] enabled but sidecar unreachable — running legacy generation (fail-open, D6)');
+  return reachable;
+}
+
+/**
+ * /context before prompt assembly. Returns the retrieved exemplars
+ * [{id, score, performance, excerpt}] when the brain was consulted (possibly
+ * []), or null when disabled/unreachable/failed (fail-open). Logs the
+ * machine-parseable provenance line for every consultation.
+ */
+export async function fetchBrainContext({ channel, kind, topic, k = BRAIN_CONTEXT_K, jobId = null, injected = null }) {
+  if (!channel || !kind || !topic) return null;
+  if (!(await brainReachable(injected))) return null;
+  try {
+    const res = await (injected?.brainFetch || fetch)(`${brainBaseUrl()}/context`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ channel, kind, topic, k }),
+      signal: AbortSignal.timeout(BRAIN_CALL_TIMEOUT_MS),
+    });
+    if (!res || !res.ok) throw new Error(`status ${res ? res.status : 'no response'}`);
+    const items = await res.json();
+    if (!Array.isArray(items)) throw new Error('context: non-array body');
+    const ids = items.map((c) => c?.id).filter((x) => x !== null && x !== undefined);
+    console.log(`[brain-context] job=${jobId || 'unknown'} channel=${channel} kind=${kind} ids=${ids.join(',')}`);
+    return items;
+  } catch (e) {
+    console.log(`[brain] /context failed (${String(e?.message || e).slice(0, 80)}) — legacy prompt (fail-open, D6)`);
+    return null;
+  }
+}
+
+/** The labeled prompt section the retrieved exemplars ride in. */
+export function brainContextSection(items) {
+  const rows = (Array.isArray(items) ? items : []).map((c, i) => {
+    const perf = c?.performance && typeof c.performance === 'object' && !Array.isArray(c.performance)
+      ? Object.entries(c.performance).map(([k, v]) => `${k}=${v}`).join(' ')
+      : '';
+    const excerpt = String(c?.excerpt || '').replace(/\s+/g, ' ').trim();
+    return `${i + 1}. [id=${c?.id ?? 'unknown'}${perf ? ` | ${perf}` : ''}] ${excerpt}`;
+  });
+  return `\nYOUR PAST VIDEOS — learn from these; vary from them (never repeat their hooks, examples, or angle):\n${rows.join('\n')}`;
+}
+
+/**
+ * /dedupe as the checkDup hook. Returns the verdict response
+ * {verdict, score, top_match_id, neighbors} when the brain was consulted, or
+ * null when disabled/unreachable/failed (gate skipped — fail-open).
+ */
+export async function checkDup({ channel, kind, templateId = null, threshold = null, jobId = null, chunks = [], injected = null }) {
+  if (!channel || !kind || !Array.isArray(chunks) || chunks.length === 0) return null;
+  if (!(await brainReachable(injected))) return null;
+  try {
+    const body = { channel, kind, chunks };
+    if (templateId) body.template_id = templateId;
+    if (threshold !== null && threshold !== undefined) body.threshold = threshold;
+    if (jobId) body.job_id = jobId;
+    const res = await (injected?.brainFetch || fetch)(`${brainBaseUrl()}/dedupe`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(BRAIN_CALL_TIMEOUT_MS),
+    });
+    if (!res || !res.ok) throw new Error(`status ${res ? res.status : 'no response'}`);
+    const out = await res.json();
+    if (!out || typeof out.verdict !== 'string') throw new Error('dedupe: bad verdict shape');
+    return out;
+  } catch (e) {
+    console.log(`[brain] /dedupe failed (${String(e?.message || e).slice(0, 80)}) — variation gate skipped (fail-open, D6)`);
+    return null;
+  }
+}
+
+/**
+ * D8 — thresholds are registry DATA. finance-explainers carries explicit
+ * values in template-registry.data.js; every other template (and the
+ * template-less lanes) inherits the documented defaults — variation 0.85,
+ * cross-channel 0.90. Never a hardcoded per-channel map.
+ */
+export function registryThresholds(templateId) {
+  const meta = templateId ? REGISTRY_META[templateId] : null;
+  return {
+    variation: typeof meta?.variation_threshold === 'number'
+      ? meta.variation_threshold : BRAIN_DEFAULT_VARIATION_THRESHOLD,
+    crossChannel: typeof meta?.cross_channel_threshold === 'number'
+      ? meta.cross_channel_threshold : BRAIN_DEFAULT_CROSS_CHANNEL_THRESHOLD,
+  };
+}
+
 // Adapter error classes worth an escalation walk: the provider RESPONDED but
 // the payload was unusable, so the raw-JSON-only suffix can help. HTTP/network
 // failures never re-walk (outage economics preserved: one walk, fail fast).
@@ -458,11 +602,19 @@ const SHAPE_RETRY_CLASSES = new Set(['parse_error', 'empty_response']);
  * up to maxAttempts times (attempt n>1 appends `suffix` to the prompt chain-
  * wide — the retired per-provider escalation retries). The shape gate keeps
  * bad-shape replies flowing to later providers WITHIN a walk. Never throws.
- * @param {object} o { slug, jobId, prompt, isValidJson(parsed)=>bool, maxAttempts, suffix, injected }
+ * @param {object} o { slug, jobId, prompt, isValidJson(parsed)=>bool,
+ *   maxAttempts, suffix, injected,
+ *   dedupe?: { channel, kind, templateId?, threshold?, toChunks(parsed) } —
+ *   the #105 checkDup hook: when set AND the brain is enabled+reachable, the
+ *   FIRST shape-valid parse is gated through POST /dedupe between shape
+ *   validation and return. BLOCK consumes the walk (shape-failure-
+ *   equivalent) and the next walk's prompt gains vary-guidance naming the
+ *   top match; PASS/WARN proceed. Disabled/down -> no gate (fail-open).
+ * }
  * @returns {Promise<{ ok: true, parsed: object, provider: string, model: string|null, attempts: object[], walk: number }
  *                   |{ ok: false, attempts: object[], error: string }>}
  */
-export async function callScriptBrain({ slug = null, jobId = null, prompt, isValidJson, maxAttempts = 1, suffix = '', injected = null }) {
+export async function callScriptBrain({ slug = null, jobId = null, prompt, isValidJson, maxAttempts = 1, suffix = '', injected = null, dedupe = null }) {
   const isUsableContent = (content) => {
     try { return isValidJson(parseScriptJson(content)); } catch { return false; }
   };
@@ -474,11 +626,15 @@ export async function callScriptBrain({ slug = null, jobId = null, prompt, isVal
     env: injected?.env,
   };
   let last = null;
+  let varyFrom = null; // top match of the last BLOCK — names the vary guidance on later walks
   for (let attempt = 1; attempt <= Math.max(1, maxAttempts); attempt++) {
+    const varyGuidance = attempt > 1 && varyFrom !== null
+      ? `\nYour previous video ('${varyFrom}') covered this — vary the hook and examples.`
+      : '';
     const res = await routeAndCall('script-gen', {
       slug: slug || undefined,
       jobId: jobId || undefined,
-      prompt: attempt > 1 ? prompt + suffix : prompt,
+      prompt: attempt > 1 ? prompt + suffix + varyGuidance : prompt,
       injected: injectedAdapter,
     });
     last = res;
@@ -486,6 +642,24 @@ export async function callScriptBrain({ slug = null, jobId = null, prompt, isVal
       let parsed = null;
       try { parsed = parseScriptJson(res.content); } catch { parsed = null; }
       if (parsed && isValidJson(parsed)) {
+        if (dedupe) {
+          const verdict = await checkDup({
+            channel: dedupe.channel,
+            kind: dedupe.kind,
+            templateId: dedupe.templateId ?? null,
+            threshold: dedupe.threshold ?? null,
+            jobId,
+            chunks: dedupe.toChunks ? dedupe.toChunks(parsed) : [],
+            injected,
+          });
+          if (verdict) {
+            console.log(`[brain-dedupe] job=${jobId || 'unknown'} channel=${dedupe.channel} kind=${dedupe.kind} verdict=${verdict.verdict} score=${verdict.score} top_match=${verdict.top_match_id}`);
+            if (verdict.verdict === 'BLOCK') {
+              varyFrom = verdict.top_match_id; // consume the walk, retry with guidance
+              continue;
+            }
+          }
+        }
         return { ok: true, parsed, provider: res.usage?.provider || 'unknown', model: res.usage?.model || null, attempts: res.attempts, walk: attempt };
       }
     }
@@ -538,16 +712,38 @@ Return ONLY valid JSON:
 {"hook":"<=12 words","thumb_headline":"<=6 word ALL CAPS thumbnail headline","points":[{"title":"2-5 word ALL CAPS title","line":"1-2 short sentences"},{"title":"...","line":"..."},{"title":"...","line":"..."},{"title":"...","line":"..."}],"closing":"<=12 words"}`;
   try {
     const slug = page?.ytSlug || page?.slug || page?.id || null;
+    // #105 Task 7 — /context BEFORE prompt assembly. No-op unless the brain is
+    // enabled AND reachable (disabled = byte-identical prompt, zero calls).
+    const brainJobId = `ytscript:${slug || 'unknown'}:${new Date().toISOString().slice(0, 10)}`;
+    const brainTopic = forcedTheme || page?.trend?.videos?.[0]?.title || (brand.niche || 'self improvement');
+    const ctx = await fetchBrainContext({
+      channel: slug, kind: 'shorts', topic: brainTopic, jobId: brainJobId,
+      injected: opts.injected || null,
+    });
+    const dedupeThresholds = registryThresholds(opts.templateId || null);
     const res = await callScriptBrain({
       slug,
-      jobId: `ytscript:${slug || 'unknown'}:${new Date().toISOString().slice(0, 10)}`,
-      prompt,
+      jobId: brainJobId,
+      prompt: ctx && ctx.length ? prompt + brainContextSection(ctx) : prompt,
       isValidJson: validShortsScript,
       // the retired HF second-try escalation, now chain-wide (walk 2 appends
       // the suffix to whichever providers are routed)
       maxAttempts: 2,
       suffix: '\nIMPORTANT: reply with the raw JSON object ONLY, no other text.',
       injected: opts.injected || null, // real path: registry routing + vault keys + usage ledger
+      dedupe: {
+        channel: slug,
+        kind: 'shorts',
+        templateId: opts.templateId || null,
+        threshold: dedupeThresholds.variation,
+        // the whole script as one pooled chunk — the shape the backfilled
+        // corpus is embedded with, so similarity compares like-for-like
+        toChunks: (p) => [{
+          chunk_kind: 'pooled',
+          text: [p.hook, ...(Array.isArray(p.points) ? p.points : []).map((pt) => `${pt.title}. ${pt.line}`), p.closing]
+            .filter(Boolean).join('\n'),
+        }],
+      },
     });
     if (res.ok) {
       console.log(`      [YT Script] ${res.provider} script OK${res.walk > 1 ? ` (attempt ${res.walk})` : ''}`);

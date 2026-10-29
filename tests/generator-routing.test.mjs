@@ -427,6 +427,53 @@ test('engine: escalation fires when the first walk only shape-rejects, then groq
   assert.ok(body2.messages[0].content.includes('IMPORTANT: reply with the raw JSON object ONLY'), 'engine escalation suffix preserved');
 });
 
+// ---- #105 Task 7: the checkDup hook rides INSIDE the walk, between shape
+// ---- validation and return — a shape-invalid walk must never consult it.
+
+test('callScriptBrain: shape-invalid walks never reach the dedupe hook (hook position pin)', async () => {
+  const { BRAIN_ENABLED_ENV, resetBrainHealth } = await import('../youtube-engine.mjs');
+  const had = Object.prototype.hasOwnProperty.call(process.env, BRAIN_ENABLED_ENV);
+  const prev = process.env[BRAIN_ENABLED_ENV];
+  process.env[BRAIN_ENABLED_ENV] = '1';
+  resetBrainHealth();
+  try {
+    let dedupeCalls = 0;
+    const brainFetch = async (url) => {
+      if (String(url).includes('/health')) return stubResponse({ status: 'ok' });
+      if (String(url).includes('/dedupe')) {
+        dedupeCalls++;
+        return stubResponse({ verdict: 'PASS', score: 0.1, top_match_id: null, neighbors: [] });
+      }
+      throw new Error('unexpected brain url ' + url);
+    };
+    const fetchStub = scriptedFetch((n, url) => {
+      if (!url.includes('api.groq.com')) throw new Error('unexpected ' + url);
+      const content = n === 1 ? 'chatty no json' : '{"title":"SECOND WALK CLEAN"}';
+      return stubResponse({ choices: [{ message: { content } }] });
+    });
+    const res = await callScriptBrain(brainOpts({
+      maxAttempts: 2,
+      suffix: '\nReply with the raw JSON object ONLY.',
+      injected: {
+        realRouting: routingWith([{ providerId: 'groq', priority: 1, source: 'default' }]),
+        keys: (slug, env) => { env.GROQ_API_KEY = 'gsk_x'; return ['groq']; },
+        writer: makeWriterStub().writer,
+        fetch: fetchStub,
+        brainFetch,
+        env: {},
+      },
+      dedupe: { channel: 'chan-a', kind: 'shorts', threshold: 0.85, toChunks: (p) => [{ chunk_kind: 'pooled', text: p.title }] },
+    }));
+    assert.equal(res.ok, true);
+    assert.equal(res.walk, 2);
+    assert.equal(dedupeCalls, 1, 'the hook fires only after shape validation passes (once, on the usable parse)');
+  } finally {
+    if (had) process.env[BRAIN_ENABLED_ENV] = prev;
+    else delete process.env[BRAIN_ENABLED_ENV];
+    resetBrainHealth();
+  }
+});
+
 // ---- AC-P2-10: no provider-specific chain config left in the generators ----
 
 const readSrc = (p) => fs.readFileSync(p, 'utf8');

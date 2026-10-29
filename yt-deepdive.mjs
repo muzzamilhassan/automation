@@ -17,7 +17,7 @@ import { EMBEDDED_FONTS_CSS } from './typography-poster-engine.mjs';
 import { getTopicClip } from './youtube-clips.mjs';
 import { pickApprovedTrack } from './music-engine.mjs';
 const APPROVED_MUSIC = JSON.parse(fs.readFileSync(new URL('./yt-brands/approved-music.json', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'), 'utf8'));
-import { renderYouTubeThumbnail, callScriptBrain } from './youtube-engine.mjs';
+import { renderYouTubeThumbnail, callScriptBrain, fetchBrainContext, brainContextSection, registryThresholds } from './youtube-engine.mjs';
 import { bySlug } from './yt-brands/brands.mjs';
 const { recentUploadTitles, findDup } = await import('./lib/dup-gate.mjs');
 const { resolveBrand } = await import('./lib/brand-resolve.mjs');
@@ -56,14 +56,33 @@ function validEpisode(p) {
   return p?.title && Array.isArray(p.chapters) && p.chapters.length >= 5 &&
     p.chapters.every(c => (c.text || '').split(/\s+/).length >= 70) && p.intro && p.outro;
 }
-async function llmScript(prompt) {
+// #105 Task 7 — the doc lane's /dedupe chunks: the whole episode as ONE
+// pooled chunk, the same shape the backfill corpus (lf-*.json docs) is
+// embedded with, so similarity compares like-for-like.
+const docDedupeChunks = (p) => [{
+  chunk_kind: 'pooled',
+  text: [p.title, p.intro, ...(Array.isArray(p.chapters) ? p.chapters : []).map(c => c?.text || ''), p.outro]
+    .filter(Boolean).join('\n'),
+}];
+async function llmScript(prompt, topic) {
+  const jobId = `deepdive:${slug}:${today()}`;
+  // #105 Task 7 — /context BEFORE prompt assembly (no-op unless the brain is
+  // enabled AND reachable; disabled = byte-identical committed prompt).
+  const ctx = await fetchBrainContext({ channel: slug, kind: 'doc', topic, jobId });
   const res = await callScriptBrain({
     slug,
-    jobId: `deepdive:${slug}:${today()}`,
-    prompt,
+    jobId,
+    prompt: ctx && ctx.length ? prompt + brainContextSection(ctx) : prompt,
     isValidJson: validEpisode,
     maxAttempts: 3,
     suffix: '\nReply with the raw JSON object ONLY.',
+    dedupe: {
+      channel: slug,
+      kind: 'doc',
+      templateId: null, // no template assignment on the doc lane yet — D8 defaults apply
+      threshold: registryThresholds(null).variation,
+      toChunks: docDedupeChunks,
+    },
   });
   if (res.ok) {
     console.log(`[long] ${res.provider} script OK (${res.parsed.chapters.length} chapters${res.walk > 1 ? `, attempt ${res.walk}` : ''})`);
@@ -227,7 +246,7 @@ if (!theme) {
   // Last-resort evergreen angle (not a static list — derived from the niche).
   theme = `The most searched, most argued-about question in ${b.niche} right now, told as a story-driven documentary for ${b.label}.`;
 }
-const script = await llmScript(LONG_PROMPT(b, theme));
+const script = await llmScript(LONG_PROMPT(b, theme), longSeed?.title || theme);
 
 fs.mkdirSync(`demos/deepdive-${slug}`, { recursive: true });
 const work = `demos/deepdive-${slug}`;
