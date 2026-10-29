@@ -452,28 +452,38 @@ export function scriptShapeGate(fetchImpl, isUsableContent) {
 // ---------------------------------------------------------------------------
 // #105 Task 7 — the generators ask the brain (Phase 3 RAG wiring).
 //
-// Zero-config = committed behavior: with BRAIN_BRAIN_ENABLED unset nothing
-// below fetches, prompts stay byte-identical, and the walk/terminal
-// contracts are untouched (pinned by tests/brain-wiring.test.mjs).
+// Zero-config = committed behavior: with BRAIN_ENABLED unset nothing below
+// fetches, prompts stay byte-identical, and the walk/terminal contracts are
+// untouched (pinned by tests/brain-wiring.test.mjs).
 //
-// Enabled + sidecar reachable (one cached /health probe per process):
+// Enabled + sidecar FULLY ready (one cached /health probe per process; arming
+// requires status ok + model_loaded + pgvector_reachable — a 200 alone would
+// arm a half-ready sidecar):
 //   - /context is fetched BEFORE prompt assembly and the retrieved
 //     exemplars+performance are appended as the labeled "YOUR PAST VIDEOS"
 //     section; the retrieved ids are logged machine-parseably
 //     (`[brain-context] ... ids=`) so the E2E task can prove provenance.
-//   - /dedupe gates the walk between shape validation and return: BLOCK
-//     consumes an escalation walk (shape-failure-equivalent) and the NEXT
-//     walk's prompt gains vary-guidance naming the top match; PASS/WARN
-//     proceed with the verdict recorded (`[brain-dedupe] ... verdict=`).
+//   - /dedupe gates the walk between shape validation and return, with the
+//     D6 TIERING MATRIX (financeGated = the template's registry meta
+//     review_required contains 'finance'):
+//       brain UP   + BLOCK + finance   -> BLOCK consumes the walk (retry with
+//                                         vary-guidance); exhausted -> lane terminal
+//       brain UP   + BLOCK + non-finance -> downgraded to a recorded WARN;
+//                                         proceed (fewer videos is never the
+//                                         failure mode; a flagged script is)
+//       brain DOWN + finance           -> FAIL-CLOSED: walk consumed, lane
+//                                         terminal (never publish un-gated)
+//       brain DOWN + non-finance       -> fail-open (legacy behavior + one warning)
+//       WARN / PASS                    -> proceed always
 //     Exhausted walks land on the lane's existing terminal unchanged.
+//     Verdicts are recorded machine-parseably (`[brain-dedupe] ... verdict=`).
 //
-// Fail-open per D6: disabled = silent; enabled-but-down = exactly one
-// warning, then legacy behavior. The sidecar lives on localhost inside the
-// CI job (port via BRAIN_PORT, default 8000). The dispatch flag name
-// BRAIN_BRAIN_ENABLED is used verbatim (single rename point below).
+// Disabled = silent; enabled-but-down = exactly one warning, then the matrix.
+// The sidecar lives on localhost inside the CI job (port via BRAIN_PORT,
+// default 8000).
 // ---------------------------------------------------------------------------
 
-export const BRAIN_ENABLED_ENV = 'BRAIN_BRAIN_ENABLED';
+export const BRAIN_ENABLED_ENV = 'BRAIN_ENABLED';
 const BRAIN_TRUTHY = new Set(['1', 'true', 'yes', 'on']);
 const BRAIN_HEALTH_TIMEOUT_MS = 2000;  // one fast probe, fail fast
 const BRAIN_CALL_TIMEOUT_MS = 10000;   // context/dedupe round-trips
@@ -486,25 +496,35 @@ export function brainBaseUrl(env = process.env) {
   return `http://127.0.0.1:${port || '8000'}`;
 }
 
-// Per-process reachability cache: one /health probe per flag value (the flag
-// value keys the cache so tests can flip the env without a reset seam —
+// Per-process health cache: one /health probe per flag value (the flag value
+// keys the cache so tests can flip the env without a reset seam —
 // resetBrainHealth() exists for explicit isolation anyway).
 let brainHealthCache = null;
 export function resetBrainHealth() { brainHealthCache = null; }
 
-export async function brainReachable(injected = null) {
+/**
+ * 'off' (flag unset — silent, zero calls) | 'down' (enabled but the sidecar
+ * is unreachable or not fully ready — one warning per process) | 'up'.
+ */
+export async function brainState(injected = null) {
   const flag = String(process.env[BRAIN_ENABLED_ENV] || '').trim().toLowerCase();
-  if (!BRAIN_TRUTHY.has(flag)) return false; // disabled: silent, zero calls
-  if (brainHealthCache && brainHealthCache.flag === flag) return brainHealthCache.reachable;
-  let reachable = false;
+  if (!BRAIN_TRUTHY.has(flag)) return 'off';
+  if (brainHealthCache && brainHealthCache.flag === flag) return brainHealthCache.up ? 'up' : 'down';
+  let up = false;
   try {
     const res = await (injected?.brainFetch || fetch)(
       `${brainBaseUrl()}/health`, { signal: AbortSignal.timeout(BRAIN_HEALTH_TIMEOUT_MS) });
-    reachable = Boolean(res && res.ok);
-  } catch { reachable = false; }
-  brainHealthCache = { flag, reachable };
-  if (!reachable) console.log('[brain] enabled but sidecar unreachable — running legacy generation (fail-open, D6)');
-  return reachable;
+    const body = res && res.ok ? await res.json().catch(() => null) : null;
+    up = Boolean(body && body.status === 'ok'
+      && body.model_loaded === true && body.pgvector_reachable === true);
+  } catch { up = false; }
+  brainHealthCache = { flag, up };
+  if (!up) console.log('[brain] enabled but sidecar not ready (unreachable / model unloaded / pg down) — D6 matrix applies');
+  return up ? 'up' : 'down';
+}
+
+export async function brainReachable(injected = null) {
+  return (await brainState(injected)) === 'up';
 }
 
 /**
@@ -515,7 +535,7 @@ export async function brainReachable(injected = null) {
  */
 export async function fetchBrainContext({ channel, kind, topic, k = BRAIN_CONTEXT_K, jobId = null, injected = null }) {
   if (!channel || !kind || !topic) return null;
-  if (!(await brainReachable(injected))) return null;
+  if ((await brainState(injected)) !== 'up') return null;
   try {
     const res = await (injected?.brainFetch || fetch)(`${brainBaseUrl()}/context`, {
       method: 'POST',
@@ -548,17 +568,21 @@ export function brainContextSection(items) {
 }
 
 /**
- * /dedupe as the checkDup hook. Returns the verdict response
- * {verdict, score, top_match_id, neighbors} when the brain was consulted, or
- * null when disabled/unreachable/failed (gate skipped — fail-open).
+ * Internal gate probe. Returns { state: 'disabled' | 'down' | 'ok', verdict? }:
+ *   'disabled' — feature flag off (zero-config, SILENT; never a D6 event)
+ *   'down'     — enabled but the sidecar is unreachable/not ready, or the
+ *                /dedupe call failed (warning already logged)
+ *   'ok'       — verdict response in `verdict`
  */
-export async function checkDup({ channel, kind, templateId = null, threshold = null, jobId = null, chunks = [], injected = null }) {
-  if (!channel || !kind || !Array.isArray(chunks) || chunks.length === 0) return null;
-  if (!(await brainReachable(injected))) return null;
+async function dedupeCheck({ channel, kind, templateId = null, threshold = null, crossThreshold = null, jobId = null, chunks = [], injected = null }) {
+  if (!channel || !kind || !Array.isArray(chunks) || chunks.length === 0) return { state: 'disabled' };
+  const state = await brainState(injected);
+  if (state !== 'up') return { state: state === 'off' ? 'disabled' : 'down' };
   try {
     const body = { channel, kind, chunks };
     if (templateId) body.template_id = templateId;
     if (threshold !== null && threshold !== undefined) body.threshold = threshold;
+    if (crossThreshold !== null && crossThreshold !== undefined) body.cross_channel_threshold = crossThreshold;
     if (jobId) body.job_id = jobId;
     const res = await (injected?.brainFetch || fetch)(`${brainBaseUrl()}/dedupe`, {
       method: 'POST',
@@ -569,27 +593,63 @@ export async function checkDup({ channel, kind, templateId = null, threshold = n
     if (!res || !res.ok) throw new Error(`status ${res ? res.status : 'no response'}`);
     const out = await res.json();
     if (!out || typeof out.verdict !== 'string') throw new Error('dedupe: bad verdict shape');
-    return out;
+    return { state: 'ok', verdict: out };
   } catch (e) {
-    console.log(`[brain] /dedupe failed (${String(e?.message || e).slice(0, 80)}) — variation gate skipped (fail-open, D6)`);
-    return null;
+    console.log(`[brain] /dedupe failed (${String(e?.message || e).slice(0, 80)}) — variation gate unavailable (D6 matrix applies)`);
+    return { state: 'down' };
   }
 }
 
 /**
- * D8 — thresholds are registry DATA. finance-explainers carries explicit
- * values in template-registry.data.js; every other template (and the
- * template-less lanes) inherits the documented defaults — variation 0.85,
- * cross-channel 0.90. Never a hardcoded per-channel map.
+ * /dedupe as the checkDup hook. Returns the verdict response
+ * {verdict, score, top_match_id, neighbors} when the brain was consulted, or
+ * null when disabled/unreachable/failed (gate skipped — callers apply the D6
+ * matrix themselves; callScriptBrain does).
+ */
+export async function checkDup(options) {
+  const gate = await dedupeCheck(options || {});
+  return gate.state === 'ok' ? gate.verdict : null;
+}
+
+/**
+ * D8 — thresholds and the finance-gating signal are registry DATA.
+ * finance-explainers carries explicit values in template-registry.data.js;
+ * every other template (and the template-less lanes) inherits the documented
+ * defaults — variation 0.85, cross-channel 0.90. `financeGated` mirrors the
+ * template's safety.review_required containing 'finance' (D6 tiering input).
+ * Never a hardcoded per-channel map.
  */
 export function registryThresholds(templateId) {
   const meta = templateId ? REGISTRY_META[templateId] : null;
+  const reviewRequired = Array.isArray(meta?.safety?.review_required)
+    ? meta.safety.review_required : [];
   return {
     variation: typeof meta?.variation_threshold === 'number'
       ? meta.variation_threshold : BRAIN_DEFAULT_VARIATION_THRESHOLD,
     crossChannel: typeof meta?.cross_channel_threshold === 'number'
       ? meta.cross_channel_threshold : BRAIN_DEFAULT_CROSS_CHANNEL_THRESHOLD,
+    reviewRequired,
+    financeGated: reviewRequired.includes('finance'),
   };
+}
+
+/**
+ * D8 threading: the channel's ACTIVE template assignment (slug -> template id
+ * -> registry meta). Fail-open null on any failure — template-less lanes get
+ * the documented default thresholds and are NOT finance-gated. Lazy: no DB
+ * import/network until called.
+ */
+export async function resolveTemplateId(channelId) {
+  if (!channelId) return null;
+  try {
+    const { getRegistryDb } = await import('./studio/lib/template-registry-db.js');
+    const db = await getRegistryDb();
+    const row = await db.getActiveAssignment(channelId);
+    return row?.family_id || null;
+  } catch (e) {
+    console.log(`[brain] template lookup unavailable (${String(e?.message || e).slice(0, 80)}) — template-less thresholds (D8 defaults)`);
+    return null;
+  }
 }
 
 // Adapter error classes worth an escalation walk: the provider RESPONDED but
@@ -604,12 +664,15 @@ const SHAPE_RETRY_CLASSES = new Set(['parse_error', 'empty_response']);
  * bad-shape replies flowing to later providers WITHIN a walk. Never throws.
  * @param {object} o { slug, jobId, prompt, isValidJson(parsed)=>bool,
  *   maxAttempts, suffix, injected,
- *   dedupe?: { channel, kind, templateId?, threshold?, toChunks(parsed) } —
- *   the #105 checkDup hook: when set AND the brain is enabled+reachable, the
- *   FIRST shape-valid parse is gated through POST /dedupe between shape
- *   validation and return. BLOCK consumes the walk (shape-failure-
- *   equivalent) and the next walk's prompt gains vary-guidance naming the
- *   top match; PASS/WARN proceed. Disabled/down -> no gate (fail-open).
+ *   dedupe?: { channel, kind, templateId?, threshold?, crossThreshold?,
+ *              financeGated?, toChunks(parsed) } —
+ *   the #105 checkDup hook, gated through POST /dedupe between shape
+ *   validation and return, with the D6 tiering matrix (see the block
+ *   comment at the top of the brain section): BLOCK+finance consumes the
+ *   walk (retry with vary-guidance naming the top match); BLOCK+non-finance
+ *   downgrades to a recorded WARN and proceeds; gate-down+finance fails
+ *   closed (walk consumed, lane terminal on exhaustion); gate-down+
+ *   non-finance and disabled proceed fail-open; WARN/PASS proceed always.
  * }
  * @returns {Promise<{ ok: true, parsed: object, provider: string, model: string|null, attempts: object[], walk: number }
  *                   |{ ok: false, attempts: object[], error: string }>}
@@ -643,21 +706,35 @@ export async function callScriptBrain({ slug = null, jobId = null, prompt, isVal
       try { parsed = parseScriptJson(res.content); } catch { parsed = null; }
       if (parsed && isValidJson(parsed)) {
         if (dedupe) {
-          const verdict = await checkDup({
+          const gate = await dedupeCheck({
             channel: dedupe.channel,
             kind: dedupe.kind,
             templateId: dedupe.templateId ?? null,
             threshold: dedupe.threshold ?? null,
+            crossThreshold: dedupe.crossThreshold ?? null,
             jobId,
             chunks: dedupe.toChunks ? dedupe.toChunks(parsed) : [],
             injected,
           });
-          if (verdict) {
-            console.log(`[brain-dedupe] job=${jobId || 'unknown'} channel=${dedupe.channel} kind=${dedupe.kind} verdict=${verdict.verdict} score=${verdict.score} top_match=${verdict.top_match_id}`);
-            if (verdict.verdict === 'BLOCK') {
-              varyFrom = verdict.top_match_id; // consume the walk, retry with guidance
-              continue;
-            }
+          // D6 tier 1: brain unreachable + finance template -> FAIL-CLOSED
+          // (never publish un-gated). The walk is consumed; exhausted walks
+          // land on the lane's existing terminal.
+          if (gate.state === 'down' && dedupe.financeGated) {
+            console.log(`[brain-dedupe] job=${jobId || 'unknown'} channel=${dedupe.channel} kind=${dedupe.kind} verdict=BLOCK score=0 top_match=null reason=gate-unreachable+finance (D6 tier 1 fail-closed) — walk consumed`);
+            continue;
+          }
+          if (gate.state === 'ok') {
+            const v = gate.verdict;
+            // Guidance source for any later walk — set for WARN too (the
+            // writer should know which video the script risks converging with).
+            if (v.top_match_id !== null && v.top_match_id !== undefined) varyFrom = v.top_match_id;
+            const downgraded = v.verdict === 'BLOCK' && !dedupe.financeGated;
+            console.log(`[brain-dedupe] job=${jobId || 'unknown'} channel=${dedupe.channel} kind=${dedupe.kind} verdict=${downgraded ? 'WARN' : v.verdict} score=${v.score} top_match=${v.top_match_id}${downgraded ? ' (BLOCK downgraded: non-finance lane, D6 tier 4)' : ''}`);
+            // D6 tier 3: brain UP + BLOCK + finance -> fail the walk (retry
+            // with vary-guidance); exhausted walks -> lane terminal.
+            if (v.verdict === 'BLOCK' && dedupe.financeGated) continue;
+            // D6 tiers 2/4/5: gate-down+non-finance, BLOCK-downgraded, WARN
+            // and PASS all proceed with the script.
           }
         }
         return { ok: true, parsed, provider: res.usage?.provider || 'unknown', model: res.usage?.model || null, attempts: res.attempts, walk: attempt };
@@ -736,6 +813,8 @@ Return ONLY valid JSON:
         kind: 'shorts',
         templateId: opts.templateId || null,
         threshold: dedupeThresholds.variation,
+        crossThreshold: dedupeThresholds.crossChannel, // registry band transported to the gate (D8)
+        financeGated: dedupeThresholds.financeGated,   // D6 tiering input (finance review_required)
         // the whole script as one pooled chunk — the shape the backfilled
         // corpus is embedded with, so similarity compares like-for-like
         toChunks: (p) => [{

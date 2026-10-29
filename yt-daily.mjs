@@ -23,7 +23,7 @@ loadEnv();
 
 
 
-const { generateYouTubeScript, renderYouTubeScriptShort, buildScriptMeta } = await import('./youtube-engine.mjs');
+const { generateYouTubeScript, renderYouTubeScriptShort, buildScriptMeta, resolveTemplateId } = await import('./youtube-engine.mjs');
 const { pickApprovedTrack, pickMusicTrack } = await import('./music-engine.mjs');
 const { resolveBrand } = await import('./lib/brand-resolve.mjs');
 const { researchTrend } = await import('./trend-research.mjs');
@@ -214,6 +214,10 @@ if (RUN_SHORTS) {
   const OFF_NICHE = (slug === 'quotequarry' || b.fromRegistry) ? null : /\bstoic\w*|manipulat\w*|toxic|calm your mind|dark psychology\b/i;
 
   const slotLimit = TOPUP_N > 0 ? Math.min(TOPUP_N, b.slots.length) : b.slots.length;
+  // #105 D6/D8 threading: the channel's active template assignment carries the
+  // brain's finance-gating signal + registry thresholds into the /dedupe gate.
+  // Fail-open null (template-less = D8 defaults, non-finance tiers).
+  const brainTemplateId = await resolveTemplateId(slug);
   let slotErrors = 0; // #35: a mid-loop throw used to kill the whole run silently
   for (let i = 0; i < slotLimit; i++) { try {
     const publishAt = nextSlotISO(b.slots[i]);
@@ -222,10 +226,10 @@ if (RUN_SHORTS) {
       console.log('  ✗ no researched topic (trend research failed) — slot skipped (fail-closed, no static fallback)');
       continue;
     }
-    let script = await generateYouTubeScript(page, themesToday[i].topic);
+    let script = await generateYouTubeScript(page, themesToday[i].topic, { templateId: brainTemplateId });
     for (let t = 0; OFF_NICHE && t < 2 && OFF_NICHE.test(JSON.stringify(script.points)); t++) {
       console.log('  off-niche drift — regenerating');
-      script = await generateYouTubeScript(page, themesToday[i].topic);
+      script = await generateYouTubeScript(page, themesToday[i].topic, { templateId: brainTemplateId });
     }
     // GATE: near-duplicate of anything already on the channel (or made earlier
     // in this run) — skip BEFORE rendering, this is what fed the Oct-1 collapse

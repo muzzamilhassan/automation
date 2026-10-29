@@ -69,6 +69,9 @@ async function llmScript(prompt, topic) {
   // #105 Task 7 — /context BEFORE prompt assembly (no-op unless the brain is
   // enabled AND reachable; disabled = byte-identical committed prompt).
   const ctx = await fetchBrainContext({ channel: slug, kind: 'doc', topic, jobId });
+  // No template assignment on the doc lane yet — D8 defaults, non-finance
+  // (D6 tiers 2/4/5 apply). When doc templates are assigned, thread the id here.
+  const docGate = registryThresholds(null);
   const res = await callScriptBrain({
     slug,
     jobId,
@@ -79,8 +82,10 @@ async function llmScript(prompt, topic) {
     dedupe: {
       channel: slug,
       kind: 'doc',
-      templateId: null, // no template assignment on the doc lane yet — D8 defaults apply
-      threshold: registryThresholds(null).variation,
+      templateId: null,
+      threshold: docGate.variation,
+      crossThreshold: docGate.crossChannel,
+      financeGated: docGate.financeGated,
       toChunks: docDedupeChunks,
     },
   });

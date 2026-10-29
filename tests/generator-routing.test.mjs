@@ -439,7 +439,7 @@ test('callScriptBrain: shape-invalid walks never reach the dedupe hook (hook pos
   try {
     let dedupeCalls = 0;
     const brainFetch = async (url) => {
-      if (String(url).includes('/health')) return stubResponse({ status: 'ok' });
+      if (String(url).includes('/health')) return stubResponse({ status: 'ok', model_loaded: true, pgvector_reachable: true });
       if (String(url).includes('/dedupe')) {
         dedupeCalls++;
         return stubResponse({ verdict: 'PASS', score: 0.1, top_match_id: null, neighbors: [] });

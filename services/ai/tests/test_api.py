@@ -294,6 +294,25 @@ def test_dedupe_warns_at_exact_band_boundary(brain):
     assert body["top_match_id"] == "vid-cross"
 
 
+def test_dedupe_accepts_registry_cross_channel_threshold(brain):
+    """D8 plumbing: the caller may transport the registry's cross_channel_threshold
+    so template-specified values reach the gate. With cross_channel_threshold 0.70
+    a 0.75 cross-channel match WARNs — under server-side derivation
+    (0.75 + 0.05 = 0.80 band) it would PASS. Omitting the field keeps the
+    derived band (second post)."""
+    brain.store.neighbors = [neighbor(score=0.75, same=False, video="vid-cross")]
+    body = {
+        "channel": "chan-a", "kind": "shorts", "template_id": "tmpl",
+        "chunks": [{"chunk_kind": "pooled", "text": "new script"}],
+        "threshold": 0.85,
+    }
+    transported = brain.client.post("/dedupe", json={**body, "cross_channel_threshold": 0.70})
+    assert transported.status_code == 200
+    assert transported.json()["verdict"] == "WARN"
+    derived = brain.client.post("/dedupe", json=body)
+    assert derived.json()["verdict"] == "PASS", "absent field -> server derives 0.85 + 0.05"
+
+
 def test_dedupe_max_chunk_semantics_blocks_on_best_match(brain):
     brain.store.neighbors = [neighbor(score=0.50, video="vid-weak"),
                              neighbor(score=0.93, video="vid-strong")]

@@ -80,6 +80,11 @@ class _DedupeIn(BaseModel):
     template_id: str | None = None
     chunks: list[_ChunkText]
     threshold: float | None = None
+    # D8 plumbing: the caller may transport the registry's cross-channel band
+    # so template-specified values reach the gate; when absent the server
+    # derives threshold + config.cross_channel_band (the only path before the
+    # Node wiring shipped).
+    cross_channel_threshold: float | None = None
     job_id: str | None = None   # additive, optional (verdict ledger AC-P3-12)
 
 
@@ -227,7 +232,10 @@ def create_app() -> FastAPI:
                 body.threshold
                 if body.threshold is not None
                 else brain_config.config.default_threshold)
-            band = threshold + brain_config.config.cross_channel_band
+            band = (
+                body.cross_channel_threshold
+                if body.cross_channel_threshold is not None
+                else threshold + brain_config.config.cross_channel_band)
 
             vectors = _embed_texts([c.text for c in body.chunks])
             store = _get_store()
