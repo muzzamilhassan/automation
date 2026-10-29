@@ -161,9 +161,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "YHStunYcGDo",
-        "publishAt": "2026-10-28T22:35:00Z",
-        "title": "Why Minimum Payments Are a Trap"
+        "videoId": "trlFeAIJD0o",
+        "publishAt": "2026-10-29T22:35:00Z",
+        "title": "The Psychological Trap of Budget Fatigue"
       }
     ],
     "imageDate": "2026-10-18",
@@ -176,7 +176,7 @@
         "title": "Pay Yourself First | Personal Finance"
       }
     ],
-    "deepdiveDate": "2026-10-28",
+    "deepdiveDate": "2026-10-29",
     "healedDate": "2026-09-19",
     "healedCount": 3,
     "usedTrendSeeds": [
@@ -230,6 +230,10 @@
       {
         "t": "Why Minimum Payments Are a Trap",
         "at": "2026-10-28T22:35:00Z"
+      },
+      {
+        "t": "The Psychological Trap of Budget Fatigue",
+        "at": "2026-10-29T22:35:00Z"
       }
     ],
     "cooldownSeeds": [
@@ -237,62 +241,64 @@
       "11 Kitchen Rules Americans Break That No 1950s Housewife Would Have Allowed"
     ],
     "clipQueue": {
-      "lastRunId": "local-1793162115032",
+      "lastRunId": "local-1793269112131",
       "doneRuns": [
         "39750079904",
-        "local-1793162115032"
+        "local-1793162115032",
+        "local-1793269112131"
       ],
-      "docTitle": "The Hidden Cost of Credit: How One Debt Slip Cost $12,000 | Personal finance rules & money habits Wisdom",
-      "createdAt": "2026-10-28T04:36:18.600Z",
+      "docTitle": "The Hidden Cost of ‘Being on a Budget’ | Personal finance rules & money habits Wisdom",
+      "createdAt": "2026-10-29T10:19:37.534Z",
       "local": true,
       "clips": [
         {
           "part": 1,
-          "title": "Why Minimum Payments Are a Trap",
-          "startSec": 161.2,
-          "durSec": 20.2,
+          "title": "The Psychological Trap of Budget Fatigue",
+          "startSec": 186.2,
+          "durSec": 22.3,
           "file": "tt-lf/clipfeed-money-rulebook/clips/clip-01.mp4",
-          "postedAt": "2026-10-28T04:36:21.411Z"
+          "postedAt": "2026-10-29T10:19:40.726Z"
         },
         {
           "part": 2,
-          "title": "How One Missed Payment Cost $54,000",
-          "startSec": 98.3,
-          "durSec": 23,
+          "title": "The Zero-Sum Budgeting Paradox",
+          "startSec": 55.4,
+          "durSec": 22.7,
           "file": "tt-lf/clipfeed-money-rulebook/clips/clip-02.mp4"
         },
         {
           "part": 3,
-          "title": "The Vicious Cycle of Stress Spending",
-          "startSec": 193.3,
-          "durSec": 20.5,
+          "title": "The Hidden Trap of a 10% Savings Goal",
+          "startSec": 97.9,
+          "durSec": 22.3,
           "file": "tt-lf/clipfeed-money-rulebook/clips/clip-03.mp4"
         },
         {
           "part": 4,
-          "title": "The Hidden Fees Destroying Your Finances",
-          "startSec": 140,
-          "durSec": 20.8,
+          "title": "Is Your Budget Stuck in the Past?",
+          "startSec": 270.2,
+          "durSec": 21.3,
           "file": "tt-lf/clipfeed-money-rulebook/clips/clip-04.mp4"
         }
       ]
     },
-    "clipLastPostDate": "2026-10-28",
+    "clipLastPostDate": "2026-10-29",
     "uploadsToday": {
-      "date": "2026-10-27",
+      "date": "2026-10-29",
       "count": 2
     },
     "usedLongSeeds": [
-      "Mini Monday// Debt story🌻"
+      "Mini Monday// Debt story🌻",
+      "You're Not Stupid  You're on a Budget #philosophy #psychology #ignoranceisbliss #knowledge"
     ],
     "todayTopic": {
-      "at": "2026-10-28",
-      "topic": "Mini Monday// Debt story🌻"
+      "at": "2026-10-29",
+      "topic": "You're Not Stupid  You're on a Budget #philosophy #psychology #ignoranceisbliss #knowledge"
     },
     "deepdiveVideo": {
-      "videoId": "XeVTUN2QLY8",
-      "publishAt": "2026-10-28T22:30:00Z",
-      "title": "The Hidden Cost of Credit: How One Debt Slip Cost $12,000 | Personal finance rules & money habits Wisdom"
+      "videoId": "oqgR5W4dvnw",
+      "publishAt": "2026-10-29T22:30:00Z",
+      "title": "The Hidden Cost of ‘Being on a Budget’ | Personal finance rules & money habits Wisdom"
     }
   },
   "debt-free-doctrine": {
