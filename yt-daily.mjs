@@ -315,7 +315,10 @@ if (RUN_SHORTS) {
         await archiveUpload(videoId, `fb-outbox/${slug}/${stamp}.mp4`, (m) => console.log('  ' + m));
       }
     } catch (e) { console.log(`  [archive] skipped: ${String(e.message).slice(0, 60)}`); }
-    results.push({ videoId, publishAt, title: meta.title });
+    // #105 AC-P3-17: carry the script text in state — the shorts script never
+    // had a durable home; the pipeline embeds it into the Brain at publish
+    // time (only uploaded slots get here, so ghosts are never captured).
+    results.push({ videoId, publishAt, title: meta.title, text: [script.hook, ...(script.points || []).map((p) => p?.line || ''), script.closing].filter(Boolean).join('\n\n') });
 
     // ---- Video frames → FB image posts ----
     // 2026-10-23 owner: platforms paused (YouTube-only focus) — skip FB images

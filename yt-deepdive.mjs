@@ -352,7 +352,10 @@ if (longSeed) {
   st[slug].usedLongSeeds = [...(st[slug].usedLongSeeds || []), longSeed.title].slice(-40);
   st[slug].todayTopic = { at: today(), topic: longSeed.title };
 }
-st[slug].deepdiveVideo = { videoId: res.data.id, publishAt, title: `${script.title} | ${b.authority}` };
+// #105: narration text rides along in state (intro + chapters + outro) — the
+// pipeline embeds it into the Brain at publish time (AC-P3-2: upload accepted
+// first, so videoId is real here; the dup gate above exits without this write).
+st[slug].deepdiveVideo = { videoId: res.data.id, publishAt, title: `${script.title} | ${b.authority}`, text: [script.intro, ...(script.chapters || []).map((c) => c?.text || ''), script.outro].filter(Boolean).join('\n\n') };
 // #99 shared-pool ledger: count this successful upload against the daily budget
 st[slug].uploadsToday = nextCounter(st[slug].uploadsToday);
 saveChannelState(slug, st[slug]);

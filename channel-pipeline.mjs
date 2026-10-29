@@ -194,6 +194,21 @@ if (shortsSource === 'clips') {
   results.shorts = true;
 }
 
+// ---- Phase 1a: #105 Brain write-time embedding (shorts) ----
+// AC-P3-2: embed only what YouTube ACCEPTED (real videoId — no ghost vectors);
+// AC-P3-17: this is the shorts script text's first durable home. Gated by
+// BRAIN_EMBED_ENABLED (default off — zero behavior change until the CI flip);
+// NEVER fatal — the video is already uploaded, an embedding failure is logged
+// and the run continues. Re-POSTing the same script is safe (content-hash
+// keyed UPDATE in the brain, no duplicates).
+if (results.shorts && shortsSource !== 'clips') {
+  const { embedPublishedScripts } = await import('./lib/brain-embed.mjs');
+  const entries = (loadState()[slug]?.lastVideos || [])
+    .filter((v) => v?.videoId && v?.text)
+    .map((v) => ({ videoId: v.videoId, text: v.text }));
+  await embedPublishedScripts({ slug, kind: 'shorts', entries, log });
+}
+
 // ---- Phase 1b: Proof-of-publication (09-20) ----
 // 09-19 lesson: a dead token printed "✓ Shorts queued / Errors: 0" while
 // nothing was uploaded. Verify the claimed uploads REALLY exist on YouTube.
@@ -243,6 +258,19 @@ if (!SKIP_EPISODE && !episodeDone && (await quotaGate('Episode'))) {
   else errors.push('Episode failed');
 } else if (SKIP_EPISODE) {
   log(`Episode skipped (--no-episode or paused)`);
+}
+
+// ---- Phase 5a: #105 Brain write-time embedding (doc) ----
+// Same contract as Phase 1a. Only a doc rendered THIS run embeds (deepdiveDate
+// is written by the child only after the upload was accepted — the duplicate
+// gate inside yt-deepdive exits without it); the narration text rides in
+// state on deepdiveVideo.
+const docState = loadState();
+if (docState[slug]?.deepdiveDate === today) {
+  const { embedPublishedScripts } = await import('./lib/brain-embed.mjs');
+  const dv = docState[slug]?.deepdiveVideo;
+  const entries = dv?.videoId && dv?.text ? [{ videoId: dv.videoId, text: dv.text }] : [];
+  await embedPublishedScripts({ slug, kind: 'doc', entries, log });
 }
 
 // ---- Phase 6: Stage doc render for TikTok clips (docDay only) ----
