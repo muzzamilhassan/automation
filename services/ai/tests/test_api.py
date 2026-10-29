@@ -38,6 +38,7 @@ class FakeStore:
         self.neighbors = neighbors or []
         self.performance = performance or {}
         self.searches = []
+        self.perf_queries = []
         self.verdicts = []
         self.upserts = []
         self.fail_top_performance = False
@@ -62,6 +63,7 @@ class FakeStore:
     def top_performance(self, ids):
         if self.fail_top_performance:
             raise RuntimeError("performance join down")
+        self.perf_queries.append(list(ids))
         return {i: self.performance[i] for i in ids if i in self.performance}
 
     def record_verdict(self, verdict):
@@ -77,8 +79,9 @@ class FakeStore:
 
 
 def neighbor(score=0.9, same=True, video="vid-1", chunk_kind="pooled",
-             text="past script text"):
+             text="past script text", row_id=101):
     return {
+        "id": row_id,  # storage row id (script_memory.id) — performance join key
         "chunk_kind": chunk_kind,
         "channel_id": "chan-a" if same else "chan-b",
         "score": score,
@@ -141,10 +144,13 @@ def test_health_reports_pg_down_honestly(brain):
 
 def test_context_returns_exemplars_with_performance_and_excerpt(brain):
     brain.store.neighbors = [
-        neighbor(score=0.91, video="vid-1", text="x" * 600),
-        neighbor(score=0.70, same=False, video="vid-2", text="other"),
+        neighbor(score=0.91, video="vid-1", text="x" * 600, row_id=101),
+        neighbor(score=0.70, same=False, video="vid-2", text="other", row_id=102),
     ]
-    brain.store.performance = {"vid-1": {"views": 1000}}
+    # Performance is keyed by the STORAGE row id (script_memory.id) — the
+    # join must key on search_similar's row id (Task 7 carry-forward fix),
+    # never on the text video_id (bigint = text raised in production).
+    brain.store.performance = {101: {"views": 1000}}
 
     res = brain.client.post("/context", json={
         "channel": "chan-a", "kind": "shorts", "topic": "debt payoff", "k": 2,
@@ -155,11 +161,13 @@ def test_context_returns_exemplars_with_performance_and_excerpt(brain):
     assert isinstance(body, list) and len(body) == 2
     top = body[0]
     assert set(top) == {"id", "score", "performance", "excerpt"}
-    assert top["id"] == "vid-1"
+    assert top["id"] == "vid-1", "OUT id stays the exemplar's video id (D9 shape)"
     assert top["score"] == pytest.approx(0.91)
     assert top["performance"] == {"views": 1000}
     assert len(top["excerpt"]) == 400, "excerpt truncated to 400 chars"
     assert body[1]["performance"] == {}
+    assert brain.store.perf_queries[0] == [101, 102], \
+        "the performance join must query STORAGE row ids, not video ids"
     # retrieval went through search_similar with the request's channel/kind/k
     assert brain.store.searches[0]["channel_id"] == "chan-a"
     assert brain.store.searches[0]["kind"] == "shorts"
@@ -265,6 +273,25 @@ def test_dedupe_cross_channel_below_band_passes(brain):
         "threshold": 0.85,
     })
     assert res.json()["verdict"] == "PASS"  # band = 0.85 + 0.05 = 0.90
+
+
+def test_dedupe_warns_at_exact_band_boundary(brain):
+    """The WARN band boundary at EXACTLY threshold + band = 0.85 + 0.05 = 0.90:
+    a cross-channel match sitting precisely on the band must WARN (inclusive
+    >=), not PASS. Task 4's report claimed this was already pinned at exactly
+    0.90 — it was not (the nearest pins were 0.89 PASS / 0.91 WARN); this test
+    is the corrected pin (Task 7 carry-forward)."""
+    brain.store.neighbors = [neighbor(score=0.90, same=False, video="vid-cross")]
+    res = brain.client.post("/dedupe", json={
+        "channel": "chan-a", "kind": "shorts", "template_id": "tmpl",
+        "chunks": [{"chunk_kind": "pooled", "text": "new script"}],
+        "threshold": 0.85,
+    })
+    assert res.status_code == 200
+    body = res.json()
+    assert body["verdict"] == "WARN"
+    assert body["score"] == pytest.approx(0.90)
+    assert body["top_match_id"] == "vid-cross"
 
 
 def test_dedupe_max_chunk_semantics_blocks_on_best_match(brain):

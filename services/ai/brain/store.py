@@ -176,11 +176,13 @@ class BrainStore:
         `score >= threshold` blocks). Results span ALL channels — dedupe
         needs cross-channel matches — each row labeled `same_channel` by
         channel equality. `kind` optionally narrows to one script_kind.
+        Rows carry the storage `id` so /context's performance join
+        (top_performance matches script_memory.id) can key on it.
         """
         literal = _vector_literal(embedding)
         if kind is None:
             rows = self._client(
-                """SELECT chunk_kind, channel_id, chunk_text, video_id,
+                """SELECT id, chunk_kind, channel_id, chunk_text, video_id,
                           1 - (embedding <=> $1::vector) AS score
                    FROM script_memory
                    ORDER BY embedding <=> $1::vector
@@ -189,7 +191,7 @@ class BrainStore:
             )
         else:
             rows = self._client(
-                """SELECT chunk_kind, channel_id, chunk_text, video_id,
+                """SELECT id, chunk_kind, channel_id, chunk_text, video_id,
                           1 - (embedding <=> $1::vector) AS score
                    FROM script_memory
                    WHERE script_kind = $2
@@ -199,6 +201,7 @@ class BrainStore:
             )
         return [
             {
+                "id": r.get("id"),
                 "chunk_kind": r["chunk_kind"],
                 "channel_id": r["channel_id"],
                 "score": float(r["score"]),

@@ -155,7 +155,7 @@ class StubClient:
 
         # exact-scan cosine search (score = 1 - <=> distance)
         m = re.match(
-            r"^SELECT chunk_kind, channel_id, chunk_text, video_id, "
+            r"^SELECT id, chunk_kind, channel_id, chunk_text, video_id, "
             r"1 - \(embedding <=> \$1::vector\) AS score FROM script_memory"
             r"( WHERE script_kind = \$(\d+))?"
             r" ORDER BY embedding <=> \$1::vector LIMIT \$(\d+)$", norm, re.I)
@@ -167,6 +167,7 @@ class StubClient:
             if kind is not None:
                 rows = [r for r in rows if r["script_kind"] == kind]
             scored = [{
+                "id": r["id"],
                 "chunk_kind": r["chunk_kind"],
                 "channel_id": r["channel_id"],
                 "chunk_text": r.get("chunk_text"),
@@ -335,6 +336,26 @@ def test_search_similar_scores_orders_and_labels_same_vs_cross_channel():
     scores = [r["score"] for r in results]
     assert scores == sorted(scores, reverse=True), "results must be best-first"
     assert all(set(r) >= {"chunk_kind", "channel_id", "score", "same_channel"} for r in results)
+
+
+def test_search_similar_returns_row_id_for_performance_join():
+    """Task 4 carry-forward (fixed in Task 7): search rows carry the STORAGE
+    row id so /context's performance join — top_performance matches
+    script_memory.id (bigserial) — can key on it instead of the text video_id
+    (which raised bigint = text in production and degraded every join to {})."""
+    stub = StubClient()
+    store = makeStore(stub)
+    store.upsert_chunks([
+        row("h-1", [1.0, 0.0], video="vid-1", performance={"views": 7}),
+        row("h-2", [0.0, 1.0], video="vid-2", performance={"views": 3}),
+    ])
+    results = store.search_similar([1.0, 0.0], "chan-a", limit=2)
+
+    ids = [r["id"] for r in results]
+    assert ids == sorted(r["id"] for r in stub.tables["script_memory"].values()), \
+        "rows must carry the storage row id"
+    perf = store.top_performance(ids)
+    assert perf[ids[0]] == {"views": 7}, "row ids must join into top_performance"
 
 
 def test_search_similar_kind_filter_and_limit():

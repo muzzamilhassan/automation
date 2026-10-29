@@ -188,9 +188,12 @@ def create_app() -> FastAPI:
             neighbors = store.search_similar(
                 topic_vec, channel_id=body.channel, kind=body.kind,
                 limit=body.k)
-            ids = [n.get("video_id") for n in neighbors if n.get("video_id")]
+            # Performance join keys on the STORAGE row id (search_similar
+            # returns it — Task 4's disclosed gap, fixed in Task 7). The OUT
+            # `id` stays the exemplar's video_id (D9 shape, unchanged).
+            row_ids = [n.get("id") for n in neighbors if n.get("id") is not None]
             try:
-                perf = store.top_performance(ids)
+                perf = store.top_performance(row_ids)
             except Exception:
                 # Fail-open on the join only: exemplars still return
                 # (AC-P3-8), performance degrades to {}.
@@ -202,7 +205,7 @@ def create_app() -> FastAPI:
                 {
                     "id": n.get("video_id"),
                     "score": float(n["score"]),
-                    "performance": perf.get(n.get("video_id"), {}),
+                    "performance": perf.get(n.get("id"), {}),
                     "excerpt": (n.get("chunk_text") or "")[:EXCERPT_CHARS],
                 }
                 for n in neighbors
