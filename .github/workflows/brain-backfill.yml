@@ -1,0 +1,51 @@
+name: 🧠 Brain backfill
+
+# One-time / on-demand corpus backfill (Phase 3, issue #105, Task 6).
+# workflow_dispatch ONLY — no cron: the backfill is idempotent (hash-keyed
+# upsert) but there is no schedule to keep; re-seeding is a manual decision.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: brain-backfill
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backfill:
+    name: 🌱 Seed script_memory corpus
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 📦 Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('services/ai/requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: 📦 Install Dependencies
+        run: pip install -r services/ai/requirements.txt
+
+      - name: 🤖 Cache fastembed model
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.brain-model
+          key: ${{ runner.os }}-brain-model-all-MiniLM-L6-v2
+
+      - name: 🌱 Run backfill
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # literal path (no ~) — fastembed receives cache_dir verbatim
+          BRAIN_MODEL_DIR: ${{ github.workspace }}/.brain-model
+        run: python services/ai/scripts/backfill.py
