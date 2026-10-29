@@ -7,12 +7,12 @@ workflow_dispatch run is the controller's Task 9 E2E step.
 
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
 
 import pytest
 
+from brain.store import canonical_hash
 from scripts.backfill import (
     build_rows,
     content_hash,
@@ -209,9 +209,8 @@ def test_build_rows_shape_and_hash():
         assert row["script_kind"] == "doc"
         assert row["chunk_kind"] == chunk["chunk_kind"]
         assert row["job_id"] == "backfill-X"
-        assert row["content_hash"] == hashlib.sha256(
-            chunk["text"].encode("utf-8")
-        ).hexdigest()
+        assert row["content_hash"] == canonical_hash(
+            chunk["chunk_kind"], chunk["text"])
         assert row["chunk_text"] == chunk["text"]
         assert row["embedding"] == vec
         assert row["model_id"] == "m"
@@ -220,8 +219,19 @@ def test_build_rows_shape_and_hash():
 
 
 def test_content_hash_deterministic_idempotency_basis():
-    assert content_hash("same text") == content_hash("same text")
-    assert content_hash("a") != content_hash("b")
+    assert content_hash("pooled", "same text") == content_hash("pooled", "same text")
+    assert content_hash("pooled", "a") != content_hash("pooled", "b")
+    assert content_hash("hook", "same text") != content_hash("pooled", "same text")
+
+
+def test_content_hash_is_the_store_canonical_d12():
+    """ONE definition (fix round 3): backfill delegates to
+    brain.store.canonical_hash — the exact function /embed uses. The live
+    proof found 14 hashes for 7 byte-identical chunks when backfill
+    forked raw sha256(text) from the canonical scheme."""
+    from brain.store import canonical_hash
+    assert content_hash("scene", "some  text") == canonical_hash("scene", "some  text")
+    assert content_hash("scene", " some text ") == canonical_hash("scene", "some text")
 
 
 # --------------------------------------------------------------- run

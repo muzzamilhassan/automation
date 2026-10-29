@@ -18,9 +18,13 @@ script), ``status: 'failed'`` (failed-run output) or ``gate: 'rejected'``
 (gate-rejected) is counted into ``skipped_invalid`` and never embedded.
 Malformed JSON and narration-less docs land in the same bucket.
 
-Idempotency: rows are keyed by sha256(chunk_text) (``content_hash``), so the
-hash-keyed upsert (Task 3) makes a re-run insert nothing and re-embed nothing
-new — safe to dispatch repeatedly.
+Idempotency: rows are keyed by the D12 canonical fingerprint
+(``content_hash`` -> ``brain.store.canonical_hash``: chunk_kind +
+whitespace-normalized text, sha256 of canonical JSON) — the SAME hash the
+write-time /embed path computes, so a backfill re-run (or a re-embed of
+already-backfilled text) UPDATEs in place and never duplicates vectors.
+(Fix round 3: this used to be a raw sha256(text), which forked from
+/embed's scheme and produced duplicate rows for byte-identical chunks.)
 
 Run (documented invocation — direct script from the repo root):
 
@@ -37,7 +41,6 @@ both, so no test ever touches Neon or the model (live dispatch = Task 9 E2E).
 
 from __future__ import annotations
 
-import hashlib
 import json
 import sys
 from datetime import datetime, timezone
@@ -48,6 +51,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from brain.chunker import chunk_text  # noqa: E402
+from brain.store import canonical_hash  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -62,9 +66,12 @@ _EXCLUDED_KEYS = ("source", "status", "gate")
 _EXCLUDED_VALUES = {"source": {"fallback"}, "status": {"failed"}, "gate": {"rejected"}}
 
 
-def content_hash(text: str) -> str:
-    """sha256 hex of the chunk text — the idempotency key for upsert_chunks."""
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+def content_hash(chunk_kind: str, text: str) -> str:
+    """D12 canonical content fingerprint — the idempotency key for
+    upsert_chunks. Delegates to brain.store.canonical_hash: ONE shared
+    definition with the write-time /embed path (fix round 3 — a local
+    raw sha256(text) fork duplicated byte-identical chunks)."""
+    return canonical_hash(chunk_kind, text)
 
 
 def excluded_reason(doc: dict) -> str | None:
@@ -137,7 +144,7 @@ def build_rows(
             "script_kind": script_kind,
             "chunk_kind": chunk["chunk_kind"],
             "job_id": job_id,
-            "content_hash": content_hash(chunk["text"]),
+            "content_hash": content_hash(chunk["chunk_kind"], chunk["text"]),
             "chunk_text": chunk["text"],
             "embedding": vector,
             "performance": {},

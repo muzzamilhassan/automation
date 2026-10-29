@@ -28,9 +28,17 @@ network (non-Neon machines and unit tests stay safe until it is called).
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import json
 
-__all__ = ["makeStore", "make_store", "get_store", "adapt_postgres", "BrainStore"]
+__all__ = [
+    "makeStore",
+    "make_store",
+    "get_store",
+    "adapt_postgres",
+    "BrainStore",
+    "canonical_hash",
+]
 
 
 def _vector_literal(embedding) -> str:
@@ -43,6 +51,25 @@ def _vector_literal(embedding) -> str:
 def _jsonb(value) -> str:
     """Canonical JSON for jsonb columns (sorted keys -> stable writes)."""
     return json.dumps(value or {}, sort_keys=True)
+
+
+def canonical_hash(chunk_kind: str, text: str) -> str:
+    """THE D12 canonical content fingerprint — one shared hash for BOTH
+    write paths (backfill and /embed), so byte-identical chunk text
+    always lands on the same (content_hash, chunk_kind) key: re-runs
+    UPDATE in place, never duplicate vectors.
+
+    Scheme: sha256 hex over canonical JSON {"chunk_kind", "text":
+    whitespace-normalized}. Pinned by a known-vector test in
+    test_store.py. Fix round 3: the backfill forked this with raw
+    sha256(text) and produced 14 distinct hashes for 7 byte-identical
+    chunks in production Neon — this module-level definition is now the
+    single source both callers import."""
+    normalized = " ".join(text.split())
+    canonical = json.dumps(
+        {"chunk_kind": chunk_kind, "text": normalized},
+        sort_keys=True, ensure_ascii=True)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 class BrainStore:

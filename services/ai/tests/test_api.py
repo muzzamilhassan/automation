@@ -524,6 +524,21 @@ def test_embed_store_failure_is_500_with_error_shape(brain):
     assert "error" in res.json()
 
 
+def test_embed_uses_the_store_canonical_hash_d12(brain):
+    """ONE definition (fix round 3): /embed must compute the SAME content
+    hash as the backfill — brain.store.canonical_hash, not a local fork.
+    The live proof found 14 distinct hashes for 7 byte-identical chunks
+    (backfill raw sha256 vs /embed canonical) — duplicate rows in Neon."""
+    from brain.store import canonical_hash
+    assert app_module.canonical_hash is canonical_hash, \
+        "app must import the canonical definition, never fork it"
+    res = brain.client.post("/embed", json=embed_request())
+    assert res.status_code == 200
+    for row in brain.store.upserts[0]:
+        assert row["content_hash"] == canonical_hash(
+            row["chunk_kind"], row["chunk_text"])
+
+
 # ------------------------------------------------- config (env-driven) ----
 
 def _reload_config(monkeypatch, **env):

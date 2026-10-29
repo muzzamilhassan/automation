@@ -32,8 +32,6 @@ No key material exists in this service — local model + DB only.
 
 from __future__ import annotations
 
-import hashlib
-import json
 import logging
 from contextlib import asynccontextmanager
 
@@ -44,7 +42,7 @@ from pydantic import BaseModel
 
 from brain import config as brain_config
 from brain import embedder
-from brain.store import get_store
+from brain.store import canonical_hash, get_store
 
 logger = logging.getLogger("brain.app")
 
@@ -130,17 +128,6 @@ def _pg_reachable(store) -> bool:
         return True
     except Exception:
         return False
-
-
-def _content_hash(chunk_kind: str, text: str) -> str:
-    """Canonical fingerprint (spec D12): sha256 over canonical JSON of
-    the whitespace-normalized text + chunk kind — one hash per script
-    chunk no matter which path embeds it."""
-    normalized = " ".join(text.split())
-    canonical = json.dumps(
-        {"chunk_kind": chunk_kind, "text": normalized},
-        sort_keys=True, ensure_ascii=True)
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _neighbor_out(n: dict) -> dict:
@@ -329,7 +316,7 @@ def create_app() -> FastAPI:
                     "script_kind": body.kind,
                     "chunk_kind": c.chunk_kind,
                     "job_id": body.job_id,
-                    "content_hash": _content_hash(c.chunk_kind, c.text),
+                    "content_hash": canonical_hash(c.chunk_kind, c.text),
                     "chunk_text": c.text,
                     "embedding": vec,
                     "performance": body.performance or {},

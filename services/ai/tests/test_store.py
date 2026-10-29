@@ -507,6 +507,28 @@ def test_record_verdict_rolls_back_on_failure():
     assert len(stub.tables.get("dedupe_verdicts", {})) == 0
 
 
+# ------------------------------------------------ canonical hash (fix 3) ----
+
+def test_canonical_hash_known_vector_pin():
+    """D12 pin: whitespace-normalized text + chunk_kind in canonical JSON,
+    sha256 hex out. A fixed expected vector — flipping the scheme (e.g.
+    back to the backfill's raw sha256(text)) breaks THIS test instead of
+    silently forking the keyspace (which duplicated 7 chunks into 14 rows
+    in production Neon)."""
+    from brain.store import canonical_hash
+    assert canonical_hash("pooled", "  37 billion   dollars café  ") == \
+        "961091a8531039ac73032f96890758d5c6522094c343297c6a86bcd7fb21c0fe"
+
+
+def test_canonical_hash_whitespace_insensitive_and_kind_sensitive():
+    from brain.store import canonical_hash
+    assert canonical_hash("pooled", "same   text") == \
+        canonical_hash("pooled", "same text")
+    assert canonical_hash("hook", "same text") != \
+        canonical_hash("pooled", "same text"), \
+        "chunk_kind is part of the key (UNIQUE (content_hash, chunk_kind))"
+
+
 # ---------------------------------------------------------------- transaction
 
 def test_transaction_rolls_back_everything_on_failure():
