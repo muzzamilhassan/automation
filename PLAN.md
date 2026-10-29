@@ -10,6 +10,8 @@
 
 ## ✅ DONE (completed — historical record, never delete)
 
+- [x] 2026-10-29 — P30 Phase 2 (BYOK vault v2 + capability registry + cost dashboard) COMPLETE: issue #104 closed with full evidence. 9 tasks + fix rounds, 291/291 suite, Studio deployed. Proven live: owner's routing clicks → Neon + audit; production run 40754677165 routed script-gen to Groq (1,757 tok measured) → usage_events row → doc rendered → clips → Short published (trlFeAIJD0o). Final whole-branch review: CLOSE AFTER FIXES → fix wave 637fd21 verified. AC-P2-1..10 closed (AC-P2-6 literal-mapping + 3 inherited deviations recorded in #104 close-out). Phase 3 (RAG brain) spec ready to draft on owner go.
+- [x] 2026-10-28 — P30 Phase 1 (template registry MVP) COMPLETE: registry live in Neon (7 families), Studio catalog/assign UI deployed, enforce-mode preflight proven in production runs 40513702449/40633443960, validator gates verified live, exit gate passed (template #7 added data-only, sync 1-of-7). Evidence: issue #102 close-out comment. Pending: AC-13 render artifact via Oct 29 00:05 UTC cron (automatic follow-up comment).
 - [x] 2026-08/09 — 4 brand channels LIVE (Quote Quarry, Investor's Compass, Money Rulebook, Debt-Free Doctrine), 3 Shorts/day each via CI
 - [x] 2026-09-07 — Script brain 5-layer chain (Gemini flash-lite → Groq → Cerebras → Mistral → HuggingFace)
 - [x] 2026-09-08 — Music engine LIVE (incompetech rotation, per-brand moods, credits auto-appended)
