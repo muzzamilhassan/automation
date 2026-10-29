@@ -10,9 +10,11 @@ an in-memory stub — the Python mirror of studio/lib/template-registry-db.js
 
     client(sql_text, params) -> list[dict rows]   # snake_case columns
 
-$sql placeholders only, values travel in `params` — never string-interpolated
-(SQL-injection safe by construction). Embeddings are passed as pgvector
-literal strings '[0.1,0.2,...]' via parameters and cast with $n::vector.
+Values travel in `params` — never string-interpolated (SQL-injection safe by
+construction). Placeholders are psycopg3 pyformat `%s` (the JS `$n` style is
+NOT valid psycopg — found by the live backfill run against real Neon).
+Embeddings are passed as pgvector literal strings '[0.1,0.2,...]' via
+parameters and cast with `%s::vector`.
 
 Production wiring is lazy: get_store() builds a psycopg adapter from
 DATABASE_URL — importing THIS module never imports psycopg nor touches the
@@ -130,13 +132,13 @@ class BrainStore:
                         "upsert_chunks: every row requires content_hash and chunk_kind")
                 existing = self._client(
                     "SELECT id, performance, meta FROM script_memory "
-                    "WHERE content_hash = $1 AND chunk_kind = $2",
+                    "WHERE content_hash = %s AND chunk_kind = %s",
                     [r["content_hash"], r["chunk_kind"]],
                 )
                 if existing:
                     self._client(
-                        "UPDATE script_memory SET performance = $1, meta = $2 "
-                        "WHERE id = $3",
+                        "UPDATE script_memory SET performance = %s, meta = %s "
+                        "WHERE id = %s",
                         [_jsonb(r.get("performance")), _jsonb(r.get("meta")),
                          existing[0]["id"]],
                     )
@@ -147,7 +149,7 @@ class BrainStore:
                           (channel_id, script_kind, chunk_kind, job_id,
                            content_hash, chunk_text, embedding, performance,
                            meta, model_id, model_dim, video_id)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)""",
+                        VALUES (%s, %s, %s, %s, %s, %s, %s::vector, %s, %s, %s, %s, %s)""",
                         [
                             r.get("channel_id"),
                             r.get("script_kind"),
@@ -171,7 +173,7 @@ class BrainStore:
     def search_similar(self, embedding, channel_id, kind=None, limit=5):
         """Exact-scan cosine nearest neighbors (spec D3 — no ANN at this scale).
 
-        Vectors are stored normalized; `1 - (embedding <=> $n::vector)` is
+        Vectors are stored normalized; `1 - (embedding <=> %s::vector)` is
         cosine similarity (the pinned D9 convention: the /dedupe gate is
         `score >= threshold` blocks). Results span ALL channels — dedupe
         needs cross-channel matches — each row labeled `same_channel` by
@@ -183,20 +185,20 @@ class BrainStore:
         if kind is None:
             rows = self._client(
                 """SELECT id, chunk_kind, channel_id, chunk_text, video_id,
-                          1 - (embedding <=> $1::vector) AS score
+                          1 - (embedding <=> %s::vector) AS score
                    FROM script_memory
-                   ORDER BY embedding <=> $1::vector
-                   LIMIT $2""",
+                   ORDER BY embedding <=> %s::vector
+                   LIMIT %s""",
                 [literal, limit],
             )
         else:
             rows = self._client(
                 """SELECT id, chunk_kind, channel_id, chunk_text, video_id,
-                          1 - (embedding <=> $1::vector) AS score
+                          1 - (embedding <=> %s::vector) AS score
                    FROM script_memory
-                   WHERE script_kind = $2
-                   ORDER BY embedding <=> $1::vector
-                   LIMIT $3""",
+                   WHERE script_kind = %s
+                   ORDER BY embedding <=> %s::vector
+                   LIMIT %s""",
                 [literal, kind, limit],
             )
         return [
@@ -219,7 +221,7 @@ class BrainStore:
         if not ids:
             return {}
         rows = self._client(
-            "SELECT id, performance FROM script_memory WHERE id = ANY($1)",
+            "SELECT id, performance FROM script_memory WHERE id = ANY(%s)",
             [ids],
         )
         return {r["id"]: r["performance"] for r in rows}
@@ -234,7 +236,7 @@ class BrainStore:
             """INSERT INTO dedupe_verdicts
               (channel_id, script_kind, job_id, verdict, top_match_id,
                score, threshold)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)""",
+            VALUES (%s, %s, %s, %s, %s, %s, %s)""",
             [
                 verdict.get("channel_id"),
                 verdict.get("script_kind"),

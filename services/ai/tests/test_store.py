@@ -4,7 +4,7 @@ Python mirror of tests/template-registry-db.test.mjs (the JS prior art):
 a discriminating in-memory stub client that understands EXACTLY the SQL
 shapes brain/store.py emits — nothing more — so a passing test cannot be
 trivially green. The client contract is positional
-(`client(sql_text, params) -> list[dict]`, $1..$n placeholders, snake_case
+(`client(sql_text, params) -> list[dict]`, psycopg3 `%s` placeholders, snake_case
 rows); embeddings travel as pgvector literal strings via parameters.
 No live Neon, no psycopg import at store module level.
 """
@@ -25,8 +25,20 @@ from brain.store import get_store, makeStore
 # Stub client contract (fixture seam — no live Neon in tests).
 # ---------------------------------------------------------------------------
 
-def _param(params, placeholder):
-    return params[int(placeholder[1:]) - 1]
+def _bind(cols, placeholders, params):
+    """Bind %s placeholders positionally; reject shape/arity mismatches.
+
+    A placeholder may carry an explicit cast (`%s::vector`) — the store emits
+    that for the embedding column so pgvector parses the literal string.
+    """
+    for p in placeholders:
+        if not re.fullmatch(r"%s(::\w+)?", p):
+            raise AssertionError(f"stub: non-placeholder value {p!r}")
+    if sum(p.count("%s") for p in placeholders) != len(params):
+        raise AssertionError(
+            f"stub: {sum(p.count('%s') for p in placeholders)} placeholders "
+            f"vs {len(params)} params")
+    return dict(zip(cols, params))
 
 
 def _as_jsonb(value):
@@ -100,7 +112,7 @@ class StubClient:
         # upsert pre-select: existing row lookup by the unique key
         m = re.match(
             r"^SELECT id, performance, meta FROM script_memory "
-            r"WHERE content_hash = \$1 AND chunk_kind = \$2$", norm, re.I)
+            r"WHERE content_hash = %s AND chunk_kind = %s$", norm, re.I)
         if m:
             return [dict(r) for r in self._table("script_memory").values()
                     if r["content_hash"] == params[0]
@@ -112,11 +124,7 @@ class StubClient:
         if m:
             cols = [c.strip() for c in m.group(1).split(",")]
             placeholders = [p.strip() for p in m.group(2).split(",")]
-            row = {}
-            for col, ph in zip(cols, placeholders):
-                if not re.fullmatch(r"\$\d+", ph):
-                    raise AssertionError(f"stub: non-positional value {ph!r}")
-                row[col] = _param(params, ph)
+            row = _bind(cols, placeholders, params)
             row["performance"] = _as_jsonb(row.get("performance"))
             row["meta"] = _as_jsonb(row.get("meta"))
             key = (row["content_hash"], row["chunk_kind"])
@@ -132,8 +140,8 @@ class StubClient:
         # existing-hash update IN PLACE: performance/meta only — if the store
         # ever tried to rewrite the embedding column this shape raises.
         m = re.match(
-            r"^UPDATE script_memory SET performance = \$1, meta = \$2 "
-            r"WHERE id = \$3$", norm, re.I)
+            r"^UPDATE script_memory SET performance = %s, meta = %s "
+            r"WHERE id = %s$", norm, re.I)
         if m:
             for row in self._table("script_memory").values():
                 if row["id"] == params[2]:
@@ -147,7 +155,7 @@ class StubClient:
         if m:
             cols = [c.strip() for c in m.group(1).split(",")]
             placeholders = [p.strip() for p in m.group(2).split(",")]
-            row = {c: _param(params, p) for c, p in zip(cols, placeholders)}
+            row = _bind(cols, placeholders, params)
             table = self._table("dedupe_verdicts")
             row["id"] = max((r["id"] for r in table.values()), default=0) + 1
             table[row["id"]] = row
@@ -156,13 +164,13 @@ class StubClient:
         # exact-scan cosine search (score = 1 - <=> distance)
         m = re.match(
             r"^SELECT id, chunk_kind, channel_id, chunk_text, video_id, "
-            r"1 - \(embedding <=> \$1::vector\) AS score FROM script_memory"
-            r"( WHERE script_kind = \$(\d+))?"
-            r" ORDER BY embedding <=> \$1::vector LIMIT \$(\d+)$", norm, re.I)
+            r"1 - \(embedding <=> %s::vector\) AS score FROM script_memory"
+            r"( WHERE script_kind = %s)?"
+            r" ORDER BY embedding <=> %s::vector LIMIT %s$", norm, re.I)
         if m:
             query = _parse_vector(params[0])
-            kind = params[int(m.group(2)) - 1] if m.group(2) else None
-            limit = params[int(m.group(3)) - 1]
+            kind = params[1] if m.group(1) else None
+            limit = params[-1]
             rows = list(self._table("script_memory").values())
             if kind is not None:
                 rows = [r for r in rows if r["script_kind"] == kind]
@@ -178,7 +186,7 @@ class StubClient:
             return scored[:limit]
 
         m = re.match(r"^SELECT id, performance FROM script_memory "
-                     r"WHERE id = ANY\(\$1\)$", norm, re.I)
+                     r"WHERE id = ANY\(%s\)$", norm, re.I)
         if m:
             ids = set(params[0])
             return [{"id": r["id"], "performance": r["performance"]}
@@ -409,7 +417,7 @@ def test_transaction_rolls_back_everything_on_failure():
             store.upsert_chunks([row("doomed", [0.0, 1.0])])
             stub.fail_at_call = len(stub.calls) + 1
             stub("SELECT id, performance, meta FROM script_memory "
-                 "WHERE content_hash = $1 AND chunk_kind = $2", ["x", "y"])
+                 "WHERE content_hash = %s AND chunk_kind = %s", ["x", "y"])
 
     assert sorted(k[0] for k in stub.tables["script_memory"]) == ["keep"], \
         "failed transaction must leave the store exactly as before"
@@ -458,3 +466,20 @@ def test_store_module_import_never_imports_psycopg():
     import brain.store  # noqa: F401
     assert "psycopg" not in sys.modules, \
         "store must lazy-import psycopg inside get_store, never at module level"
+
+
+def test_store_sql_uses_psycopg_pyformat_placeholders_only():
+    """Regression pin (live-Neon backfill failure, CI run 40899521815): the
+    JS prior art uses postgres.js `$n` placeholders, which psycopg3 does NOT
+    recognize ('the query has 0 placeholders but N parameters were passed').
+    The store must speak psycopg3 pyformat (%s) — the stub deliberately
+    accepts only %s shapes, and this pins it at the source level too."""
+    import inspect
+    import re as _re
+
+    import brain.store  # noqa: F401
+
+    source = inspect.getsource(brain.store)
+    offender = _re.search(r"\$\d+", source)
+    assert offender is None, \
+        f"store.py still uses postgres.js $n placeholder {offender.group(0)!r} — psycopg3 needs %s"
