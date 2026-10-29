@@ -182,24 +182,28 @@ class BrainStore:
         (top_performance matches script_memory.id) can key on it.
         """
         literal = _vector_literal(embedding)
+        # Named placeholders (%(vec)s), NOT %s: the embedding literal appears
+        # TWICE per query (score expression + ORDER BY), and psycopg3 pyformat
+        # does not support positional %s reuse — named placeholders are
+        # repeatable (round-2 fix; re-review finding).
         if kind is None:
             rows = self._client(
                 """SELECT id, chunk_kind, channel_id, chunk_text, video_id,
-                          1 - (embedding <=> %s::vector) AS score
+                          1 - (embedding <=> %(vec)s::vector) AS score
                    FROM script_memory
-                   ORDER BY embedding <=> %s::vector
-                   LIMIT %s""",
-                [literal, limit],
+                   ORDER BY embedding <=> %(vec)s::vector
+                   LIMIT %(lim)s""",
+                {"vec": literal, "lim": limit},
             )
         else:
             rows = self._client(
                 """SELECT id, chunk_kind, channel_id, chunk_text, video_id,
-                          1 - (embedding <=> %s::vector) AS score
+                          1 - (embedding <=> %(vec)s::vector) AS score
                    FROM script_memory
-                   WHERE script_kind = %s
-                   ORDER BY embedding <=> %s::vector
-                   LIMIT %s""",
-                [literal, kind, limit],
+                   WHERE script_kind = %(kind)s
+                   ORDER BY embedding <=> %(vec)s::vector
+                   LIMIT %(lim)s""",
+                {"vec": literal, "kind": kind, "lim": limit},
             )
         return [
             {

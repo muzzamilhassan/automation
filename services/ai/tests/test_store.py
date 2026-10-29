@@ -25,6 +25,26 @@ from brain.store import get_store, makeStore
 # Stub client contract (fixture seam — no live Neon in tests).
 # ---------------------------------------------------------------------------
 
+def _bind_named(terms, params):
+    """Validate psycopg3 named placeholders (%(name)s, optionally ::cast)
+    against a params DICT: every placeholder name must be present and every
+    dict key must be used — arity/shape mismatches raise, so search SQL can
+    never slip past without enforcement (round-2 fix)."""
+    names = []
+    for t in terms:
+        m = re.fullmatch(r"%\((\w+)\)s(?:::\w+)?", t)
+        if not m:
+            raise AssertionError(f"stub: non-named-placeholder value {t!r}")
+        if m.group(1) not in params:
+            raise AssertionError(
+                f"stub: placeholder %({m.group(1)})s missing from params "
+                f"keys {sorted(params)}")
+        names.append(m.group(1))
+    if set(names) != set(params):
+        raise AssertionError(
+            f"stub: placeholder names {sorted(set(names))} != param keys {sorted(params)}")
+
+
 def _bind(cols, placeholders, params):
     """Bind %s placeholders positionally; reject shape/arity mismatches.
 
@@ -81,7 +101,7 @@ class StubClient:
         return self.tables.setdefault(name, {})
 
     def __call__(self, sql, params=()):
-        params = list(params)
+        params = params if isinstance(params, dict) else list(params)
         norm = re.sub(r"\s+", " ", str(sql)).strip()
         call_index = len(self.calls) + 1
         self.calls.append({"sql": norm, "params": params})
@@ -161,16 +181,22 @@ class StubClient:
             table[row["id"]] = row
             return [row]
 
-        # exact-scan cosine search (score = 1 - <=> distance)
+        # exact-scan cosine search (score = 1 - <=> distance) — NAMED
+        # placeholders (repeatable in psycopg3); routed through _bind_named
+        # so placeholder/param mismatches raise like everywhere else.
         m = re.match(
             r"^SELECT id, chunk_kind, channel_id, chunk_text, video_id, "
-            r"1 - \(embedding <=> %s::vector\) AS score FROM script_memory"
-            r"( WHERE script_kind = %s)?"
-            r" ORDER BY embedding <=> %s::vector LIMIT %s$", norm, re.I)
+            r"1 - \(embedding <=> %\((\w+)\)s::vector\) AS score FROM script_memory"
+            r"( WHERE script_kind = %\((\w+)\)s)?"
+            r" ORDER BY embedding <=> %\((\w+)\)s::vector LIMIT %\((\w+)\)s$", norm, re.I)
         if m:
-            query = _parse_vector(params[0])
-            kind = params[1] if m.group(1) else None
-            limit = params[-1]
+            vec, kind_name, vec_order, lim = m.group(1), m.group(3), m.group(4), m.group(5)
+            if vec != vec_order:
+                raise AssertionError("stub: search must reuse the same %(vec)s placeholder")
+            _bind_named(re.findall(r"%\(\w+\)s(?:::\w+)?", norm), params)
+            query = _parse_vector(params[vec])
+            kind = params[kind_name] if kind_name else None
+            limit = params[lim]
             rows = list(self._table("script_memory").values())
             if kind is not None:
                 rows = [r for r in rows if r["script_kind"] == kind]
@@ -380,6 +406,32 @@ def test_search_similar_kind_filter_and_limit():
     # the doc row (higher raw score) must be excluded by the kind filter
     stub_call = next(c for c in stub.calls if "ORDER BY embedding" in c["sql"])
     assert "WHERE script_kind" in stub_call["sql"]
+    assert isinstance(stub_call["params"], dict), \
+        "search params must travel as a named-placeholder dict"
+    assert set(stub_call["params"]) == {"vec", "kind", "lim"}
+
+
+def test_stub_rejects_search_placeholder_param_mismatch():
+    """Round-2 regression: the search branch must enforce placeholder/param
+    arity like the INSERT paths — a params dict missing a placeholder key
+    (the class of live failure that motivated the named-placeholder fix)
+    raises instead of silently passing the stub."""
+    stub = StubClient()
+    with pytest.raises(AssertionError):
+        stub(
+            "SELECT id, chunk_kind, channel_id, chunk_text, video_id, "
+            "1 - (embedding <=> %(vec)s::vector) AS score FROM script_memory "
+            "ORDER BY embedding <=> %(vec)s::vector LIMIT %(lim)s",
+            {"vec": "[1.0,0.0]"},  # missing 'lim' -> 3 placeholders, 2 keys
+        )
+    # and an unknown extra key fails symmetrically
+    with pytest.raises(AssertionError):
+        stub(
+            "SELECT id, chunk_kind, channel_id, chunk_text, video_id, "
+            "1 - (embedding <=> %(vec)s::vector) AS score FROM script_memory "
+            "ORDER BY embedding <=> %(vec)s::vector LIMIT %(lim)s",
+            {"vec": "[1.0,0.0]", "lim": 5, "ghost": 1},
+        )
 
 
 # ---------------------------------------------------------------- recordVerdict
