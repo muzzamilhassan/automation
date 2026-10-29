@@ -13,9 +13,9 @@ from pathlib import Path
 import pytest
 
 from brain.store import canonical_hash
+from scripts import backfill as backfill_mod
 from scripts.backfill import (
     build_rows,
-    content_hash,
     discover_doc_paths,
     discover_research_paths,
     doc_channel,
@@ -218,20 +218,31 @@ def test_build_rows_shape_and_hash():
         assert row["meta"]["source_path"] == "explainer/public/lf-test-channel.json"
 
 
-def test_content_hash_deterministic_idempotency_basis():
-    assert content_hash("pooled", "same text") == content_hash("pooled", "same text")
-    assert content_hash("pooled", "a") != content_hash("pooled", "b")
-    assert content_hash("hook", "same text") != content_hash("pooled", "same text")
+def test_canonical_hash_deterministic_idempotency_basis():
+    """The key backfill rows land on — brain.store.canonical_hash, the
+    exact function build_rows calls (and the one /embed uses)."""
+    assert canonical_hash("pooled", "same text") == canonical_hash("pooled", "same text")
+    assert canonical_hash("pooled", "a") != canonical_hash("pooled", "b")
+    assert canonical_hash("hook", "same text") != canonical_hash("pooled", "same text")
 
 
-def test_content_hash_is_the_store_canonical_d12():
-    """ONE definition (fix round 3): backfill delegates to
-    brain.store.canonical_hash — the exact function /embed uses. The live
-    proof found 14 hashes for 7 byte-identical chunks when backfill
-    forked raw sha256(text) from the canonical scheme."""
-    from brain.store import canonical_hash
-    assert content_hash("scene", "some  text") == canonical_hash("scene", "some  text")
-    assert content_hash("scene", " some text ") == canonical_hash("scene", "some text")
+def test_no_local_hash_wrapper_refork_surface():
+    """Fix round 4 (re-review MINOR-3): the local content_hash wrapper is
+    gone — build_rows calls brain.store.canonical_hash directly, so a
+    future local fork (the round-3 incident: 14 hashes for 7 identical
+    chunks) cannot silently reintroduce itself."""
+    assert not hasattr(backfill_mod, "content_hash"), \
+        "backfill must not grow its own hash function again"
+    rows = build_rows(
+        channel_id="c",
+        script_kind="doc",
+        chunks=[{"chunk_kind": "scene", "text": " some  text "}],
+        vectors=[[0.0, 1.0]],
+        job_id="j",
+        source_path="explainer/public/lf-c.json",
+        stamp={"model_id": "m", "dims": 384},
+    )
+    assert rows[0]["content_hash"] == canonical_hash("scene", "some text")
 
 
 # --------------------------------------------------------------- run

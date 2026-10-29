@@ -173,8 +173,13 @@ def test_startup_warmup_loads_model_and_health_reports_true(monkeypatch):
 
 def test_startup_warmup_failure_is_non_fatal_and_health_stays_honest(monkeypatch):
     """A broken model (download failure etc.) must not crash startup —
-    /health stays honest (false) and D6 tiering handles it."""
+    /health stays honest (false) and D6 tiering handles it. The warmup
+    must still RUN (re-review MINOR-2): the failure stub records its
+    calls so this test fails on pre-fix code that never warms up."""
+    calls = []
+
     def boom(texts):
+        calls.extend(texts)
         raise RuntimeError("model download failed")
 
     monkeypatch.setattr(app_module, "_embed_texts", boom)
@@ -183,6 +188,7 @@ def test_startup_warmup_failure_is_non_fatal_and_health_stays_honest(monkeypatch
     with TestClient(app_module.create_app()) as client:
         res = client.get("/health")
 
+    assert calls == ["brain warmup"], "warmup must be attempted even though it fails"
     assert res.status_code == 200
     assert res.json()["status"] == "ok"
     assert res.json()["model_loaded"] is False
