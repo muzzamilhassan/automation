@@ -63,42 +63,49 @@ class BrainStore:
     # ------------------------------------------------------------- schema
 
     def ensure_schema(self):
-        """CREATE TABLE IF NOT EXISTS for both tables (spec D3). Idempotent."""
-        self._client("CREATE EXTENSION IF NOT EXISTS vector", [])
-        self._client(
-            """CREATE TABLE IF NOT EXISTS script_memory (
-              id bigserial PRIMARY KEY,
-              channel_id text,
-              script_kind text,
-              chunk_kind text,
-              job_id text,
-              content_hash text,
-              chunk_text text,
-              embedding vector(384),
-              performance jsonb DEFAULT '{}',
-              meta jsonb DEFAULT '{}',
-              model_id text,
-              model_dim int,
-              video_id text,
-              created_at timestamptz DEFAULT now(),
-              UNIQUE (content_hash, chunk_kind)
-            )""",
-            [],
-        )
-        self._client(
-            """CREATE TABLE IF NOT EXISTS dedupe_verdicts (
-              id bigserial PRIMARY KEY,
-              channel_id text,
-              script_kind text,
-              job_id text,
-              verdict text,
-              top_match_id text,
-              score real,
-              threshold real,
-              created_at timestamptz DEFAULT now()
-            )""",
-            [],
-        )
+        """CREATE TABLE IF NOT EXISTS for both tables (spec D3). Idempotent.
+
+        Runs in ONE transaction: psycopg3 transactions are implicit, and
+        bare DDL would ride the open transaction and roll back when the
+        sidecar process exits (fix round 2 — same root cause as the lost
+        dedupe verdicts; schema previously only persisted because a later
+        transaction() flushed it)."""
+        with self.transaction():
+            self._client("CREATE EXTENSION IF NOT EXISTS vector", [])
+            self._client(
+                """CREATE TABLE IF NOT EXISTS script_memory (
+                  id bigserial PRIMARY KEY,
+                  channel_id text,
+                  script_kind text,
+                  chunk_kind text,
+                  job_id text,
+                  content_hash text,
+                  chunk_text text,
+                  embedding vector(384),
+                  performance jsonb DEFAULT '{}',
+                  meta jsonb DEFAULT '{}',
+                  model_id text,
+                  model_dim int,
+                  video_id text,
+                  created_at timestamptz DEFAULT now(),
+                  UNIQUE (content_hash, chunk_kind)
+                )""",
+                [],
+            )
+            self._client(
+                """CREATE TABLE IF NOT EXISTS dedupe_verdicts (
+                  id bigserial PRIMARY KEY,
+                  channel_id text,
+                  script_kind text,
+                  job_id text,
+                  verdict text,
+                  top_match_id text,
+                  score real,
+                  threshold real,
+                  created_at timestamptz DEFAULT now()
+                )""",
+                [],
+            )
 
     # ---------------------------------------------------------- write path
 
@@ -244,22 +251,29 @@ class BrainStore:
     def record_verdict(self, verdict):
         """One row per /dedupe verdict (PASS/WARN/BLOCK) — AC-P3-12's
         variation-evidence ledger. Callers own the fail-open policy: a failed
-        write here raises, and the endpoint layer degrades to one warning."""
-        self._client(
-            """INSERT INTO dedupe_verdicts
-              (channel_id, script_kind, job_id, verdict, top_match_id,
-               score, threshold)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)""",
-            [
-                verdict.get("channel_id"),
-                verdict.get("script_kind"),
-                verdict.get("job_id"),
-                verdict.get("verdict"),
-                verdict.get("top_match_id"),
-                verdict.get("score"),
-                verdict.get("threshold"),
-            ],
-        )
+        write here raises, and the endpoint layer degrades to one warning.
+
+        The INSERT runs inside transaction(): psycopg3 transactions are
+        implicit, so a bare INSERT rides the open transaction and ROLLS
+        BACK when the sidecar process dies (CI always) — the live proof
+        found verdicts silently lost (fix round 2). COMMIT here makes the
+        verdict durable before the HTTP response returns."""
+        with self.transaction():
+            self._client(
+                """INSERT INTO dedupe_verdicts
+                  (channel_id, script_kind, job_id, verdict, top_match_id,
+                   score, threshold)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+                [
+                    verdict.get("channel_id"),
+                    verdict.get("script_kind"),
+                    verdict.get("job_id"),
+                    verdict.get("verdict"),
+                    verdict.get("top_match_id"),
+                    verdict.get("score"),
+                    verdict.get("threshold"),
+                ],
+            )
 
 
 def makeStore(db_client) -> BrainStore:

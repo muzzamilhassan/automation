@@ -461,6 +461,52 @@ def test_record_verdict_writes_full_row():
     assert verdicts[0]["job_id"] == "job-42"
 
 
+# ------------------------------------------------- durability (fix round 2)
+
+def test_record_verdict_commits_through_the_client():
+    """psycopg3 runs implicit transactions: a bare INSERT rides the open
+    transaction and ROLLS BACK when the sidecar process dies — the live
+    proof found verdicts silently lost. record_verdict must emit
+    BEGIN ... INSERT ... COMMIT through the injected client."""
+    stub = StubClient()
+    makeStore(stub).record_verdict({
+        "channel_id": "chan-a",
+        "script_kind": "shorts",
+        "job_id": "job-42",
+        "verdict": "BLOCK",
+        "top_match_id": "17",
+        "score": 0.91,
+        "threshold": 0.85,
+    })
+    sqls = [c["sql"] for c in stub.calls]
+    assert sqls[0] == "BEGIN"
+    assert sqls[-1] == "COMMIT", "verdict INSERT must be committed, not left open"
+    assert any(c.startswith("INSERT INTO dedupe_verdicts") for c in sqls)
+
+
+def test_ensure_schema_commits_through_the_client():
+    """Same latent bug: bare DDL only persisted because a later
+    transaction() flushed it. Schema setup must commit on its own."""
+    stub = StubClient()
+    makeStore(stub).ensure_schema()
+    sqls = [c["sql"] for c in stub.calls]
+    assert sqls[0] == "BEGIN"
+    assert sqls[-1] == "COMMIT"
+    assert sum("CREATE TABLE" in c.upper() for c in sqls) == 2
+
+
+def test_record_verdict_rolls_back_on_failure():
+    """An exception inside the verdict transaction emits ROLLBACK and
+    propagates (the endpoint layer owns the degrade-to-warning)."""
+    stub = StubClient()
+    stub.fail_at_call = 2  # BEGIN=1, INSERT=2 -> failure inside the txn
+    with pytest.raises(RuntimeError):
+        makeStore(stub).record_verdict({"verdict": "PASS"})
+    assert "ROLLBACK" in [c["sql"] for c in stub.calls]
+    assert "COMMIT" not in [c["sql"] for c in stub.calls]
+    assert len(stub.tables.get("dedupe_verdicts", {})) == 0
+
+
 # ---------------------------------------------------------------- transaction
 
 def test_transaction_rolls_back_everything_on_failure():
