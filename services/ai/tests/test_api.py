@@ -140,6 +140,54 @@ def test_health_reports_pg_down_honestly(brain):
     assert body["pgvector_reachable"] is False
 
 
+# ------------------------------------------------ startup warmup (fix 1) ----
+
+def test_startup_warmup_loads_model_and_health_reports_true(monkeypatch):
+    """Lifespan warmup embeds a warmup text at startup (loads ONNX before
+    any request), so a freshly spawned sidecar reports model_loaded: true
+    from the first probe — a cold sidecar must not disarm the Task 7 gate
+    (finance channels would fail closed forever)."""
+    from brain import embedder as embedder_module
+    calls = []
+
+    def fake_embed(texts):
+        calls.extend(texts)
+        embedder_module._model = object()  # simulate the model now loaded
+        return [[1.0, 0.0] for _ in texts]
+
+    monkeypatch.setattr(app_module, "_embed_texts", fake_embed)
+    monkeypatch.setattr(
+        app_module, "_model_loaded",
+        lambda: getattr(embedder_module, "_model", None) is not None)
+    # monkeypatch restores embedder._model to None afterwards (never leaks
+    # a fake loaded model into the honest-health tests).
+    monkeypatch.setattr(embedder_module, "_model", None)
+
+    with TestClient(app_module.create_app()) as client:  # ctx mgr runs lifespan
+        res = client.get("/health")
+
+    assert calls == ["brain warmup"], "startup must warm the embedder"
+    assert res.status_code == 200
+    assert res.json()["model_loaded"] is True
+
+
+def test_startup_warmup_failure_is_non_fatal_and_health_stays_honest(monkeypatch):
+    """A broken model (download failure etc.) must not crash startup —
+    /health stays honest (false) and D6 tiering handles it."""
+    def boom(texts):
+        raise RuntimeError("model download failed")
+
+    monkeypatch.setattr(app_module, "_embed_texts", boom)
+    monkeypatch.setattr(app_module, "_model_loaded", lambda: False)
+
+    with TestClient(app_module.create_app()) as client:
+        res = client.get("/health")
+
+    assert res.status_code == 200
+    assert res.json()["status"] == "ok"
+    assert res.json()["model_loaded"] is False
+
+
 # ----------------------------------------------------------- /context ----
 
 def test_context_returns_exemplars_with_performance_and_excerpt(brain):

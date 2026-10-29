@@ -35,6 +35,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -154,7 +155,26 @@ def _neighbor_out(n: dict) -> dict:
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="brain", version="0.2.0")
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        # Startup warmup (fix round 1): load the ONNX model BEFORE any
+        # request so a freshly spawned sidecar reports model_loaded: true
+        # from the first /health probe. Without this, Task 7's gate arming
+        # (health-gated) would never let a call through to warm the model —
+        # finance-gated channels would fail closed on a cold sidecar and
+        # the brain would be permanently disarmed in fresh CI jobs.
+        # Non-fatal by design: a failed warmup leaves /health honest
+        # (false) and D6 tiering handles a genuinely broken model.
+        try:
+            _embed_texts(["brain warmup"])
+            logger.info("brain warmup: embedding model loaded")
+        except Exception:
+            logger.warning(
+                "brain warmup failed — model_loaded stays false",
+                exc_info=True)
+        yield
+
+    app = FastAPI(title="brain", version="0.2.0", lifespan=lifespan)
 
     @app.exception_handler(RequestValidationError)
     def _validation_error(request: Request, exc: RequestValidationError):
