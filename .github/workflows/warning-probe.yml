@@ -1,0 +1,50 @@
+name: 🚑 Warning probes (parked channels)
+
+on:
+  schedule:
+    # 05:41 UTC = off-peak slot: after the nightly production window
+    # (02:13-03:53 UTC) and ~11h before the 16:45 reporting lane. Re-tests
+    # every parked channel so a fixed token un-parks its channel by morning
+    # without anyone touching anything (Phase 4 spec D11, AC-P4-14).
+    - cron: '41 5 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: warning-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: 📦 Install Dependencies
+        run: npm install
+
+      - name: 🚑 Probe parked channels (refresh + 1-unit channels.list each; auto-resolve on pass)
+        env:
+          # Warnings table (enumerates parked channels, stamps last_checked,
+          # auto-resolves passes) — same Neon the autopilot/brain jobs use.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # OAuth client + per-channel refresh tokens (the reporting-daily set).
+          # Token resolution: YT_TOKEN_<SLUG> env JSON, dashes → underscores.
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YT_TOKEN_QUOTEQUARRY: ${{ secrets.YT_TOKEN_QUOTEQUARRY }}
+          YT_TOKEN_INVESTORS_COMPASS: ${{ secrets.YT_TOKEN_INVESTORS_COMPASS }}
+          YT_TOKEN_MONEY_RULEBOOK: ${{ secrets.YT_TOKEN_MONEY_RULEBOOK }}
+          YT_TOKEN_DEBT_FREE_DOCTRINE: ${{ secrets.YT_TOKEN_DEBT_FREE_DOCTRINE }}
+          # ntfy stays the push channel; GitHub issue is the second channel
+          # when the store itself is unreachable (AC-P4-5).
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/warnings-probe.mjs
