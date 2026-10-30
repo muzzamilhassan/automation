@@ -1,6 +1,6 @@
 // #97 SHORTS CLIPPER — turns one long-form documentary into branded vertical
 // Shorts candidates for the clips-first lane (#95).
-//   node longvideo/shorts-clips.mjs ensure-queue <slug> [--max K] [--local <dir>]
+//   node longvideo/shorts-clips.mjs ensure-queue <slug> [--max K] [--local <dir>] [--archive]
 //     -- finds the newest successful doc render run, downloads the video + SRT
 //     + meta artifacts, asks the LLM to rank the best self-contained moments,
 //     cuts + repacks them vertical (brand-pad, house captions, title card),
@@ -8,10 +8,14 @@
 //     channel state (yt-mcp/state/<slug>.json clipQueue) for the publisher (#98).
 //     --local <dir> reads video.mp4 / episode.srt / meta.json from disk instead
 //     of GitHub artifacts (offline dev/backfill mode; queue points at local files).
+//     --archive (CI, #96) with --local: ALSO uploads the cut clips to the
+//     clips Release — Actions runners are ephemeral, file:-only entries die
+//     with the runner and every post-docDay clip fails forever.
 // Needs: GITHUB_TOKEN (or GITHUB_PAT), ffmpeg on PATH, GEMINI/GROQ/CEREBRAS key.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 import sharp from 'sharp';
 import { Readable } from 'node:stream';
 import { loadEnv } from '../lib/env.mjs';
@@ -32,26 +36,50 @@ const REPO = process.env.GH_REPO || 'muzzamilhassan/automation';
 // Actions pass the workflow token as GH_TOKEN; local runs use GITHUB_TOKEN/GITHUB_PAT
 const TOK = process.env.GITHUB_TOKEN || process.env.GITHUB_PAT || process.env.GH_TOKEN || '';
 const FFMPEG = process.env.FFMPEG_PATH || 'ffmpeg';
-const MODE = process.argv[2] || '';
-const slug = process.argv[3] || null;
-const args = process.argv.slice(4);
-const localDir = args.includes('--local') ? args[args.indexOf('--local') + 1] : null;
-const maxArg = args.includes('--max') ? Number(args[args.indexOf('--max') + 1]) || 3 : 3;
-if (MODE !== 'ensure-queue' && MODE !== 'post-next') {
-  console.log('usage: node longvideo/shorts-clips.mjs ensure-queue <slug> [--max K] [--local <dir>]');
-  console.log('       node longvideo/shorts-clips.mjs post-next <slug>');
-  process.exit(2);
-}
+// Main-module guard (#96): importing this file (tests, channel-pipeline's args
+// builder) must not read argv, resolve a brand or exit.
+const IS_MAIN = Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href;
 
-const b = await resolveBrand(slug);
-if (!b) { console.error(`[clips] unknown slug: ${slug}`); process.exit(1); }
-const PAD = (b.bg || '#0A0A0A').replace('#', '0x');
-const log = (m) => console.log(`[clips:${slug}] ${m}`);
-const fail = async (why, err) => {
-  log(`✗ ${why}${err ? ': ' + String(err.message || err).slice(0, 120) : ''}`);
-  await sendAlert({ text: `${slug} clips: ${why}${err ? ' — ' + String(err.message || err).slice(0, 200) : ''}`, title: `[${slug}] clips queue failed` });
-  process.exit(1);
-};
+// CLI wiring — module-level lets so ensureQueue/postNext keep their closures;
+// only initialized when this file IS the script being run.
+let MODE = '', slug = null, localDir = null, maxArg = 3, archiveMode = false, b = null;
+let PAD = '0x0A0A0A';
+let log = (m) => console.log(m);
+let fail = async (why) => { throw new Error(why); };
+async function initCli() {
+  MODE = process.argv[2] || '';
+  slug = process.argv[3] || null;
+  const args = process.argv.slice(4);
+  archiveMode = args.includes('--archive');
+  localDir = args.includes('--local') ? args[args.indexOf('--local') + 1] : null;
+  maxArg = args.includes('--max') ? Number(args[args.indexOf('--max') + 1]) || 3 : 3;
+  if (MODE !== 'ensure-queue' && MODE !== 'post-next') {
+    console.log('usage: node longvideo/shorts-clips.mjs ensure-queue <slug> [--max K] [--local <dir>] [--archive]');
+    console.log('       node longvideo/shorts-clips.mjs post-next <slug>');
+    process.exit(2);
+  }
+  b = await resolveBrand(slug);
+  if (!b) { console.error(`[clips] unknown slug: ${slug}`); process.exit(1); }
+  PAD = (b.bg || '#0A0A0A').replace('#', '0x');
+  log = (m) => console.log(`[clips:${slug}] ${m}`);
+  fail = async (why, err) => {
+    log(`✗ ${why}${err ? ': ' + String(err.message || err).slice(0, 120) : ''}`);
+    await sendAlert({ text: `${slug} clips: ${why}${err ? ' — ' + String(err.message || err).slice(0, 200) : ''}`, title: `[${slug}] clips queue failed` });
+    process.exit(1);
+  };
+}
+if (IS_MAIN) await initCli();
+
+// CLI contract for the doc-day pipeline feed (channel-pipeline Phase 5b):
+// --local cuts from the fresh in-job render (its artifacts upload only later in
+// the workflow); --archive ALSO pushes the cut clips to the clips Release —
+// Actions runners are ephemeral, so file:-only entries die with the runner and
+// every post-docDay clip fails forever (#96 hotfix). Dev runs stay pure-local.
+export function ensureQueueArgs({ slug, feedDir, max = 4, ci = false }) {
+  const args = ['ensure-queue', slug, '--local', feedDir, '--max', String(max)];
+  if (ci) args.push('--archive');
+  return args;
+}
 
 // ---------- gh api (artifact/release access) ----------
 const ghApi = async (pathname) => {
@@ -115,6 +143,78 @@ function cutClip(videoFile, out, startSec, durSec, assFile, cardPng) {
   if (r.status !== 0 || !fs.existsSync(out) || fs.statSync(out).size < 50000) {
     throw new Error(`ffmpeg cut failed: ${String(r.stderr).slice(-200)}`);
   }
+}
+
+// ---------- Release archive + queue mapping (exported for tests) ----------
+// Uploads the cut clips to the Release `clips-<slug>-<docRunId>` (09-14 archive
+// pattern — the publisher never re-downloads from YouTube) and maps them to
+// queue entries. Runs whenever the queue must be Release-backed: artifact mode,
+// or --local --archive in CI (#96). Each asset POST retries 3× (2s backoff) and
+// a clip that never uploads is DROPPED with a loud [alert] — a queued entry
+// without a servable url fails forever with "neither a local file nor a
+// Release asset URL" once the runner that cut it is gone. Pure --local dev
+// mode (archive=false) skips the Release entirely and queues file: paths.
+export async function archiveAndMapClips({ slug, docRunId, clips, archive, local, backoffMs = 2000, tok = TOK, repo = REPO, log = (m) => console.log(m), fetchImpl = fetch }) {
+  if (archive) {
+    const tag = `clips-${slug}-${docRunId}`;
+    const ghApi = async (pathname) => {
+      const r = await fetchImpl(`https://api.github.com/repos/${repo}/${pathname}`, {
+        headers: { Authorization: `Bearer ${tok}`, Accept: 'application/vnd.github+json', 'User-Agent': 'quarry-clips' },
+      });
+      if (!r.ok) throw new Error(`gh api ${pathname}: HTTP ${r.status}`);
+      return r.json();
+    };
+    let rel = null;
+    try { rel = await ghApi(`releases/tags/${tag}`); } catch { }
+    if (!rel || !rel.id) {
+      const cr = await fetchImpl(`https://api.github.com/repos/${repo}/releases`, {
+        method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json', 'User-Agent': 'quarry-clips' },
+        body: JSON.stringify({ tag_name: tag, name: `Clips ${slug} ${docRunId}`, body: `Vertical Shorts candidates from doc run ${docRunId} (#97).` }),
+      });
+      rel = cr.ok ? await cr.json() : await ghApi(`releases/tags/${tag}`);
+    }
+    const kept = [];
+    for (const c of clips) {
+      const name = path.basename(c.file);
+      const existing = (rel.assets || []).find((a) => a.name === name);
+      if (existing) { c.asset = existing.name; c.url = existing.url; kept.push(c); continue; }
+      let up = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        up = await fetchImpl(`https://uploads.github.com/repos/${repo}/releases/${rel.id}/assets?name=${name}`, {
+          method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/octet-stream', 'User-Agent': 'quarry-clips' }, body: fs.readFileSync(c.file),
+        });
+        if (up.ok) break;
+        if (attempt < 3) { log(`[warn] asset upload attempt ${attempt}/3 failed for ${name} (HTTP ${up.status}) — retrying`); await new Promise((r) => setTimeout(r, backoffMs)); }
+      }
+      if (!up || !up.ok) {
+        log(`[alert] DROPPED part ${c.part} "${c.title}" — Release asset ${name} failed to upload after 3 attempts; queueing it would fail forever with "neither a local file nor a Release asset URL"`);
+        continue;
+      }
+      const asset = await up.json();
+      c.asset = asset.name; c.url = asset.url;
+      kept.push(c);
+    }
+    clips = kept;
+  }
+  return clips.map((c) => ({ part: c.part, title: c.title, asset: c.asset, url: c.url, startSec: c.startSec, durSec: c.durSec, file: local ? c.file : undefined }));
+}
+
+// One on-the-fly lookup for a queued clip that lost its local file AND its url
+// (e.g. queued by a pre-#96 --local run from a since-dead runner): find the
+// asset on the doc run's clips Release before giving up. Returns {asset,url}
+// or null — null falls through to the existing fail (its ntfy already fires).
+export async function lookupQueuedClipAsset({ slug, docRunId, clip, tok = TOK, repo = REPO, fetchImpl = fetch }) {
+  if (!docRunId) return null;
+  try {
+    const r = await fetchImpl(`https://api.github.com/repos/${repo}/releases/tags/clips-${slug}-${docRunId}`, {
+      headers: { Authorization: `Bearer ${tok}`, Accept: 'application/vnd.github+json', 'User-Agent': 'quarry-clips' },
+    });
+    if (!r.ok) return null;
+    const rel = await r.json();
+    const name = clip.asset || `clip-${String(clip.part).padStart(2, '0')}.mp4`;
+    const a = (rel.assets || []).find((x) => x.name === name);
+    return a ? { asset: a.name, url: a.url } : null;
+  } catch { return null; }
 }
 
 // ---------- ensure-queue ----------
@@ -208,29 +308,10 @@ for (let n = 0; n < titled.length; n++) {
 if (!clips.length) await fail('zero clips encoded');
 
 // GitHub Release assets (09-14 archive pattern — the publisher never re-downloads from YouTube)
-if (!localDir) {
-  const tag = `clips-${slug}-${docRunId}`;
-  let rel = null;
-  try { rel = await ghApi(`releases/tags/${tag}`); } catch { }
-  if (!rel || !rel.id) {
-    const cr = await fetch(`https://api.github.com/repos/${REPO}/releases`, {
-      method: 'POST', headers: { Authorization: `Bearer ${TOK}`, 'Content-Type': 'application/json', 'User-Agent': 'quarry-clips' },
-      body: JSON.stringify({ tag_name: tag, name: `Clips ${slug} ${docRunId}`, body: `Vertical Shorts candidates from doc run ${docRunId} (#97).` }),
-    });
-    rel = cr.ok ? await cr.json() : await ghApi(`releases/tags/${tag}`);
-  }
-  for (const c of clips) {
-    const name = path.basename(c.file);
-    const existing = (rel.assets || []).find((a) => a.name === name);
-    if (existing) { c.asset = existing.name; c.url = existing.url; continue; }
-    const up = await fetch(`https://uploads.github.com/repos/${REPO}/releases/${rel.id}/assets?name=${name}`, {
-      method: 'POST', headers: { Authorization: `Bearer ${TOK}`, 'Content-Type': 'application/octet-stream', 'User-Agent': 'quarry-clips' }, body: fs.readFileSync(c.file),
-    });
-    if (!up.ok) { log(`[warn] asset upload failed for ${name}`); continue; }
-    const asset = await up.json();
-    c.asset = asset.name; c.url = asset.url;
-  }
-}
+// + queue mapping. #96: --archive extends this to the --local doc-day feed in
+// CI; failed uploads are DROPPED with a loud [alert] in every Release-backed
+// mode — never queue an entry without a servable url.
+const entries = await archiveAndMapClips({ slug, docRunId, clips, archive: !localDir || archiveMode, local: !!localDir, log });
 
 // queue into the channel state (publisher #98 consumes it)
 st.clipQueue = {
@@ -239,17 +320,19 @@ st.clipQueue = {
   docTitle: docTitle(meta),
   createdAt: new Date().toISOString(),
   local: localDir ? true : undefined,
-  clips: clips.map((c) => ({ part: c.part, title: c.title, asset: c.asset, url: c.url, startSec: c.startSec, durSec: c.durSec, file: localDir ? c.file : undefined })),
+  clips: entries,
 };
 saveChannelState(slug, st);
 if (tmp) fs.rmSync(tmp, { recursive: true, force: true });
-log(`queue ready: ${clips.length} clips from run ${docRunId} -> yt-mcp/state/${slug}.json clipQueue`);
+log(`queue ready: ${entries.length} clips from run ${docRunId} -> yt-mcp/state/${slug}.json clipQueue`);
 return 'clipped';
 }
 
-if (MODE === 'ensure-queue') await ensureQueue();
-else if (MODE === 'post-next') await postNext();
-else console.log('usage: node longvideo/shorts-clips.mjs ensure-queue <slug> | post-next <slug>');
+if (IS_MAIN) {
+  if (MODE === 'ensure-queue') await ensureQueue();
+  else if (MODE === 'post-next') await postNext();
+  else console.log('usage: node longvideo/shorts-clips.mjs ensure-queue <slug> | post-next <slug>');
+}
 
 // ---------- post-next (#98): publish one queued clip ----------
 // Fail-closed: empty/exhausted queue = logged skip + ntfy alert, never a
@@ -322,7 +405,18 @@ async function postNext() {
   // fetch the clip file: local path (dev queue) or GitHub Release asset
   let file = clip.file;
   if (!file || !fs.existsSync(file)) {
-    if (!clip.url) await fail(`clip part ${clip.part} has neither a local file nor a Release asset URL`);
+    if (!clip.url) {
+      // #96 hotfix: the entry may predate its Release upload (cut on a runner
+      // that is long gone) — one on-the-fly lookup before giving up
+      const docRunId = st.clipQueue?.lastRunId;
+      const found = await lookupQueuedClipAsset({ slug, docRunId, clip });
+      if (found) {
+        log(`release fallback: found ${found.asset} on clips-${slug}-${docRunId}`);
+        clip.asset = found.asset; clip.url = found.url;
+      } else {
+        await fail(`clip part ${clip.part} has neither a local file nor a Release asset URL`);
+      }
+    }
     if (!TOK) await fail('GITHUB_TOKEN/GITHUB_PAT missing — cannot download the clip asset');
     log(`downloading ${clip.asset}...`);
     const r = await fetch(clip.url, { headers: { Authorization: `Bearer ${TOK}`, 'User-Agent': 'quarry-clips' } });
@@ -386,4 +480,4 @@ async function postNext() {
   process.exit(v.status || 0);
 }
 
-if (MODE === 'post-next') await postNext();
+if (IS_MAIN && MODE === 'post-next') await postNext();

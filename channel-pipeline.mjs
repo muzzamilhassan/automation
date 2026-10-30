@@ -338,7 +338,10 @@ try {
     fs.copyFileSync(path.join('tt-lf', `lf-meta-${slug}.json`), path.join(feedDir, 'meta.json'));
     // --max 4: 2 doc-days/week × 4 clips = 8/week supply for 7 short-days
     // (#101) — 2/doc starved the queue ~3 days a week at daily Shorts cadence
-    if (run('longvideo/shorts-clips.mjs', ['ensure-queue', slug, '--local', feedDir, '--max', '4'])) {
+    // (#96) CI runners are ephemeral: in CI, --archive uploads the cut clips to
+    // the clips Release so every post-docDay post survives the runner's death
+    const { ensureQueueArgs } = await import('./longvideo/shorts-clips.mjs');
+    if (run('longvideo/shorts-clips.mjs', ensureQueueArgs({ slug, feedDir, ci: process.env.GITHUB_ACTIONS === 'true' }))) {
       run('longvideo/shorts-clips.mjs', ['post-next', slug]);
     } else { errors.push('Doc-day clip feed failed'); log(`✗ doc-day clip feed failed`); }
   }
