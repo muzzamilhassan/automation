@@ -93,3 +93,74 @@ export async function recordLoginAttempt(ip, ok) {
     await db`DELETE FROM login_attempts WHERE at < now() - interval '1 day'`;
   } catch { }
 }
+
+// ---- P4/S6 (#106) OWNER SESSIONS ADMIN — all-users view, revoke-by-id,
+// retention cleanup. Client contract mirrors studio/lib/quota-ledger.mjs:
+// `client(sqlText, params)` -> Promise<rows> (postgres.js positional style;
+// callers bridge the tagged-template db with adaptPostgres — see the
+// /api/sessions route and scripts/sessions-cleanup.mjs).
+
+// Owner-only: EVERY user's sessions, freshest activity first — active rows
+// plus recently dead ones (the admin UI greys expired/revoked), bounded so a
+// long-lived table can't flood the panel. Fails safe to [] like listSessions.
+export async function listAllSessions(dbClient) {
+  if (typeof dbClient !== 'function') return [];
+  try {
+    const rows = await dbClient(
+      `SELECT id, email, role, name, user_agent, ip, created_at, last_used, expires_at, revoked
+       FROM sessions ORDER BY last_used DESC LIMIT $1`, [200]);
+    const now = new Date();
+    return rows.map((r) => ({
+      id: r.id,
+      email: r.email,
+      role: r.role,
+      name: r.name || '',
+      device: String(r.user_agent || '').slice(0, 60),
+      ip: r.ip || '',
+      created: r.created_at,
+      lastUsed: r.last_used,
+      expires: r.expires_at,
+      revoked: r.revoked === true,
+      expired: new Date(r.expires_at) < now,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// Owner-only INSTANT revoke: flips the row's revoked flag — the per-request
+// check in userByToken() (above) rejects any revoked token on the device's
+// very next request, so the kick never waits for cookie expiry. Returns
+// { id, email } so the route can audit WHOSE device died, or null when the
+// row is missing/already revoked (the AND revoked = FALSE guard keeps it
+// idempotent — a double click can't double-count).
+export async function revokeSessionById(id, dbClient) {
+  if (typeof dbClient !== 'function' || !Number.isInteger(id)) return null;
+  try {
+    const rows = await dbClient(
+      `UPDATE sessions SET revoked = TRUE WHERE id = $1 AND revoked = FALSE RETURNING id, email`, [id]);
+    return rows[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+// AC-P4-30 retention: delete dead rows — revoked OR expired — whose last
+// activity is older than `days` (default 30). There is no revoked_at column
+// (schema frozen): last_used freezes at death because userByToken never
+// touches a dead row, so it IS the death clock. dry=true counts the doomed
+// rows without deleting (ops preview for the nightly pass).
+export async function cleanupSessions(dbClient, { days = 30, dry = false } = {}) {
+  if (typeof dbClient !== 'function') return 0;
+  const where = `(revoked = TRUE OR expires_at < now()) AND last_used < now() - ($1 || ' days')::interval`;
+  try {
+    if (dry) {
+      const rows = await dbClient(`SELECT count(*) AS n FROM sessions WHERE ${where}`, [String(days)]);
+      return Number(rows[0]?.n || 0);
+    }
+    const rows = await dbClient(`DELETE FROM sessions WHERE ${where} RETURNING id`, [String(days)]);
+    return rows.length;
+  } catch {
+    return 0;
+  }
+}

@@ -52,8 +52,10 @@ export default async function proxy(req) {
 
   // route → role matrix (first match wins; everything else = any signed-in role)
   const RULES = [
-    // owner only — settings, wizard/channel management, connect-link minting, team
-    { match: (p) => p === '/settings' || p === '/users' || p.startsWith('/api/users') || p.startsWith('/api/team') || p === '/api/oauth/start' || (p.startsWith('/api/channels/') && p !== '/api/channels/flow' && p !== '/api/channels/keys'), roles: ['owner'] },
+    // owner only — settings, wizard/channel management, connect-link minting, team,
+    // sessions admin (#106: the page only — /api/sessions stays self-service and
+    // re-checks owner mode server-side)
+    { match: (p) => p === '/settings' || p === '/users' || p === '/sessions' || p.startsWith('/api/users') || p.startsWith('/api/team') || p === '/api/oauth/start' || (p.startsWith('/api/channels/') && p !== '/api/channels/flow' && p !== '/api/channels/keys'), roles: ['owner'] },
     // owner + staff — the engine room (clients live on Topics/Analytics/Channels)
     { match: (p) => p === '/production' || p === '/api/action' || p === '/music' || p === '/social' || p.startsWith('/api/audit'), roles: ['owner', 'staff'] },
     { match: (p) => p === '/create' || p.startsWith('/api/create-video'), roles: ['owner', 'staff'] },
