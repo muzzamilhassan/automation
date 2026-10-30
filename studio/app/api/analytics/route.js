@@ -99,7 +99,11 @@ export async function GET(req) {
   // owner, owner aggregates to clients, and null to users whose scope
   // differed from whoever populated it).
   const user = await getUser(req).catch(() => null);
-  const owned = user ? await slugsForUser(user).catch(() => null) : null;
+  // FAIL-CLOSED (round 1 IMPORTANT 6a, mirrored from /api/analytics/leaderboard):
+  // a registry read error resolves to an EMPTY owned list — a client (or
+  // anyone) must never see the whole network because the registry blipped
+  // (issue #47's lesson, applied to the error path too).
+  const owned = user ? await slugsForUser(user).catch(() => []) : null;
   if (owned) allSlugs = allSlugs.filter((s) => owned.includes(s));
   const scopeKey = [...allSlugs].sort().join(',');
 

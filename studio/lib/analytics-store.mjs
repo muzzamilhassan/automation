@@ -15,34 +15,47 @@
 //
 // Client contract (house positional style, tests/template-registry-db.test.mjs):
 //   `client(sqlText, params)` -> Promise<rowObject[]> — $1..$n placeholders,
-//   snake_case columns. Production callers use getAnalyticsStore().
+//   snake_case columns. `opts.begin(runTx)` (optional) runs `runTx(txClient)`
+//   inside ONE transaction (postgres.js db.begin) — rollup's fold+delete
+//   pair is transactional when the production client provides it.
+//   Production callers use getAnalyticsStore().
 //
-// SOURCE SEMANTICS (pinned — D19 + review finding 11):
+// SOURCE SEMANTICS (pinned — D19 + review finding 11 + T6 round 1):
 //   UNIQUE (channel_id, date, source) — one row per channel+day+SOURCE.
-//   'analytics_api' rows carry the per-day metrics (views/watch_hours/
+//   'analytics_api' rows carry the PER-DAY metrics (views/watch_hours/
 //   subs_delta). 'data_api' rows carry the public per-video counters in
 //   per_video (bounded top-50 by views — never the full catalog); their
 //   views column is the lifetime-counter SUM of that bounded set and is
-//   NOT a per-day metric. WHERE BOTH SOURCES HAVE THE SAME DATE, THE
-//   analytics_api ROW WINS for per-day metrics: leaderboardWindow() (and
-//   any future per-day reader) resolves each (channel, date) to its
-//   analytics_api row when one exists and never sums across sources. The
-//   data_api row is kept alongside — per-video counters come only from it.
+//   NOT a per-day metric. Consequences, enforced everywhere:
+//     - readers resolve per-day metrics from analytics_api rows ONLY — a
+//       data_api-only date (the census writes one EVERY night; the
+//       Analytics API omits zero-traffic days) contributes NOTHING to
+//       leaderboard/rollup sums;
+//     - the weekly fold admits analytics_api rows only — data_api
+//       lifetime counters are never summed into weekly "truth" (their raw
+//       rows are still pruned past retention; per-video counters are a
+//       recent-window concern only);
+//     - winRates takes each video's value from its LATEST census row
+//       (lifetime counters are re-reported nightly — summing across rows
+//       would inflate ~N-fold).
 //
 // Weekly rollups (D25/AC-P4-33) live in the same table with source =
-// 'weekly_rollup', date = ISO Monday of the week, per_video = NULL
-// (per-video detail is a recent-window concern only). Daily readers never
-// select that source; daily rows older than the 90-day retention are
-// deleted after they fold in.
+// 'weekly_rollup', date = ISO Monday of the week, per_video = NULL. Daily
+// readers never select that source; daily rows older than the 90-day
+// retention are deleted after they fold in.
 //
 // SCOPE PROBES ("the snapshot meta"): the nightly's per-channel
-// yt-analytics.readonly probe outcome lands in analytics_probe_log — the
-// durable record behind the Studio owner re-auth checklist (D19). The
-// warnings-table copy is S3/T4's job (lands in parallel — the nightly
-// carries a TODO(#106-T4) seam, not an import).
+// yt-analytics.readonly probe outcome lands in analytics_probe_log —
+// UNIQUE per channel with latest-wins upsert (self-retaining: the
+// checklist reads only the latest probe, so the table cannot grow). The
+// durable alert copy is S3/T4's warnings table (lands in parallel — the
+// nightly carries a TODO(#106-T4) seam, not an import). Retention note:
+// the spec's D25 enumeration missed this table; latest-per-channel
+// upsert IS its retention (controller to disposition).
 
 export const PER_VIDEO_LIMIT = 50; // bounded per_video window (D19)
 export const SETTLE_DAYS = 2; // analytics settle 48–72h — ranking ends D-2 (D21)
+export const WIN_RATE_SETTLE_DAYS = 7; // win rates exclude younger videos (D21/AC-P4-25)
 export const ROLLUP_RETENTION_DAYS = 90; // daily rows kept this long (D25)
 export const ANALYTICS_SOURCES = ['analytics_api', 'data_api'];
 export const ROLLUP_SOURCE = 'weekly_rollup';
@@ -79,18 +92,22 @@ export function trailingWindowDays(todayIso, days) {
 
 /**
  * Bound a per-video map to the top-N by views (bounded jsonb — D19/D25).
- * Deterministic: ties break on the smaller videoId.
- * @param {Record<string, {views: number, title?: string}> | null} perVideo
+ * Deterministic: ties break on the smaller videoId. Extra per-video fields
+ * (title, publishedAt) ride along — win rates need publishedAt to settle.
+ * @param {Record<string, {views: number, title?: string, publishedAt?: string}> | null} perVideo
  * @param {number} limit
  */
 export function boundPerVideo(perVideo, limit = PER_VIDEO_LIMIT) {
   if (!perVideo || typeof perVideo !== 'object') return {};
   return Object.entries(perVideo)
-    .map(([videoId, v]) => ({ videoId, views: Number(v?.views) || 0, title: v?.title }))
+    .map(([videoId, v]) => ({ videoId, views: Number(v?.views) || 0, title: v?.title, publishedAt: v?.publishedAt }))
     .sort((a, b) => (b.views - a.views) || a.videoId.localeCompare(b.videoId))
     .slice(0, Math.max(0, Math.trunc(limit)))
     .reduce((acc, e) => {
-      acc[e.videoId] = e.title != null ? { views: e.views, title: e.title } : { views: e.views };
+      const entry = { views: e.views };
+      if (e.title != null) entry.title = e.title;
+      if (e.publishedAt != null) entry.publishedAt = e.publishedAt;
+      acc[e.videoId] = entry;
       return acc;
     }, {});
 }
@@ -99,11 +116,13 @@ export function boundPerVideo(perVideo, limit = PER_VIDEO_LIMIT) {
 
 /**
  * @param {(sqlText: string, params: any[]) => Promise<any[]>} client
+ * @param {{ begin?: (runTx: (txClient: (sqlText: string, params: any[]) => Promise<any[]>) => Promise<any>) => Promise<any> }} opts
  */
-export function makeAnalyticsStore(client) {
+export function makeAnalyticsStore(client, opts = {}) {
   if (typeof client !== 'function') {
     throw new TypeError('makeAnalyticsStore: client must be a function (sqlText, params) -> Promise<rows>');
   }
+  const begin = typeof opts.begin === 'function' ? opts.begin : null;
 
   async function ensureAnalyticsSchema() {
     try {
@@ -118,8 +137,10 @@ export function makeAnalyticsStore(client) {
         collected_at timestamptz NOT NULL DEFAULT now(),
         UNIQUE (channel_id, date, source)
       )`, []);
+      // UNIQUE(channel_id) + latest-wins upsert = the table IS its own
+      // retention (see header retention note re D25).
       await client(`CREATE TABLE IF NOT EXISTS analytics_probe_log (
-        channel_id text NOT NULL,
+        channel_id text PRIMARY KEY,
         ok boolean NOT NULL,
         has_scope boolean NOT NULL,
         error text,
@@ -181,12 +202,14 @@ export function makeAnalyticsStore(client) {
     }
   }
 
-  // Resolve per (channel, date) to ONE row: analytics_api wins overlaps
-  // (source semantics, header note). data_api rows contribute nothing to
-  // per-day sums — they exist for per-video counters.
+  // Resolve per (channel, date) to ONE row for PER-DAY METRICS:
+  // data_api rows are skipped ENTIRELY (lifetime counters are not per-day
+  // metrics — a census-only date must never appear as a traffic day);
+  // analytics_api wins the date over a weekly_rollup row when both exist.
   function resolveDaily(rows) {
     const byKey = new Map(); // channel\u0000date -> row
     for (const r of rows) {
+      if (r.source === 'data_api') continue;
       const key = r.channel_id + '\u0000' + r.date;
       const prev = byKey.get(key);
       if (!prev || (prev.source !== 'analytics_api' && r.source === 'analytics_api')) byKey.set(key, r);
@@ -198,7 +221,9 @@ export function makeAnalyticsStore(client) {
    * Channel leaderboard over a window ENDING at the settle boundary
    * (today - SETTLE_DAYS — D21/AC-P4-25: the trailing 2 days are never
    * presented as final), ranked by views desc, with trend vs the previous
-   * equal-length window. Zero live YouTube calls (AC-P4-26).
+   * equal-length window. Zero live YouTube calls (AC-P4-26). dataThrough is
+   * NULL when there is no data (the UI shows its empty state, never a stamp
+   * over an empty panel).
    * @param {number} days 7 | 28 | 90 (anything else is clamped into 1..90)
    * @param {{ today?: Date }} opts
    */
@@ -244,56 +269,67 @@ export function makeAnalyticsStore(client) {
         })
         .sort((a, b) => b.views - a.views || a.channelId.localeCompare(b.channelId));
 
-      return { ok: true, days: n, dataThrough: through, start, rows };
+      return { ok: true, days: n, dataThrough: rows.length ? through : null, start, rows };
     } catch (e) {
       return { ok: false, error: String(e?.message || e).slice(0, 200), dataThrough: null, rows: [] };
     }
   }
 
   /**
-   * Fold daily rows older than the retention cutoff into weekly rows
-   * (source 'weekly_rollup', date = ISO Monday, per_video NULL) and delete
-   * the folded raw rows (D25/AC-P4-33). Accumulate-on-conflict + delete in
-   * the same pass = idempotent (the folded rows are gone, so a re-run only
-   * ever sees fresh old dailies).
+   * Fold analytics_api daily rows older than the retention cutoff into
+   * weekly rows (source 'weekly_rollup', date = ISO Monday, per_video NULL)
+   * and delete the folded raw rows (D25/AC-P4-33). data_api lifetime-counter
+   * rows NEVER enter metric sums — they are only pruned past retention (the
+   * latest census row is all win rates need). The fold+delete pair runs in
+   * ONE transaction when the store was built with `begin` (round 1
+   * IMPORTANT 4: a crash between the two statements must not leave days
+   * that a re-run would fold twice); accumulate-on-conflict stays correct
+   * across nights because a folded day is always deleted in the same pass.
    * @param {{ today?: Date, retentionDays?: number }} opts
    */
   async function rollup(opts = {}) {
-    try {
-      const retention = Math.max(7, Math.trunc(Number(opts.retentionDays) || ROLLUP_RETENTION_DAYS));
-      const todayIso = isoDate(opts.today || new Date());
-      const cutoff = addDaysIso(todayIso, -retention);
-      const countRows = await client(
+    const retention = Math.max(7, Math.trunc(Number(opts.retentionDays) || ROLLUP_RETENTION_DAYS));
+    const todayIso = isoDate(opts.today || new Date());
+    const cutoff = addDaysIso(todayIso, -retention);
+
+    const run = async (tx) => {
+      const countRows = await tx(
         `SELECT channel_id, date, source, views, watch_hours, subs_delta FROM analytics_snapshots WHERE date >= $1 AND date <= $2`,
         ['0000-01-01', cutoff],
       );
-      const daily = countRows.filter((r) => ANALYTICS_SOURCES.includes(r.source) && r.date < cutoff);
+      const daily = countRows.filter((r) => r.source === 'analytics_api' && r.date < cutoff);
       if (daily.length) {
-        await client(
+        await tx(
           `INSERT INTO analytics_snapshots (channel_id, date, source, views, watch_hours, subs_delta, per_video, collected_at)
            SELECT channel_id,
                   to_char(to_date(date, 'YYYY-MM-DD') - ((EXTRACT(ISODOW FROM to_date(date, 'YYYY-MM-DD'))::int) - 1), 'YYYY-MM-DD'),
-                  $2,
+                  'weekly_rollup',
                   SUM(views), SUM(COALESCE(watch_hours, 0)), SUM(COALESCE(subs_delta, 0)),
                   NULL::jsonb, now()
            FROM analytics_snapshots
-           WHERE source IN ('analytics_api', 'data_api') AND date < $1
+           WHERE source = $2 AND date < $1
            GROUP BY 1, 2
            ON CONFLICT (channel_id, date, source) DO UPDATE SET
              views = analytics_snapshots.views + EXCLUDED.views,
              watch_hours = analytics_snapshots.watch_hours + EXCLUDED.watch_hours,
              subs_delta = analytics_snapshots.subs_delta + EXCLUDED.subs_delta,
              collected_at = now()`,
-          [cutoff, ROLLUP_SOURCE],
+          [cutoff, 'analytics_api'],
         );
-        await client(
+        await tx(
           `DELETE FROM analytics_snapshots WHERE source IN ('analytics_api', 'data_api') AND date < $1`,
           [cutoff],
         );
       }
       return { ok: true, dailyFolded: daily.length, cutoff };
+    };
+
+    try {
+      if (typeof opts.begin === 'function') return await opts.begin(run);
+      if (typeof begin === 'function') return await begin(run);
+      return await run(client); // sequential fallback — tests without a tx seam
     } catch (e) {
-      return { ok: false, error: String(e?.message || e).slice(0, 200), dailyFolded: 0, cutoff: null };
+      return { ok: false, error: String(e?.message || e).slice(0, 200), dailyFolded: 0, cutoff };
     }
   }
 
@@ -303,49 +339,60 @@ export function makeAnalyticsStore(client) {
    * Until S4 lands (or before any published video settles), returns a clean
    * EMPTY result set — { available: false, templates: [], topics: [] } —
    * the Studio surface renders "no data yet — fills as Phase 4 S4 lands"
-   * (L6/D20/Honest Limits). Win rates derive from the WINNING source only
-   * (analytics_api per-day rows) and exclude videos younger than 7 days
-   * (D21: too unsettled to rank).
+   * (L6/D20/Honest Limits). Semantics (round 1):
+   *   - each video's views come from its LATEST data_api census row
+   *     (lifetime counters re-reported nightly — never summed across rows);
+   *   - videos younger than WIN_RATE_SETTLE_DAYS (7d, D21/AC-P4-25) are
+   *     excluded — a census row without a parseable publishedAt cannot prove
+   *     settle and is excluded too;
+   *   - `channelIds` (a non-owner's owned-slug list) scopes the join;
+     an empty list yields an empty result (fail-closed).
    */
-  async function winRates() {
+  async function winRates({ channelIds } = {}) {
     const empty = { ok: true, available: false, templates: [], topics: [] };
     try {
       const reg = (await client(`SELECT to_regclass($1) AS reg`, ['public.scripts']))[0]?.reg;
       if (!reg) return { ...empty, reason: 'scripts_table_missing' };
-      // S4 contract (D14): scripts rows carry template_id + video_id (the
-      // upload sites write video_id back). Anything else degrades to the
+      // S4 contract (D14): scripts rows carry template_id + video_id + channel
+      // (the upload sites write video_id back). Anything else degrades to the
       // empty state instead of guessing at half-landed schema.
       let scriptRows;
       try {
         scriptRows = await client(
-          `SELECT template_id, video_id, topic FROM scripts WHERE video_id IS NOT NULL`,
+          `SELECT template_id, video_id, topic, channel_id FROM scripts WHERE video_id IS NOT NULL`,
           [],
         );
       } catch (e) {
         return { ...empty, reason: 'scripts_schema_not_ready: ' + String(e?.message || e).slice(0, 80) };
       }
-      // per-video public counters from the bounded data_api census
+      if (Array.isArray(channelIds)) scriptRows = scriptRows.filter((s) => channelIds.includes(s.channel_id));
+      // per-video public counters — NEWEST census row first (ORDER BY date
+      // DESC), first-wins per video
       const perVideoRows = await client(
-        `SELECT per_video FROM analytics_snapshots WHERE source = $1 AND per_video IS NOT NULL`,
+        `SELECT per_video FROM analytics_snapshots WHERE source = $1 AND per_video IS NOT NULL ORDER BY date DESC`,
         ['data_api'],
       );
       const viewsByVideo = new Map();
-      const firstSeen = new Map();
+      const publishedAtByVideo = new Map();
       for (const row of perVideoRows) {
         const pv = typeof row.per_video === 'string' ? JSON.parse(row.per_video) : row.per_video;
         for (const [videoId, v] of Object.entries(pv || {})) {
-          viewsByVideo.set(videoId, (viewsByVideo.get(videoId) || 0) + (Number(v?.views) || 0));
+          if (viewsByVideo.has(videoId)) continue; // a newer row already spoke
+          viewsByVideo.set(videoId, Number(v?.views) || 0);
+          publishedAtByVideo.set(videoId, v?.publishedAt || null);
         }
       }
-      // published-only (OQ-7): video_id present AND already counted in
-      // snapshots; 7-day settle (D21) via the snapshot's own timeline —
-      // videos never counted are either unpublished or too fresh to rank.
+      const now = Date.now();
+      const settleMs = WIN_RATE_SETTLE_DAYS * 86400000;
       const byTemplate = new Map();
       const byTopic = new Map();
       for (const s of scriptRows) {
         if (!s?.template_id || !s?.video_id) continue;
         const views = viewsByVideo.get(s.video_id);
-        if (views == null) continue; // unpublished or not yet settled into snapshots
+        if (views == null) continue; // unpublished or not yet censused
+        const publishedAt = publishedAtByVideo.get(s.video_id);
+        const t = publishedAt ? Date.parse(publishedAt) : NaN;
+        if (!Number.isFinite(t) || now - t < settleMs) continue; // too unsettled to rank (D21)
         const bump = (map, key) => {
           const acc = map.get(key) || { key, published: 0, views: 0 };
           acc.published += 1;
@@ -366,15 +413,21 @@ export function makeAnalyticsStore(client) {
   }
 
   /**
-   * Record one scope-probe outcome (D19 preflight) — the snapshot meta the
-   * owner re-auth checklist reads. Never throws.
+   * Record the latest scope-probe outcome (D19 preflight) — the snapshot
+   * meta the owner re-auth checklist reads. Latest-wins per channel (the
+   * table is UNIQUE(channel_id)); never throws.
    */
   async function recordProbe({ channelId, ok, hasScope, error, checkedAt } = {}) {
     try {
       if (!isNonEmptyString(channelId)) return { ok: false, error: 'channelId_required' };
       const at = checkedAt ? new Date(checkedAt) : new Date();
       await client(
-        `INSERT INTO analytics_probe_log (channel_id, ok, has_scope, error, checked_at) VALUES ($1, $2, $3, $4, $5)`,
+        `INSERT INTO analytics_probe_log (channel_id, ok, has_scope, error, checked_at) VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (channel_id) DO UPDATE SET
+           ok = EXCLUDED.ok,
+           has_scope = EXCLUDED.has_scope,
+           error = EXCLUDED.error,
+           checked_at = EXCLUDED.checked_at`,
         [channelId, ok === true, hasScope === true, error ? String(error).slice(0, 300) : null, at],
       );
       return { ok: true };
@@ -383,16 +436,14 @@ export function makeAnalyticsStore(client) {
     }
   }
 
-  /** Latest probe per channel, ascending by channel (re-auth checklist). */
+  /** Latest probe per channel (UNIQUE table — at most one row each). */
   async function latestProbes() {
     try {
       const rows = await client(
-        `SELECT channel_id, ok, has_scope, error, checked_at FROM analytics_probe_log ORDER BY checked_at ASC`,
+        `SELECT channel_id, ok, has_scope, error, checked_at FROM analytics_probe_log ORDER BY channel_id ASC`,
         [],
       );
-      const latest = new Map();
-      for (const r of rows) latest.set(r.channel_id, r); // ASC order → last write wins
-      return { ok: true, probes: [...latest.values()].sort((a, b) => a.channel_id.localeCompare(b.channel_id)) };
+      return { ok: true, probes: [...(rows || [])] };
     } catch (e) {
       return { ok: false, error: String(e?.message || e).slice(0, 200), probes: [] };
     }
@@ -413,11 +464,14 @@ export function makeAnalyticsStore(client) {
  * Production entry point. Lazy-imports db.mjs so importing this module never
  * touches the DB layer — unit tests and non-Neon machines stay safe until
  * this is actually called (getRegistryDb pattern). Throws fail-closed.
+ * rollup's fold+delete runs inside db.begin (one transaction).
  */
 export async function getAnalyticsStore() {
   const { db, dbReady } = await import('./db.mjs');
   if (!dbReady || !db) {
     throw new Error('analytics store: DATABASE_URL missing / db not ready — cannot construct analytics store');
   }
-  return makeAnalyticsStore((text, params) => db.unsafe(text, params));
+  return makeAnalyticsStore((text, params) => db.unsafe(text, params), {
+    begin: (runTx) => db.begin(async (tx) => runTx((text, params) => tx.unsafe(text, params))),
+  });
 }

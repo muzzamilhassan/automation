@@ -51,9 +51,9 @@ function isoMonday(dateStr) {
 
 function makeStubClient({ scriptsTable = null, scriptRows = [] } = {}) {
   const tables = new Map(); // table -> Map(key -> row)
-  const probeRows = [];
   const calls = [];
   const created = [];
+  let beginCalls = 0;
 
   const getStore = (table) => {
     if (!tables.has(table)) tables.set(table, new Map());
@@ -81,12 +81,17 @@ function makeStubClient({ scriptsTable = null, scriptRows = [] } = {}) {
     }
 
     // Weekly fold: INSERT INTO analytics_snapshots (...) SELECT ... FROM analytics_snapshots ... GROUP BY
+    // (source-separated round 1: the fold's WHERE admits analytics_api only —
+    //  data_api lifetime counters never enter metric sums)
     if (/^INSERT INTO analytics_snapshots/i.test(sql) && /FROM analytics_snapshots/i.test(sql) && /GROUP BY/i.test(sql)) {
       calls.push({ sql, params });
       const cutoff = params[0];
+      const onlyDaily = /source = \$2/.test(sql);
+      const allowedSource = onlyDaily ? params[1] : null;
       const groups = new Map(); // channel+week -> sum row
       for (const row of snapshots().values()) {
         if (!['analytics_api', 'data_api'].includes(row.source)) continue;
+        if (allowedSource && row.source !== allowedSource) continue;
         if (!(row.date < cutoff)) continue;
         const week = isoMonday(row.date);
         const key = row.channel_id + '\u0000' + week;
@@ -127,16 +132,6 @@ function makeStubClient({ scriptsTable = null, scriptRows = [] } = {}) {
       return [row];
     }
 
-    // Probe append: INSERT INTO analytics_probe_log (...) VALUES (...)
-    const probeMatch = sql.match(/^INSERT INTO analytics_probe_log \(([^)]+)\) VALUES \(([^)]+)\)/i);
-    if (probeMatch) {
-      calls.push({ sql, params });
-      const cols = probeMatch[1].split(',').map((c) => c.trim());
-      const valuesTuple = probeMatch[2].split(',').map((v) => v.trim());
-      probeRows.push(rowFromValues(cols, valuesTuple, params));
-      return [{ ...probeRows[probeRows.length - 1] }];
-    }
-
     // DELETE FROM analytics_snapshots WHERE source IN (...) AND date < $1
     const delMatch = sql.match(/^DELETE FROM (\w+) WHERE source IN \('analytics_api', 'data_api'\) AND date < \$(\d+)$/i);
     if (delMatch) {
@@ -160,10 +155,13 @@ function makeStubClient({ scriptsTable = null, scriptRows = [] } = {}) {
       return [...snapshots().values()].filter((r) => r.date >= start && r.date <= end);
     }
 
-    // SELECT per_video FROM analytics_snapshots WHERE source = $1 AND per_video IS NOT NULL
-    if (/^SELECT .* FROM analytics_snapshots WHERE source = \$1 AND per_video IS NOT NULL$/i.test(sql)) {
+    // per_video census read — NEWEST ROW FIRST (ORDER BY date DESC): lifetime
+    // counters are re-reported nightly, so readers take latest-wins per video
+    if (/^SELECT .* FROM analytics_snapshots WHERE source = \$1 AND per_video IS NOT NULL ORDER BY date DESC$/i.test(sql)) {
       calls.push({ sql, params });
-      return [...snapshots().values()].filter((r) => r.source === params[0] && r.per_video != null);
+      return [...snapshots().values()]
+        .filter((r) => r.source === params[0] && r.per_video != null)
+        .sort((a, b) => b.date.localeCompare(a.date));
     }
 
     // SELECT to_regclass($1) AS reg
@@ -178,21 +176,32 @@ function makeStubClient({ scriptsTable = null, scriptRows = [] } = {}) {
       return scriptRows;
     }
 
-    // SELECT ... FROM analytics_probe_log ORDER BY checked_at ASC
-    if (/^SELECT .* FROM analytics_probe_log ORDER BY checked_at ASC$/i.test(sql)) {
+    // SELECT ... FROM analytics_probe_log (latest-per-channel upsert table)
+    if (/^SELECT .* FROM analytics_probe_log/i.test(sql)) {
       calls.push({ sql, params });
-      return probeRows.map((r) => ({ ...r }));
+      return [...getStore('analytics_probe_log').values()];
     }
 
     throw new Error('stub client: unexpected SQL shape: ' + sql.slice(0, 120));
   }
 
+  const client = run;
+  // transaction seam (IMPORTANT 4): the store runs the fold+delete pair in
+  // ONE begin() when the production client provides one
+  const begin = async (txRun) => {
+    beginCalls++;
+    return txRun(client);
+  };
+
   return {
-    client: run,
+    client,
+    begin,
     tables,
     calls,
     created,
-    probeRows,
+    get beginCalls() {
+      return beginCalls;
+    },
     snapshots,
     scriptsTable,
   };
@@ -322,48 +331,58 @@ test('bounded per_video: boundPerVideo keeps only the top-N videos by views and 
   // small input passes through unchanged; null/undefined input yields an empty object
   assert.deepEqual(boundPerVideo({ x: { views: 1 } }), { x: { views: 1 } });
   assert.deepEqual(boundPerVideo(null), {});
+  // publishedAt (round 1 IMPORTANT 5: the census reads it from the uploads
+  // playlist) survives bounding — win rates need it for the 7-day settle
+  assert.deepEqual(
+    boundPerVideo({ x: { views: 1, title: 'T', publishedAt: '2026-10-01T00:00:00Z' } }),
+    { x: { views: 1, title: 'T', publishedAt: '2026-10-01T00:00:00Z' } },
+  );
 });
 
-test('rollup folds daily rows older than 90 days into weekly rows, deletes the raw rows, and is idempotent (D25/AC-P4-33)', async () => {
+test('rollup folds analytics_api daily rows into weekly rows, never mixes data_api lifetime counters into metric sums, and is idempotent (D25/AC-P4-33, round 1 CRITICAL 2)', async () => {
   const fx = makeStubClient();
-  const store = makeAnalyticsStore(fx.client);
+  const store = makeAnalyticsStore(fx.client, { begin: fx.begin });
   await store.ensureAnalyticsSchema();
 
-  // two days inside the same ISO week (Mon 2026-07-20 + Wed 2026-07-22), one
-  // other old day, and one young day that must survive untouched
+  // two analytics_api days inside the same ISO week (Mon 2026-07-20 +
+  // Wed 2026-07-22), one old data_api lifetime-counter row, and young rows
+  // of both sources that must survive untouched
   await store.upsertWindow([
     dailyRow('quotequarry', '2026-07-20', 'analytics_api', 100, { watchHours: 2, subsDelta: 1 }),
     dailyRow('quotequarry', '2026-07-22', 'analytics_api', 50, { watchHours: 1, subsDelta: 2 }),
-    dailyRow('quotequarry', '2026-07-25', 'data_api', 7),
+    dailyRow('quotequarry', '2026-07-25', 'data_api', 7, { perVideo: { vid1: { views: 7 } } }),
     dailyRow('quotequarry', '2026-10-20', 'analytics_api', 999),
+    dailyRow('quotequarry', '2026-10-25', 'data_api', 4000, { perVideo: { vid2: { views: 4000 } } }),
   ]);
 
   const r = await store.rollup({ today: new Date(TODAY + 'T12:00:00Z') });
   assert.equal(r.ok, true);
+  assert.equal(fx.beginCalls, 1, 'fold + delete share ONE transaction (round 1 IMPORTANT 4)');
 
   const rows = [...fx.snapshots().values()];
   const weekly = rows.filter((r) => r.source === 'weekly_rollup');
-  assert.equal(weekly.length, 1, 'the three old days fold into ONE week (Mon 2026-07-20)');
+  assert.equal(weekly.length, 1, 'the analytics_api old days fold into ONE week (Mon 2026-07-20)');
   assert.equal(weekly[0].date, '2026-07-20');
   assert.equal(weekly[0].channel_id, 'quotequarry');
-  assert.equal(Number(weekly[0].views), 157, '100 + 50 + 7 summed');
+  assert.equal(Number(weekly[0].views), 150, 'per-day truth only: 100 + 50 — the data_api lifetime row (7) NEVER enters metric sums');
   assert.equal(Number(weekly[0].subs_delta), 3);
   assert.ok(
     !rows.some((r) => ['analytics_api', 'data_api'].includes(r.source) && ['2026-07-20', '2026-07-22', '2026-07-25'].includes(r.date)),
-    'rolled raw daily rows deleted (the weekly_rollup row legitimately lives at the week start)',
+    'old raw daily rows of BOTH sources deleted (the weekly_rollup row legitimately lives at the week start)',
   );
 
-  // young daily row (>90d retention boundary NOT reached) survives untouched
+  // young daily rows (90d retention boundary NOT reached) survive untouched
   const young = rows.find((r) => r.date === '2026-10-20');
-  assert.ok(young, 'recent daily row kept');
-  assert.equal(young.source, 'analytics_api');
+  assert.ok(young, 'recent analytics_api row kept');
   assert.equal(young.views, 999);
+  const youngCensus = rows.find((r) => r.date === '2026-10-25' && r.source === 'data_api');
+  assert.ok(youngCensus, 'recent data_api census row kept (per-video counters are a recent-window concern only)');
 
   // idempotent: a second rollup must not double the weekly sums
   await store.rollup({ today: new Date(TODAY + 'T12:00:00Z') });
   const weekly2 = [...fx.snapshots().values()].filter((r) => r.source === 'weekly_rollup');
   assert.equal(weekly2.length, 1);
-  assert.equal(Number(weekly2[0].views), 157, 'no double counting on re-run');
+  assert.equal(Number(weekly2[0].views), 150, 'no double counting on re-run');
 });
 
 test('leaderboardWindow ranks channels over the settle window ending D-2 with trend vs the previous window (D21/AC-P4-25/26)', async () => {
@@ -401,14 +420,36 @@ test('leaderboardWindow ranks channels over the settle window ending D-2 with tr
   assert.equal(board.rows[1].prevViews, 35);
   assert.equal(board.rows[1].trendPct, 100);
 
-  // zero-snapshot run: clean empty leaderboard with a null stamp (D21 empty state)
+  // zero-snapshot run: clean empty leaderboard with a NULL stamp (round 1
+  // MINOR 8 — no "data through" alongside "No snapshots yet")
   const fx2 = makeStubClient();
   const store2 = makeAnalyticsStore(fx2.client);
   await store2.ensureAnalyticsSchema();
   const empty = await store2.leaderboardWindow(7, { today: new Date(TODAY + 'T12:00:00Z') });
   assert.equal(empty.ok, true);
   assert.deepEqual(empty.rows, []);
-  assert.equal(empty.dataThrough, '2026-10-28');
+  assert.equal(empty.dataThrough, null, 'no stamp when there is no data');
+});
+
+test('leaderboardWindow IGNORES data_api-only dates for per-day metrics (round 1 CRITICAL 3 — a census date is not a traffic day)', async () => {
+  const fx = makeStubClient();
+  const store = makeAnalyticsStore(fx.client);
+  await store.ensureAnalyticsSchema();
+
+  // The Analytics API omits zero-traffic days but the nightly census writes a
+  // data_api row for EVERY collected date: its views column is the whole
+  // top-50 lifetime sum — injecting it as ONE day's views would dwarf the
+  // real per-day numbers.
+  await store.upsertWindow([
+    dailyRow('gamma', '2026-10-23', 'analytics_api', 40),
+    dailyRow('gamma', '2026-10-24', 'data_api', 500000, { perVideo: { v1: { views: 500000 } } }), // census-only date
+    dailyRow('gamma', '2026-10-25', 'analytics_api', 30),
+  ]);
+
+  const board = await store.leaderboardWindow(7, { today: new Date(TODAY + 'T12:00:00Z') });
+  assert.equal(board.ok, true);
+  const gamma = board.rows.find((r) => r.channelId === 'gamma');
+  assert.equal(gamma.views, 70, 'only the analytics_api per-day rows count — the 500,000 lifetime sum is invisible');
 });
 
 test('winRates returns an empty result set cleanly while the S4 scripts table does not exist (L6/OQ-7)', async () => {
@@ -422,6 +463,50 @@ test('winRates returns an empty result set cleanly while the S4 scripts table do
   assert.deepEqual(wr.templates, []);
   assert.deepEqual(wr.topics, []);
   // studio renders this as "no data yet — fills as Phase 4 S4 lands"
+});
+
+test('winRates reads each video from its LATEST census row, settles 7 days, and scopes to owned channels (round 1 CRITICAL 1 + IMPORTANT 5/6b)', async () => {
+  const d30 = new Date(Date.now() - 30 * 86400000).toISOString(); // settled
+  const d1 = new Date(Date.now() - 1 * 86400000).toISOString(); // too fresh to rank
+  const fx = makeStubClient({
+    scriptsTable: 'scripts',
+    scriptRows: [
+      { template_id: 'finance-doc', video_id: 'vidX', topic: 'debt', channel_id: 'alpha' },
+      { template_id: 'calm-short', video_id: 'vidY', topic: 'sleep', channel_id: 'alpha' },
+      { template_id: 'other-niche', video_id: 'vidZ', topic: 'taxes', channel_id: 'beta' },
+    ],
+  });
+  const store = makeAnalyticsStore(fx.client);
+  await store.ensureAnalyticsSchema();
+
+  // the census re-reports LIFETIME counters nightly: the same video appears
+  // in 3 nightly rows with GROWING views — summing would inflate ~N-fold
+  await store.upsertWindow([
+    dailyRow('alpha', '2026-10-25', 'data_api', 60, { perVideo: { vidX: { views: 10, publishedAt: d30 }, vidY: { views: 500, publishedAt: d1 } } }),
+    dailyRow('alpha', '2026-10-26', 'data_api', 80, { perVideo: { vidX: { views: 20, publishedAt: d30 }, vidY: { views: 800, publishedAt: d1 } } }),
+    dailyRow('alpha', '2026-10-27', 'data_api', 100, { perVideo: { vidX: { views: 30, publishedAt: d30 }, vidY: { views: 1000, publishedAt: d1 } } }),
+    dailyRow('beta', '2026-10-27', 'data_api', 70, { perVideo: { vidZ: { views: 70, publishedAt: d30 } } }),
+  ]);
+
+  const wr = await store.winRates();
+  assert.equal(wr.ok, true);
+  assert.equal(wr.available, true);
+  const fin = wr.templates.find((t) => t.key === 'finance-doc');
+  assert.ok(fin, 'settled template shows up');
+  assert.equal(fin.published, 1);
+  assert.equal(fin.views, 30, 'value from the NEWEST census row (30), never the nightly sum (10+20+30=60)');
+  assert.equal(fin.views, 30);
+  assert.ok(!wr.templates.some((t) => t.key === 'calm-short'), 'video published 1 day ago is excluded — 7-day settle (AC-P4-25/D21)');
+
+  const debtTopic = wr.topics.find((t) => t.key === 'debt');
+  assert.equal(debtTopic?.views, 30, 'topics derive from the same latest-wins views');
+
+  // client scoping (round 1 IMPORTANT 6b): a non-owner's owned list hides
+  // other channels' scripts entirely
+  const scoped = await store.winRates({ channelIds: ['beta'] });
+  assert.deepEqual(scoped.templates.map((t) => t.key), ['other-niche']);
+  const none = await store.winRates({ channelIds: [] });
+  assert.deepEqual(none.templates, [], 'empty owned list (fail-closed) yields an empty result, not everything');
 });
 
 test('recordProbe + latestProbes expose each channel’s latest scope-probe outcome (D19 re-auth checklist)', async () => {

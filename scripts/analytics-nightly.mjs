@@ -118,7 +118,12 @@ async function collectChannel({ slug, accessToken, store, fetchImpl, window }) {
   try {
     token = await accessToken(slug);
   } catch (e) {
-    await store.recordProbe({ channelId: slug, ok: false, hasScope: false, error: `token_refresh_failed: ${String(e.message).slice(0, 100)}` });
+    // NO probe-log write here (round 1 IMPORTANT 6c): the probe log means
+    // "latest SCOPE verdict" — a token failure never learned anything about
+    // scope, and the re-auth checklist reads has_scope=false. The channel
+    // keeps its previous probe state; the [warn] line + T4 warnings are the
+    // record for this failure class.
+    console.log(`[warn] token_refresh_failed slug=${slug} — channel skipped (${String(e.message).slice(0, 100)})`);
     return { slug, ok: false, skipped: true, reason: 'token_refresh_failed' };
   }
 
@@ -128,8 +133,11 @@ async function collectChannel({ slug, accessToken, store, fetchImpl, window }) {
     await store.recordProbe({ channelId: slug, ok: true, hasScope: true });
   } catch (e) {
     const kind = classifyProbeOutcome(e);
-    await store.recordProbe({ channelId: slug, ok: false, hasScope: false, error: String(e.message).slice(0, 200) });
     if (kind === 'scope_missing') {
+      // The ONLY probe failure that writes has_scope=false (and so lands on
+      // the Studio re-auth checklist). Transient 5xx/401 below do NOT — they
+      // say nothing about the scope.
+      await store.recordProbe({ channelId: slug, ok: false, hasScope: false, error: String(e.message).slice(0, 200) });
       // TODO(#106-T4): when lib/warnings-store.mjs lands (S3/T4, in parallel
       // with this task), ALSO write the durable warning row here:
       //   writeWarning({ code: 'analytics_scope_missing', severity: 'warning',
@@ -172,12 +180,25 @@ async function collectChannel({ slug, accessToken, store, fetchImpl, window }) {
     const uploads = ch.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
     if (uploads) {
       const pl = await dataApi(fetchImpl, token, 'playlistItems', { part: 'contentDetails', playlistId: uploads, maxResults: '50' });
-      const ids = (pl.items || []).map((i) => i.contentDetails?.videoId).filter(Boolean).slice(0, 50);
+      // videoPublishedAt rides on the playlist item — recorded per video so
+      // win rates can enforce the 7-day settle (AC-P4-25/D21)
+      const publishedAtById = {};
+      const ids = [];
+      for (const item of pl.items || []) {
+        const vid = item.contentDetails?.videoId;
+        if (!vid || ids.length >= 50) continue;
+        ids.push(vid);
+        publishedAtById[vid] = item.contentDetails.videoPublishedAt || null;
+      }
       const perVideo = {};
       for (let i = 0; i < ids.length; i += 50) {
         const vs = await dataApi(fetchImpl, token, 'videos', { part: 'statistics,snippet', id: ids.slice(i, i + 50).join(',') });
         for (const v of vs.items || []) {
-          perVideo[v.id] = { views: Number(v.statistics?.viewCount || 0), title: String(v.snippet?.title || '').slice(0, 120) };
+          perVideo[v.id] = {
+            views: Number(v.statistics?.viewCount || 0),
+            title: String(v.snippet?.title || '').slice(0, 120),
+            publishedAt: publishedAtById[v.id] || null,
+          };
         }
       }
       const boundedUpsert = await store.upsertWindow([

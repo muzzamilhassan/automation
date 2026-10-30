@@ -138,6 +138,7 @@ export default function Analytics() {
   const winRates = snap?.winRates || null;
   const winRows = winRates?.available ? [...(winRates.templates || []).map((t) => ({ ...t, kind: 'template' })), ...(winRates.topics || []).map((t) => ({ ...t, kind: 'topic' }))] : [];
   const brandOf = (slug) => BRAND_META[slug] || { short: (slug || '•').slice(0, 2).toUpperCase(), accent: 'var(--faint)' };
+  const isOwner = snap?.viewerRole === 'owner'; // the oauth start route is owner-only
 
   return (
     <div>
@@ -269,14 +270,18 @@ export default function Analytics() {
                     {c.error || 'scope missing'}{c.checkedAt ? ` · probed ${String(c.checkedAt).slice(0, 10)}` : ''}
                   </span>
                 </span>
-                <Button
-                  color="secondary"
-                  onClick={() => startReAuth(c.slug)}
-                  isDisabled={reAuthing === c.slug}
-                  iconLeading={<RefreshCw size={14} className={reAuthing === c.slug ? 'animate-spin' : ''} />}
-                >
-                  Re-auth
-                </Button>
+                {isOwner ? (
+                  <Button
+                    color="secondary"
+                    onClick={() => startReAuth(c.slug)}
+                    isDisabled={reAuthing === c.slug}
+                    iconLeading={<RefreshCw size={14} className={reAuthing === c.slug ? 'animate-spin' : ''} />}
+                  >
+                    Re-auth
+                  </Button>
+                ) : (
+                  <Chip tone="warn">owner action required</Chip>
+                )}
               </div>
             ))}
           </div>
