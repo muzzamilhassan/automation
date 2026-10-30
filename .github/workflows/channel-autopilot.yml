@@ -35,6 +35,7 @@ on:
 permissions:
   contents: write
   issues: write # verify-run second alert channel (#91)
+  actions: read # clips self-feed run-scan (post-next #101 empty-queue rebuild)
 
 jobs:
   discover:

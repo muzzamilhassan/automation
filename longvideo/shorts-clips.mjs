@@ -496,7 +496,7 @@ async function postNext() {
   // archive the render (09-14 pattern) so the clip is never YouTube-dependent
   try {
     if (process.env.GH_TOKEN || process.env.GITHUB_PAT) {
-      const { archiveUpload } = await import('./yt-archive.mjs');
+      const { archiveUpload } = await import('../yt-archive.mjs');
       await archiveUpload(videoId, file, (m) => log('  ' + m));
     }
   } catch (e) { log(`  [archive] skipped: ${String(e.message).slice(0, 60)}`); }
