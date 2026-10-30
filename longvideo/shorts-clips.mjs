@@ -149,12 +149,14 @@ function cutClip(videoFile, out, startSec, durSec, assFile, cardPng) {
 // Uploads the cut clips to the Release `clips-<slug>-<docRunId>` (09-14 archive
 // pattern — the publisher never re-downloads from YouTube) and maps them to
 // queue entries. Runs whenever the queue must be Release-backed: artifact mode,
-// or --local --archive in CI (#96). Each asset POST retries 3× (2s backoff) and
-// a clip that never uploads is DROPPED with a loud [alert] — a queued entry
-// without a servable url fails forever with "neither a local file nor a
-// Release asset URL" once the runner that cut it is gone. Pure --local dev
+// or --local --archive in CI (#96). Each asset POST retries 3× (2s backoff;
+// thrown fetch errors count as failed attempts) and a clip that never uploads
+// is DROPPED with a loud [alert] log + ntfy — a queued entry without a
+// servable url fails forever with "neither a local file nor a Release asset
+// URL" once the runner that cut it is gone. If the Release itself can't be
+// created/found the run fails loudly (no unhandled throw). Pure --local dev
 // mode (archive=false) skips the Release entirely and queues file: paths.
-export async function archiveAndMapClips({ slug, docRunId, clips, archive, local, backoffMs = 2000, tok = TOK, repo = REPO, log = (m) => console.log(m), fetchImpl = fetch }) {
+export async function archiveAndMapClips({ slug, docRunId, clips, archive, local, backoffMs = 2000, tok = TOK, repo = REPO, log = (m) => console.log(m), alert = sendAlert, fetchImpl = fetch }) {
   if (archive) {
     const tag = `clips-${slug}-${docRunId}`;
     const ghApi = async (pathname) => {
@@ -167,12 +169,16 @@ export async function archiveAndMapClips({ slug, docRunId, clips, archive, local
     let rel = null;
     try { rel = await ghApi(`releases/tags/${tag}`); } catch { }
     if (!rel || !rel.id) {
-      const cr = await fetchImpl(`https://api.github.com/repos/${repo}/releases`, {
-        method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json', 'User-Agent': 'quarry-clips' },
-        body: JSON.stringify({ tag_name: tag, name: `Clips ${slug} ${docRunId}`, body: `Vertical Shorts candidates from doc run ${docRunId} (#97).` }),
-      });
-      rel = cr.ok ? await cr.json() : await ghApi(`releases/tags/${tag}`);
+      try {
+        const cr = await fetchImpl(`https://api.github.com/repos/${repo}/releases`, {
+          method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json', 'User-Agent': 'quarry-clips' },
+          body: JSON.stringify({ tag_name: tag, name: `Clips ${slug} ${docRunId}`, body: `Vertical Shorts candidates from doc run ${docRunId} (#97).` }),
+        });
+        rel = cr.ok ? await cr.json() : await ghApi(`releases/tags/${tag}`);
+      } catch { }
+      if (!rel || !rel.id) await fail(`Release ${tag} unavailable (create + lookup failed) — clips cannot be archived`);
     }
+    const dropped = [];
     const kept = [];
     for (const c of clips) {
       const name = path.basename(c.file);
@@ -180,19 +186,33 @@ export async function archiveAndMapClips({ slug, docRunId, clips, archive, local
       if (existing) { c.asset = existing.name; c.url = existing.url; kept.push(c); continue; }
       let up = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
-        up = await fetchImpl(`https://uploads.github.com/repos/${repo}/releases/${rel.id}/assets?name=${name}`, {
-          method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/octet-stream', 'User-Agent': 'quarry-clips' }, body: fs.readFileSync(c.file),
-        });
-        if (up.ok) break;
-        if (attempt < 3) { log(`[warn] asset upload attempt ${attempt}/3 failed for ${name} (HTTP ${up.status}) — retrying`); await new Promise((r) => setTimeout(r, backoffMs)); }
+        try {
+          up = await fetchImpl(`https://uploads.github.com/repos/${repo}/releases/${rel.id}/assets?name=${name}`, {
+            method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/octet-stream', 'User-Agent': 'quarry-clips' }, body: fs.readFileSync(c.file),
+          });
+        } catch (e) {
+          up = null; // a thrown fetch (ECONNRESET on a 25-60MB body) = failed attempt
+          log(`[warn] asset upload attempt ${attempt}/3 threw for ${name}: ${String(e.message).slice(0, 80)}`);
+        }
+        if (up && up.ok) break;
+        if (attempt < 3) { log(`[warn] asset upload attempt ${attempt}/3 failed for ${name}${up ? ` (HTTP ${up.status})` : ''} — retrying`); await new Promise((r) => setTimeout(r, backoffMs)); }
       }
       if (!up || !up.ok) {
+        dropped.push(c);
         log(`[alert] DROPPED part ${c.part} "${c.title}" — Release asset ${name} failed to upload after 3 attempts; queueing it would fail forever with "neither a local file nor a Release asset URL"`);
         continue;
       }
       const asset = await up.json();
       c.asset = asset.name; c.url = asset.url;
       kept.push(c);
+    }
+    if (dropped.length) {
+      // the #96 orphaned-clip failure mode was DISCOVERED via ntfy — a drop
+      // must push too (sendAlert never throws; the queue save must not die here)
+      await alert({
+        text: `${slug} clips: DROPPED ${dropped.map((c) => `part ${c.part} "${c.title}"`).join(', ')} — Release asset upload failed after 3 attempts. ${kept.length}/${clips.length} clips queued.`,
+        title: `[${slug}] clips: ${dropped.length} clip(s) dropped — Release upload failed`,
+      });
     }
     clips = kept;
   }
@@ -312,6 +332,12 @@ if (!clips.length) await fail('zero clips encoded');
 // CI; failed uploads are DROPPED with a loud [alert] in every Release-backed
 // mode — never queue an entry without a servable url.
 const entries = await archiveAndMapClips({ slug, docRunId, clips, archive: !localDir || archiveMode, local: !!localDir, log });
+// #96 review r1: an ALL-fail batch must fail loudly BEFORE saveChannelState —
+// saving it would append the run to doneRuns (artifact path: marked
+// "already clipped" forever) and arm Phase 5b's fedToday guard against a
+// same-day retry, while post-next's empty queue is a silent skip on fresh docs.
+// The per-clip drops were already ntfy'd inside the uploader.
+if (entries.length === 0) await fail(`all ${clips.length} clips failed Release upload`);
 
 // queue into the channel state (publisher #98 consumes it)
 st.clipQueue = {
@@ -479,5 +505,3 @@ async function postNext() {
   const v = spawnSync('node', ['verify-run.mjs', slug], { stdio: 'inherit', timeout: 300000 });
   process.exit(v.status || 0);
 }
-
-if (IS_MAIN && MODE === 'post-next') await postNext();

@@ -15,7 +15,7 @@
 // 4. publisher fallback → one on-the-fly Release lookup by
 //    `clips-<slug>-<lastRunId>` before the clean failure.
 // 5. the pipeline flag → CI adds --archive, dev does not.
-import { test, describe } from 'node:test';
+import { test, describe, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -43,6 +43,12 @@ function tmpClipFile(name) {
   fs.writeFileSync(file, Buffer.alloc(2048, 7));
   return file;
 }
+after(() => { for (const d of tmpDirs.splice(0)) fs.rmSync(d, { recursive: true, force: true }); });
+
+// Drop tests must never hit the real ntfy (loadEnv may load NTFY_TOPIC) —
+// this recorder doubles as the assertion target for the MUST-alert contract.
+const alerts = [];
+function alertRecorder(a) { alerts.push(a); return Promise.resolve({ channel: 'ntfy', ok: true }); }
 
 const mkClips = (files) => files.map((f, i) => ({ part: i + 1, file: f, title: `Title ${i + 1}`, startSec: 10 + i, durSec: 30 }));
 
@@ -130,9 +136,10 @@ describe('#96 pure --local dev mode is untouched', () => {
 // ===========================================================================
 
 describe('#96 upload hardening: a clip with no servable url never reaches the queue', () => {
-  test('upload failing 3x ⇒ exactly 3 attempts, clip dropped, loud [alert] logged', async () => {
+  test('upload failing 3x ⇒ exactly 3 attempts, clip dropped, [alert] logged + ntfy fired', async () => {
     let uploads = 0;
     const logs = [];
+    alerts.length = 0;
     const { fetchImpl } = stubFetch([
       ['uploads.github.com', () => { uploads++; return { ok: false, status: 502 }; }],
       ['releases/tags', () => ({ ok: false, status: 404 })],
@@ -140,18 +147,25 @@ describe('#96 upload hardening: a clip with no servable url never reaches the qu
     ]);
     const entries = await archiveAndMapClips({
       slug: 's', docRunId: 'd', clips: mkClips([tmpClipFile('clip-01.mp4')]),
-      archive: true, local: true, backoffMs: 1, log: (m) => logs.push(m), fetchImpl,
+      archive: true, local: true, backoffMs: 1, log: (m) => logs.push(m), alert: alertRecorder, fetchImpl,
     });
     assert.equal(uploads, 3, 'retry budget: 3 attempts, no more');
     assert.equal(entries.length, 0, 'failed clip dropped from the queue');
-    const alert = logs.find((l) => l.includes('[alert]'));
-    assert.ok(alert, 'a loud [alert] line was logged');
-    assert.ok(alert.includes('part 1') && alert.includes('Title 1'), `alert names the dropped clip: ${alert}`);
+    const logAlert = logs.find((l) => l.includes('[alert]'));
+    assert.ok(logAlert, 'a loud [alert] line was logged');
+    assert.ok(logAlert.includes('part 1') && logAlert.includes('Title 1'), `alert names the dropped clip: ${logAlert}`);
+    // the failure mode was DISCOVERED via ntfy — a drop must push, naming the
+    // dropped part/title and the remaining count
+    assert.equal(alerts.length, 1, 'exactly one ntfy alert for the drop');
+    assert.equal(alerts[0].title, '[s] clips: 1 clip(s) dropped — Release upload failed');
+    assert.ok(alerts[0].text.includes('part 1 "Title 1"'), `alert text names part+title: ${alerts[0].text}`);
+    assert.ok(alerts[0].text.includes('0/1 clips queued.'), `alert text carries the remaining count: ${alerts[0].text}`);
   });
 
   test('mixed: one clip uploads, one fails ⇒ only the servable one is queued (artifact path too)', async () => {
     let uploads = 0;
     const logs = [];
+    alerts.length = 0;
     const { fetchImpl } = stubFetch([
       ['uploads.github.com', ({ url }) => (url.includes('name=clip-01.mp4')
         ? { ok: true, status: 201, json: async () => ({ name: 'clip-01.mp4', url: 'u-01' }) }
@@ -162,15 +176,70 @@ describe('#96 upload hardening: a clip with no servable url never reaches the qu
     // artifact-scan path (local: false) — the same hardening must apply there
     const entries = await archiveAndMapClips({
       slug: 's', docRunId: '424242', clips: mkClips([tmpClipFile('clip-01.mp4'), tmpClipFile('clip-02.mp4')]),
-      archive: true, local: false, backoffMs: 1, log: (m) => logs.push(m), fetchImpl,
+      archive: true, local: false, backoffMs: 1, log: (m) => logs.push(m), alert: alertRecorder, fetchImpl,
     });
     assert.equal(uploads, 3, 'clip-02 retried 3x');
     assert.equal(entries.length, 1, 'only the servable clip queued');
     assert.deepEqual(entries[0], {
       part: 1, title: 'Title 1', startSec: 10, durSec: 30, asset: 'clip-01.mp4', url: 'u-01', file: undefined,
     }, 'artifact-path entries stay file-less');
-    assert.ok(logs.some((l) => l.includes('[alert]') && l.includes('part 2')), 'drop alerted');
+    assert.ok(logs.some((l) => l.includes('[alert]') && l.includes('part 2')), 'drop logged');
+    assert.equal(alerts.length, 1, 'partial drop ntfy fired');
+    assert.ok(alerts[0].text.includes('part 2 "Title 2"'), `alert names the dropped clip: ${alerts[0].text}`);
+    assert.ok(alerts[0].text.includes('1/2 clips queued.'), `remaining count in the alert: ${alerts[0].text}`);
     for (const e of entries) assert.ok(e.url, 'every queued entry has a servable url');
+  });
+
+  test('a THROWN fetch (ECONNRESET on a 25MB body) counts as a failed attempt, not an escape', async () => {
+    let uploads = 0;
+    alerts.length = 0;
+    const logs = [];
+    const { fetchImpl } = stubFetch([
+      ['uploads.github.com', () => { uploads++; throw new Error('ECONNRESET'); }],
+      ['releases/tags', () => ({ ok: false, status: 404 })],
+      ['api.github.com', () => ({ ok: true, status: 201, json: async () => ({ id: 555, assets: [] }) })],
+    ]);
+    const entries = await archiveAndMapClips({
+      slug: 's', docRunId: 'd', clips: mkClips([tmpClipFile('clip-01.mp4')]),
+      archive: true, local: true, backoffMs: 1, log: (m) => logs.push(m), alert: alertRecorder, fetchImpl,
+    });
+    assert.equal(uploads, 3, 'throwing fetch exhausts the same 3-attempt budget');
+    assert.equal(entries.length, 0, 'clip dropped, no unhandled rejection');
+    assert.equal(alerts.length, 1, 'drop still ntfy’d');
+    assert.ok(logs.some((l) => l.includes('threw for clip-01.mp4') && l.includes('ECONNRESET')), 'throw logged as a failed attempt');
+  });
+
+  test('throw once, then succeed ⇒ clip kept (transient network blips do not drop)', async () => {
+    let uploads = 0;
+    alerts.length = 0;
+    const { fetchImpl } = stubFetch([
+      ['uploads.github.com', () => { if (++uploads === 1) throw new Error('ECONNRESET'); return { ok: true, status: 201, json: async () => ({ name: 'clip-01.mp4', url: 'u-01' }) }; }],
+      ['releases/tags', () => ({ ok: false, status: 404 })],
+      ['api.github.com', () => ({ ok: true, status: 201, json: async () => ({ id: 555, assets: [] }) })],
+    ]);
+    const entries = await archiveAndMapClips({
+      slug: 's', docRunId: 'd', clips: mkClips([tmpClipFile('clip-01.mp4')]),
+      archive: true, local: true, backoffMs: 1, log: () => { }, alert: alertRecorder, fetchImpl,
+    });
+    assert.equal(uploads, 2, 'retried after the throw');
+    assert.equal(entries.length, 1, 'clip kept');
+    assert.equal(entries[0].url, 'u-01');
+    assert.equal(alerts.length, 0, 'no drop alert when everything lands');
+  });
+
+  test('release create AND fallback lookup fail ⇒ loud fail() (no unhandled throw)', async () => {
+    const { calls, fetchImpl } = stubFetch([
+      ['releases/tags', () => ({ ok: false, status: 500 })],
+      ['api.github.com', () => ({ ok: false, status: 500 })],
+    ]);
+    await assert.rejects(
+      () => archiveAndMapClips({
+        slug: 's', docRunId: 'd', clips: mkClips([tmpClipFile('clip-01.mp4')]),
+        archive: true, local: true, backoffMs: 1, log: () => { }, alert: alertRecorder, fetchImpl,
+      }),
+      /clips-s-d unavailable \(create \+ lookup failed\)/,
+    );
+    assert.equal(calls.filter((c) => c.url.includes('uploads.github.com')).length, 0, 'no uploads attempted against a missing release');
   });
 });
 
@@ -235,5 +304,26 @@ describe('#96 pipeline wiring: doc-day ensure-queue gains --archive in CI', () =
   test('channel-pipeline passes ci: GITHUB_ACTIONS === "true" to the args builder', () => {
     const src = fs.readFileSync(new URL('../channel-pipeline.mjs', import.meta.url), 'utf8');
     assert.match(src, /ensureQueueArgs\(\{\s*slug,\s*feedDir,\s*ci:\s*process\.env\.GITHUB_ACTIONS === 'true'\s*\}\)/);
+  });
+});
+
+// ===========================================================================
+// review r1: load-bearing expressions pinned (a one-token "cleanup" revert
+// reintroduces #96 with every behavior test still green)
+// ===========================================================================
+
+describe('#96 review r1: load-bearing expressions pinned in shorts-clips.mjs', () => {
+  test('ensureQueue dispatches the Release archive with `!localDir || archiveMode`', () => {
+    const src = fs.readFileSync(new URL('../longvideo/shorts-clips.mjs', import.meta.url), 'utf8');
+    assert.match(src, /archive:\s*!localDir \|\| archiveMode/);
+  });
+
+  test('an ALL-fail upload batch fails loudly BEFORE saveChannelState (run stays un-marked)', () => {
+    const src = fs.readFileSync(new URL('../longvideo/shorts-clips.mjs', import.meta.url), 'utf8');
+    assert.match(src, /if \(entries\.length === 0\) await fail\(`all \$\{clips\.length\} clips failed Release upload`\);/);
+    // and the save must come after the guard, not before it
+    const guardAt = src.indexOf('if (entries.length === 0) await fail(');
+    const saveAt = src.indexOf('saveChannelState(slug, st);', guardAt);
+    assert.ok(saveAt > guardAt, 'saveChannelState must run after the all-fail guard');
   });
 });
