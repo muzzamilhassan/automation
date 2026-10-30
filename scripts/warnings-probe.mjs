@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 // Thin runner over lib/warnings-probe.mjs for .github/workflows/warning-probe.yml
-// (Phase 4 T4 — spec D11 / AC-P4-14). Nightly: re-test every parked channel
-// with its cheap auto-verifiable probe (token_revoked = refresh + 1-unit
+// (Phase 4 T4 — spec D11 / AC-P4-14). The workflow runs one matrix lane per
+// registry channel (no static channel map — yt-mcp/studio-channels.json is
+// the source of truth, mirror of channel-autopilot's discover job): each lane
+// passes its slug as argv[2] and re-tests THAT channel's parked warnings with
+// the cheap auto-verifiable probe (token_revoked = refresh + 1-unit
 // channels.list); a pass auto-resolves the warning (resolved_by='probe') and
-// the channel un-parks by morning. Probe activity is log-only — it never
+// the channel un-parks by morning. Bare invocation (no arg) probes every
+// parked channel — local use. Probe activity is log-only — it never
 // re-alerts (once per park EPISODE, D11).
 // DB-down day: no probe enumeration is possible; ntfy still fires (the
 // fallback channel) and the job exits 1 — AC-P4-5 degradation posture.
@@ -16,6 +20,8 @@ import { sendAlert } from '../lib/ntfy-alert.mjs';
 loadEnv();
 
 const log = console.log;
+const arg = (process.argv[2] || '').trim();
+const channelId = arg && !arg.startsWith('-') ? arg : null;
 
 try {
   const { getDefaultWarningsStore } = await import('../lib/warnings-store.mjs');
@@ -34,6 +40,7 @@ try {
 
   const r = await probeParkedChannels({
     store,
+    channelId,
     clientId: process.env.YOUTUBE_CLIENT_ID,
     clientSecret: process.env.YOUTUBE_CLIENT_SECRET,
     log,
@@ -42,7 +49,7 @@ try {
     log(`[warning-probe] probe run failed: ${r.error}`);
     await sendAlert({
       title: 'warning-probe: run failed',
-      text: `Nightly warning probe failed to enumerate/run probes: ${r.error}. Parked channels were NOT re-tested tonight.`,
+      text: `Nightly warning probe failed to enumerate/run probes${channelId ? ` for ${channelId}` : ''}: ${r.error}. Parked channels were NOT re-tested tonight.`,
       issueTitle: 'warning-probe: run failed (nightly job)',
     });
     process.exit(1);
@@ -50,7 +57,7 @@ try {
 
   const resolved = r.results.filter((x) => x.resolved).length;
   const failed = r.results.filter((x) => !x.passed).length;
-  log(`[warning-probe] done: ${r.openBlocking} open blocking row(s), ${r.checked} probed, ${resolved} auto-resolved, ${failed} still failing`);
+  log(`[warning-probe] done${channelId ? ` (${channelId})` : ''}: ${r.openBlocking} open blocking row(s), ${r.checked} probed, ${resolved} auto-resolved, ${failed} still failing`);
   process.exit(0);
 } catch (e) {
   log(`[warning-probe] unexpected runner failure: ${String(e && e.message ? e.message : e).slice(0, 160)}`);

@@ -1,3 +1,10 @@
+# Phase 4 T4 — parked-channel liveness (spec D11, AC-P4-14; review finding 1:
+# parking must never deadlock). One matrix lane per registry channel — the
+# registry (yt-mcp/studio-channels.json) is the source of truth, NO static
+# channel map (channels scale with zero code changes; a channel 5 with a saved
+# token heals like the others). Tokens: secret YT_TOKEN_<SLUG>, <SLUG> =
+# slug uppercased with dashes -> underscores — resolved DYNAMICALLY per lane
+# via secrets[format('YT_TOKEN_{0}', envSlug)] (mirror of channel-autopilot).
 name: 🚑 Warning probes (parked channels)
 
 on:
@@ -5,16 +12,51 @@ on:
     # 05:41 UTC = off-peak slot: after the nightly production window
     # (02:13-03:53 UTC) and ~11h before the 16:45 reporting lane. Re-tests
     # every parked channel so a fixed token un-parks its channel by morning
-    # without anyone touching anything (Phase 4 spec D11, AC-P4-14).
+    # without anyone touching anything.
     - cron: '41 5 * * *'
   workflow_dispatch:
 
-concurrency:
-  group: warning-probe
-  cancel-in-progress: false
+# Least privilege: read the repo; open/comment issues as the durable second
+# alert channel when the store itself is unreachable (AC-P4-5).
+permissions:
+  contents: read
+  issues: write
 
 jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      channels: ${{ steps.disc.outputs.channels }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🔎 Read the channel registry (active + token channels)
+        id: disc
+        run: |
+          node -e "
+            const fs = require('fs');
+            let chans = [];
+            try {
+              const reg = JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8'));
+              chans = (reg.channels || [])
+                .filter(c => c.active !== false && c.tokenSecretSaved !== false)
+                .map(c => ({ slug: c.slug, envSlug: c.slug.toUpperCase().replace(/-/g, '_') }));
+            } catch (e) { console.log('registry unreadable:', e.message); }
+            console.log(JSON.stringify(chans));
+            fs.writeFileSync(process.env.GITHUB_OUTPUT, 'channels=' + JSON.stringify(chans));
+          "
+
   probe:
+    needs: discover
+    if: ${{ needs.discover.outputs.channels != '[]' && needs.discover.outputs.channels != '' }}
+    strategy:
+      matrix:
+        slug: ${{ fromJSON(needs.discover.outputs.channels) }}
+      max-parallel: 5
+      fail-fast: false
+    concurrency:
+      group: warning-probe-${{ matrix.slug.slug }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -29,22 +71,32 @@ jobs:
       - name: 📦 Install Dependencies
         run: npm install
 
-      - name: 🚑 Probe parked channels (refresh + 1-unit channels.list each; auto-resolve on pass)
+      - name: 🔑 Resolve this channel's token (dynamic secret name — registry-driven)
         env:
-          # Warnings table (enumerates parked channels, stamps last_checked,
+          SLUG: ${{ matrix.slug.slug }}
+          DYN_TOKEN: ${{ secrets[format('YT_TOKEN_{0}', matrix.slug.envSlug)] }}
+        run: |
+          ENV_NAME="YT_TOKEN_$(echo "$SLUG" | tr '[:lower:]' '[:upper:]' | tr '-' '_')"
+          if [ -z "$DYN_TOKEN" ]; then
+            # A parked channel without a saved secret can't be probed tonight —
+            # surface it, but don't fail the night for the other lanes (the
+            # warning row keeps the channel parked; the runner records it).
+            echo "::warning::secret ${ENV_NAME} is missing — ${SLUG} cannot be probed"
+            exit 0
+          fi
+          echo "${ENV_NAME}=${DYN_TOKEN}" >> "$GITHUB_ENV"
+
+      - name: 🚑 Probe parked channel (refresh + 1-unit channels.list; auto-resolve on pass)
+        env:
+          SLUG: ${{ matrix.slug.slug }}
+          # Warnings table (enumerates parked rows, stamps last_checked,
           # auto-resolves passes) — same Neon the autopilot/brain jobs use.
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          # OAuth client + per-channel refresh tokens (the reporting-daily set).
-          # Token resolution: YT_TOKEN_<SLUG> env JSON, dashes → underscores.
+          # OAuth client for the refresh; NTFY/GH only for the store-unreachable
+          # fallback alert (probe activity itself never re-alerts, D11).
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-          YT_TOKEN_QUOTEQUARRY: ${{ secrets.YT_TOKEN_QUOTEQUARRY }}
-          YT_TOKEN_INVESTORS_COMPASS: ${{ secrets.YT_TOKEN_INVESTORS_COMPASS }}
-          YT_TOKEN_MONEY_RULEBOOK: ${{ secrets.YT_TOKEN_MONEY_RULEBOOK }}
-          YT_TOKEN_DEBT_FREE_DOCTRINE: ${{ secrets.YT_TOKEN_DEBT_FREE_DOCTRINE }}
-          # ntfy stays the push channel; GitHub issue is the second channel
-          # when the store itself is unreachable (AC-P4-5).
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: node scripts/warnings-probe.mjs
+        run: node scripts/warnings-probe.mjs "$SLUG"

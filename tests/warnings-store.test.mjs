@@ -25,11 +25,15 @@ function makeWarningsDb({ fail = false } = {}) {
     calls.push({ sql: sql.replace(/\s+/g, ' ').trim(), params });
     if (fail) throw new Error('db down');
     const s = sql.replace(/\s+/g, ' ').trim();
-    if (s.startsWith('CREATE ')) return [];
+    if (s.startsWith('CREATE ') || s.startsWith('DO ') || s.startsWith('ALTER ')) return [];
     if (s.startsWith('SELECT id, state FROM warnings WHERE dedupe_key')) {
       return rows
         .filter((r) => r.dedupe_key === params[0] && r.state !== 'resolved')
         .map((r) => ({ id: r.id, state: r.state }));
+    }
+    if (s.startsWith('SELECT state FROM warnings WHERE id')) {
+      const r = rows.find((x) => x.id === params[0]);
+      return r ? [{ id: r.id, state: r.state }] : [];
     }
     if (s.startsWith('INSERT INTO warnings')) {
       const m = s.match(/INSERT INTO warnings \(([^)]*)\)/);
@@ -88,17 +92,18 @@ function makeWarningsDb({ fail = false } = {}) {
 }
 
 // A blocking-severity row with the policy citation already attached (the
-// shape every publishing-path emitter must produce per §4.2).
+// shape every publishing-path emitter must produce per §4.2/D9).
 function tokenRevokedFields(over = {}) {
   return {
     channel_id: 'quotequarry',
     severity: 'blocking',
     code: 'token_revoked',
     title: 'OAuth token revoked — channel parked',
-    detail: 'YouTube rejected the refresh token; uploads are impossible until re-auth.',
+    explanation: 'YouTube rejected the refresh token; uploads are impossible until re-auth.',
     evidence: 'googleapis 401 {"error":"invalid_grant"}',
-    official_quote: 'If the request fails with invalid_grant, the refresh token has been revoked.',
-    official_source: 'https://developers.google.com/identity/protocols/oauth2',
+    policy_quote: 'If the request fails with invalid_grant, the refresh token has been revoked.',
+    policy_url: 'https://developers.google.com/identity/protocols/oauth2',
+    quote_fetched_at: '2026-10-30T00:00:00.000Z',
     auto_verifiable: true,
     blocks_publishing: true,
     ...over,
@@ -115,28 +120,58 @@ function alertRecorder() {
 
 // ---- severity ladder + emitter allowlist constants (policy §4.1 / H9) ----
 
-test('severity ladder is the policy §4.1 rungs the spec encodes, blocking above action_required', () => {
-  assert.deepEqual(SEVERITIES, ['advisory', 'warning', 'action_required', 'blocking', 'critical']);
-  assert.ok(SEVERITIES.indexOf('blocking') > SEVERITIES.indexOf('action_required'));
+test('severity ladder is EXACTLY spec D9 / policy §4.1 — no invented rungs', () => {
+  // D9 verbatim: "severity (Blocking | Action-required | Warning | Advisory |
+  // Informational — the §4.1 ladder)". Account suspension folds into blocking
+  // (D10 hard-block list); uploadStatus=terminated is action_required (§4.1).
+  // Membership is what the store validates — rank is never compared in code;
+  // the park contract is blocks_publishing, never a severity chip.
+  assert.deepEqual(SEVERITIES, ['advisory', 'warning', 'action_required', 'blocking', 'informational']);
+  assert.equal(SEVERITIES.includes('critical'), false);
 });
 
 test('publishing-path allowlist is exactly the spec H9 list', () => {
   assert.deepEqual([...PUBLISHING_PATH_CODES].sort(), ['token_revoked', 'upload_failed', 'verify_publication_missing']);
 });
 
-// ---- schema-on-write (makeUsageWriter house pattern, spec D1/D9) ----
+// ---- schema-on-write + the D9 ladder migration (makeUsageWriter pattern) ----
 
-test('schema-on-write: the first write ensures the warnings schema exactly once', async () => {
+test('schema-on-write: the first write ensures the warnings schema exactly once, D9 columns', async () => {
   const db = makeWarningsDb();
   const store = makeWarningsStore(db);
   await store.openWarning(tokenRevokedFields());
   await store.openWarning(tokenRevokedFields());
   const creates = db.calls.filter((c) => c.sql.startsWith('CREATE TABLE IF NOT EXISTS warnings'));
   assert.equal(creates.length, 1, 'ensure-schema must run once for N writes (memoized)');
-  assert.match(creates[0].sql, /dedupe_key TEXT NOT NULL/);
+  const ddl = creates[0].sql;
+  assert.match(ddl, /dedupe_key TEXT NOT NULL/);
+  assert.match(ddl, /policy_quote TEXT/);
+  assert.match(ddl, /policy_url TEXT/);
+  assert.match(ddl, /explanation TEXT/);
+  assert.match(ddl, /informational/);
+  assert.doesNotMatch(ddl, /critical/);
+  assert.doesNotMatch(ddl, /quote_fetched_at[^,]*DEFAULT/i, 'quote_fetched_at is the CALLER-provided fetch date, never DEFAULT now()');
   const uq = db.calls.filter((c) => c.sql.includes('warnings_dedupe_open_uq'));
   assert.equal(uq.length, 1, 'partial unique index (open-window dedupe) created with the schema');
   assert.match(uq[0].sql, /WHERE state <> 'resolved'/);
+});
+
+test('D9 ladder migration: a pre-review table with the deviant rung is re-constrained idempotently', async () => {
+  const db = makeWarningsDb();
+  const store = makeWarningsStore(db);
+  await store.openWarning(tokenRevokedFields());
+  await store.openWarning(tokenRevokedFields());
+  const dos = db.calls.filter((c) => c.sql.startsWith('DO '));
+  const mig = dos.find((c) => c.sql.includes('pg_constraint'));
+  assert.ok(mig, 'severity-CHECK migration (DO block over pg_constraint) runs with the schema');
+  assert.match(mig.sql, /informational/);
+  assert.doesNotMatch(mig.sql, /'critical'/, 'the new constraint is the D9 set only');
+  const renames = dos.filter((c) => c.sql.includes('RENAME COLUMN'));
+  assert.equal(renames.length, 1, 'column renames run once per process (guarded, idempotent)');
+  assert.match(renames[0].sql, /official_quote TO policy_quote/);
+  assert.match(renames[0].sql, /official_source TO policy_url/);
+  assert.match(renames[0].sql, /detail TO explanation/);
+  assert.match(renames[0].sql, /quote_fetched_at/, 'stale DEFAULT now() on quote_fetched_at is dropped in the same pass');
 });
 
 // ---- idempotent dedupe (L4 / D7: re-found condition updates, never duplicates) ----
@@ -169,19 +204,22 @@ test('openWarning allows a NEW episode after the previous row resolved', async (
 
 // ---- H9 emitter→severity constraint (review finding 10, AC-P4-12) ----
 
-test('AC-P4-12: analytics_scope_missing CANNOT set blocks_publishing — write rejected, no row', async () => {
+test('AC-P4-12: analytics_scope_missing CANNOT set blocks_publishing — rejected, no row, NO push', async () => {
   const db = makeWarningsDb();
   const store = makeWarningsStore(db);
+  const alert = alertRecorder();
   const r = await emitWarning(store, {
     channel_id: 'quotequarry',
     severity: 'blocking',
     code: 'analytics_scope_missing',
     title: 'yt-analytics.readonly not granted',
     blocks_publishing: true, // the exact violation: production must never park over an analytics read
-  }, { sendAlert: noopAlert });
+  }, { sendAlert: alert });
   assert.equal(r.ok, false);
   assert.match(r.error, /blocks_publishing/);
   assert.equal(db.rows.length, 0, 'no row may exist with a non-publishing-path code blocking publishing');
+  assert.equal(alert.sends.length, 0, 'a REJECTED write is a caller bug, not an incident — no ntfy');
+  assert.match(r.alert.detail, /write rejected/);
 });
 
 test('AC-P4-12: a job-step failure code cannot park production either', async () => {
@@ -204,21 +242,46 @@ test('AC-P4-12: allowlisted token_revoked CAN set blocks_publishing and lands bl
   assert.equal(db.rows[0].severity, 'blocking');
 });
 
-test('blocks_publishing=true requires a blocking-or-critical severity', async () => {
+// ---- IMPORTANT: the severity door (blocking is unrepresentable off the
+// hard-block path; the park predicate is blocks_publishing, never chips) ----
+
+test('severity door: a BLOCKING row for a non-allowlist code is rejected even without blocks_publishing', async () => {
   const db = makeWarningsDb();
   const store = makeWarningsStore(db);
-  const r = await store.openWarning(tokenRevokedFields({ severity: 'warning' }));
+  const r = await store.openWarning({
+    channel_id: 'quotequarry', severity: 'blocking', code: 'analytics_scope_missing',
+    title: 'no analytics scope', // no blocks_publishing asked — still rejected
+  });
   assert.equal(r.ok, false);
-  assert.match(r.error, /severity/);
+  assert.match(r.error, /blocking_severity_requires_publishing_path_code/);
+  assert.equal(db.rows.length, 0);
 });
 
-test('D9 §4.2: blocking and critical rows require official_quote + official_source', async () => {
+test('severity door: a blocking row WITHOUT blocks_publishing is rejected (park predicate keys on blocks_publishing)', async () => {
   const db = makeWarningsDb();
   const store = makeWarningsStore(db);
-  const noQuote = await store.openWarning(tokenRevokedFields({ official_quote: '' }));
+  const r = await store.openWarning(tokenRevokedFields({ blocks_publishing: undefined }));
+  assert.equal(r.ok, false);
+  assert.match(r.error, /blocking_severity_requires_blocks_publishing/);
+});
+
+test('blocks_publishing=true requires blocking severity (§4.1: blocking is the only publish-blocked rung)', async () => {
+  const db = makeWarningsDb();
+  const store = makeWarningsStore(db);
+  const r = await store.openWarning(tokenRevokedFields({ severity: 'advisory' }));
+  assert.equal(r.ok, false);
+  assert.match(r.error, /severity/);
+  const r2 = await store.openWarning(tokenRevokedFields({ severity: 'informational' }));
+  assert.equal(r2.ok, false);
+});
+
+test('D9 §4.2: blocking rows require policy_quote + policy_url (official only, never a blog)', async () => {
+  const db = makeWarningsDb();
+  const store = makeWarningsStore(db);
+  const noQuote = await store.openWarning(tokenRevokedFields({ policy_quote: '' }));
   assert.equal(noQuote.ok, false);
   assert.match(noQuote.error, /citation/);
-  const noSource = await store.openWarning(tokenRevokedFields({ official_source: '' }));
+  const noSource = await store.openWarning(tokenRevokedFields({ policy_url: '' }));
   assert.equal(noSource.ok, false);
   assert.match(noSource.error, /citation/);
   // Lower rungs may land without a citation (policy heuristics stay unblocked)
@@ -267,6 +330,18 @@ test('resolve records resolved_by + note (manual resolves audited, never silent)
   assert.equal(parking.rows.length, 0, 'resolved warning un-parks the channel');
 });
 
+test('acknowledge/resolve distinguish not_found vs not_open for the T5 UI', async () => {
+  const db = makeWarningsDb();
+  const store = makeWarningsStore(db);
+  const w = await store.openWarning(tokenRevokedFields());
+  assert.equal((await store.resolve(999, { by: 'owner', note: 'x' })).reason, 'not_found');
+  assert.equal((await store.acknowledge(999, { by: 'owner' })).reason, 'not_found');
+  await store.resolve(w.id, { by: 'owner', note: 'done' });
+  assert.equal((await store.acknowledge(w.id, { by: 'staff' })).reason, 'not_open');
+  assert.equal((await store.resolve(w.id, { by: 'owner', note: 'again' })).reason, 'not_open');
+  assert.equal(db.rows[0].resolve_note, 'done', 'a not_open call mutates nothing');
+});
+
 // ---- parking predicate (AC-P4-13) ----
 
 test('openBlockingFor returns only open blocks_publishing rows for the channel', async () => {
@@ -274,11 +349,11 @@ test('openBlockingFor returns only open blocks_publishing rows for the channel',
   const store = makeWarningsStore(db);
   await store.openWarning(tokenRevokedFields());
   await store.openWarning({
-    channel_id: 'quotequarry', severity: 'warning', code: 'quota_trending', title: 'quota trending toward limit',
+    channel_id: 'quotequarry', severity: 'informational', code: 'quota_trending', title: 'quota trending toward limit',
   });
   await store.openWarning({
-    channel_id: 'investors-compass', severity: 'critical', code: 'upload_failed',
-    title: 'upload rejected', official_quote: 'q', official_source: 's', blocks_publishing: true,
+    channel_id: 'investors-compass', severity: 'blocking', code: 'upload_failed',
+    title: 'upload rejected', policy_quote: 'q', policy_url: 's', blocks_publishing: true,
   });
   const qq = await store.openBlockingFor('quotequarry');
   assert.equal(qq.rows.length, 1);
@@ -325,6 +400,7 @@ test('never-throw: a dead DB returns { ok:false } on every writer/reader path', 
   const w = await store.openWarning(tokenRevokedFields());
   assert.equal(w.ok, false);
   assert.ok(w.error);
+  assert.equal(w.rejected, undefined, 'a DB failure is not a validation rejection');
   assert.equal((await store.acknowledge(1, { by: 'x' })).ok, false);
   assert.equal((await store.resolve(1, { by: 'x', note: 'n' })).ok, false);
   assert.equal((await store.openBlockingFor('quotequarry')).ok, false);
@@ -332,16 +408,18 @@ test('never-throw: a dead DB returns { ok:false } on every writer/reader path', 
   assert.equal((await store.markChecked(1)).ok, false);
 });
 
-test('never-throw: emitWarning still alerts when the write fails, and never throws', async () => {
+test('never-throw: emitWarning still alerts when the STORE fails, and never throws', async () => {
   const store = makeWarningsStore(makeWarningsDb({ fail: true }));
   const alert = alertRecorder();
   const r = await emitWarning(store, tokenRevokedFields(), { sendAlert: alert });
   assert.equal(r.ok, false);
+  assert.equal(r.rejected, undefined);
   assert.equal(alert.sends.length, 1, 'ntfy is the fallback channel when the DB is dark (AC-P4-5)');
   assert.match(alert.sends[0].title, /token_revoked/);
+  assert.match(alert.sends[0].text, /warnings store unavailable/);
 });
 
-// ---- emitWarning: write-and-alert, once per park EPISODE (D11, AC-P4-11) ----
+// ---- emitWarning: write-and-alert, built from the WRITE RESULT (D11, AC-P4-11) ----
 
 test('emitWarning writes the row AND fires the push on first open (AC-P4-11)', async () => {
   const db = makeWarningsDb();
@@ -353,6 +431,7 @@ test('emitWarning writes the row AND fires the push on first open (AC-P4-11)', a
   assert.equal(alert.sends.length, 1);
   assert.match(alert.sends[0].text, /quotequarry/);
   assert.match(alert.sends[0].text, /invalid_grant/);
+  assert.match(alert.sends[0].text, /PUBLISHING BLOCKED/, 'the suffix renders only from a landed blocks_publishing row');
 });
 
 test('emitWarning does NOT re-alert on a deduped re-fire (once per park episode, D11)', async () => {
@@ -366,16 +445,17 @@ test('emitWarning does NOT re-alert on a deduped re-fire (once per park episode,
   assert.equal(db.rows.length, 1);
 });
 
-test('emitWarning rejects the H9 violation before writing and without alerting success', async () => {
+test('emitWarning: a park-capable code fired WITHOUT blocks_publishing renders no PUBLISHING BLOCKED suffix', async () => {
   const db = makeWarningsDb();
   const store = makeWarningsStore(db);
   const alert = alertRecorder();
-  const r = await emitWarning(store, {
-    channel_id: 'quotequarry', severity: 'blocking', code: 'analytics_scope_missing',
-    title: 'no analytics scope', blocks_publishing: true,
-  }, { sendAlert: alert });
-  assert.equal(r.ok, false);
-  assert.equal(db.rows.length, 0);
+  const r = await emitWarning(store, tokenRevokedFields({
+    severity: 'action_required', // allowlist code, lower rung, no park
+    blocks_publishing: false,
+    auto_verifiable: false,
+  }), { sendAlert: alert });
+  assert.equal(r.ok, true);
+  assert.doesNotMatch(alert.sends[0].text, /PUBLISHING BLOCKED/);
 });
 
 // ---- parked-channel probes (AC-P4-13/14, review finding 1: no deadlock) ----
@@ -399,13 +479,15 @@ function makeFetchStub(routes) {
 const okRefresh = { match: 'oauth2.googleapis.com/token', body: { access_token: 'at-123' } };
 const okChannels = { match: 'googleapis.com/youtube/v3/channels', body: { items: [{ id: 'UCx' }] } };
 
-test('probeChannelToken passes on refresh + 1-unit channels.list (policy §4.4 Auth stage)', async () => {
+test('probeChannelToken passes on refresh + 1-unit channels.list, both under a 15s abort timeout', async () => {
   const fetchImpl = makeFetchStub([okRefresh, okChannels]);
   const r = await probeChannelToken({ refreshToken: 'rt', clientId: 'id', clientSecret: 'sec', fetchImpl });
   assert.equal(r.ok, true);
   assert.equal(fetchImpl.calls.length, 2);
   assert.match(fetchImpl.calls[1].url, /channels\?part=snippet&mine=true/);
   assert.match(fetchImpl.calls[0].init.body, /grant_type=refresh_token/);
+  assert.ok(fetchImpl.calls[0].init.signal instanceof AbortSignal, 'refresh fetch carries AbortSignal.timeout');
+  assert.ok(fetchImpl.calls[1].init.signal instanceof AbortSignal, 'channels.list fetch carries AbortSignal.timeout');
 });
 
 test('probeChannelToken fails closed when the refresh is still rejected (invalid_grant)', async () => {
@@ -445,10 +527,10 @@ test('AC-P4-13: a failing probe leaves the warning open and stamps last_checked'
   assert.ok(db.rows[0].last_checked_at);
 });
 
-test('AC-P4-15: non-verifiable codes (no probe in the map) stay until manual resolve', async () => {
+test('AC-P4-15 + QA row 16: unmapped codes are neither probed NOR stamped — they stay open', async () => {
   const db = makeWarningsDb();
   const store = makeWarningsStore(db);
-  await store.openWarning({
+  const w = await store.openWarning({
     channel_id: 'quotequarry', severity: 'action_required', code: 'review_gating_inactive',
     title: 'registry drift — gate cannot resolve assignment',
   });
@@ -457,6 +539,7 @@ test('AC-P4-15: non-verifiable codes (no probe in the map) stay until manual res
   assert.equal(r.checked, 0, 'no probe exists for review_gating_inactive — nothing runs');
   assert.equal(fetchImpl.calls.length, 0);
   assert.equal(db.rows[0].state, 'open');
+  assert.equal(db.rows.find((x) => x.id === w.id).last_checked_at, null, 'not stamped — only mapped+verifiable rows get check stamps');
 });
 
 test('probeParkedChannels continues past a channel with no resolvable token', async () => {
@@ -483,6 +566,19 @@ test('probeParkedChannels only probes rows marked auto_verifiable with a mapped 
   const r = await probeParkedChannels({ store, clientId: 'i', clientSecret: 's', fetchImpl, tokenFor: () => 'rt' });
   assert.equal(r.checked, 0);
   assert.equal(fetchImpl.calls.length, 0);
+});
+
+test('probeParkedChannels accepts a single channelId (matrix lane / "re-check now" scoping)', async () => {
+  const db = makeWarningsDb();
+  const store = makeWarningsStore(db);
+  await store.openWarning(tokenRevokedFields());
+  await store.openWarning(tokenRevokedFields({ channel_id: 'money-rulebook' }));
+  const fetchImpl = makeFetchStub([okRefresh, okChannels]);
+  const r = await probeParkedChannels({
+    store, channelId: 'money-rulebook', clientId: 'i', clientSecret: 's', fetchImpl, tokenFor: () => 'rt',
+  });
+  assert.equal(r.checked, 1);
+  assert.equal(r.results[0].channel_id, 'money-rulebook');
 });
 
 test('probe map exposes token_revoked and nothing else until Batch B adds probes', () => {
