@@ -27,6 +27,10 @@ on:
         description: "heal N slots (blank = normal daily run)"
         required: false
         default: ""
+      force_doc:
+        description: "1 = force today's documentary even off docDay (testing/manual)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -158,7 +162,7 @@ jobs:
           BRAIN_ENABLED: '1'
           BRAIN_EMBED_ENABLED: '1'
           BRAIN_PORT: '8000'
-        run: node channel-pipeline.mjs "$SLUG" ${{ inputs.topup && format('--topup={0}', inputs.topup) || '' }}
+        run: node channel-pipeline.mjs "$SLUG" ${{ inputs.topup && format('--topup={0}', inputs.topup) || '' }} ${{ inputs.force_doc == '1' && '--force' || '' }}
 
       - name: 📦 Keep reels for IG slot poster
         if: ${{ hashFiles(format('fb-outbox/{0}/*.json*', matrix.slug.slug)) != '' }}
