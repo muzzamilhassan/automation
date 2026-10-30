@@ -120,6 +120,7 @@ Slices (each: tiny diff + evidence):
 **Exit gate:** two clean cron days post-#101; consent screen live; checklist of Phase-0 hygiene from the 10-24 research (rembg pin if used, quota-model-as-data comes with Phase 2's usage ledger).
 
 ### Phase 1 — Template registry MVP (the foundation everything else hangs on)
+> **STATUS: ✅ COMPLETE** — issue #102 closed 2026-10-28; owner-executed assignment E2E proven.
 EARS spec first. Slices:
 1. Template JSON schema v1 (`templates/schema/v1.json`): id, name, niches[], formats (short|long), duration target, renderer (remotion|hyperframes|ffmpeg), beats contract ref, capabilities[] (script-gen, tts, captions…), params (voice, tone, duration, scenes, caption style…), variation_rules (min per-video distinct signals), safety (required_sources, disclaimer_beats, review_required), version, compatibility
 2. Neon `templates` + `channel_templates` + `niches` tables + git-JSON→DB sync script (GHA, add-only)
@@ -129,6 +130,7 @@ EARS spec first. Slices:
 **Exit gate:** one channel runs end-to-end on an assigned, pinned, registry-loaded template; adding template #7 needs zero code.
 
 ### Phase 2 — BYOK vault v2 + usage ledger (admin panel)
+> **STATUS: ✅ COMPLETE** — issue #104 closed 2026-10-29; live routing clicks → Groq-routed script → usage ledger → published Short.
 Slices:
 1. `providers` capability matrix as data (from BYOK research §1: Gemini, OpenAI, Anthropic, Groq, Cerebras, OpenRouter, HF, Ollama/vLLM via OpenAI-compatible URL, ElevenLabs, edge-tts-local, Kokoro-local, Tavily/Serper, Gemini-transcribe, FLUX-schnell endpoint…) with license_class + usage_reporting fields
 2. `provider_configs` UI: add key (masked, test-on-save), per-capability assignment, priority + fallback order; encryption per Global Constraint 10; de-couple key derivation from YOUTUBE_CLIENT_SECRET (MASTER_KEY + key_version)
@@ -138,6 +140,7 @@ Slices:
 **Exit gate:** script brain runs a generation using a non-default provider chosen in the UI; usage event visible in dashboard; killing the provider's key triggers fallback per configured order (test with a fake key).
 
 ### Phase 3 — RAG sidecar (python-rag-audit §3 phases 0–2, adopted)
+> **STATUS: ✅ COMPLETE** — issue #105 closed 2026-10-30; full brain chain live in CI (context → gate → script → render → publish-embed 8 chunks → clip published), three-tier dedupe proof green, corpus 1,728 canonical / 0 ghosts.
 Slices:
 1. **Phase 0 hygiene (from the RAG audit):** `services/ai/requirements.txt` pinned + `setup-python` replacing the ad-hoc `pip install` blocks (fixes the unpinned-deps failure class repo-wide)
 2. FastAPI skeleton (`services/ai/app.py`): `/health`, `/context`, `/dedupe`; Node callers via HTTP (localhost in CI, spawnSync for TTS path per the audit's seam style)
@@ -148,6 +151,7 @@ Slices:
 **Exit gate:** a script cites retrieved context (visible in the script record's provenance); a near-duplicate script is BLOCKed by the gate with an evidence row; requirements.txt pinned, zero `pip install || true` in workflows.
 
 ### Phase 4 — Pipeline hardening + admin completeness
+> **STATUS: SPEC v3 READY** — docs/superpowers/specs/2026-10-30-phase4-review-queue-analytics-spec.md (owner answers folded, both review passes folded, awaiting owner go).
 Slices:
 1. State machine + artifact store: `jobs`/`job_steps`/`job_events` tables; content-addressed artifacts per step; retry-resumes-at-failed-step (acceptance test: kill mid-render, restart, re-enter at render)
 2. Upload intent row + session-URI persistence + orphan reconciliation via uploads-playlist diff (kills the duplicate-upload class, audit §2.3)
