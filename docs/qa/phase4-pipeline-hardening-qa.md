@@ -169,7 +169,7 @@ Verify: a normal successful upload still does everything today's run does — pr
 Verify: every existing alert site (dead channel key, quota budget reached, verify-run failure, template preflight block, failed job step, gate hold/timeout) writes one `warnings` row AND still sends the ntfy push — the push never disappears.
 
 - Steps:
-  1. Automated: `node --test tests/warnings.test.mjs` — each emitter writes a row with severity, evidence, and policy citation where one exists, alongside the alert call.
+  1. Automated: `node --test tests/warnings-store.test.mjs` — each emitter writes a row with severity, evidence, and policy citation where one exists, alongside the alert call.
   2. Live proof comes free from Drill 2 (dead token): after that drill, DB-CHECK `select * from warnings order by last_checked_at desc limit 10` — the Blocking token row is there, and the phone push arrived too.
 - Expected: dashboard and phone always agree.
 - Actual:
@@ -180,7 +180,7 @@ Verify: every existing alert site (dead channel key, quota budget reached, verif
 
 Verify: only conditions on the policy hard-block list (revoked token, quotaExceeded, uploadLimitExceeded, upload rejected, account suspended, long-upload disallowed, thumbnail-set blocked) set blocks_publishing=TRUE; job-step failures, analytics failures, and policy heuristics never do.
 
-- Steps: `node --test tests/warnings.test.mjs` — the classification cases are green: a `quotaExceeded` error string classifies Blocking; an inauthentic-content heuristic and an analytics collection failure classify Warning/Advisory with blocks_publishing=false.
+- Steps: `node --test tests/warnings-store.test.mjs` — the classification cases are green: a `quotaExceeded` error string classifies Blocking; an inauthentic-content heuristic and an analytics collection failure classify Warning/Advisory with blocks_publishing=false.
 - Expected: production is never parked over an analytics read or a heuristic.
 - Actual:
 - Evidence (screenshot/output path):
@@ -220,7 +220,7 @@ Verify: an owner manual resolve records resolved_by and a resolve note; non-auto
 - Steps:
   1. Open `/warnings` as owner. On any open warning click **Resolve**, type a reason, confirm.
   2. DB-CHECK: `select state, resolved_by, resolved_at from warnings where channel_id = 'money-rulebook' order by last_checked_at desc limit 5` — the row shows your email and the note.
-  3. Automated: `node --test tests/warnings.test.mjs` — the "non-auto-verifiable Blocking never auto-resolves on probe" case is green.
+  3. Automated: `node --test tests/warnings-store.test.mjs` — the "non-auto-verifiable Blocking never auto-resolves on probe" case is green.
 - Expected: every human decision leaves a name and a reason on the record.
 - Actual:
 - Evidence (screenshot/output path):
@@ -422,7 +422,7 @@ Verify: when the owner revokes another user's session from the admin view, that 
 Verify: the cleanup pass deletes sessions that are expired or revoked for more than 30 days.
 
 - Steps:
-  1. Automated: `node --test tests/sessions-owner.test.mjs` — the 30-day cutoff cases are green (deletes expired >30d, deletes revoked >30d, KEEPS a session revoked 29 days, keeps active sessions).
+  1. Automated: `node --test tests/session-admin.test.mjs` — the 30-day cutoff cases are green (deletes expired >30d, deletes revoked >30d, KEEPS a session revoked 29 days, keeps active sessions). NOTE: the death-clock approximation uses last_used (no revoked_at column; conservative — dead rows only, never early-deletes a live session). The nightly log-line step is unexecutable until the T3/T6 nightly workflow lands (Batch B/C).
   2. After a nightly maintenance run, its log shows the sessions-cleanup line with the deleted count.
 - Expected: the table stops growing forever without touching anyone still valid.
 - Actual:

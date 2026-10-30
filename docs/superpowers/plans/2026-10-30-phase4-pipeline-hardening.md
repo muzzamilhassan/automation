@@ -40,7 +40,7 @@ Generate `qa/phase4-pipeline-hardening-qa.md` from the spec's 34 ACs + 3 drills 
 
 ### T4 — S3: warnings store + emitters + parking (parallel-safe from day one)
 - NEW `lib/warnings-store.mjs`: warnings table (severity ladder §4.1-4.3, hard-block list = verified technical constraints ONLY, acknowledge/resolve audit fields, dedupe idempotency — same orphan never re-rows nightly).
-- Emitters at the existing alert sites (verify-run, token failures, preflight) with the emitter→severity constraint (publishing-path only may block).
+- Emitters at the existing alert sites (verify-run.mjs:27, lib/quota-ledger.mjs quota gate, token-failure sites in the lanes) with the emitter→severity constraint (publishing-path only may block). **OWNER: T2** (amended 2026-10-30 after the T4 review — T4 ships the emitWarning API only; the pipeline/lane call-site wiring lands with T2's instrumentation so the two never double-edit the same files).
 - Parking: channel-pipeline checks open Blocking first; parked runs still execute the 1-unit probes (token refresh + channels.list) before exiting; nightly probe job re-tests parked channels; auto-resolve on probe pass.
 - Files: lib/warnings-store.mjs, channel-pipeline.mjs (park-check block ONLY — coordinate with T2, land after), tests/warnings-store.test.mjs, .github/workflows/warning-probe.yml. /warnings dashboard ships with T5's Studio batch.
 
