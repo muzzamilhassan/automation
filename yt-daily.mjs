@@ -34,7 +34,7 @@ import { nextCounter } from './lib/quota-ledger.mjs';
 // #106 T3 (S2): upload intents — the note written before any videos.insert
 // (D5); the two-step resumable upload whose session URI is ours to keep (D6);
 // the run-start open-intent resolution that kills the duplicate class (D7a).
-import { getUploadIntentStore, uploadWithIntent, recoverOpenIntents, makeFindByTitle, oauthAccessToken } from './lib/upload-intents.mjs';
+import { getUploadIntentStore, uploadWithIntent, recoverOpenIntents, makeFindByTitle, oauthAccessToken, slotISOOnDate } from './lib/upload-intents.mjs';
 
 const slug = process.argv[2];
 const FORCE = process.argv.includes('--force');
@@ -234,17 +234,23 @@ if (RUN_SHORTS) {
   if (intents) {
     try {
       const intentLog = (m) => console.log(`  [intent] ${m}`);
+      // Round-1 MAJOR 3: kind-scoped — this lane recovers only SHORT intents;
+      // a crashed doc intent belongs to yt-deepdive's own sweep.
       const rec = await recoverOpenIntents({
-        store: intents, channelId: slug, findByTitle: makeFindByTitle(yt, { log: intentLog }), log: intentLog,
+        store: intents, channelId: slug, kind: 'short', findByTitle: makeFindByTitle(yt, { log: intentLog }), log: intentLog,
       });
       for (const o of rec.outcomes) {
         if (o.status === 'resolved') {
-          const rp = b.slots[o.slotIdx] ? nextSlotISO(b.slots[o.slotIdx]) : new Date().toISOString(); // D8: recompute from the kit's slot times
-          console.log(`  [intent] recovered ${o.videoId} for slot ${o.slotDate}#${o.slotIdx} (${o.via}) — state entry written, slot marked produced`);
+          // Minor 8: record the recovered video's OWN schedule — the committed
+          // publishAt from the probe body when we have it, else the kit slot
+          // time ON THE RECOVERED SLOT'S DATE. Never now(), never a
+          // rolled-forward occurrence for a past recovery.
+          const rp = o.publishAt || slotISOOnDate(o.slotDate, b.slots[o.slotIdx]);
+          console.log(`  [intent] recovered ${o.videoId} for slot ${o.slotDate}#${o.slotIdx} (${o.via}${rp ? `, publishAt ${rp}` : ''}) — state entry written, slot marked produced`);
           results.push({ videoId: o.videoId, publishAt: rp, title: o.title || o.intent.title_fingerprint || '', recovered: true });
           state[slug] = state[slug] || {};
           state[slug].uploadsToday = nextCounter(state[slug].uploadsToday);
-          if (o.slotDate === today && o.slotIdx < slotLimit) recoveredSlotIdx.add(o.slotIdx);
+          if (o.kind === 'short' && o.slotDate === today && o.slotIdx < slotLimit) recoveredSlotIdx.add(o.slotIdx);
         } else if (o.status === 'abandoned') {
           console.log(`  [intent] slot ${o.slotDate}#${o.slotIdx} abandoned — producing fresh this run`);
         } else {
@@ -360,11 +366,21 @@ if (RUN_SHORTS) {
     }
     if (!up.ok) throw new Error(`upload failed: ${up.error}`);
     const videoId = up.videoId;
-    if (up.conflict) console.log(`  ✓ intent conflict resolved: ${videoId} is already on YouTube — claimed, NOT re-uploaded`);
     // #99 shared-pool ledger: count this successful upload (persisted by the
     // end-of-run state write below, which spreads state[slug])
     state[slug] = state[slug] || {};
     state[slug].uploadsToday = nextCounter(state[slug].uploadsToday);
+    if (up.conflict) {
+      // Round-1 MAJOR 4 + minor 9: the slot was produced by a CRASHED run's
+      // video — record ITS fingerprint (this run's script text belongs to no
+      // video and must never be embedded against the claimed videoId), heal
+      // the thumbnail if we can, and SKIP the pinned comment (the original
+      // run may have pinned one; two comments on one Short reads as spam).
+      console.log(`  ✓ intent conflict resolved: ${videoId} is already on YouTube — claimed, NOT re-uploaded`);
+      results.push({ videoId, publishAt, title: up.existing?.title_fingerprint || meta.title, recovered: true });
+      if (out.thumb) { try { await yt.thumbnails.set({ videoId, media: { body: Readable.from(out.thumb) } }); console.log('  ✓ thumbnail set (claimed video)'); } catch { } }
+      continue;
+    }
     console.log(`  ✓ queued ${videoId} → https://youtube.com/shorts/${videoId}`);
     if (out.thumb) { try { await yt.thumbnails.set({ videoId, media: { body: Readable.from(out.thumb) } }); console.log('  ✓ thumbnail set'); } catch { } }
     try {

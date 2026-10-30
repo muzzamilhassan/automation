@@ -111,9 +111,13 @@ export async function main(argv = process.argv) {
     }
   }
 
-  const failed = summary.filter((r) => r.ok === false).length;
-  console.log(`[upload-reconcile] done: ${summary.length} channel(s), ${failed} failed`);
-  return failed && failed === summary.length ? 1 : 0; // all-fail = something systemic
+  // Round-1 minor 12: skipped (no playlist / nothing discoverable) is NOT a
+  // failure — only hard per-channel errors fail the run.
+  const failed = summary.filter((r) => r.ok === false && !r.skipped).length;
+  const skipped = summary.filter((r) => r.skipped).length;
+  const reconciled = summary.length - failed - skipped;
+  console.log(`[upload-reconcile] done: ${summary.length} channel(s) — ${reconciled} reconciled, ${skipped} skipped, ${failed} failed`);
+  return failed > 0 ? 1 : 0;
 }
 
 if (Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href) {

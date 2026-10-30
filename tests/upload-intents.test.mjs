@@ -103,8 +103,16 @@ function makeIntentDb({ fail = false, seq = null } = {}) {
     if (sql.startsWith('SELECT') && sql.includes('updated_at < $')) {
       let out = rows.filter((r) => ['pending', 'initiated', 'uploading'].includes(r.status));
       out = out.filter((r) => new Date(r.updated_at).getTime() < new Date(params[0]).getTime());
-      if (sql.includes('AND channel_id = $2')) out = out.filter((r) => r.channel_id === params[1]);
+      // round-1 MAJOR 2: the nightly resolves only PAST slots (slot_date < today)
+      if (sql.includes('AND slot_date < $2')) out = out.filter((r) => String(r.slot_date) < params[1]);
+      if (sql.includes('AND channel_id = $2') && !sql.includes('slot_date')) out = out.filter((r) => r.channel_id === params[1]);
+      if (sql.includes('AND channel_id = $3')) out = out.filter((r) => r.channel_id === params[2]);
       return out.map((r) => ({ ...r }));
+    }
+    if (sql.startsWith('SELECT') && sql.includes("status = 'uploaded' AND updated_at >=")) {
+      return rows
+        .filter((r) => r.channel_id === params[0] && r.status === 'uploaded' && new Date(r.updated_at).getTime() >= new Date(params[1]).getTime())
+        .map((r) => ({ ...r }));
     }
     throw new Error(`stub: unexpected sql: ${sql.slice(0, 90)}`);
   };
@@ -361,6 +369,26 @@ describe('resumable upload (D6/research §1.4)', () => {
     assert.ok(probePut, 'a bytes */N status probe ran before the resume');
   });
 
+  test('round-1 MAJOR 5: the row is marked uploading before the PUT and re-touched on every progress iteration (slow-PUT heartbeat)', async () => {
+    const db = makeIntentDb();
+    const store = makeUploadIntentStore({ dbClient: db });
+    const fetchImpl = makeFetchStub((url, opts) => {
+      if (opts.method === 'POST') return { status: 200, headers: { Location: SESSION_URI } };
+      const range = String(opts.headers['Content-Range'] || '');
+      if (range === 'bytes 0-2047/2048') return { status: 308, headers: { Range: 'bytes=0-999' } };
+      return { status: 201, body: JSON.stringify({ id: 'vid-beat' }) };
+    });
+    const r = await uploadWithIntent({
+      store, channelId: 'c1', slotDate: '2026-10-31', kind: 'short', slotIdx: 0,
+      title: 't', accessToken: 'tok', resource: RESOURCE, bytes: Buffer.alloc(2048, 3),
+      publishAt: '2099-01-01T00:00:00Z', fetchImpl, sleep: async () => {},
+    });
+    assert.equal(r.ok, true, JSON.stringify(r));
+    const beats = db.calls.filter((c) => c.sql === 'UPDATE upload_intents SET status = $2, updated_at = $3 WHERE id = $1 RETURNING id');
+    assert.ok(beats.length >= 2, `expected a heartbeat before the PUT AND on the 308 progress iteration, got ${beats.length}`);
+    assert.equal(db.rows[0].status, 'uploaded');
+  });
+
   test('H7/D8: a publishAt already past is refused — skipProduction terminal before any HTTP call', async () => {
     const fetchImpl = makeFetchStub(() => { throw new Error('must not call YouTube'); });
     const r = await uploadWithIntent({
@@ -517,8 +545,10 @@ describe('session probe (research §1.4)', () => {
 // Crash recovery (D7a/AC-P4-8)
 // ---------------------------------------------------------------------------
 describe('run-start crash recovery (D7a/AC-P4-8)', () => {
+  const TODAY_ISO = new Date().toISOString().slice(0, 10);
+  const YESTERDAY_ISO = new Date(Date.now() - 24 * 3600_000).toISOString().slice(0, 10);
   const intentRow = (over = {}) => ({
-    id: 'i1', channel_id: 'c1', slot_date: '2026-10-31', kind: 'short', slot_idx: 0,
+    id: 'i1', channel_id: 'c1', slot_date: TODAY_ISO, kind: 'short', slot_idx: 0,
     status: 'initiated', session_uri: SESSION_URI, video_id: null,
     title_fingerprint: titleFingerprint('My Title'), fail_reason: null,
     created_at: new Date(Date.now() - 3600_000), updated_at: new Date(Date.now() - 3600_000),
@@ -599,10 +629,10 @@ describe('run-start crash recovery (D7a/AC-P4-8)', () => {
     assert.equal(fetchImpl.calls.length, 0);
   });
 
-  test('store-level resolveOrphans resolves/abandons only open intents past the required window', async () => {
+  test('store-level resolveOrphans resolves/abandons only open PAST-SLOT intents past the required window', async () => {
     const db = seededDb([
-      intentRow({ id: 'old', updated_at: new Date(Date.now() - 7200_000) }),
-      intentRow({ id: 'fresh', updated_at: new Date() }),
+      intentRow({ id: 'old', slot_date: YESTERDAY_ISO, updated_at: new Date(Date.now() - 7200_000) }),
+      intentRow({ id: 'fresh', slot_date: YESTERDAY_ISO, updated_at: new Date() }),
     ]);
     const store = makeUploadIntentStore({ dbClient: db });
     const fetchImpl = makeFetchStub([{ status: 404 }]);
@@ -617,6 +647,58 @@ describe('run-start crash recovery (D7a/AC-P4-8)', () => {
     assert.equal(db.rows.find((x) => x.id === 'fresh').status, 'initiated');
     const missingWindow = await store.resolveOrphans({ probe: async () => ({ ok: true, state: 'expired' }) });
     assert.equal(missingWindow.ok, false, 'windowMs is REQUIRED (job-store staleAfterMs precedent)');
+  });
+
+  test('round-1 MAJOR 2: the NIGHTLY path leaves TODAY intents alone however stale — they belong to the lane', async () => {
+    const db = seededDb([
+      intentRow({ id: 'today-stale', slot_date: TODAY_ISO, updated_at: new Date(Date.now() - 3 * 3600_000) }),
+      intentRow({ id: 'yesterday', slot_date: YESTERDAY_ISO, updated_at: new Date(Date.now() - 3 * 3600_000) }),
+    ]);
+    const store = makeUploadIntentStore({ dbClient: db });
+    const fetchImpl = makeFetchStub([{ status: 404 }]);
+    const r = await store.resolveOrphans({
+      channelId: 'c1', windowMs: 30 * 60_000, fetchImpl,
+      probe: ({ sessionUri }) => probeSession({ sessionUri, totalBytes: null, fetchImpl }),
+      findByTitle: async () => null,
+    });
+    assert.equal(r.ok, true);
+    assert.deepEqual(r.outcomes.map((o) => o.intent.id), ['yesterday'], 'only the past-slot intent was considered');
+    assert.equal(db.rows.find((x) => x.id === 'today-stale').status, 'initiated', 'the today intent is UNTOUCHED — the owning lane resolves it');
+  });
+
+  test('round-1 MAJOR 3: recoverOpenIntents(kind) recovers only its own kind — a doc intent is left for the doc lane', async () => {
+    const db = seededDb([
+      intentRow({ id: 'short-i', kind: 'short' }),
+      intentRow({ id: 'doc-i', kind: 'doc', title_fingerprint: titleFingerprint('Doc Episode') }),
+    ]);
+    const store = makeUploadIntentStore({ dbClient: db });
+    const fetchImpl = makeFetchStub([{ status: 404 }]);
+    const r = await recoverOpenIntents({
+      store, channelId: 'c1', kind: 'short', fetchImpl, staleAfterMs: 30 * 60_000,
+      findByTitle: async () => null,
+    });
+    assert.deepEqual(r.outcomes.map((o) => o.intent.id), ['short-i'], 'the doc intent never entered this lane\'s sweep');
+    assert.equal(db.rows.find((x) => x.id === 'doc-i').status, 'initiated', 'the doc claim is intact for yt-deepdive');
+  });
+
+  test('round-1 minor 14a: a 308 (incomplete session) past the window with no title match is abandoned — never resumed blind', async () => {
+    const db = seededDb([intentRow({ updated_at: new Date(Date.now() - 7200_000) })]);
+    const store = makeUploadIntentStore({ dbClient: db });
+    const fetchImpl = makeFetchStub([{ status: 308, headers: { Range: 'bytes=0-99' } }]);
+    const r = await recoverOpenIntents({
+      store, channelId: 'c1', fetchImpl, staleAfterMs: 30 * 60_000,
+      findByTitle: async () => null,
+    });
+    assert.equal(r.outcomes[0].status, 'abandoned');
+    assert.equal(db.rows[0].status, 'abandoned');
+    const puts = fetchImpl.calls.filter((c) => c.method === 'PUT');
+    assert.ok(puts.every((p) => String(p.headers['Content-Range']).startsWith('bytes *')), 'only status probes ran — no byte resume without bytes');
+  });
+
+  test('round-1 minor 8: probe-complete returns the committed publishAt from the video resource body', async () => {
+    const fetchImpl = makeFetchStub([{ status: 201, body: JSON.stringify({ id: 'v', snippet: { title: 'T' }, status: { publishAt: '2026-11-05T09:00:00Z' } }) }]);
+    const r = await probeSession({ sessionUri: SESSION_URI, totalBytes: 10, fetchImpl });
+    assert.equal(r.publishAt, '2026-11-05T09:00:00Z');
   });
 });
 
@@ -663,9 +745,12 @@ describe('title fingerprint (D7a)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Nightly reconciliation (D7b/AC-P4-9)
+// Nightly reconciliation (D7b/AC-P4-9 + round-1 CRITICAL 1)
 // ---------------------------------------------------------------------------
 describe('nightly reconciliation diff (D7b/AC-P4-9)', () => {
+  const TODAY_ISO = new Date().toISOString().slice(0, 10);
+  const OLD_ISO = '2020-06-01'; // far outside any fetched 50-item recency window
+
   test('diffPlaylistVsIntents: orphans have no intent row; ghosts are uploaded intents missing from the playlist', async () => {
     const { diffPlaylistVsIntents } = await import('../lib/upload-intents.mjs');
     const playlist = [{ videoId: 'v1', title: 'A' }, { videoId: 'v2', title: 'B' }, { videoId: 'hand', title: 'Hand upload' }];
@@ -687,7 +772,7 @@ describe('nightly reconciliation diff (D7b/AC-P4-9)', () => {
     const fakeEmit = async (wStore, fields) => { opened.push(fields); return { ok: true, id: 1, deduped: false }; };
     const fetchImpl = makeFetchStub((url) => {
       if (url.includes('/channels?')) return { status: 200, body: JSON.stringify({ items: [{ contentDetails: { relatedPlaylists: { uploads: 'UU1' } } }] }) };
-      if (url.includes('/playlistItems?')) return { status: 200, body: JSON.stringify({ items: [{ contentDetails: { videoId: 'orphan1' }, snippet: { title: 'Hand Upload' } }] }) };
+      if (url.includes('/playlistItems?')) return { status: 200, body: JSON.stringify({ items: [{ contentDetails: { videoId: 'orphan1', videoPublishedAt: TODAY_ISO }, snippet: { title: 'Hand Upload' } }] }) };
       throw new Error('unexpected ' + url);
     });
     const r = await reconcileChannel({
@@ -702,17 +787,20 @@ describe('nightly reconciliation diff (D7b/AC-P4-9)', () => {
     assert.equal(db.rows.length, 0, 'L5: the orphan was NEVER backfilled as an intent row');
   });
 
-  test('a ghost (intent uploaded, video missing from the playlist) is markFailed + warned (ntfy via write-and-alert)', async () => {
+  test('CRITICAL 1 TRUE ghost (in window, older than the min age, absent from playlist AND videos.list) is markFailed + warned', async () => {
     const { reconcileChannel } = await import('../lib/upload-intents.mjs');
     const db = makeIntentDb();
     const store = makeUploadIntentStore({ dbClient: db });
-    const { intent } = await store.createIntent({ channelId: 'c1', slotDate: '2026-10-31', kind: 'short', slotIdx: 0 });
+    const { intent } = await store.createIntent({ channelId: 'c1', slotDate: OLD_ISO, kind: 'short', slotIdx: 0 });
     await store.markUploaded(intent.id, 'ghost-vid');
+    // age the row past the 12h minimum (the playlist lag guard)
+    db.rows[0].updated_at = new Date(Date.now() - 13 * 3600_000);
     const opened = [];
     const fakeEmit = async (wStore, fields) => { opened.push(fields); return { ok: true, id: 1 }; };
     const fetchImpl = makeFetchStub((url) => {
       if (url.includes('/channels?')) return { status: 200, body: JSON.stringify({ items: [{ contentDetails: { relatedPlaylists: { uploads: 'UU1' } } }] }) };
-      if (url.includes('/playlistItems?')) return { status: 200, body: JSON.stringify({ items: [] }) };
+      if (url.includes('/playlistItems?')) return { status: 200, body: JSON.stringify({ items: [{ contentDetails: { videoId: 'other', videoPublishedAt: OLD_ISO }, snippet: { title: 'Some Other Video' } }] }) };
+      if (url.includes('/videos?')) return { status: 200, body: JSON.stringify({ items: [] }) }; // verified absent
       throw new Error('unexpected ' + url);
     });
     await reconcileChannel({
@@ -721,9 +809,109 @@ describe('nightly reconciliation diff (D7b/AC-P4-9)', () => {
     });
     assert.equal(db.rows[0].status, 'failed');
     assert.match(db.rows[0].fail_reason, /reconcile/);
-    assert.equal(opened.length, 1);
-    assert.equal(opened[0].code, 'upload_ghost');
-    assert.notEqual(opened[0].severity, 'blocking', 'a reconcile finding never parks a channel (H9)');
+    const ghostWarnings = opened.filter((f) => f.code === 'upload_ghost');
+    assert.equal(ghostWarnings.length, 1);
+    assert.equal(ghostWarnings[0].severity, 'warning');
+    assert.notEqual(ghostWarnings[0].severity, 'blocking', 'a reconcile finding never parks a channel (H9)');
+  });
+
+  test('CRITICAL 1(i): an uploaded intent OLDER than the fetched playlist window is never a ghost — no false markFailed', async () => {
+    const { reconcileChannel } = await import('../lib/upload-intents.mjs');
+    const db = makeIntentDb();
+    const store = makeUploadIntentStore({ dbClient: db });
+    const { intent } = await store.createIntent({ channelId: 'c1', slotDate: '2019-01-01', kind: 'short', slotIdx: 0 });
+    await store.markUploaded(intent.id, 'beyond-page-1');
+    db.rows[0].updated_at = new Date(Date.now() - 13 * 3600_000);
+    let reachedVideos = false;
+    const opened = [];
+    const fetchImpl = makeFetchStub((url) => {
+      if (url.includes('/channels?')) return { status: 200, body: JSON.stringify({ items: [{ contentDetails: { relatedPlaylists: { uploads: 'UU1' } } }] }) };
+      if (url.includes('/playlistItems?')) return { status: 200, body: JSON.stringify({ items: [{ contentDetails: { videoId: 'recent', videoPublishedAt: TODAY_ISO }, snippet: { title: 'Recent' } }] }) };
+      if (url.includes('/videos?')) { reachedVideos = true; return { status: 200, body: JSON.stringify({ items: [] }) }; }
+      throw new Error('unexpected ' + url);
+    });
+    const r = await reconcileChannel({
+      slug: 'c1', accessToken: 'tok', store, warningsStore: {}, emitWarning: async (s, f) => { opened.push(f); return { ok: true }; },
+      fetchImpl, staleAfterMs: 3600_000, log: () => {},
+    });
+    assert.equal(r.ghosts, 0, 'the 50-item fetch cannot see page 2 — an intent older than the window is NOT a ghost');
+    assert.equal(opened.filter((f) => f.code === 'upload_ghost').length, 0, 'no ghost warning');
+    assert.equal(reachedVideos, false, 'videos.list must not even be reached for out-of-window intents');
+    assert.equal(db.rows[0].status, 'uploaded', 'row untouched (a false ghost would one-shot re-claim and RE-UPLOAD)');
+  });
+
+  test('CRITICAL 1(ii): an intent touched inside the 12h min-age window is never a ghost — playlist lag is not absence', async () => {
+    const { reconcileChannel } = await import('../lib/upload-intents.mjs');
+    const db = makeIntentDb();
+    const store = makeUploadIntentStore({ dbClient: db });
+    const { intent } = await store.createIntent({ channelId: 'c1', slotDate: TODAY_ISO, kind: 'short', slotIdx: 0 });
+    await store.markUploaded(intent.id, 'just-uploaded');
+    db.rows[0].updated_at = new Date(Date.now() - 1 * 3600_000); // 1h old — INSIDE the guard
+    let reachedVideos = false;
+    const opened = [];
+    const fetchImpl = makeFetchStub((url) => {
+      if (url.includes('/channels?')) return { status: 200, body: JSON.stringify({ items: [{ contentDetails: { relatedPlaylists: { uploads: 'UU1' } } }] }) };
+      if (url.includes('/playlistItems?')) return { status: 200, body: JSON.stringify({ items: [{ contentDetails: { videoId: 'other', videoPublishedAt: TODAY_ISO }, snippet: { title: 'Other' } }] }) };
+      if (url.includes('/videos?')) { reachedVideos = true; return { status: 200, body: JSON.stringify({ items: [] }) }; }
+      throw new Error('unexpected ' + url);
+    });
+    const r = await reconcileChannel({
+      slug: 'c1', accessToken: 'tok', store, warningsStore: {}, emitWarning: async (s, f) => { opened.push(f); return { ok: true }; },
+      fetchImpl, staleAfterMs: 3600_000, log: () => {},
+    });
+    assert.equal(r.ghosts, 0);
+    assert.equal(opened.filter((f) => f.code === 'upload_ghost').length, 0);
+    assert.equal(reachedVideos, false, 'videos.list must not be reached for too-young intents');
+    assert.equal(db.rows[0].status, 'uploaded', 'row untouched');
+  });
+
+  test('CRITICAL 1(iii): absent from the playlist but PRESENT via videos.list — exists, never a ghost (private/scheduled visibility is UNVERIFIED)', async () => {
+    const { reconcileChannel } = await import('../lib/upload-intents.mjs');
+    const db = makeIntentDb();
+    const store = makeUploadIntentStore({ dbClient: db });
+    const { intent } = await store.createIntent({ channelId: 'c1', slotDate: OLD_ISO, kind: 'short', slotIdx: 0 });
+    await store.markUploaded(intent.id, 'scheduled-but-alive');
+    db.rows[0].updated_at = new Date(Date.now() - 13 * 3600_000);
+    const opened = [];
+    const fetchImpl = makeFetchStub((url) => {
+      if (url.includes('/channels?')) return { status: 200, body: JSON.stringify({ items: [{ contentDetails: { relatedPlaylists: { uploads: 'UU1' } } }] }) };
+      if (url.includes('/playlistItems?')) return { status: 200, body: JSON.stringify({ items: [{ contentDetails: { videoId: 'other', videoPublishedAt: OLD_ISO }, snippet: { title: 'Other' } }] }) };
+      if (url.includes('/videos?')) return { status: 200, body: JSON.stringify({ items: [{ id: 'scheduled-but-alive' }] }) }; // EXISTS
+      throw new Error('unexpected ' + url);
+    });
+    const r = await reconcileChannel({
+      slug: 'c1', accessToken: 'tok', store, warningsStore: {}, emitWarning: async (s, f) => { opened.push(f); return { ok: true }; },
+      fetchImpl, staleAfterMs: 3600_000, log: () => {},
+    });
+    assert.equal(r.ghosts, 0, 'a video that EXISTS is never a ghost, whatever the playlist says');
+    assert.equal(opened.filter((f) => f.code === 'upload_ghost').length, 0);
+    assert.equal(db.rows[0].status, 'uploaded', 'row untouched');
+  });
+
+  test('round-1 MAJOR 4: matchUploadedIntentsToQueue pairs terminal-uploaded intents with unposted queue entries by fingerprint', async () => {
+    const { matchUploadedIntentsToQueue } = await import('../lib/upload-intents.mjs');
+    const clips = [
+      { title: 'First Clip', postedAt: '2026-10-30T00:00:00Z' }, // already marked — never re-marked
+      { title: 'Second Clip! (v2)' },                            // unposted, matches the intent
+      { title: 'Third Clip' },                                   // unposted, no intent
+    ];
+    const uploadedIntents = [
+      { id: 'i1', status: 'uploaded', title_fingerprint: titleFingerprint('second clip v2') },
+      { id: 'i2', status: 'uploaded', title_fingerprint: titleFingerprint('first clip') },
+      { id: 'i3', status: 'uploaded', title_fingerprint: '' }, // no fingerprint — skipped
+    ];
+    const matches = matchUploadedIntentsToQueue({ uploadedIntents, clips });
+    assert.equal(matches.length, 1);
+    assert.equal(matches[0].intent.id, 'i1');
+    assert.equal(matches[0].entry.title, 'Second Clip! (v2)');
+  });
+
+  test('round-1 minor: slotISOOnDate builds a slot time on its OWN date; malformed input is null', async () => {
+    const { slotISOOnDate } = await import('../lib/upload-intents.mjs');
+    assert.equal(slotISOOnDate('2026-10-29', '9:05'), '2026-10-29T09:05:00Z');
+    assert.equal(slotISOOnDate('2026-10-29', '22:35'), '2026-10-29T22:35:00Z');
+    assert.equal(slotISOOnDate('garbage', '22:35'), null);
+    assert.equal(slotISOOnDate('2026-10-29', ''), null);
   });
 });
 
@@ -739,31 +927,38 @@ describe('lane wiring (yt-daily / yt-deepdive / shorts-clips)', () => {
     const loopIdx = s.indexOf('for (let i = 0; i < slotLimit; i++)');
     assert.ok(recIdx > -1 && loopIdx > -1);
     assert.ok(recIdx < loopIdx, 'AC-P4-8: open intents resolved BEFORE any slot production');
+    assert.match(s, /recoverOpenIntents\(\{\s*store: intents, channelId: slug, kind: 'short'/, 'round-1 MAJOR 3: recovery is kind-scoped to shorts');
     assert.match(s, /kind:\s*'short'/, 'kind = short');
     assert.match(s, /slotIdx:\s*i\b/, 'H4: the b.slots loop index is the slot discriminator');
     assert.ok(s.includes('uploadWithIntent'), 'videos.insert replaced by the shared two-step upload');
     assert.ok(!/yt\.videos\.insert\s*\(/.test(s), 'no googleapis one-shot insert remains in yt-daily');
     assert.match(s, /recoveredSlotIdx/, 'recovered slots are marked produced and skipped');
+    assert.match(s, /if \(up\.conflict\)/, 'round-1 MAJOR 4/minor 9: the conflict-claim path is explicit');
+    assert.match(s, /titleFingerprint|title_fingerprint/, 'claimed uploads record the fingerprint, not this run\'s title');
   });
 
   test('yt-deepdive: recovery before production; kind doc + slotIdx 0; resolved claim writes deepdiveDate and exits', () => {
     const s = src('yt-deepdive.mjs');
-    assert.match(s, /kind:\s*'doc'/);
+    assert.match(s, /kind: 'doc'/);
     assert.match(s, /slotIdx:\s*0/);
     assert.ok(s.includes('recoverOpenIntents'));
     assert.ok(s.includes('uploadWithIntent'));
     assert.ok(!/yt\.videos\.insert\s*\(/.test(s), 'no googleapis one-shot insert remains in yt-deepdive');
     assert.match(s, /deepdiveDate\s*=\s*today\(\)/, 'recovered/claimed doc marks the slot produced');
+    assert.match(s, /const docTitle = .*slice\(0, 95\)/, 'minor 7: the intent fingerprints the EXACT uploaded (sliced) title');
   });
 
   test('shorts-clips: publisher uploads via the shared two-step with kind short + slotIdx 0; recovered claims mark the queue entry posted', () => {
     const s = src('longvideo/shorts-clips.mjs');
+    assert.match(s, /recoverOpenIntents\(\{ store: intents, channelId: slug, kind: 'short'/, 'round-1 MAJOR 3: recovery is kind-scoped');
     assert.match(s, /kind:\s*'short'/);
     assert.match(s, /slotIdx:\s*0/);
-    assert.ok(s.includes('recoverOpenIntents'));
     assert.ok(s.includes('uploadWithIntent'));
     assert.ok(!/yt\.videos\.insert\s*\(/.test(s), 'no googleapis one-shot insert remains in shorts-clips');
     assert.match(s, /postedAt/, 'recovered claims mark the queue entry so the slot is never re-picked');
+    assert.match(s, /uploadedIntentsFor/, 'round-1 MAJOR 4: the terminal-intent sweep runs before picking');
+    assert.match(s, /matchUploadedIntentsToQueue/, 'the sweep matches by fingerprint');
+    assert.match(s, /const clipUploadTitle = clip\.title\.slice\(0, 100\)/, 'minor 7: the intent fingerprints the EXACT uploaded (sliced) title');
   });
 });
 
@@ -773,6 +968,11 @@ describe('lane wiring (yt-daily / yt-deepdive / shorts-clips)', () => {
 // ---------------------------------------------------------------------------
 describe('quota-model wiring (D24/AC-P4-32)', () => {
   test('with the #104 model, ~15 uploads/day do NOT false-park; legacy math parks at ~5', async () => {
+    // NOTE (round-1 minor 13, pinned here): evaluate() enforces the shared
+    // UNITS pool (10,000/day) — it does NOT enforce the model's insertPerDay
+    // CALL bucket (100 calls/day). That is fine today: ~30 channels at a few
+    // uploads/day sit far below 100 insert calls; revisit only if upload
+    // volume approaches the call cap.
     const { evaluate, DEFAULT_QUOTA_MODEL } = await import('../lib/quota-ledger.mjs');
     const state = { c1: { uploadsToday: { date: ptDate(), count: 15 } } };
     const modeled = evaluate(state, { model: DEFAULT_QUOTA_MODEL });

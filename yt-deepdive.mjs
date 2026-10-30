@@ -26,7 +26,7 @@ import { resolveBinary } from './lib/ffmpeg.mjs';
 import { applyChannelKeys } from './lib/channel-keys.mjs';
 // #106 T3 (S2): upload intents — the note before any videos.insert (D5), the
 // two-step resumable upload (D6), the run-start open-intent resolution (D7a).
-import { getUploadIntentStore, uploadWithIntent, recoverOpenIntents, makeFindByTitle, oauthAccessToken, nextFutureSlotISO } from './lib/upload-intents.mjs';
+import { getUploadIntentStore, uploadWithIntent, recoverOpenIntents, makeFindByTitle, oauthAccessToken, slotISOOnDate } from './lib/upload-intents.mjs';
 import { loadEnv } from './lib/env.mjs';
 loadEnv();
 const FF = resolveBinary('ffmpeg');
@@ -249,18 +249,25 @@ const yt = google.youtube({ version: 'v3', auth });
 const intents = await getUploadIntentStore();
 if (intents) {
   const intentLog = (m) => console.log(`[intent] ${m}`);
+  // Round-1 MAJOR 3: kind-scoped — the doc lane recovers only DOC intents.
   const rec = await recoverOpenIntents({
-    store: intents, channelId: slug, findByTitle: makeFindByTitle(yt, { log: intentLog }), log: intentLog,
+    store: intents, channelId: slug, kind: 'doc', findByTitle: makeFindByTitle(yt, { log: intentLog }), log: intentLog,
   });
   for (const o of rec.outcomes) {
     if (o.status === 'resolved' && o.kind === 'doc') {
       console.log(`[intent] doc upload already on YouTube (${o.videoId}) — slot marked produced, production skipped`);
       const stR = loadState();
       stR[slug] = stR[slug] || {};
+      // deepdiveDate = TODAY (safe direction, D17-terminal family): the doc
+      // slot IS produced — the video is on YouTube. Re-producing today would
+      // be exactly the duplicate this lane exists to prevent; a "missing"
+      // episode is free, a second episode <24h is not.
       stR[slug].deepdiveDate = today();
       stR[slug].deepdiveVideo = {
         videoId: o.videoId,
-        publishAt: nextFutureSlotISO([b.longSlot || '22:35']), // D8: stale slot → next kit occurrence
+        // Minor 8: the committed schedule (probe body) or the long-slot time
+        // ON THE RECOVERED SLOT'S DATE — never a rolled-forward occurrence.
+        publishAt: o.publishAt || slotISOOnDate(o.slotDate, b.longSlot || '22:35'),
         title: o.title || o.intent.title_fingerprint || '',
         recovered: true,
       };
@@ -398,12 +405,15 @@ if (docDup) {
 
 // #106 T3 (D6/AC-P4-6/7): two-step resumable upload — intent row first (the
 // INSERT mutex), session URI persisted before the first byte, videoId on 201.
+// Minor 7: the intent fingerprints the EXACT uploaded title (sliced, as the
+// resource sends it) so recovery matches the live playlist byte-for-byte.
+const docTitle = `${script.title} | ${b.authority}`.slice(0, 95);
 const up = await uploadWithIntent({
   store: intents, channelId: slug, slotDate: today(), kind: 'doc', slotIdx: 0,
-  title: `${script.title} | ${b.authority}`, jobId: process.env.PIPELINE_JOB_ID || null,
+  title: docTitle, jobId: process.env.PIPELINE_JOB_ID || null,
   accessToken: await oauthAccessToken(auth),
   resource: {
-    snippet: { title: `${script.title} | ${b.authority}`.slice(0, 95), description, tags: b.tags.slice(0, 12), categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
+    snippet: { title: docTitle, description, tags: b.tags.slice(0, 12), categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
     status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false }
   },
   bytes: fs.readFileSync(final), publishAt,
@@ -415,12 +425,24 @@ if (up.skipProduction && !up.videoId) {
 }
 if (!up.ok) throw new Error(`upload failed: ${up.error}`);
 const videoId = up.videoId;
-if (up.conflict) console.log(`[intent] conflict resolved: ${videoId} already on YouTube — claimed, NOT re-uploaded`);
 await yt.thumbnails.set({ videoId, media: { body: Readable.from(thumb) } }).catch(() => { });
 
 const st = loadState();
 st[slug] = st[slug] || {};
+// deepdiveDate = TODAY in BOTH paths (safe direction): the doc slot is produced.
 st[slug].deepdiveDate = today();
+if (up.conflict) {
+  // Round-1 MAJOR 4: claimed, not re-uploaded (a crashed run's episode is the
+  // slot's product). Record ITS fingerprint — this run's narration text
+  // belongs to no video and must never be embedded against the claimed id.
+  // No FB outbox (wrong content), no seed write (this run's theme never
+  // shipped — the next doc day may reuse it for a fresh episode).
+  st[slug].deepdiveVideo = { videoId, publishAt, title: up.existing?.title_fingerprint || '', recovered: true };
+  st[slug].uploadsToday = nextCounter(st[slug].uploadsToday);
+  saveChannelState(slug, st[slug]);
+  console.log(`[intent] conflict resolved: ${videoId} already on YouTube — claimed, NOT re-uploaded`);
+  process.exit(0);
+}
 if (longSeed) {
   st[slug].usedLongSeeds = [...(st[slug].usedLongSeeds || []), longSeed.title].slice(-40);
   st[slug].todayTopic = { at: today(), topic: longSeed.title };

@@ -31,7 +31,7 @@ import { recentUploadTitles } from '../lib/dup-gate.mjs';
 import { nextCounter } from '../lib/quota-ledger.mjs';
 // #106 T3 (S2): upload intents — the note before any videos.insert (D5), the
 // two-step resumable upload (D6), the run-start open-intent resolution (D7a).
-import { getUploadIntentStore, uploadWithIntent, recoverOpenIntents, makeFindByTitle, oauthAccessToken, titleFingerprint } from '../lib/upload-intents.mjs';
+import { getUploadIntentStore, uploadWithIntent, recoverOpenIntents, makeFindByTitle, oauthAccessToken, titleFingerprint, matchUploadedIntentsToQueue, slotISOOnDate } from '../lib/upload-intents.mjs';
 
 loadEnv();
 const REPO = process.env.GH_REPO || 'muzzamilhassan/automation';
@@ -428,7 +428,7 @@ async function postNext() {
   // conflict-skips).
   const intents = await getUploadIntentStore();
   if (intents) {
-    const rec = await recoverOpenIntents({ store: intents, channelId: slug, findByTitle: makeFindByTitle(yt, { log }), log });
+    const rec = await recoverOpenIntents({ store: intents, channelId: slug, kind: 'short', findByTitle: makeFindByTitle(yt, { log }), log });
     for (const o of rec.outcomes) {
       if (o.status === 'resolved' && o.kind === 'short') {
         log(`recovered clip upload ${o.videoId} (${o.slotDate}#${o.slotIdx}, ${o.via}) — marking the queue entry posted`);
@@ -438,13 +438,32 @@ async function postNext() {
         else log(`  [warn] no unposted queue entry matches the recovered title — state marks still written`);
         st.clipLastPostDate = todayUTC;
         st.uploadsToday = nextCounter(st.uploadsToday);
-        st.lastVideos = [{ videoId: o.videoId, publishAt: nextSlotISO((b.slots && b.slots[0]) || '22:35'), title: o.title || o.intent.title_fingerprint || '', recovered: true }];
-        st.titleHistory = [...(st.titleHistory || []), { t: o.title || o.intent.title_fingerprint || '', at: st.lastVideos[0].publishAt }].slice(-60);
+        // Minor 8: the recovered clip's OWN schedule — committed publishAt
+        // from the probe body, else the slot time on its own slot_date.
+        const rp = o.publishAt || slotISOOnDate(o.slotDate, (b.slots && b.slots[0]) || '22:35');
+        st.lastVideos = [{ videoId: o.videoId, publishAt: rp, title: o.title || o.intent.title_fingerprint || '', recovered: true }];
+        st.titleHistory = [...(st.titleHistory || []), { t: o.title || o.intent.title_fingerprint || '', at: rp }].slice(-60);
         saveChannelState(slug, st);
         process.exit(0);
       }
       if (o.status === 'abandoned') log(`open intent ${o.slotDate}#${o.slotIdx} abandoned — proceeding with a fresh clip`);
       else if (o.status === 'open') log(`open intent ${o.slotDate}#${o.slotIdx} left open (${o.reason}) — the slot mutex holds`);
+    }
+    // Round-1 MAJOR 4 TERMINAL SWEEP: a run that died AFTER markUploaded but
+    // BEFORE its queue entry was marked posted would let title rotation
+    // re-pick — and weeks later RE-UPLOAD — the same clip. The intent row
+    // holds the fingerprint that prevents it: mark those entries posted
+    // before picking. Bookkeeping only — the pick below still proceeds.
+    try {
+      const done = await intents.uploadedIntentsFor(slug, { sinceMs: 7 * 24 * 3600_000 });
+      const matches = matchUploadedIntentsToQueue({ uploadedIntents: done.ok ? done.intents : [], clips: st.clipQueue?.clips || [] });
+      if (matches.length) {
+        for (const { entry } of matches) entry.postedAt = entry.postedAt || new Date().toISOString();
+        saveChannelState(slug, st);
+        log(`sweep: ${matches.length} queued clip(s) already uploaded per the intent ledger — marked posted, never re-picked`);
+      }
+    } catch (e) {
+      log(`terminal sweep skipped (non-fatal): ${String(e.message).slice(0, 80)}`);
     }
   }
 
@@ -494,13 +513,15 @@ async function postNext() {
   log(`posting "${clip.title}" (part ${clip.part}) -> public ${publishAt}`);
   // #106 T3 (D6/AC-P4-6/7): two-step resumable upload — the intent row is the
   // INSERT mutex; the session URI is persisted BEFORE the first byte; the
-  // videoId lands on the row on 201.
+  // videoId lands on the row on 201. Minor 7: the intent fingerprints the
+  // EXACT uploaded title (sliced, as the resource sends it).
+  const clipUploadTitle = clip.title.slice(0, 100);
   const up = await uploadWithIntent({
     store: intents, channelId: slug, slotDate: todayUTC, kind: 'short', slotIdx: 0,
-    title: clip.title, jobId: process.env.PIPELINE_JOB_ID || null,
+    title: clipUploadTitle, jobId: process.env.PIPELINE_JOB_ID || null,
     accessToken: await oauthAccessToken(auth),
     resource: {
-      snippet: { title: clip.title.slice(0, 100), description, tags: (b.tags || []).slice(0, 12), categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
+      snippet: { title: clipUploadTitle, description, tags: (b.tags || []).slice(0, 12), categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
       status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false },
     },
     bytes: fs.readFileSync(file), publishAt,
@@ -512,7 +533,23 @@ async function postNext() {
   }
   if (!up.ok) await fail(`clip upload failed: ${up.error}`);
   const videoId = up.videoId;
-  if (up.conflict) log(`✓ claimed already-uploaded clip ${videoId} (intent conflict) — NOT re-uploaded`);
+  if (up.conflict) {
+    // Round-1 MAJOR 4: the slot was produced by a crashed run's clip — mark
+    // THAT clip's queue entry (by the claimed intent's fingerprint), never
+    // the current pick's. The current pick stays queued for its own day.
+    log(`✓ claimed already-uploaded clip ${videoId} (intent conflict) — NOT re-uploaded`);
+    const claimed = (st.clipQueue?.clips || []).find((c) => titleFingerprint(c.title) === up.existing?.title_fingerprint);
+    if (claimed) {
+      claimed.postedAt = claimed.postedAt || new Date().toISOString();
+      log(`  marked "${String(claimed.title).slice(0, 50)}" posted (the claimed upload)`);
+    } else {
+      log(`  [warn] no queue entry matches the claimed title fingerprint`);
+    }
+    st.clipLastPostDate = todayUTC;
+    st.uploadsToday = nextCounter(st.uploadsToday);
+    saveChannelState(slug, st);
+    process.exit(0);
+  }
   log(`✓ queued ${videoId} -> https://youtube.com/shorts/${videoId}`);
 
   // ledger (#99) + state marks (publisher once-per-day, verify claims, history)
