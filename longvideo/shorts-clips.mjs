@@ -17,7 +17,6 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import sharp from 'sharp';
-import { Readable } from 'node:stream';
 import { loadEnv } from '../lib/env.mjs';
 import { parseSrt } from '../lib/srt.mjs';
 import { candidateWindows, parseSelection, pickTitles, cuesToWords, cardSvg } from '../lib/clipper.mjs';
@@ -30,6 +29,9 @@ import { nextSlotISO } from '../lib/schedule.mjs';
 import { nextUnposted } from '../lib/clipper.mjs';
 import { recentUploadTitles } from '../lib/dup-gate.mjs';
 import { nextCounter } from '../lib/quota-ledger.mjs';
+// #106 T3 (S2): upload intents — the note before any videos.insert (D5), the
+// two-step resumable upload (D6), the run-start open-intent resolution (D7a).
+import { getUploadIntentStore, uploadWithIntent, recoverOpenIntents, makeFindByTitle, oauthAccessToken, titleFingerprint } from '../lib/upload-intents.mjs';
 
 loadEnv();
 const REPO = process.env.GH_REPO || 'muzzamilhassan/automation';
@@ -418,6 +420,34 @@ async function postNext() {
   auth.setCredentials({ refresh_token: JSON.parse(tokRaw).refresh_token });
   const yt = new google.youtube({ version: 'v3', auth });
 
+  // #106 T3 (D7a/AC-P4-8): resolve ANY open clip upload intent BEFORE picking.
+  // A resolved intent = the clip is already on YouTube (a crashed run posted
+  // it): mark the matching queue entry posted + today's state marks — the slot
+  // is produced, never re-picked, never re-uploaded. Abandoned = a fresh clip
+  // proceeds; open = the intent mutex guards the slot (the upload below then
+  // conflict-skips).
+  const intents = await getUploadIntentStore();
+  if (intents) {
+    const rec = await recoverOpenIntents({ store: intents, channelId: slug, findByTitle: makeFindByTitle(yt, { log }), log });
+    for (const o of rec.outcomes) {
+      if (o.status === 'resolved' && o.kind === 'short') {
+        log(`recovered clip upload ${o.videoId} (${o.slotDate}#${o.slotIdx}, ${o.via}) — marking the queue entry posted`);
+        const fp = o.intent.title_fingerprint;
+        const entry = (st.clipQueue?.clips || []).find((c) => !c.postedAt && titleFingerprint(c.title) === fp);
+        if (entry) entry.postedAt = new Date().toISOString();
+        else log(`  [warn] no unposted queue entry matches the recovered title — state marks still written`);
+        st.clipLastPostDate = todayUTC;
+        st.uploadsToday = nextCounter(st.uploadsToday);
+        st.lastVideos = [{ videoId: o.videoId, publishAt: nextSlotISO((b.slots && b.slots[0]) || '22:35'), title: o.title || o.intent.title_fingerprint || '', recovered: true }];
+        st.titleHistory = [...(st.titleHistory || []), { t: o.title || o.intent.title_fingerprint || '', at: st.lastVideos[0].publishAt }].slice(-60);
+        saveChannelState(slug, st);
+        process.exit(0);
+      }
+      if (o.status === 'abandoned') log(`open intent ${o.slotDate}#${o.slotIdx} abandoned — proceeding with a fresh clip`);
+      else if (o.status === 'open') log(`open intent ${o.slotDate}#${o.slotIdx} left open (${o.reason}) — the slot mutex holds`);
+    }
+  }
+
   const liveTitles = await recentUploadTitles(yt, { max: 45 });
   const pick = nextUnposted(queue, liveTitles, isDupTitle);
   if (!pick) {
@@ -462,15 +492,27 @@ async function postNext() {
   ].join('\n').trim();
 
   log(`posting "${clip.title}" (part ${clip.part}) -> public ${publishAt}`);
-  const res = await yt.videos.insert({
-    part: ['snippet', 'status'],
-    requestBody: {
+  // #106 T3 (D6/AC-P4-6/7): two-step resumable upload — the intent row is the
+  // INSERT mutex; the session URI is persisted BEFORE the first byte; the
+  // videoId lands on the row on 201.
+  const up = await uploadWithIntent({
+    store: intents, channelId: slug, slotDate: todayUTC, kind: 'short', slotIdx: 0,
+    title: clip.title, jobId: process.env.PIPELINE_JOB_ID || null,
+    accessToken: await oauthAccessToken(auth),
+    resource: {
       snippet: { title: clip.title.slice(0, 100), description, tags: (b.tags || []).slice(0, 12), categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
       status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false },
     },
-    media: { body: Readable.from(fs.readFileSync(file)) },
+    bytes: fs.readFileSync(file), publishAt,
+    log,
   });
-  const videoId = res.data.id;
+  if (up.skipProduction && !up.videoId) {
+    log(`clip upload skipped (intent conflict or past publishAt — the safe direction, AC-P4-6/D8)`);
+    process.exit(0);
+  }
+  if (!up.ok) await fail(`clip upload failed: ${up.error}`);
+  const videoId = up.videoId;
+  if (up.conflict) log(`✓ claimed already-uploaded clip ${videoId} (intent conflict) — NOT re-uploaded`);
   log(`✓ queued ${videoId} -> https://youtube.com/shorts/${videoId}`);
 
   // ledger (#99) + state marks (publisher once-per-day, verify claims, history)

@@ -1,0 +1,54 @@
+name: 📞 Nightly upload reconciliation
+
+# #106 Phase 4 S2 (T3) — D7b/AC-P4-9: diff every active channel's uploads
+# playlist against upload_intents (channels.list + playlistItems.list ≈ 2
+# units/channel — never search.list). Orphans are recorded orphan-noted
+# (advisory warnings, idempotent per video, NEVER backfilled as intents);
+# ghosts (ledger says uploaded, YouTube disagrees) are markFailed + ntfy;
+# open intents past the window are probed and claimed/abandoned (D7a).
+on:
+  schedule:
+    # 04:29 UTC = 09:29 PKT — off-peak, after the PT quota reset, before the
+    # day's production crons start
+    - cron: '29 4 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: upload-reconcile
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  reconcile:
+    name: 📞 Reconcile uploads playlist vs intent ledger
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: 📦 Install Dependencies
+        run: npm install
+
+      - name: 📞 Reconcile uploads vs intents (orphans / ghosts / recovery)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          # per-channel refresh tokens — a channel joins the reconcile by
+          # adding its secret here (data-driven discovery in the script; the
+          # slug list is never hardcoded). Mirrors the reporting-daily.yml
+          # secret pattern.
+          YT_TOKEN_QUOTEQUARRY: ${{ secrets.YT_TOKEN_QUOTEQUARRY }}
+          YT_TOKEN_INVESTORS_COMPASS: ${{ secrets.YT_TOKEN_INVESTORS_COMPASS }}
+          YT_TOKEN_MONEY_RULEBOOK: ${{ secrets.YT_TOKEN_MONEY_RULEBOOK }}
+          YT_TOKEN_DEBT_FREE_DOCTRINE: ${{ secrets.YT_TOKEN_DEBT_FREE_DOCTRINE }}
+        run: node scripts/upload-reconcile.mjs

@@ -31,6 +31,10 @@ const { archiveUpload } = await import('./yt-archive.mjs');
 const { recentUploadTitles, findDup } = await import('./lib/dup-gate.mjs');
 const { shouldSuppressNext } = await import('./lib/schedule.mjs');
 import { nextCounter } from './lib/quota-ledger.mjs';
+// #106 T3 (S2): upload intents — the note written before any videos.insert
+// (D5); the two-step resumable upload whose session URI is ours to keep (D6);
+// the run-start open-intent resolution that kills the duplicate class (D7a).
+import { getUploadIntentStore, uploadWithIntent, recoverOpenIntents, makeFindByTitle, oauthAccessToken } from './lib/upload-intents.mjs';
 
 const slug = process.argv[2];
 const FORCE = process.argv.includes('--force');
@@ -145,7 +149,8 @@ if (RUN_SHORTS) {
     console.log(`[terms] skipped: ${String(e.message).slice(0, 70)}`);
   }
 
-  const yt = google.youtube({ version: 'v3', auth: channelAuth(slug) });
+  const ytAuth = channelAuth(slug);
+  const yt = google.youtube({ version: 'v3', auth: ytAuth });
   // 10-05 DUPLICATE TITLE GATE — live titles from YouTube (state can be days
   // thin), plus this run's own titles so one run can never repeat itself.
   // #36: on API failure fall back to the durable titleHistory instead of
@@ -218,8 +223,44 @@ if (RUN_SHORTS) {
   // brain's finance-gating signal + registry thresholds into the /dedupe gate.
   // Fail-open null (template-less = D8 defaults, non-finance tiers).
   const brainTemplateId = await resolveTemplateId(slug);
+  // #106 T3 (D7a/AC-P4-8): BEFORE any slot production (including --topup),
+  // resolve ANY open upload intent for this channel — any day, not just
+  // today's. A resolved intent = the video exists on YouTube: the state entry
+  // is written here, the slot is marked produced, and production for it is
+  // SKIPPED — never a second upload. Abandoned = no video; this run produces
+  // fresh (the abandoned row is re-claimable by the intent mutex).
+  const intents = await getUploadIntentStore();
+  const recoveredSlotIdx = new Set();
+  if (intents) {
+    try {
+      const intentLog = (m) => console.log(`  [intent] ${m}`);
+      const rec = await recoverOpenIntents({
+        store: intents, channelId: slug, findByTitle: makeFindByTitle(yt, { log: intentLog }), log: intentLog,
+      });
+      for (const o of rec.outcomes) {
+        if (o.status === 'resolved') {
+          const rp = b.slots[o.slotIdx] ? nextSlotISO(b.slots[o.slotIdx]) : new Date().toISOString(); // D8: recompute from the kit's slot times
+          console.log(`  [intent] recovered ${o.videoId} for slot ${o.slotDate}#${o.slotIdx} (${o.via}) — state entry written, slot marked produced`);
+          results.push({ videoId: o.videoId, publishAt: rp, title: o.title || o.intent.title_fingerprint || '', recovered: true });
+          state[slug] = state[slug] || {};
+          state[slug].uploadsToday = nextCounter(state[slug].uploadsToday);
+          if (o.slotDate === today && o.slotIdx < slotLimit) recoveredSlotIdx.add(o.slotIdx);
+        } else if (o.status === 'abandoned') {
+          console.log(`  [intent] slot ${o.slotDate}#${o.slotIdx} abandoned — producing fresh this run`);
+        } else {
+          console.log(`  [intent] slot ${o.slotDate}#${o.slotIdx} left open (${o.reason}) — the slot mutex holds`);
+        }
+      }
+    } catch (e) {
+      console.log(`  [intent] recovery skipped (non-fatal): ${String(e.message).slice(0, 100)}`);
+    }
+  }
   let slotErrors = 0; // #35: a mid-loop throw used to kill the whole run silently
   for (let i = 0; i < slotLimit; i++) { try {
+    if (recoveredSlotIdx.has(i)) {
+      console.log(`  slot ${i + 1} already produced (recovered upload intent) — skipped (AC-P4-8)`);
+      continue;
+    }
     const publishAt = nextSlotISO(b.slots[i]);
     console.log(`\n[${slug}] short ${i + 1}/${b.slots.length} → goes public ${publishAt}`);
     if (!themesToday[i]) {
@@ -294,15 +335,32 @@ if (RUN_SHORTS) {
     }
     fs.writeFileSync(`fb-outbox/${slug}/${stamp}.json`, JSON.stringify({ videoFile: mp4Path, publishAt, title: meta.title, description: meta.description, tags: meta.tags, slug }, null, 2));
     seenThisRun.push(meta.title);
-    const res = await yt.videos.insert({
-      part: ['snippet', 'status'],
-      requestBody: {
+    // #106 T3 (D6/AC-P4-6/7): explicit two-step resumable upload. The intent
+    // row is the INSERT mutex (a conflict NEVER re-uploads); the session URI
+    // is persisted BEFORE the first byte; the videoId lands on the row on 201.
+    const up = await uploadWithIntent({
+      store: intents, channelId: slug, slotDate: today, kind: 'short', slotIdx: i,
+      title: meta.title, jobId: process.env.PIPELINE_JOB_ID || null,
+      accessToken: await oauthAccessToken(ytAuth),
+      resource: {
         snippet: { title: meta.title, description: `${meta.description}\n\n${b.hashtags || ''}`.trim(), tags: meta.tags, categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
         status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false }
       },
-      media: { body: Readable.from(out.buffer) }
+      bytes: out.buffer, publishAt,
+      log: (m) => console.log(`  [intent] ${m}`),
     });
-    const videoId = res.data.id;
+    if (up.skipProduction && !up.videoId) {
+      console.log('  ✗ slot skipped (upload-intent conflict or past publishAt — the safe direction, AC-P4-6/D8)');
+      // #53 fail-closed: nothing was uploaded here, so the FB/IG pickup marker
+      // must not survive — an unuploaded render never crosses the gates.
+      try { fs.unlinkSync(`fb-outbox/${slug}/${stamp}.json`); } catch { }
+      try { fs.unlinkSync(mp4Path); } catch { }
+      results.push({ videoId: null, publishAt, title: meta.title, intentSkip: true });
+      continue;
+    }
+    if (!up.ok) throw new Error(`upload failed: ${up.error}`);
+    const videoId = up.videoId;
+    if (up.conflict) console.log(`  ✓ intent conflict resolved: ${videoId} is already on YouTube — claimed, NOT re-uploaded`);
     // #99 shared-pool ledger: count this successful upload (persisted by the
     // end-of-run state write below, which spreads state[slug])
     state[slug] = state[slug] || {};

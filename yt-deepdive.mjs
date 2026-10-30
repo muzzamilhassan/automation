@@ -24,6 +24,9 @@ const { resolveBrand } = await import('./lib/brand-resolve.mjs');
 
 import { resolveBinary } from './lib/ffmpeg.mjs';
 import { applyChannelKeys } from './lib/channel-keys.mjs';
+// #106 T3 (S2): upload intents — the note before any videos.insert (D5), the
+// two-step resumable upload (D6), the run-start open-intent resolution (D7a).
+import { getUploadIntentStore, uploadWithIntent, recoverOpenIntents, makeFindByTitle, oauthAccessToken, nextFutureSlotISO } from './lib/upload-intents.mjs';
 import { loadEnv } from './lib/env.mjs';
 loadEnv();
 const FF = resolveBinary('ffmpeg');
@@ -229,6 +232,47 @@ if (state[slug]?.deepdiveDate === today() && !FORCE) {
 }
 function today() { return new Date().toISOString().slice(0, 10); }
 
+// Channel OAuth + yt client (moved up from the upload block — the D7a recovery
+// needs the uploads playlist for its title-fingerprint lookup).
+const auth = new google.auth.OAuth2(process.env.YOUTUBE_CLIENT_ID || '', process.env.YOUTUBE_CLIENT_SECRET || '');
+const envName = `YT_TOKEN_${slug.toUpperCase().replace(/-/g, '_')}`;
+const tokRaw = process.env[envName] || fs.readFileSync(path.resolve(HERE, `yt-mcp/channels/${slug}/token.json`), 'utf8');
+const tok = JSON.parse(tokRaw);
+auth.setCredentials({ refresh_token: tok.refresh_token });
+const yt = google.youtube({ version: 'v3', auth });
+
+// #106 T3 (D7a/AC-P4-8): BEFORE any production spend, resolve ANY open doc
+// upload intent for this channel — any day. A resolved intent = the episode
+// is already on YouTube: mark the slot produced (deepdiveDate + state entry,
+// publishAt RECOMPUTED from the kit's long slot per D8) and exit — never a
+// second upload. Abandoned = produce fresh; open = the slot mutex holds.
+const intents = await getUploadIntentStore();
+if (intents) {
+  const intentLog = (m) => console.log(`[intent] ${m}`);
+  const rec = await recoverOpenIntents({
+    store: intents, channelId: slug, findByTitle: makeFindByTitle(yt, { log: intentLog }), log: intentLog,
+  });
+  for (const o of rec.outcomes) {
+    if (o.status === 'resolved' && o.kind === 'doc') {
+      console.log(`[intent] doc upload already on YouTube (${o.videoId}) — slot marked produced, production skipped`);
+      const stR = loadState();
+      stR[slug] = stR[slug] || {};
+      stR[slug].deepdiveDate = today();
+      stR[slug].deepdiveVideo = {
+        videoId: o.videoId,
+        publishAt: nextFutureSlotISO([b.longSlot || '22:35']), // D8: stale slot → next kit occurrence
+        title: o.title || o.intent.title_fingerprint || '',
+        recovered: true,
+      };
+      stR[slug].uploadsToday = nextCounter(stR[slug].uploadsToday);
+      saveChannelState(slug, stR[slug]);
+      process.exit(0);
+    }
+    if (o.status === 'abandoned') console.log(`[intent] slot ${o.slotDate}#${o.slotIdx} abandoned — producing fresh`);
+    else if (o.status === 'open') console.log(`[intent] slot ${o.slotDate}#${o.slotIdx} left open (${o.reason})`);
+  }
+}
+
 console.log(`[long] ${b.label} — premium daily episode`);
 // 09-30: episode topics are RESEARCH-LED too (static banks removed). The
 // topic comes from the strongest current story in the niche; seeds already
@@ -330,13 +374,6 @@ console.log(`[long] ✅ episode rendered: ${final} (${(total / 60).toFixed(1)} m
 
 // ---------- upload scheduled ----------
 
-const auth = new google.auth.OAuth2(process.env.YOUTUBE_CLIENT_ID || '', process.env.YOUTUBE_CLIENT_SECRET || '');
-const envName = `YT_TOKEN_${slug.toUpperCase().replace(/-/g, '_')}`;
-const tokRaw = process.env[envName] || fs.readFileSync(path.resolve(HERE, `yt-mcp/channels/${slug}/token.json`), 'utf8');
-const tok = JSON.parse(tokRaw);
-auth.setCredentials({ refresh_token: tok.refresh_token });
-const yt = google.youtube({ version: 'v3', auth });
-
 const [hh, mm] = b.longSlot.split(':').map(Number);
 const now = new Date();
 const pub = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hh, mm, 0));
@@ -359,15 +396,27 @@ if (docDup) {
   process.exit(0);
 }
 
-const res = await yt.videos.insert({
-  part: ['snippet', 'status'],
-  requestBody: {
+// #106 T3 (D6/AC-P4-6/7): two-step resumable upload — intent row first (the
+// INSERT mutex), session URI persisted before the first byte, videoId on 201.
+const up = await uploadWithIntent({
+  store: intents, channelId: slug, slotDate: today(), kind: 'doc', slotIdx: 0,
+  title: `${script.title} | ${b.authority}`, jobId: process.env.PIPELINE_JOB_ID || null,
+  accessToken: await oauthAccessToken(auth),
+  resource: {
     snippet: { title: `${script.title} | ${b.authority}`.slice(0, 95), description, tags: b.tags.slice(0, 12), categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
     status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false }
   },
-  media: { body: Readable.from(fs.readFileSync(final)) }
+  bytes: fs.readFileSync(final), publishAt,
+  log: (m) => console.log(`[intent] ${m}`),
 });
-await yt.thumbnails.set({ videoId: res.data.id, media: { body: Readable.from(thumb) } }).catch(() => { });
+if (up.skipProduction && !up.videoId) {
+  console.log(`[intent] doc upload skipped (intent conflict or past publishAt — safe direction); retry on the next doc day`);
+  process.exit(0);
+}
+if (!up.ok) throw new Error(`upload failed: ${up.error}`);
+const videoId = up.videoId;
+if (up.conflict) console.log(`[intent] conflict resolved: ${videoId} already on YouTube — claimed, NOT re-uploaded`);
+await yt.thumbnails.set({ videoId, media: { body: Readable.from(thumb) } }).catch(() => { });
 
 const st = loadState();
 st[slug] = st[slug] || {};
@@ -379,7 +428,7 @@ if (longSeed) {
 // #105: narration text rides along in state (intro + chapters + outro) — the
 // pipeline embeds it into the Brain at publish time (AC-P3-2: upload accepted
 // first, so videoId is real here; the dup gate above exits without this write).
-st[slug].deepdiveVideo = { videoId: res.data.id, publishAt, title: `${script.title} | ${b.authority}`, text: [script.intro, ...(script.chapters || []).map((c) => c?.text || ''), script.outro].filter(Boolean).join('\n\n') };
+st[slug].deepdiveVideo = { videoId, publishAt, title: `${script.title} | ${b.authority}`, text: [script.intro, ...(script.chapters || []).map((c) => c?.text || ''), script.outro].filter(Boolean).join('\n\n') };
 // #99 shared-pool ledger: count this successful upload against the daily budget
 st[slug].uploadsToday = nextCounter(st[slug].uploadsToday);
 saveChannelState(slug, st[slug]);
@@ -393,4 +442,4 @@ fs.writeFileSync(`fb-outbox/${slug}/${stamp}.json`, JSON.stringify({ videoFile: 
 
 fs.rmSync(`${work}/joined.mp4`, { force: true });
 for (const s of segs) fs.rmSync(s.file, { force: true });
-console.log(`\n✅ ${b.label} EPISODE scheduled: https://youtube.com/watch?v=${res.data.id} → public ${publishAt} (${(total / 60).toFixed(1)} min) + FB/IG outbox`);
+console.log(`\n✅ ${b.label} EPISODE scheduled: https://youtube.com/watch?v=${videoId} → public ${publishAt} (${(total / 60).toFixed(1)} min) + FB/IG outbox`);
