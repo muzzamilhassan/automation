@@ -99,8 +99,8 @@ Verify: with Neon unreachable the pipeline runs exactly as today (log-only, no j
 Verify: before any upload the lane writes one `upload_intents` row (unique per channel + slot_date + kind + slot_idx); if another lane already claimed the slot, the lane resolves that intent or marks the slot produced and skips — it never uploads a second time.
 
 - Steps:
-  1. Automated: `node --test tests/upload-intents.test.mjs` — lifecycle (initiated → session_open → uploaded → recorded) and the INSERT-conflict case (conflict ⇒ resolve-or-skip, never bare proceed) are green.
-  2. After Row 1's run, DB-CHECK: `select * from upload_intents order by created_at desc limit 5` — one row for the upload with the full dedupe key `channel:slot_date:kind:slot_idx` and status `recorded` with a video_id.
+  1. Automated: `node --test tests/upload-intents.test.mjs` — lifecycle (pending → initiated → uploading → uploaded, with failed/abandoned re-claim paths — shipped vocabulary per the D5 amendment; D5's names map 1:1: session_open=uploading, recorded=uploaded) and the INSERT-conflict case (conflict ⇒ resolve-or-skip, never bare proceed) are green.
+  2. After Row 1's run, DB-CHECK: `select * from upload_intents order by created_at desc limit 5` — one row for the upload with the full dedupe key `channel:slot_date:kind:slot_idx` and status `uploaded` with a video_id (shipped vocabulary; D5's `recorded` = shipped `uploaded`).
 - Expected: an intent row exists for every upload, and no two lanes can hold the same slot.
 - Actual:
 - Evidence (screenshot/output path):
