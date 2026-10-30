@@ -2,11 +2,12 @@
 // Produces Shorts → YouTube, cross-posts FB Reels, IG Reels, niche posters.
 // Adding a new platform later = add one step here. No workflow changes needed.
 //
-// Usage: node channel-pipeline.mjs <slug> [--no-episode] [--force]
+// Usage: node channel-pipeline.mjs <slug> [--no-episode] [--force] [--resume [job_id]]
 // Each step is independent: if one fails, the rest continue.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 
 const slug = process.argv[2];
 const FORCE = process.argv.includes('--force');
@@ -39,6 +40,251 @@ const loadState = () => loadAllStates();
 const log = (msg) => console.log(`[${slug}] ${msg}`);
 const results = { shorts: false, episode: false, fbReels: false, igReels: false, poster: false };
 const errors = [];
+
+// ---- #106 T2 — JOB RECORDING / PARK-CHECK / RESUME (Phase 4 S1+S3) --------
+// FLAG CONTRACT: JOB_STORE_ENABLED unset = byte-identical legacy behavior —
+// no store imports, no DB, no Blob, no new log lines (pinned by
+// tests/pipeline-jobstore.test.mjs). When enabled, the run records a job
+// (lib/job-store.mjs), indexes the resume/approval-critical bytes it can
+// reach (lib/artifact-store.mjs), parks on open blocking warnings (D11), and
+// supports --resume (D4). Every store call is fail-open: a dead Neon
+// degrades to log-only with ONE warn (AC-P4-5) and never changes the
+// pipeline's exit semantics (AC-P4-3).
+const JOB_STORE_ENABLED = ['1', 'true'].includes(String(process.env.JOB_STORE_ENABLED || '').toLowerCase());
+const RESUME_ARG = process.argv.includes('--resume');
+const _resumeVal = RESUME_ARG ? process.argv[process.argv.indexOf('--resume') + 1] : undefined;
+const RESUME_JOB_ID = RESUME_ARG && _resumeVal && !String(_resumeVal).startsWith('--') ? _resumeVal : null;
+const TRIGGER_VOCAB = ['cron', 'dispatch', 'resume', 'studio'];
+
+let jobCtl = null; // job recorder (null = flag off, or the store is unavailable)
+let warnStore = null; // warnings store for the park-check + emitters (null = off/unavailable)
+let emitWarningFn = null;
+
+function sha256Text(s) {
+  return createHash('sha256').update(String(s)).digest('hex');
+}
+
+function jobKind(shortsStep) {
+  // kind mapped from the run shape (D1): an episode-free generated run is a
+  // shorts job, an episode-free clips run is a clips job, everything else is
+  // the pipeline wrapper.
+  if (SKIP_EPISODE) return shortsStep === 'clips' ? 'clips' : 'shorts';
+  return 'pipeline';
+}
+
+function jobTrigger() {
+  if (RESUME_ARG) return 'resume';
+  const envTrg = process.env.PIPELINE_TRIGGER;
+  if (envTrg && TRIGGER_VOCAB.includes(envTrg)) return envTrg;
+  if (process.env.GITHUB_EVENT_NAME === 'schedule') return 'cron';
+  return 'dispatch';
+}
+
+// Planned steps in D2's order; PLATFORMS_PAUSED lanes use the skipped-*
+// vocabulary so the step list is stable whether or not platforms are paused.
+function plannedSteps(shortsStep) {
+  const steps = [{ name: 'preflight' }, { name: shortsStep }, { name: 'brain-embed' }, { name: 'verify' }];
+  steps.push(PLATFORMS_PAUSED ? { name: 'skipped-fb', status: 'skipped' } : { name: 'fb' });
+  steps.push(PLATFORMS_PAUSED ? { name: 'skipped-poster', status: 'skipped' } : { name: 'poster' });
+  steps.push({ name: 'episode' }, { name: 'staging' });
+  return steps;
+}
+
+function makePipelineJobController({ slug, jobs, artifacts, brandKit }) {
+  const state = { id: null, planned: [], shortsStep: null, skip: new Set(), closed: new Set(), parent: null };
+  let warned = false;
+  const safe = async (fn) => {
+    try {
+      return await fn();
+    } catch (e) {
+      if (!warned) {
+        warned = true;
+        log(`[job] WARN step recording degraded (non-fatal): ${String((e && e.message) || e).slice(0, 120)}`);
+      }
+      return null;
+    }
+  };
+  // D4 resume key: template id+version + brand-kit hash, carried in jobs.meta.
+  const resumeKey = (template) => ({ template: template || null, kit: sha256Text(JSON.stringify(brandKit)) });
+
+  return {
+    get id() { return state.id; },
+
+    // --resume lookup: getJob(<id>) or latestResumableJob(slug, 30 min window —
+    // REQUIRED: a live-running job must never become a resume target).
+    async loadParent() {
+      if (!RESUME_ARG) return null;
+      return safe(async () => {
+        let got;
+        if (RESUME_JOB_ID) {
+          got = await jobs.getJob(RESUME_JOB_ID);
+          if (!got.ok || !got.job) { log(`resume: job ${RESUME_JOB_ID} not found — running fresh`); return null; }
+        } else {
+          got = await jobs.latestResumableJob(slug, { staleAfterMs: 30 * 60_000 });
+          if (!got.ok || !got.job) { log('resume: no stale job found (30 min window) — running fresh'); return null; }
+        }
+        state.parent = got;
+        return got;
+      });
+    },
+
+    // Called after preflight + park-check: opens the job, registers the
+    // planned steps, decides the resume skips (D4: parent step succeeded AND
+    // artifact bytes retrievable AND a fresh resume key), closes preflight
+    // (it already passed — the job only exists after it did).
+    async begin({ shortsStep, template }) {
+      await safe(async () => {
+        state.shortsStep = shortsStep;
+        const kind = jobKind(shortsStep);
+        const trigger = jobTrigger();
+        const started = await jobs.startJob({
+          channel: slug,
+          kind,
+          trigger,
+          meta: { resume_key: resumeKey(template), template_id: template?.id ?? null, template_version: template?.version ?? null },
+          resumedFromJobId: RESUME_ARG && state.parent?.job ? state.parent.job.id : undefined,
+        });
+        if (!started.ok) { log(`[job] WARN job row not written (${started.error}) — continuing log-only`); return; }
+        state.id = started.id;
+        log(`[job] recording ${kind} job ${state.id} (trigger ${trigger})`);
+        state.planned = plannedSteps(shortsStep);
+        for (let i = 0; i < state.planned.length; i++) {
+          const p = state.planned[i];
+          p.idx = i;
+          await jobs.recordStep(state.id, i, p.name, p.status ? { status: p.status } : {});
+        }
+        await jobs.startStep(state.id, 0);
+        await jobs.finishStep(state.id, 0, { status: 'succeeded' });
+        state.closed.add('preflight');
+        for (const p of state.planned) if (p.status) state.closed.add(p.name); // skipped-* lanes
+
+        const parent = state.parent;
+        if (parent && parent.job) {
+          const fresh = JSON.stringify(parent.job.meta?.resume_key ?? null) === JSON.stringify(resumeKey(template));
+          if (!fresh) log('resume: stale key (template/brand-kit changed) — prior artifacts ignored, steps re-run');
+          for (const p of state.planned) {
+            if (p.status || !fresh) continue; // config-disabled lanes never resume-skip; stale re-runs all
+            const prow = (parent.steps || []).find((s) => s.name === p.name);
+            if (!prow || prow.status !== 'succeeded') continue;
+            const arts = (parent.artifacts || []).filter((a) => a.step === p.name);
+            if (!arts.length) continue; // no artifact row -> re-run (D4)
+            let verified = true;
+            for (const a of arts) {
+              const got = await artifacts.getBytes(a.blob_url || a.content_hash, { expectedHash: a.content_hash });
+              if (!got || !got.ok) { verified = false; break; }
+            }
+            if (verified) {
+              state.skip.add(p.name);
+              await jobs.finishStep(state.id, p.idx, { status: 'skipped', error: 'resume: artifact verified' });
+              state.closed.add(p.name);
+            } else {
+              log(`resume: re-run ${p.name} (bytes not retrievable)`);
+            }
+          }
+        }
+      });
+    },
+
+    isSkipped: (name) => state.skip.has(name),
+
+    async startStep(name) {
+      const p = state.planned.find((x) => x.name === name);
+      if (!p || state.id === null) return;
+      await safe(() => jobs.startStep(state.id, p.idx));
+    },
+
+    async finishStep(name, status, error) {
+      const p = state.planned.find((x) => x.name === name);
+      if (!p || state.id === null) return;
+      state.closed.add(name);
+      await safe(() => jobs.finishStep(state.id, p.idx, { status, error: error ?? null }));
+    },
+
+    // D3: index the pipeline-reachable script payload — the run's state
+    // entries (videoId + script text, the same record the brain embeds). The
+    // child lane's FULL render-input persistence lands with the child task.
+    async indexScriptPayload(entries) {
+      if (state.id === null || !entries?.length) return;
+      await safe(async () => {
+        const payload = JSON.stringify({ slug, kind: 'shorts', date: today, entries }, null, 2);
+        const put = await artifacts.putBytes('script_payload', payload, { contentType: 'application/json' });
+        if (put?.ok) {
+          await jobs.indexArtifact(state.id, {
+            step: state.shortsStep,
+            kind: 'script_payload',
+            contentHash: put.hash,
+            blobUrl: put.blob_url ?? null,
+            size: Buffer.byteLength(payload),
+            meta: { entries: entries.length },
+          });
+          log(`[job] indexed script_payload (${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}${put.degraded ? ', blob degraded — index-only' : ''})`);
+        }
+      });
+    },
+
+    // D3: index the doc lane's TTS narration bytes (demos/deepdive-<slug>/narr-*).
+    async indexEpisodeTts() {
+      if (state.id === null) return;
+      await safe(async () => {
+        const dir = path.join('demos', `deepdive-${slug}`);
+        let files = [];
+        try { files = fs.readdirSync(dir).filter((f) => /^narr-.+\.(mp3|wav)$/i.test(f)).sort(); } catch { return; }
+        for (const f of files) {
+          const bytes = fs.readFileSync(path.join(dir, f));
+          const put = await artifacts.putBytes('tts_audio', bytes);
+          if (put?.ok) {
+            await jobs.indexArtifact(state.id, {
+              step: 'episode',
+              kind: 'tts_audio',
+              contentHash: put.hash,
+              blobUrl: put.blob_url ?? null,
+              size: bytes.length,
+              meta: { file: f },
+            });
+          }
+        }
+        if (files.length) log(`[job] indexed tts_audio x${files.length}`);
+      });
+    },
+
+    // Pending-step sweep + terminal (AC-P4-3): succeeded = the video shipped
+    // clean; partial = shipped but a lane failed; failed = no upload.
+    // Shorts-primary by design: 'failed' (rather than 'held'/'skipped') is
+    // what lets a bare --resume heal a run whose shorts never shipped — and a
+    // skipped post step is never a resume-skip target (it has no succeeded
+    // parent row), so a quota-skipped day can never double-produce.
+    async end() {
+      if (state.id === null) return;
+      await safe(async () => {
+        for (const p of state.planned) {
+          if (!state.closed.has(p.name)) await jobs.finishStep(state.id, p.idx, { status: 'skipped', error: 'not reached' });
+        }
+        const terminal = results.shorts ? (errors.length ? 'partial' : 'succeeded') : 'failed';
+        await jobs.finishJob(state.id, { status: terminal, error: errors.length ? errors.join('; ').slice(0, 400) : null });
+        log(`[job] job closed: ${terminal}${errors.length ? ` (${errors.length} lane error(s))` : ''}`);
+      });
+    },
+  };
+}
+
+if (JOB_STORE_ENABLED) {
+  try {
+    const wsm = await import('./lib/warnings-store.mjs');
+    emitWarningFn = wsm.emitWarning;
+    warnStore = await wsm.getDefaultWarningsStore(); // null -> log-only (AC-P4-5)
+  } catch { warnStore = null; }
+  try {
+    const { getJobStore } = await import('./lib/job-store.mjs');
+    const { makeArtifactStore } = await import('./lib/artifact-store.mjs');
+    const jobs = await getJobStore(); // throws without DATABASE_URL — the AC-P4-5 catch below
+    const artifacts = makeArtifactStore();
+    jobCtl = makePipelineJobController({ slug, jobs, artifacts, brandKit: b });
+    await jobCtl.loadParent();
+  } catch (e) {
+    jobCtl = null;
+    log(`[job] WARN job store unavailable — running log-only (AC-P4-5): ${String((e && e.message) || e).slice(0, 120)}`);
+  }
+}
 
 function run(script, args = []) {
   log(`▶ ${script} ${args.join(' ')}`);
@@ -88,6 +334,26 @@ async function quotaGate(label) {
   if (q.allowed) return true;
   log(`[quota] ${label} skipped — shared pool ${q.usedUnits}/${q.dailyLimit} units today (${q.uploadsToday} uploads) — resets midnight PT`);
   await sendAlert({ text: `${slug}: ${label} skipped — YouTube API daily budget reached (${q.usedUnits}/${q.dailyLimit} units, ${q.uploadsToday} uploads today). Resets midnight PT.`, title: `[${slug}] daily upload budget reached` });
+  // #106 T2 (D24): the durable row behind the push. H9 constraint: the LEDGER
+  // gate is NOT a publishing-path emitter — severity 'warning', never
+  // blocking (this is our own budget math, not a YouTube 403). The existing
+  // sendAlert above stays THE push; the row write stays silent (noop send) so
+  // a budget skip never double-pages — re-fires dedupe in the store anyway.
+  if (warnStore && emitWarningFn) {
+    try {
+      await emitWarningFn(warnStore, {
+        channel_id: slug,
+        severity: 'warning',
+        code: 'quota_exceeded',
+        title: `daily upload budget reached — ${label} skipped`,
+        explanation: 'The shared YouTube API budget for today is exhausted, so this upload was skipped before any spend. This is our ledger, not a YouTube-side block; production resumes at the midnight PT reset.',
+        evidence: `quota ledger: ${q.usedUnits}/${q.dailyLimit} units used, ${q.remainingUnits} remaining, ${q.uploadsToday} uploads today`,
+        recommended_action: 'No action needed — the ledger resets midnight PT. Investigate only if uploads sit at the cap day after day.',
+        auto_verifiable: true,
+        job_id: jobCtl?.id ?? null,
+      }, { sendAlert: async () => ({ channel: 'none', ok: true }) });
+    } catch { }
+  }
   return false;
 }
 
@@ -99,6 +365,7 @@ async function quotaGate(label) {
 // ROLLBACK: flip this constant to false (or delete this block) — the pipeline
 // is then byte-for-byte today's behavior; the preflight module isn't imported.
 const TEMPLATE_PREFLIGHT_ENABLED = true;
+let PREFLIGHT_TEMPLATE = null; // #106 T2: resolved template feeds the resume key (jobs.meta)
 if (TEMPLATE_PREFLIGHT_ENABLED) {
   const { runPreflight, capabilityMapFromAppliedProviders } = await import('./lib/template-preflight.mjs');
   const { TEMPLATES_DATA } = await import('./studio/lib/templates-catalog.js');
@@ -162,6 +429,7 @@ if (TEMPLATE_PREFLIGHT_ENABLED) {
     // "present and logged in Phase 1"; the JSON line is machine-readable).
     log(`[template] enforce: ${v.template_id} @ v${v.resolved_version}${v.pinned_version && v.pinned_version !== v.resolved_version ? ` (auto-adopted from pinned v${v.pinned_version})` : ''}${v.major_update_available ? ' — MAJOR update available (re-pin in Studio to adopt)' : ''}`);
     log(`[template] ${JSON.stringify({ template_id: v.template_id, resolved_version: v.resolved_version, variation_rules: v.metaSummary.variation_rules, safety: v.metaSummary.safety })}`);
+    PREFLIGHT_TEMPLATE = { id: v.template_id, version: v.resolved_version };
   }
   // legacy mode (with or without warning): nothing else changed (spec D5)
 }
@@ -171,27 +439,84 @@ if (TEMPLATE_PREFLIGHT_ENABLED) {
 // research->script->render) or 'clips' (publisher posts one queued doc clip).
 // Flipping a channel = one kit field; rolling back = flip it back.
 const shortsSource = b.shortsSource || 'generated';
-if (shortsSource === 'clips') {
+const SHORTS_STEP = shortsSource === 'clips' ? 'clips' : 'post'; // #106 T2 step vocabulary
+
+// ---- Phase 0.7: #106 T2 PARK-CHECK (D11 / AC-P4-13) — after preflight,
+// BEFORE any spend. WHILE a Blocking warning is open for this channel the run
+// skips production — but only after the cheap auto-verifiable probes ran (a
+// probe pass resolves the warning and the run proceeds same-day). The park
+// predicate is openBlockingFor (blocks_publishing rows) — NEVER severity
+// matching. Other channels are unaffected (the matrix isolates lanes).
+// Once-per-park-EPISODE alerting is the store's job: re-finding the open row
+// through emitWarning bumps last_checked silently; only a genuinely new row
+// takes the episode's single push.
+if (warnStore) {
+  try {
+    const { probeParkedChannels } = await import('./lib/warnings-probe.mjs');
+    const open = await warnStore.openBlockingFor(slug);
+    if (open.ok && open.rows.length) {
+      log(`[park] ${open.rows.length} open blocking warning(s) [${open.rows.map((r) => r.code).join(', ')}] — probing auto-verifiable codes before skipping (D11)`);
+      const probe = await probeParkedChannels({ store: warnStore, channelId: slug, log });
+      const still = await warnStore.openBlockingFor(slug);
+      if (still.ok && still.rows.length) {
+        log(`[park] still parked after probe (checked ${probe?.checked ?? 0}) — production skipped for ${slug} only (exit 0)`);
+        for (const row of still.rows) {
+          try {
+            await emitWarningFn(warnStore, {
+              channel_id: row.channel_id || slug,
+              severity: 'blocking',
+              code: row.code,
+              title: row.title || `channel parked (${row.code})`,
+              explanation: row.explanation || 'Open blocking warning — production is parked (D11).',
+              evidence: row.evidence || undefined,
+              policy_quote: row.policy_quote,
+              policy_url: row.policy_url,
+              auto_verifiable: row.auto_verifiable === true,
+              blocks_publishing: true,
+            });
+          } catch { }
+        }
+        process.exit(0);
+      }
+      log('[park] probe cleared the blocking warning — proceeding with production');
+    }
+  } catch (e) {
+    log(`[park] WARN park-check skipped (non-fatal): ${String((e && e.message) || e).slice(0, 120)}`);
+  }
+}
+
+// ---- #106 T2: the job opens here — after preflight + park-check, before any
+// production spend. Preflight-blocked and parked runs leave no job row.
+if (jobCtl) await jobCtl.begin({ shortsStep: SHORTS_STEP, template: PREFLIGHT_TEMPLATE });
+
+if (jobCtl?.isSkipped(SHORTS_STEP)) {
+  log(`resume: skip ${SHORTS_STEP} (artifact verified)`);
+  results.shorts = true;
+} else if (shortsSource === 'clips') {
   log(`Phase 1 — Clips lane (shortsSource=clips) for ${b.label}...`);
   if (await quotaGate('Shorts (clips)')) {
-    if (run('longvideo/shorts-clips.mjs', ['post-next', slug])) { results.shorts = true; log(`✓ Clip Short processed`); }
-    else { errors.push('Clip Short posting failed'); log(`✗ Clip posting failed`); }
-  } else { errors.push('Shorts skipped — daily quota budget'); }
+    await jobCtl?.startStep(SHORTS_STEP);
+    if (run('longvideo/shorts-clips.mjs', ['post-next', slug])) { results.shorts = true; log(`✓ Clip Short processed`); await jobCtl?.finishStep(SHORTS_STEP, 'succeeded'); }
+    else { errors.push('Clip Short posting failed'); log(`✗ Clip posting failed`); await jobCtl?.finishStep(SHORTS_STEP, 'failed', 'Clip Short posting failed'); }
+  } else { errors.push('Shorts skipped — daily quota budget'); await jobCtl?.finishStep(SHORTS_STEP, 'skipped', 'daily quota budget'); }
 } else if ((!shortsDone || FORCE || TOPUP_N > 0) && (await quotaGate('Shorts production'))) {
   // #98 REGRESSION FIX (2026-10-23 audit): the #98 restructure dropped this
   // produce body — generated channels logged the skip text and produced
   // NOTHING since Oct 21 (caught by the 3-day audit; doctor STALE flags +
   // ntfy alerts were firing the whole time).
   log(`Phase 1 — Producing ${TOPUP_N > 0 ? `topup ${TOPUP_N}/${b.slots.length}` : b.slots.length} Shorts for ${b.label}...`);
+  await jobCtl?.startStep(SHORTS_STEP);
   const ok = run('yt-daily.mjs', [slug, '--no-episode', ...(FORCE ? ['--force'] : []), ...(TOPUP_N > 0 ? [`--topup=${TOPUP_N}`] : [])]);
-  if (ok) { results.shorts = true; log(`✓ Shorts queued`); }
-  else { errors.push('Shorts production failed'); log(`✗ Shorts failed`); }
+  if (ok) { results.shorts = true; log(`✓ Shorts queued`); await jobCtl?.finishStep(SHORTS_STEP, 'succeeded'); }
+  else { errors.push('Shorts production failed'); log(`✗ Shorts failed`); await jobCtl?.finishStep(SHORTS_STEP, 'failed', 'Shorts production failed'); }
 } else if (!shortsDone && !FORCE && TOPUP_N === 0) {
   // quota gate said no — already logged + alerted inside quotaGate
   errors.push('Shorts skipped — daily quota budget');
+  await jobCtl?.finishStep(SHORTS_STEP, 'skipped', 'daily quota budget');
 } else {
   log(`Shorts already produced today — skipping`);
   results.shorts = true;
+  await jobCtl?.finishStep(SHORTS_STEP, 'skipped', 'already produced today');
 }
 
 // ---- Phase 1a: #105 Brain write-time embedding (shorts) ----
@@ -202,6 +527,7 @@ if (shortsSource === 'clips') {
 // and the run continues. Re-POSTing the same script is safe (content-hash
 // keyed UPDATE in the brain, no duplicates).
 if (results.shorts && shortsSource !== 'clips') {
+  await jobCtl?.startStep('brain-embed');
   // Import guarded too (fix round 1): a partial deploy / corrupt checkout
   // must behave exactly like an unreachable brain — one log line, run
   // continues. embedPublishedScripts itself never throws; the dynamic
@@ -212,9 +538,20 @@ if (results.shorts && shortsSource !== 'clips') {
       .filter((v) => v?.videoId && v?.text)
       .map((v) => ({ videoId: v.videoId, text: v.text }));
     await embedPublishedScripts({ slug, kind: 'shorts', entries, log });
+    await jobCtl?.finishStep('brain-embed', 'succeeded');
   } catch (e) {
     log(`[brain] WARN publish embedding skipped (non-fatal): ${String(e?.message || e).slice(0, 120)}`);
+    await jobCtl?.finishStep('brain-embed', 'failed', 'publish embedding failed (non-fatal)');
   }
+}
+
+// ---- Phase 1a-2: #106 T2 (D3) — index the shorts script payload. The
+// pipeline's exact point for "after script-gen": the shorts lane finished and
+// the script record is in state (lastVideos). Blob persists it (fail-open);
+// a degraded upload lands as an index-only entry (resume re-runs then).
+if (jobCtl && results.shorts && shortsSource !== 'clips') {
+  const entries = (loadState()[slug]?.lastVideos || []).filter((v) => v?.videoId && v?.text);
+  if (entries.length) await jobCtl.indexScriptPayload(entries);
 }
 
 // ---- Phase 1b: Proof-of-publication (09-20) ----
@@ -223,8 +560,37 @@ if (results.shorts && shortsSource !== 'clips') {
 // (Clips lane self-verifies inside post-next — running it twice would double
 // alert on the same upload.)
 if (results.shorts && shortsSource !== 'clips') {
-  if (run('verify-run.mjs', [slug])) log(`✓ Uploads verified on YouTube`);
-  else errors.push('Upload verification failed — check ntfy alert');
+  await jobCtl?.startStep('verify');
+  if (run('verify-run.mjs', [slug])) {
+    log(`✓ Uploads verified on YouTube`);
+    await jobCtl?.finishStep('verify', 'succeeded');
+  } else {
+    errors.push('Upload verification failed — check ntfy alert');
+    await jobCtl?.finishStep('verify', 'failed', 'Upload verification failed — check ntfy alert');
+    // #106 T2 (D9 emitter a): the durable verify-run row. verify_publication_missing
+    // IS on the publishing-path allowlist, but per the policy §4.1 ladder it is
+    // action_required, not blocking: the slot must be re-produced; parking is
+    // for hard-block conditions. verify-run.mjs already pushed AND filed its
+    // issue — the row write stays silent (noop send) so the failure never
+    // double-pages; re-fires dedupe in the store anyway.
+    // auto_verifiable false: PROBES (lib/warnings-probe.mjs) maps token_revoked
+    // only — flip to true when a verify probe lands (tracked follow-up).
+    if (warnStore && emitWarningFn) {
+      try {
+        await emitWarningFn(warnStore, {
+          channel_id: slug,
+          severity: 'action_required',
+          code: 'verify_publication_missing',
+          title: 'claimed upload(s) missing from YouTube',
+          explanation: 'verify-run.mjs failed — a claimed upload is missing from YouTube or the check could not run. Publishing is unconfirmed.',
+          evidence: 'verify-run.mjs exited non-zero (missing videoIds in the run log / ntfy alert)',
+          recommended_action: 'Re-run node verify-run.mjs <slug>; if the video is truly missing, re-produce the slot.',
+          auto_verifiable: false,
+          job_id: jobCtl?.id ?? null,
+        }, { sendAlert: async () => ({ channel: 'none', ok: true }) });
+      } catch { }
+    }
+  }
 }
 
 // ---- Phase 2: Facebook Reels (cross-post from outbox) ----
@@ -232,8 +598,9 @@ if (PLATFORMS_PAUSED) {
   log(`Phase 2 — FB Reels skipped (platforms paused — YouTube-only focus)`);
 } else {
   log(`Phase 2 — Cross-posting to Facebook...`);
-  if (run('fb-crosspost.mjs')) { results.fbReels = true; log(`✓ FB Reels done`); }
-  else errors.push('FB cross-post failed');
+  await jobCtl?.startStep('fb');
+  if (run('fb-crosspost.mjs')) { results.fbReels = true; log(`✓ FB Reels done`); await jobCtl?.finishStep('fb', 'succeeded'); }
+  else { errors.push('FB cross-post failed'); await jobCtl?.finishStep('fb', 'failed', 'FB cross-post failed'); }
 }
 
 // ---- Phase 3: Instagram Reels ----
@@ -254,35 +621,57 @@ if (PLATFORMS_PAUSED) {
   log(`Phase 4 — FB poster skipped (platforms paused — YouTube-only focus)`);
 } else {
   log(`Phase 4 — Posting niche poster...`);
-  if (run('fb-images.mjs', [slug])) { results.poster = true; log(`✓ Poster done`); }
-  else errors.push('Poster failed');
+  await jobCtl?.startStep('poster');
+  if (run('fb-images.mjs', [slug])) { results.poster = true; log(`✓ Poster done`); await jobCtl?.finishStep('poster', 'succeeded'); }
+  else { errors.push('Poster failed'); await jobCtl?.finishStep('poster', 'failed', 'Poster failed'); }
 }
 
 // ---- Phase 5: Long-form episode (enable when ready) ----
-if (!SKIP_EPISODE && !episodeDone && (await quotaGate('Episode'))) {
+if (jobCtl?.isSkipped('episode')) {
+  log(`resume: skip episode (artifact verified)`);
+  results.episode = true;
+} else if (!SKIP_EPISODE && !episodeDone && (await quotaGate('Episode'))) {
   log(`Phase 5 — Producing daily episode...`);
+  await jobCtl?.startStep('episode');
   const ok = run('yt-deepdive.mjs', [slug, ...(FORCE ? ['--force'] : [])]);
-  if (ok) { results.episode = true; log(`✓ Episode done`); }
-  else errors.push('Episode failed');
+  if (ok) { results.episode = true; log(`✓ Episode done`); await jobCtl?.finishStep('episode', 'succeeded'); }
+  else { errors.push('Episode failed'); await jobCtl?.finishStep('episode', 'failed', 'Episode failed'); }
 } else if (SKIP_EPISODE) {
   log(`Episode skipped (--no-episode or paused)`);
+  await jobCtl?.finishStep('episode', 'skipped', '--no-episode');
+} else if (!episodeDone) {
+  // quota gate said no — already logged + alerted inside quotaGate
+  await jobCtl?.finishStep('episode', 'skipped', 'daily quota budget');
+} else {
+  await jobCtl?.finishStep('episode', 'skipped', 'already produced today');
 }
+
+// ---- #106 T2 (D3): index the doc lane's TTS narration bytes. The pipeline's
+// exact point for "after TTS": the episode lane finished and the narration
+// audio is on disk (demos/deepdive-<slug>/narr-*).
+if (jobCtl && results.episode) await jobCtl.indexEpisodeTts();
 
 // ---- Phase 5a: #105 Brain write-time embedding (doc) ----
 // Same contract as Phase 1a. Only a doc rendered THIS run embeds (deepdiveDate
 // is written by the child only after the upload was accepted — the duplicate
 // gate inside yt-deepdive exits without it); the narration text rides in
 // state on deepdiveVideo.
+// #106 T2: both embedding passes share the ONE planned 'brain-embed' step —
+// on doc days the doc pass re-opens it and the store overwrites the closed
+// step (legal per job-store), so the row reflects the LAST pass.
 const docState = loadState();
 if (docState[slug]?.deepdiveDate === today) {
+  await jobCtl?.startStep('brain-embed');
   // Import guarded too (fix round 1) — same contract as Phase 1a.
   try {
     const { embedPublishedScripts } = await import('./lib/brain-embed.mjs');
     const dv = docState[slug]?.deepdiveVideo;
     const entries = dv?.videoId && dv?.text ? [{ videoId: dv.videoId, text: dv.text }] : [];
     await embedPublishedScripts({ slug, kind: 'doc', entries, log });
+    await jobCtl?.finishStep('brain-embed', 'succeeded');
   } catch (e) {
     log(`[brain] WARN publish embedding skipped (non-fatal): ${String(e?.message || e).slice(0, 120)}`);
+    await jobCtl?.finishStep('brain-embed', 'failed', 'publish embedding failed (non-fatal)');
   }
 }
 
@@ -291,6 +680,7 @@ if (docState[slug]?.deepdiveDate === today) {
 // MR/IC/DFD docs never reached the TikTok queue (issue #77). Generic per-slug:
 // the channel workflows upload tt-lf/lf-<slug>.* as artifacts named lf-<slug> /
 // lf-meta-<slug>, which longvideo/tiktok-clips.mjs consumes per run.
+await jobCtl?.startStep('staging');
 try {
   const epFile = path.join('demos', `deepdive-${slug}`, 'episode.mp4');
   if (fs.existsSync(epFile)) {
@@ -311,11 +701,14 @@ try {
     const srtSrc = path.join('demos', `deepdive-${slug}`, 'episode.srt');
     if (fs.existsSync(srtSrc)) fs.copyFileSync(srtSrc, path.join('tt-lf', `lf-srt-${slug}.srt`));
     log(`✓ staged doc render for TikTok clips: "${title}" (keyword: ${keyword})`);
+    await jobCtl?.finishStep('staging', 'succeeded');
   } else {
     log('no doc rendered today (not docDay) — nothing staged for TikTok');
+    await jobCtl?.finishStep('staging', 'skipped', 'no doc rendered today');
   }
 } catch (e) {
   log(`⚠ TikTok staging failed (non-fatal): ${String(e.message).slice(0, 90)}`);
+  await jobCtl?.finishStep('staging', 'failed', 'TikTok staging failed');
 }
 
 // ---- Phase 5b: doc-day clips (clips source only) ----
@@ -358,6 +751,9 @@ log(`  Poster: ${results.poster ? '✓' : '✗'}`);
 log(`  Episode: ${results.episode ? '✓' : (SKIP_EPISODE ? '⏸ paused' : '✗')}`);
 log(`  Errors: ${errors.length}`);
 if (errors.length) errors.forEach(e => log(`    ! ${e}`));
+
+// ---- #106 T2: close the job (pending-step sweep + terminal) — never fatal
+if (jobCtl) await jobCtl.end();
 
 // Always exit 0 — individual failures are logged, not fatal
 process.exit(0);
