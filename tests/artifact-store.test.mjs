@@ -99,6 +99,27 @@ describe('#106 T1 artifact store — fail-open blob (D3, AC-P4-5 posture)', () =
     assert.match(warns[0], /artifact-store/);
   });
 
+  test('put warn memoization is PER ERROR CLASS: a different failure class warns again (round-1 minor 4+7)', async () => {
+    const warns = [];
+    let mode = 'access';
+    const { store } = makeStore({
+      warn: (m) => warns.push(m),
+      putImpl: async () => {
+        throw mode === 'access'
+          ? new Error('BlobAccessError: no token')
+          : new Error('fetch failed: ETIMEDOUT');
+      },
+    });
+    await store.putBytes('tts_audio', 'one');
+    await store.putBytes('tts_audio', 'two');
+    assert.equal(warns.length, 1, 'same class -> silent');
+    mode = 'network';
+    await store.putBytes('tts_audio', 'three');
+    assert.equal(warns.length, 2, 'a different failure class warns again');
+    await store.putBytes('tts_audio', 'four');
+    assert.equal(warns.length, 2, 'and is then memoized itself');
+  });
+
   test('no BLOB_READ_WRITE_TOKEN (and no injected impl) -> degraded mode, warn memoized across calls', async () => {
     const { store, warns } = makeStore({ env: {} });
     const a = await store.putBytes('tts_audio', 'one');
@@ -256,5 +277,31 @@ describe('#106 T1 artifact store — retention windows (D25, AC-P4-33)', () => {
     assert.equal(out.ok, true);
     assert.equal(out.deleted, 0);
     assert.equal(out.skipped, 1);
+  });
+
+  test('deletion is BY-ENTRY: the isLive hook keeps live-referenced entries (shared-hash bytes survive for longer-lived kinds)', async () => {
+    const deleted = [];
+    const { store } = makeStore({
+      deleteImpl: async (loc) => { deleted.push(loc); },
+    });
+    const old = { kind: 'tts_audio', created_at: new Date(NOW - 40 * DAY_MS), blob_url: 'https://blob/shared' };
+    // Live reference (e.g. a longer-lived kind shares this content-addressed hash) -> kept.
+    const kept = await store.deleteExpired([old], { now: NOW, isLive: async () => true });
+    assert.equal(kept.ok, true);
+    assert.equal(kept.deleted, 0);
+    assert.equal(kept.keptLive, 1);
+    assert.deepEqual(deleted, [], 'nothing deleted while a live reference exists');
+    // Dead reference -> deleted.
+    const gone = await store.deleteExpired([old], { now: NOW, isLive: async () => false });
+    assert.equal(gone.deleted, 1);
+    assert.equal(gone.keptLive, 0);
+    assert.deepEqual(deleted, ['https://blob/shared']);
+    // Hook failure -> kept (deletion is destructive; doubt always keeps).
+    const doubtful = await store.deleteExpired([old], {
+      now: NOW,
+      isLive: async () => { throw new Error('reference check unavailable'); },
+    });
+    assert.equal(doubtful.deleted, 0);
+    assert.equal(doubtful.keptLive, 1, 'a failing hook means KEEP');
   });
 });
