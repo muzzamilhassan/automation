@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { Loader2, MonitorSmartphone, Ban } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, StatCard } from '@/components/ui';
 import DataTable from '@/components/DataTable';
+import apiFetch from '@/components/shell/api-fetch';
 
 const when = (iso) => (iso ? String(iso).replace('T', ' ').slice(0, 16) : '—');
 
@@ -19,7 +20,9 @@ export default function SessionsAdminPage() {
   const [busyId, setBusyId] = useState(null);
 
   const load = () => {
-    fetch('/api/sessions?scope=all')
+    // apiFetch: a 401 here means this device's session was revoked/expired —
+    // the wrapper sends it to /login instantly (AC-P4-29's redirect half).
+    apiFetch('/api/sessions?scope=all')
       .then(async (r) => {
         const d = await r.json();
         if (!r.ok || d.error) setErr(d.error || 'failed');
@@ -38,7 +41,7 @@ export default function SessionsAdminPage() {
     setBusyId(row.id);
     setErr('');
     try {
-      const r = await fetch('/api/sessions', {
+      const r = await apiFetch('/api/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: row.id }),

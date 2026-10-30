@@ -18,6 +18,9 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
   const user = await getUser(req);
+  // The '@' guard: dev/qs_key owners carry the literal email 'owner' (no @), so
+  // they get sessions:[] for BOTH scopes — device rows only exist for DB-backed
+  // qs_session sign-ins.
   if (!user || !user.email?.includes('@') || !dbReady) return Response.json({ sessions: [] });
   // owner mode — ALL users' sessions (server-side role re-check, not just proxy)
   if (new URL(req.url).searchParams.get('scope') === 'all') {
@@ -32,7 +35,9 @@ export async function POST(req) {
   if (!user || !dbReady) return Response.json({ error: 'not signed in' }, { status: 401 });
   if (!(await requireRole(req, ['owner']))) return Response.json({ error: 'owner only' }, { status: 403 });
   const body = await req.json().catch(() => ({}));
-  const row = await revokeSessionById(Number(body?.id), adaptPostgres(db));
+  // raw id — no Number() coercion (Number(true)=1 would revoke row 1); the
+  // lib's Number.isInteger guard rejects junk untouched.
+  const row = await revokeSessionById(body?.id, adaptPostgres(db));
   if (!row) return Response.json({ error: 'session not found or already revoked' }, { status: 404 });
   await appendAudit(user.email, 'revoke-session', `id=${row.id} ${row.email}`);
   return Response.json({ ok: true, revoked: { id: row.id, email: row.email } });

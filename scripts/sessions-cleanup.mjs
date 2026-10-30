@@ -42,6 +42,11 @@ log(`── Sessions retention (${DRY ? 'DRY — ' : ''}window: ${days} days) �
 try {
   const db = postgres(url, { ssl: 'require', max: 1, prepare: false });
   const client = adaptPostgres(db);
+  // Liveness probe FIRST (review round 1): cleanupSessions is fail-safe-0 on
+  // purpose (request paths must never throw), which would report a dead
+  // database as "deleted: 0, OK". The probe's rejection is what reaches this
+  // catch and delivers the documented exit 1.
+  await client('SELECT 1 AS ok');
   const n = await cleanupSessions(client, { days, dry: DRY });
   log(DRY ? `would delete: ${n} session row(s)` : `deleted: ${n} session row(s)`);
   await db.end();

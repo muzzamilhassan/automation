@@ -14,6 +14,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { listAllSessions, revokeSessionById, cleanupSessions } from '../studio/lib/session-db.js';
 
 const DAY = 86400000;
@@ -146,6 +147,7 @@ test('revokeSessionById refuses non-integer ids without touching the database', 
   assert.equal(await revokeSessionById('1; DROP TABLE sessions', stub), null);
   assert.equal(await revokeSessionById(1.5, stub), null);
   assert.equal(await revokeSessionById(NaN, stub), null);
+  assert.equal(await revokeSessionById(true, stub), null, 'booleans rejected — Number(true)=1 must never revoke row 1');
   assert.equal(stub.calls.length, 0, 'no SQL issued for junk ids');
 });
 
@@ -213,4 +215,45 @@ test('proxy gates the /sessions admin page owner-only (additive matrix row, self
   assert.match(proxySrc, /p === '\/sessions'/, 'the /sessions page must have an owner-only matrix rule');
   assert.match(proxySrc, /p === '\/users'[\s\S]{0,200}p === '\/sessions'/, 'sessions rule sits with the owner-only group');
   assert.equal(/'\/api\/sessions'/.test(proxySrc), false, '/api/sessions stays any-signed-in (handler re-checks owner-mode)');
+});
+
+// ---- review round 1 (#106) — cleanup liveness, global 401→/login, id tighten ----
+
+test('cleanup CLI really exits non-zero on a dead database (liveness probe BEFORE the fail-safe call)', { timeout: 30000 }, () => {
+  const cliSrc = fs.readFileSync('scripts/sessions-cleanup.mjs', 'utf8');
+  const probeAt = cliSrc.indexOf("'SELECT 1 AS ok'");
+  const cleanupAt = cliSrc.indexOf('cleanupSessions(client');
+  assert.ok(probeAt > -1, 'the script must run a liveness probe — cleanupSessions is fail-safe-0 by design and would mask a dead DB as "deleted: 0, OK"');
+  assert.ok(cleanupAt > -1 && cleanupAt > probeAt, 'the probe must run BEFORE cleanupSessions so its error reaches the catch → exit 1');
+
+  // behavioral proof: a closed port (127.0.0.1:1) refuses instantly — the script
+  // must exit non-zero naming the failure, never print the success marker.
+  const r = spawnSync(process.execPath, ['scripts/sessions-cleanup.mjs'], {
+    env: { ...process.env, DATABASE_URL: 'postgres://x:y@127.0.0.1:1/none' },
+    timeout: 15000,
+    encoding: 'utf8',
+  });
+  assert.equal(r.status, 1, `a closed database must exit 1 (got ${r.status})`);
+  assert.match(String(r.stdout), /database unavailable/i, 'the failure must be named');
+  assert.doesNotMatch(String(r.stdout), /OK/, 'the success marker must not print');
+});
+
+test('a 401 anywhere sends the device to /login (AC-P4-29 redirect) — via the shared apiFetch wrapper', () => {
+  const wrapper = fs.readFileSync('studio/components/shell/api-fetch.js', 'utf8');
+  assert.match(wrapper, /401/, 'wrapper must special-case 401 (session revoked/expired server-side)');
+  assert.match(wrapper, /['"]\/login['"]/, '401 must land on /login');
+  assert.match(wrapper, /pathname/, 'loop guard: never redirect from /login itself');
+
+  const pageSrc = fs.readFileSync('studio/app/sessions/page.js', 'utf8');
+  assert.match(pageSrc, /from '@\/components\/shell\/api-fetch'/, 'the sessions admin page fetches through the shell wrapper');
+  assert.match(pageSrc, /apiFetch\('\/api\/sessions/, 'both its data calls go through it');
+
+  // bespoke 401 flows keep their own handlers — the wrapper is opt-in, not retrofitted (no double-fire)
+  assert.doesNotMatch(fs.readFileSync('studio/app/client/page.js', 'utf8'), /apiFetch/, '/client keeps its own anon-state handling');
+  assert.doesNotMatch(fs.readFileSync('studio/app/settings/page.js', 'utf8'), /apiFetch/, '/settings keeps its own redirect flow');
+});
+
+test('revoke-by-id passes the raw body id — no Number() coercion (Number(true)=1 would revoke row 1)', () => {
+  assert.match(routeSrc, /revokeSessionById\(body\?\.id/, 'the raw id goes to the lib guard (Number.isInteger)');
+  assert.doesNotMatch(routeSrc, /revokeSessionById\(Number\(/, 'no Number() coercion at the route — coercion turns junk into real row ids');
 });
