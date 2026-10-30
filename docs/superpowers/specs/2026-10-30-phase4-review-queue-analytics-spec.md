@@ -181,6 +181,8 @@ Cloud Run render migration, composites archive consolidation + `asset_registry` 
 
 ## Resolved Decisions (owner answers, 2026-10-30)
 
+> **AMENDMENT (T6 review, 2026-10-30):** D25's retention enumeration missed `analytics_probe_log` (T6's durable scope-probe record) — it prunes >90d in the nightly pass (or folds to latest-per-channel). Recorded here so the ledger and the spec agree.
+
 | # | Question | Owner answer |
 |---|---|---|
 | OQ-1 | Shrink slice 6 (sessions half-exist)? | **Default: YES — shrink** to all-sessions view + per-session revoke + cleanup + drill |

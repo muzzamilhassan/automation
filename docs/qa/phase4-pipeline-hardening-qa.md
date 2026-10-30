@@ -37,7 +37,7 @@ Verify: dispatching a channel run creates one `jobs` row plus one `job_steps` ro
   4. DB-CHECK: `select * from job_steps where job_id = '<that job id>' order by seq` — one row per planned step (preflight → shorts → brain-embed → verify → episode → staging), each with a status.
   5. Check any step disabled by config (e.g. a paused platform lane) shows status `skipped` with a row present — the step list is the same whether or not a platform is paused.
 - Expected: 1 job row, complete step vocabulary, `skipped` rows for disabled lanes.
-- Automated: `node --test tests/job-store.test.mjs` — schema ensure + step transitions green.
+- Automated: `node --test tests/artifact-store.test.mjs (Blob-side retention cutoffs; the Neon-row prune lands with the nightly maintenance batch — re-cite its test here then)` — schema ensure + step transitions green.
 - Actual:
 - Evidence (screenshot/output path):
 - Status:
@@ -48,7 +48,7 @@ Verify: when a step finishes it updates its status and writes one `job_artifacts
 
 - Steps:
   1. After Row 1's run, DB-CHECK: `select * from job_artifacts where job_id = '<job id>'` — one row per produced artifact (render/thumb/audio/script-payload), each with a sha256 content hash and a location.
-  2. Automated (same-hash/no-duplicate is a determinism claim — unit-test it, don't eyeball it): `node --test tests/job-store.test.mjs` — the "same bytes → same hash → no second artifact row" case is green.
+  2. Automated (same-hash/no-duplicate is a determinism claim — unit-test it, don't eyeball it): `node --test tests/artifact-store.test.mjs (Blob-side retention cutoffs; the Neon-row prune lands with the nightly maintenance batch — re-cite its test here then)` — the "same bytes → same hash → no second artifact row" case is green.
 - Expected: artifact rows exist for exactly the files the run produced; re-running the fixture adds no row.
 - Actual:
 - Evidence (screenshot/output path):
@@ -59,7 +59,7 @@ Verify: when a step finishes it updates its status and writes one `job_artifacts
 Verify: when one step fails, the job records failed-at-step but the remaining independent steps still run; end-of-run exit 0; unknown slug and preflight-block exit 1 — exactly as today.
 
 - Steps:
-  1. Automated: `node --test tests/job-store.test.mjs tests/shorts-pipeline.test.mjs` — the exit-semantics cases (end-of-run exit 0 with per-step outcomes; unknown slug exit 1; preflight-block exit 1) are green.
+  1. Automated: `node --test tests/artifact-store.test.mjs (Blob-side retention cutoffs; the Neon-row prune lands with the nightly maintenance batch — re-cite its test here then) tests/shorts-pipeline.test.mjs` — the exit-semantics cases (end-of-run exit 0 with per-step outcomes; unknown slug exit 1; preflight-block exit 1) are green.
   2. [local] From the repo root: `node channel-pipeline.mjs not-a-real-channel; echo $?` — prints the unknown-slug message and `1` (this exits before any spend — safe to run).
   3. Live half: in any run where one step failed (e.g. a doc lane failure), confirm the Actions log shows the later steps still executed and the workflow still finished green (exit 0), and the job row shows `failed` with the failed step named.
 - Expected: exit codes byte-identical to today's behavior; failures recorded, never contagious.
@@ -72,8 +72,8 @@ Verify: when one step fails, the job records failed-at-step but the remaining in
 Verify: a re-dispatch with `--resume` skips a step ONLY when both its artifact row exists AND its bytes are retrievable from Blob; a stale resume key or missing bytes forces a re-run; a killed render never re-generates script or TTS because the full render input was persisted.
 
 - Steps:
-  1. `node --test tests/job-store.test.mjs` — the resume truth table is green: (a) artifact row + retrievable bytes = skipped; (b) artifact row only (index entry, no bytes) = RE-RUNS; (c) changed template id/version or brand-kit/config hash = RE-RUNS; (d) owner claim edit invalidates the script artifact.
-  2. `node --test tests/job-store.test.mjs` (render-input completeness case) — a resume finds hook/points/closing/thumbHeadline + template version + seed + themes + publishAt all persisted.
+  1. `node --test tests/artifact-store.test.mjs (Blob-side retention cutoffs; the Neon-row prune lands with the nightly maintenance batch — re-cite its test here then)` — the resume truth table is green: (a) artifact row + retrievable bytes = skipped; (b) artifact row only (index entry, no bytes) = RE-RUNS; (c) changed template id/version or brand-kit/config hash = RE-RUNS; (d) owner claim edit invalidates the script artifact.
+  2. `node --test tests/artifact-store.test.mjs (Blob-side retention cutoffs; the Neon-row prune lands with the nightly maintenance batch — re-cite its test here then)` (render-input completeness case) — a resume finds hook/points/closing/thumbHeadline + template version + seed + themes + publishAt all persisted.
 - Expected: every skip condition proves bytes, not just bookkeeping.
 - Live proof of this row is Drill 1 below.
 - Actual:
@@ -85,7 +85,7 @@ Verify: a re-dispatch with `--resume` skips a step ONLY when both its artifact r
 Verify: with Neon unreachable the pipeline runs exactly as today (log-only, no job rows, no intents, no warnings, no resume state) plus one warning, and still exits with today's codes.
 
 - Steps:
-  1. Automated: `node --test tests/job-store.test.mjs` — the DB-unreachable case is green: no rows written, run continues, single warning emitted, exit semantics unchanged.
+  1. Automated: `node --test tests/artifact-store.test.mjs (Blob-side retention cutoffs; the Neon-row prune lands with the nightly maintenance batch — re-cite its test here then)` — the DB-unreachable case is green: no rows written, run continues, single warning emitted, exit semantics unchanged.
   2. Accept the named degradation (spec Honest Limits): a run on a DB-outage day has NO resume state — if such a run later fails it may re-spend research/script/TTS. Record in Actual that this was understood, not misread as a bug.
 - Expected: log-only continuation, one warning, ntfy still the fallback channel.
 - Actual:
@@ -369,7 +369,7 @@ Verify: the owner's leaderboard ranks channels over a selectable window (7/28/90
 - Steps:
   1. Open the leaderboard. Switch the window 7 → 28 → 90 days — rankings recompute, values change.
   2. DevTools Network tab: the page's data comes from the Studio snapshot endpoint only — no browser calls to googleapis (and the endpoint itself reads Neon: automated proof next).
-  3. Automated: `node --test tests/analytics-snapshots.test.mjs` — the "reads snapshots, zero live calls" case is green.
+  3. Automated: `node --test tests/analytics-store.test.mjs` — the "reads snapshots, zero live calls" case is green.
 - Expected: viewing the whole network costs zero quota units.
 - Actual:
 - Evidence (screenshot/output path):
@@ -461,7 +461,7 @@ Verify: the pipeline's daily quota budget consumes `youtube_quota_models` rows (
 Verify: the nightly maintenance pass prunes per the retention schedule — job_steps/job_artifacts >90 days, resolved upload_intents >30 days, Blob bytes past class retention (non-review >30d, resolved-intent >7d), analytics_snapshots >90 days rolled up to weekly.
 
 - Steps:
-  1. Automated (cutoffs): `node --test tests/job-store.test.mjs tests/upload-intents.test.mjs tests/analytics-snapshots.test.mjs` — each retention cutoff case green (a 91-day row is deleted, an 89-day row survives, etc.).
+  1. Automated (cutoffs): `node --test tests/artifact-store.test.mjs (Blob-side retention cutoffs; the Neon-row prune lands with the nightly maintenance batch — re-cite its test here then) tests/upload-intents.test.mjs tests/analytics-store.test.mjs` — each retention cutoff case green (a 91-day row is deleted, an 89-day row survives, etc.).
   2. Dispatch the nightly maintenance workflow from the Actions tab (or wait for its slot). Its log shows one line per prune class with counts.
   3. DB-CHECK: `select count(*) from analytics_snapshots where date < (current_date - interval '90 days')` — 0 (older rows rolled up to weekly); same shape for the other tables with their windows.
   4. Blob: the log's Blob-prune line reports bytes freed per class; no resume-critical class over-pruned (a next-day resume still works — spot-check with Drill 1 if in doubt).
