@@ -4,7 +4,7 @@
 // Cached 1 hour — analytics data updates daily anyway.
 import fs from 'node:fs';
 import path from 'node:path';
-import { ENV, ytTokenRaw } from '../../../lib/data.mjs';
+import { createAccessToken } from '@/lib/yt-token.mjs';
 import { getUser } from '@/lib/route-auth';
 import { slugsForUser } from '@/lib/access';
 
@@ -13,25 +13,10 @@ export const dynamic = 'force-dynamic';
 const SLUGS = ['quotequarry', 'investors-compass', 'money-rulebook', 'debt-free-doctrine'];
 const cache = { at: 0, data: null };
 
-async function accessToken(slug) {
-  // 10-08: env (legacy) → local file → encrypted registry token (wizard channels)
-  const raw = await ytTokenRaw(slug);
-  if (!raw) throw new Error(`no token for ${slug}`);
-  const t = JSON.parse(raw);
-  const r = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: ENV.YOUTUBE_CLIENT_ID,
-      client_secret: ENV.YOUTUBE_CLIENT_SECRET,
-      refresh_token: t.refresh_token,
-      grant_type: 'refresh_token',
-    }),
-  });
-  const d = await r.json();
-  if (!d.access_token) throw new Error('no access token');
-  return d.access_token;
-}
+// 10-08: env (legacy) → local file → encrypted registry token (wizard channels)
+// — the shared refresh flow (extracted 10-30, #106 T6; also used by the
+// nightly snapshot collector so the two callers cannot drift).
+const accessToken = createAccessToken();
 
 async function report(at, params) {
   const qs = new URLSearchParams({ ids: 'channel==MINE', ...params });

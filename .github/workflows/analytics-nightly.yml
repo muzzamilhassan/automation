@@ -1,0 +1,54 @@
+name: 📈 Nightly analytics snapshots
+
+# #106 Phase 4 S5 (T6) — per-channel analytics_snapshots over the trailing
+# D-1..D-4 window (D19): scope probe first (yt-analytics.readonly; scope-less
+# channels are skipped onto the Studio re-auth checklist, never Blocking),
+# Analytics API per-day rows + Data API per-video census (~3 units/channel,
+# D24), then the 90-day weekly rollup (D25). The Studio leaderboard / win-rate
+# panels read these snapshots with ZERO live YouTube calls (AC-P4-26); the
+# live 28-day panel is untouched (AC-P4-28).
+on:
+  schedule:
+    # 05:17 UTC = 10:17 PKT — off-peak; D-1 numbers have had the day to settle
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: analytics-nightly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  snapshots:
+    name: 📈 Collect analytics snapshots
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: 📦 Install Dependencies
+        run: npm install
+
+      - name: 📈 Collect snapshots (trailing D-1..D-4 + scope probes + rollup)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          # per-channel refresh tokens — a channel joins the leaderboard by
+          # adding its secret here (data-driven discovery in the script; the
+          # slug list is never hardcoded). Channels whose token lacks
+          # yt-analytics.readonly are probed, skipped, and surfaced on the
+          # Studio re-auth checklist (D19).
+          YT_TOKEN_QUOTEQUARRY: ${{ secrets.YT_TOKEN_QUOTEQUARRY }}
+          YT_TOKEN_INVESTORS_COMPASS: ${{ secrets.YT_TOKEN_INVESTORS_COMPASS }}
+          YT_TOKEN_MONEY_RULEBOOK: ${{ secrets.YT_TOKEN_MONEY_RULEBOOK }}
+          YT_TOKEN_DEBT_FREE_DOCTRINE: ${{ secrets.YT_TOKEN_DEBT_FREE_DOCTRINE }}
+        run: node scripts/analytics-nightly.mjs

@@ -14,13 +14,21 @@ import {
   Film,
   Globe,
   RefreshCw,
+  Trophy,
+  ShieldAlert,
 } from 'lucide-react';
-import { Card, CardHead, Chip, PageHeader, PageSkeleton, StatCard, BrandMark, Segmented } from '@/components/ui';
+import { Card, CardHead, Chip, PageHeader, PageSkeleton, StatCard, BrandMark, Segmented, EmptyState } from '@/components/ui';
 import { RetentionBars, MiniBars } from '@/components/charts';
 import { RETENTION, RETENTION_GOAL, BRAND_META } from '@/lib/site-data';
 import { fmt } from '@/lib/utils';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import DataTable from '@/components/DataTable';
+
+// #106 S5: snapshot-backed section (nightly analytics_snapshots — zero live
+// YouTube calls). Analytics settle 48–72h, so every panel here carries the
+// "data through <date>" lag stamp (D21); win rates start empty until Phase 4
+// S4's scripts table lands (L6).
+const SNAPSHOT_DAYS = [7, 28, 90];
 
 export default function Analytics() {
   const [data, setData] = useState(null);
@@ -29,6 +37,29 @@ export default function Analytics() {
   const [realErr, setRealErr] = useState(false);
   const [terms, setTerms] = useState(null);
   const [reports, setReports] = useState([]);
+  const [snap, setSnap] = useState(null);
+  const [snapDays, setSnapDays] = useState(28);
+  const [reAuthing, setReAuthing] = useState(null);
+
+  const loadSnap = (days = snapDays) => {
+    fetch('/api/analytics/leaderboard?days=' + days)
+      .then((r) => r.json())
+      .then(setSnap)
+      .catch(() => setSnap(null));
+  };
+  useEffect(() => {
+    loadSnap(snapDays);
+  }, [snapDays]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startReAuth = async (slug) => {
+    setReAuthing(slug);
+    try {
+      const r = await fetch('/api/oauth/start');
+      const d = await r.json();
+      if (r.ok && d.url) window.location.assign(d.url);
+    } catch { }
+    setReAuthing(null);
+  };
 
   useEffect(() => {
     fetch('/api/overview').then((r) => r.json()).then(setData).catch(() => setData({ totals: {}, channels: [] }));
@@ -101,6 +132,13 @@ export default function Analytics() {
   const genderTotal = (real?.audience?.gender || []).reduce((a, g) => a + g.views, 0) || 1;
   const GENDER_NAME = { gender_female: 'Women', gender_male: 'Men', gender_user_specified: 'Other' };
 
+  // snapshot-backed panels (leaderboard / win rates) — lag stamp is mandatory
+  const snapRows = snap?.rows || [];
+  const snapThrough = snap?.dataThrough || null;
+  const winRates = snap?.winRates || null;
+  const winRows = winRates?.available ? [...(winRates.templates || []).map((t) => ({ ...t, kind: 'template' })), ...(winRates.topics || []).map((t) => ({ ...t, kind: 'topic' }))] : [];
+  const brandOf = (slug) => BRAND_META[slug] || { short: (slug || '•').slice(0, 2).toUpperCase(), accent: 'var(--faint)' };
+
   return (
     <div>
       <PageHeader icon={TrendingUp} title="Analytics" sub={sel === 'all' ? 'All channels · real YouTube data for the last 28 days' : `${selChannel?.label || sel} · real YouTube data for the last 28 days`} />
@@ -119,6 +157,131 @@ export default function Analytics() {
           </span>
         ) : null}
       </div>
+
+      {/* SNAPSHOT-BACKED: leaderboard + win rates (#106 S5). Nightly
+          analytics_snapshots — no live calls; analytics settle 48–72h so the
+          ranking window ends at "data through" (D-2), never today. */}
+      <div className="grid lg:grid-cols-3 gap-4 mb-5">
+        <Card className="lg:col-span-2 overflow-hidden">
+          <CardHead
+            title="Channel leaderboard"
+            sub={`Nightly snapshots · ranked by views · last ${snapDays} days`}
+            icon={Trophy}
+            right={snapThrough ? <Chip tone="info" dot>data through {snapThrough}</Chip> : <Chip tone="warn">no snapshots yet</Chip>}
+          />
+          <div className="px-5 pb-5">
+            <div className="mb-3">
+              <Segmented options={SNAPSHOT_DAYS.map((d) => ({ value: d, label: d + 'd' }))} value={snapDays} onChange={setSnapDays} />
+            </div>
+            {snapRows.length ? (
+              <div className="overflow-x-auto">
+                <table className="data">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Channel</th>
+                      <th>Views</th>
+                      <th>Watch hrs</th>
+                      <th>Subs</th>
+                      <th>Trend</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {snapRows.map((r, i) => (
+                      <tr key={r.channelId}>
+                        <td className="tnum text-faint">{i + 1}</td>
+                        <td>
+                          <span className="flex items-center gap-2.5">
+                            <BrandMark short={brandOf(r.channelId).short} accent={brandOf(r.channelId).accent} size={24} />
+                            <span className="font-semibold">{r.channelId}</span>
+                          </span>
+                        </td>
+                        <td className="tnum font-bold text-ink">{fmt(r.views)}</td>
+                        <td className="tnum">{Number(r.watchHours || 0).toLocaleString('en-US')}</td>
+                        <td className="tnum">{r.subsDelta ? (r.subsDelta > 0 ? '+' : '') + r.subsDelta : '—'}</td>
+                        <td>
+                          {r.trendPct == null ? (
+                            <Chip>new</Chip>
+                          ) : (
+                            <Chip tone={r.trendPct >= 0 ? 'ok' : 'warn'} dot>{r.trendPct >= 0 ? '▲' : '▼'} {Math.abs(r.trendPct)}%</Chip>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <EmptyState icon={Trophy} title="No snapshots yet" sub="The nightly analytics job (05:17 UTC) fills this after its first run." />
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <CardHead
+            title="Template & topic win rates"
+            sub="Views per published video, by template and topic"
+            icon={Target}
+            right={snapThrough ? <Chip tone="info" dot>data through {snapThrough}</Chip> : null}
+          />
+          <div className="px-5 pb-5">
+            {winRows.length ? (
+              <div className="space-y-1.5">
+                {winRows.map((e) => (
+                  <div key={e.kind + ':' + e.key} className="flex items-center justify-between gap-2 text-[12px]">
+                    <span className="flex items-center gap-1.5 text-muted min-w-0">
+                      <Chip tone={e.kind === 'template' ? 'accent' : 'info'}>{e.kind}</Chip>
+                      <span className="truncate">{e.key}</span>
+                    </span>
+                    <span className="tnum font-semibold text-ink shrink-0">{fmt(e.views)} · {e.published} vid{e.published === 1 ? '' : 's'}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={Target}
+                title="No data yet — fills as Phase 4 S4 lands"
+                sub="Win rates count published videos only (7-day settle) and join script records — this fills in as the Phase 4 review queue lands."
+              />
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* owner re-auth checklist (D19): channels whose latest nightly scope
+          probe lacked yt-analytics.readonly — the oauth start route is the
+          same consent flow that added the scope on 10-03 */}
+      {snap?.reAuth?.length ? (
+        <Card className="mb-5 overflow-hidden">
+          <CardHead
+            title="Re-auth needed — yt-analytics.readonly"
+            sub={`${snap.reAuth.length} channel${snap.reAuth.length === 1 ? '' : 's'} skipped by the nightly scope probe`}
+            icon={ShieldAlert}
+            right={<Chip tone="warn" dot>owner action</Chip>}
+          />
+          <div className="px-2 pb-2">
+            {snap.reAuth.map((c) => (
+              <div key={c.slug} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-2 transition-colors">
+                <BrandMark short={brandOf(c.slug).short} accent={brandOf(c.slug).accent} size={26} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[12.5px] font-semibold text-ink">{c.slug}</span>
+                  <span className="block text-[10.5px] text-faint truncate">
+                    {c.error || 'scope missing'}{c.checkedAt ? ` · probed ${String(c.checkedAt).slice(0, 10)}` : ''}
+                  </span>
+                </span>
+                <Button
+                  color="secondary"
+                  onClick={() => startReAuth(c.slug)}
+                  isDisabled={reAuthing === c.slug}
+                  iconLeading={<RefreshCw size={14} className={reAuthing === c.slug ? 'animate-spin' : ''} />}
+                >
+                  Re-auth
+                </Button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
 
       {/* REAL 28-day numbers */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
