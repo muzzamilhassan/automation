@@ -326,11 +326,27 @@ const episodeDone = state[slug]?.deepdiveDate === today;
 // env (or locally) — no other change needed.
 const PLATFORMS_PAUSED = process.env.PLATFORMS_PAUSED !== '0';
 
-// ---- Phase 0: shared YouTube quota budget (#99) — every channel draws on ONE
-// 10,000 units/day pool (one OAuth client, ~1,700/upload). Fail closed BEFORE
+// ---- Phase 0: shared YouTube quota budget (#99/#104/D24) — fail closed BEFORE
 // any render/LLM spend when one more upload would breach the daily budget.
+// D24/AC-P4-32: the gate consumes the youtube_quota_models row (#104) when the
+// DB is reachable — the Dec-2025 reality is ~100 units/upload from the uploads'
+// own bucket, so legacy math (10k pool @ ~1,700/upload) falsely parks after
+// ~5 uploads/day network-wide and cannot bound 30-channel scale. The legacy
+// constants remain the NO-DB fallback only.
 async function quotaGate(label) {
-  const q = evaluate(loadState());
+  let model = null;
+  try {
+    const { db, dbReady } = await import('./studio/lib/db.mjs');
+    if (dbReady && db) {
+      const { adaptPostgres } = await import('./studio/lib/provider-routing.js');
+      const { loadQuotaModel } = await import('./lib/quota-ledger.mjs');
+      // Same workspace key as the Studio schedule route (the pool is
+      // workspace-wide — ONE shared OAuth project); loadQuotaModel falls back
+      // to the #104 DEFAULT model when no row exists and never throws.
+      model = await loadQuotaModel(process.env.YT_GCP_PROJECT_ID || 'workspace-default', adaptPostgres(db));
+    }
+  } catch { model = null; } // an unreadable model store = the no-DB path, never a crash
+  const q = model ? evaluate(loadState(), { model }) : evaluate(loadState());
   if (q.allowed) return true;
   log(`[quota] ${label} skipped — shared pool ${q.usedUnits}/${q.dailyLimit} units today (${q.uploadsToday} uploads) — resets midnight PT`);
   await sendAlert({ text: `${slug}: ${label} skipped — YouTube API daily budget reached (${q.usedUnits}/${q.dailyLimit} units, ${q.uploadsToday} uploads today). Resets midnight PT.`, title: `[${slug}] daily upload budget reached` });

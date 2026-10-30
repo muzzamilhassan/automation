@@ -766,3 +766,31 @@ describe('lane wiring (yt-daily / yt-deepdive / shorts-clips)', () => {
     assert.match(s, /postedAt/, 'recovered claims mark the queue entry so the slot is never re-picked');
   });
 });
+
+// ---------------------------------------------------------------------------
+// D24/AC-P4-32 — the pipeline quota gate consumes youtube_quota_models rows;
+// the legacy 10k-pool/1,700-per-upload math is the NO-DB path only.
+// ---------------------------------------------------------------------------
+describe('quota-model wiring (D24/AC-P4-32)', () => {
+  test('with the #104 model, ~15 uploads/day do NOT false-park; legacy math parks at ~5', async () => {
+    const { evaluate, DEFAULT_QUOTA_MODEL } = await import('../lib/quota-ledger.mjs');
+    const state = { c1: { uploadsToday: { date: ptDate(), count: 15 } } };
+    const modeled = evaluate(state, { model: DEFAULT_QUOTA_MODEL });
+    assert.equal(modeled.allowed, true, '15 x 100 units vs the 10k pool — no false park');
+    const custom = evaluate(state, { model: { ...DEFAULT_QUOTA_MODEL, seededDefault: false, insertCostUnits: 100, sharedUnitsPerDay: 10000 } });
+    assert.equal(custom.allowed, true, 'a stored row (not just the default) drives the verdict');
+    const legacy = evaluate(state);
+    assert.equal(legacy.allowed, false, 'the legacy fallback (15 x 1700) parks — it is the no-DB path ONLY');
+    const five = evaluate({ c1: { uploadsToday: { date: ptDate(), count: 5 } } });
+    assert.equal(five.allowed, false, 'legacy math parks at ~5 uploads (the false-park D24 kills)');
+  });
+
+  test('the pipeline quotaGate loads the model row (workspace key, no-row → DEFAULT) and passes { model } to evaluate', async () => {
+    const s = fs.readFileSync(path.join(ROOT, 'channel-pipeline.mjs'), 'utf8');
+    const gate = s.slice(s.indexOf('async function quotaGate'), s.indexOf("if (q.allowed) return true;"));
+    assert.match(gate, /loadQuotaModel/, 'the gate loads the youtube_quota_models row (D24)');
+    assert.match(gate, /YT_GCP_PROJECT_ID \|\| 'workspace-default'/, 'same workspace key as the Studio schedule route');
+    assert.match(gate, /evaluate\(loadState\(\), \{ model \}\) : evaluate\(loadState\(\)\)/, 'model-aware evaluate when loaded; legacy evaluate as the no-DB fallback');
+    assert.match(gate, /dbReady && db/, 'legacy constants survive ONLY the no-DB path');
+  });
+});
