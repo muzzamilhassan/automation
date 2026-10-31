@@ -505,12 +505,12 @@
     ],
     "lastVideos": [
       {
-        "videoId": "mTa2PqjlGno",
-        "publishAt": "2026-10-28T22:35:00Z",
-        "title": "The Psychological Trap of Reacting"
+        "videoId": "9zw2mlUUlDo",
+        "publishAt": "2026-10-31T22:35:00Z",
+        "title": "How Reframing Failure Built a $15M Business"
       }
     ],
-    "deepdiveDate": "2026-10-28",
+    "deepdiveDate": "2026-10-31",
     "usedTrendSeeds": [
       "Stoic Philosophy | 7 Cold Behaviors That Make People Respect You Instantly #stoicism",
       "10 Stoic Lessons to Become Emotionally Untouchable |Stoicism Philosophy",
@@ -576,68 +576,83 @@
       {
         "t": "The Psychological Trap of Reacting",
         "at": "2026-10-28T22:35:00Z"
+      },
+      {
+        "t": "How Reframing Failure Built a $15M Business",
+        "at": "2026-10-31T22:35:00Z"
       }
     ],
     "cooldownSeeds": [
       "THE POWER OF SOLITUDE WILL CHANGE YOUR LIFE | Jim Rohn Motivation"
     ],
     "uploadsToday": {
-      "date": "2026-10-28",
+      "date": "2026-10-31",
       "count": 2
     },
     "clipQueue": {
-      "lastRunId": "local-1793176384066",
+      "lastRunId": "local-1793435644901",
       "doneRuns": [
         "40081466325",
-        "local-1793176384066"
+        "local-1793176384066",
+        "local-1793435644901"
       ],
-      "docTitle": "The Silent Psychology of Unbeatable People | Timeless wisdom, self-mastery & human psychology Wisdom",
-      "createdAt": "2026-10-28T08:33:49.240Z",
+      "docTitle": "The Stoic Playbook: 8 Hidden Rules that Forge Unstoppable Success | Timeless wisdom, self-mastery & human psychology Wisdom",
+      "createdAt": "2026-10-31T08:35:02.023Z",
       "local": true,
       "clips": [
         {
           "part": 1,
-          "title": "The Psychological Trap of Reacting",
-          "startSec": 450.6,
-          "durSec": 22,
+          "title": "How Reframing Failure Built a $15M Business",
+          "asset": "clip-01.mp4",
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/694839524",
+          "startSec": 104.9,
+          "durSec": 20.6,
           "file": "tt-lf/clipfeed-quotequarry/clips/clip-01.mp4",
-          "postedAt": "2026-10-28T08:33:51.758Z"
+          "postedAt": "2026-10-31T08:35:05.116Z"
         },
         {
           "part": 2,
-          "title": "The 5-Second Silence Rule in Arguments",
-          "startSec": 146.6,
-          "durSec": 21.9,
+          "title": "The 10-Minute Nightly Habit That Saved $200K",
+          "asset": "clip-02.mp4",
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/694839545",
+          "startSec": 148,
+          "durSec": 22.7,
           "file": "tt-lf/clipfeed-quotequarry/clips/clip-02.mp4"
         },
         {
           "part": 3,
-          "title": "Total Cranial Stillness Strategy",
-          "startSec": 74.6,
-          "durSec": 23.1,
+          "title": "How Locus of Control Boosted a Win Rate to 62%",
+          "asset": "clip-03.mp4",
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/694839557",
+          "startSec": 65.6,
+          "durSec": 22.3,
           "file": "tt-lf/clipfeed-quotequarry/clips/clip-03.mp4"
         },
         {
           "part": 4,
-          "title": "Never Defend Yourself Against Accusations",
-          "startSec": 392.2,
-          "durSec": 23.6,
+          "title": "Why Stoics Practiced Voluntary Discomfort",
+          "asset": "clip-04.mp4",
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/694839592",
+          "startSec": 299.9,
+          "durSec": 22.5,
           "file": "tt-lf/clipfeed-quotequarry/clips/clip-04.mp4"
         }
       ]
     },
-    "clipLastPostDate": "2026-10-28",
+    "clipLastPostDate": "2026-10-31",
     "usedLongSeeds": [
-      "3 Psychological Tricks to Win Any Fight 🥶🥊 | Dark Psychology #Shorts #psychology #fighting #viral"
+      "3 Psychological Tricks to Win Any Fight 🥶🥊 | Dark Psychology #Shorts #psychology #fighting #viral",
+      "⭐ 10 RÈGLES STOÏCIENNES POUR ATTEINDRE TES OBJECTIFS ET CRÉER LA VIE QUE TU VEUX | STOÏCISME"
     ],
     "todayTopic": {
-      "at": "2026-10-28",
-      "topic": "3 Psychological Tricks to Win Any Fight 🥶🥊 | Dark Psychology #Shorts #psychology #fighting #viral"
+      "at": "2026-10-31",
+      "topic": "⭐ 10 RÈGLES STOÏCIENNES POUR ATTEINDRE TES OBJECTIFS ET CRÉER LA VIE QUE TU VEUX | STOÏCISME"
     },
     "deepdiveVideo": {
-      "videoId": "jMvJEn1Je-w",
-      "publishAt": "2026-10-28T14:30:00Z",
-      "title": "The Silent Psychology of Unbeatable People | Timeless wisdom, self-mastery & human psychology Wisdom"
+      "videoId": "-I5Y7OjIoWg",
+      "publishAt": "2026-10-31T14:30:00Z",
+      "title": "The Stoic Playbook: 8 Hidden Rules that Forge Unstoppable Success | Timeless wisdom, self-mastery & human psychology Wisdom",
+      "text": "What if the ancient sages held the exact blueprint modern high‑achievers use to outwit anxiety and crush goals? In the next ten minutes we’ll crack that code and give you tools you can apply today.\n\nImagine waking up and picturing the worst‑case scenario of your biggest project. This ancient Stoic exercise, called premeditatio malorum, forces your brain to map out failure pathways before they appear. Neuroscience shows that mentally rehearsing obstacles lights up the prefrontal cortex, sharpening problem‑solving circuits. When a Silicon Valley founder visualized a product launch flop, he built redundant safety nets that later saved $3.2 million in lost revenue. The payoff? Reduced panic, clearer contingency plans, and a confidence boost that comes from knowing you’ve already survived the worst. Skip this step and you’ll be blindsided by the first curveball.\n\nEvery day we waste hours worrying about the weather, the market, or other people’s moods—variables that are fundamentally out of our reach. Stoic philosopher Epictetus taught that true freedom lies in mastering our responses. Modern psychology confirms this with the concept of locus of control: people who focus on internal factors are 27 % more resilient after setbacks. A professional athlete who stopped obsessing over the referee’s calls and instead fine‑tuned his own technique saw his win‑rate jump from 48 % to 62 % in a single season. Ignoring this rule keeps you hostage to external chaos; embracing it turns every obstacle into a personal lever.\n\nMost of us treat life’s twists as betrayals, but the Stoics flipped the script: love your fate, and you’ll extract meaning from any outcome. Cognitive‑behavioral studies reveal that reframing events as purposeful reduces cortisol spikes by up to 33 %. When a startup CEO’s funding round evaporated overnight, she re‑branded the loss as a market‑validation test, pivoting to a product that later generated $15 million in ARR. The mental shift created a feedback loop of optimism and action, not resignation. Rejecting Amor Fati leaves you stuck in victimhood; embracing it fuels relentless forward motion.\n\nStoics kept journals to track thoughts, actions, and moral lapses. Modern research shows expressive writing improves executive function by 12 % and lowers anxiety levels. A lawyer who spent ten minutes each night reviewing his decisions identified a recurring bias toward people‑pleasing, which cost him $200 k in missed billable hours. By correcting this pattern, his quarterly revenue rose 18 %. The habit creates a mirror for self‑audit, exposing blind spots before they become costly habits. Skipping the journal means you’re flying blind, repeating the same mistakes on autopilot.\n\nRemembering mortality isn’t morbid; it’s a productivity catalyst. Studies on the “deadline effect” show that when people perceive limited time, output quality jumps 21 %. The Roman Stoic Seneca reminded his friends that life is a flash of lightning—use it wisely. A freelance designer set a personal “end‑of‑year” deadline for a portfolio revamp, completing it in six weeks instead of three months, landing three high‑ticket clients worth $250 k. The awareness of finite time sharpens focus, filters distractions, and forces decisive action. Without this reminder, you’ll drift in perpetual procrastination.\n\nOur brains crave validation; the herd instinct can derail personal goals. Stoicism teaches self‑reliance, urging us to test ideas against inner standards, not crowd applause. Behavioral economists found that people who deliberately limit social media exposure improve goal‑achievement rates by 34 %. A tech entrepreneur who turned off LinkedIn notifications for a month stopped comparing his growth curve to rivals and instead doubled his R&D output, filing five patents in 90 days. The payoff is clear: independence shields you from envy‑driven paralysis and keeps your energy aimed at authentic progress.\n\nDesire fuels ambition, yet attachment breeds anxiety. Stoics advocated wanting outcomes while remaining detached from their exact form. Psychological research on “self‑determination theory” shows that when goals are pursued for intrinsic reasons rather than external rewards, persistence rises 28 %. A musician who wanted to create art for its own sake, not fame, released an album that unexpectedly topped indie charts, earning $120 k in royalties while maintaining creative freedom. The tension between desire and detachment creates a sweet spot where motivation is high but fear of loss stays low. Ignoring this balance leads to burnout or half‑hearted effort.\n\nStoics regularly embraced mild hardship—cold showers, fasting—to harden the mind against future shocks. Modern stress‑inoculation training shows that controlled exposure to discomfort raises emotional resilience scores by 19 %. A corporate leader who instituted a weekly “digital detox” for himself reported a 15 % boost in strategic clarity and a 22 % drop in decision fatigue. The habit builds a psychological buffer, making real crises feel manageable rather than catastrophic. Skipping voluntary discomfort leaves you fragile, vulnerable to the inevitable pressures of high‑stakes environments.\n\nThese eight hidden rules aren’t just philosophy—they’re proven psychological weapons. Subscribe now and turn timeless wisdom into unstoppable momentum."
     }
   },
   "fajrofquran": {
