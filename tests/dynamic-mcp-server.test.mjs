@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { createDispatcher, startServer, TOOLS, secretNameFor } from '../yt-mcp/dynamic-server.mjs';
+import { createDispatcher, TOOLS, secretNameFor } from '../yt-mcp/dynamic-server.mjs';
 
 // ---------------------------------------------------------------------------
 // #106 Phase 4.5 Tier 3 (T3) — ONE registry-driven stdio MCP server that
@@ -188,6 +188,14 @@ describe('dynamic-mcp T3 — tool catalog', () => {
   test('uploads stay OUT of v1: no video.insert / upload tool exists', () => {
     assert.ok(!TOOLS.some((t) => /upload|insert-video|video-insert/i.test(t.name)), 'uploads stay in the CI intent flow by design');
   });
+
+  test('comment-reply carries the double-fire warning; video-list states the one-time uploads lookup', () => {
+    const reply = TOOLS.find((t) => t.name === 'comment-reply');
+    assert.match(reply.description, /not idempotent|verify before retrying/i, 'the write warning must be in the description');
+    assert.match(reply.description, /context only/i, 'videoId is context — the API derives the video from parentId');
+    const list = TOOLS.find((t) => t.name === 'video-list');
+    assert.match(list.description, /once per server lifetime/, 'the +1 uploads-playlist lookup is documented');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -245,6 +253,15 @@ describe('dynamic-mcp T3 — protocol', () => {
     assert.equal(withId.error.code, -32600);
     assert.equal(withId.id, 7, 'the error carries the caller id when one was detectable');
     assert.equal(await dispatcher.handleLine(''), null, 'blank lines are ignored silently');
+  });
+
+  test('an id of an UNSUPPORTED type is -32600, never a silent notification-hang', async () => {
+    const { dispatcher } = makeDispatcher();
+    for (const badId of [{}, true, [], false]) {
+      const resp = await dispatcher.handleLine(JSON.stringify({ jsonrpc: '2.0', id: badId, method: 'ping' }));
+      assert.equal(resp.error.code, -32600, 'id ' + JSON.stringify(badId) + ' must be rejected');
+      assert.match(resp.error.message, /id must be a string, number, or null/);
+    }
   });
 
   test('unknown tool is a JSON-RPC -32602 that lists the available tools', async () => {
@@ -512,8 +529,60 @@ describe('dynamic-mcp T3 — token resolution & refresh', () => {
     assert.equal(resp.error, undefined);
     const oauth = fetchImpl.calls.find((c) => c.url === 'https://oauth2.googleapis.com/token');
     assert.equal(oauth.opts.body.get('refresh_token'), 'rt-gamma-0123456789abcdef');
-    const { registerHooks } = await import('node:module');
-    assert.ok(typeof registerHooks === 'function'); // sanity: node supports the seam tracker (see spawn test)
+  });
+
+  test('env token WINS over the token file when both exist for a slug', async () => {
+    const tree = buildFixtureTree();
+    try {
+      tree.writeRegistry([...REGISTRY_SLUGS, 'fixture-both']);
+      tree.writeToken('fixture-both', { access_token: 'at-both-file-fresh-0123', refresh_token: 'rt-both-file-0123456', expiry: FUTURE });
+      const fetchImpl = fakeGoogle();
+      const d = createDispatcher({
+        env: { ...ENV, YT_TOKEN_FIXTURE_BOTH: JSON.stringify({ refresh_token: 'rt-both-env-0123456789', token_type: 'Bearer' }) },
+        registryPath: tree.registryPath, channelsRoot: tree.channelsRoot, fetchImpl,
+      });
+      const resp = await ask(d, { method: 'tools/call', params: { name: 'channel-info', arguments: { channel: 'fixture-both' } } });
+      assert.equal(resp.error, undefined);
+      const oauth = fetchImpl.calls.find((c) => c.url === 'https://oauth2.googleapis.com/token');
+      assert.equal(oauth.opts.body.get('refresh_token'), 'rt-both-env-0123456789', 'the ENV token was refreshed — the file token was never touched');
+      assert.ok(!fetchImpl.calls.some((c) => (c.opts.headers?.Authorization || '').includes('at-both-file-fresh-0123')), 'the file access_token is never used when env wins');
+    } finally {
+      fs.rmSync(tree.root, { recursive: true, force: true });
+    }
+  });
+
+  test('a REMOVED channel becomes uncallable once the registry TTL expires (and the error lists who is left)', async () => {
+    const tree = buildFixtureTree();
+    try {
+      let clock = 2_000_000_000_000;
+      const { dispatcher } = makeDispatcher({ tree, now: () => clock, ttlMs: 60_000 });
+      const call = () => ask(dispatcher, { method: 'tools/call', params: { name: 'channel-info', arguments: { channel: 'fixture-alpha' } } });
+      assert.equal((await call()).result.isError, undefined, 'callable while in the registry');
+      tree.writeRegistry(REGISTRY_SLUGS.filter((s) => s !== 'fixture-alpha'));
+      assert.equal((await call()).result.isError, undefined, 'still callable within the TTL (documented 60s removal window)');
+      clock += 60_001;
+      const gone = await call();
+      assert.equal(gone.result.isError, true);
+      assert.match(gone.result.content[0].text, /Unknown channel 'fixture-alpha'/);
+      assert.doesNotMatch(gone.result.content[0].text, /fixture-alpha,/, 'the removed slug is not in the available list');
+      assert.match(gone.result.content[0].text, /fixture-beta/);
+    } finally {
+      fs.rmSync(tree.root, { recursive: true, force: true });
+    }
+  });
+
+  test('a refreshed access token EXPIRES after its 50-minute cache TTL and refreshes again', async () => {
+    let clock = 3_000_000_000_000;
+    const fetchImpl = fakeGoogle();
+    const { dispatcher } = makeDispatcher({ now: () => clock, fetchImpl });
+    const call = () => ask(dispatcher, { method: 'tools/call', params: { name: 'channel-info', arguments: { channel: 'fixture-beta' } } });
+    await call();
+    await call();
+    assert.equal(fetchImpl.calls.filter((c) => c.url === 'https://oauth2.googleapis.com/token').length, 1, 'cached within the TTL');
+    clock += 51 * 60_000; // past the 50-minute refreshed-token cache
+    await call();
+    assert.equal(fetchImpl.calls.filter((c) => c.url === 'https://oauth2.googleapis.com/token').length, 2, 'the expired cache forces a re-refresh');
+    assert.equal(fetchImpl.calls.at(-1).opts.headers.Authorization, 'Bearer at-refreshed');
   });
 
   test('missing YOUTUBE_CLIENT_ID/SECRET when a refresh is needed -> clean tool error, no crash', async () => {
@@ -540,6 +609,21 @@ describe('dynamic-mcp T3 — token resolution & refresh', () => {
     assert.equal(resp.result.isError, true);
     assert.match(resp.result.content[0].text, /403/);
     assert.match(resp.result.content[0].text, /quota exceeded/);
+  });
+
+  test('a POST that dies mid-flight (abort/timeout) warns the write MAY have landed — never invite a blind retry', async () => {
+    const tree = sharedTree();
+    const d = createDispatcher({
+      env: ENV, registryPath: tree.registryPath, channelsRoot: tree.channelsRoot,
+      fetchImpl: async () => { throw new Error('The operation was aborted due to timeout'); },
+    });
+    const post = await ask(d, { method: 'tools/call', params: { name: 'comment-reply', arguments: { channel: 'fixture-alpha', videoId: 'vid-1', parentId: 'parent-1', text: 'hi' } } });
+    assert.equal(post.result.isError, true);
+    assert.match(post.result.content[0].text, /may still have succeeded/);
+    assert.match(post.result.content[0].text, /verify before retrying/i);
+    const get = await ask(d, { method: 'tools/call', params: { name: 'channel-info', arguments: { channel: 'fixture-alpha' } } });
+    assert.equal(get.result.isError, true);
+    assert.doesNotMatch(get.result.content[0].text, /may still have succeeded/, 'the warning is for writes only');
   });
 
   test('secretNameFor maps dashes to underscores, uppercase (the YT_TOKEN_<SLUG> convention)', () => {
@@ -581,6 +665,14 @@ describe('dynamic-mcp T3 — no token material in any output', () => {
     assert.equal(resp.result.isError, true);
     assert.ok(!resp.result.content[0].text.includes('rt-gamma-0123456789abcdef'), 'fetch-layer error text must pass the redactor');
     assert.match(resp.result.content[0].text, /\[REDACTED\]/, 'the redaction actually happened');
+  });
+
+  test('the dispatcher exposes its redactor for the out-of-dispatch log belt (uncaught/stdin paths)', async () => {
+    const { dispatcher } = makeDispatcher();
+    await ask(dispatcher, { method: 'tools/call', params: { name: 'channel-info', arguments: { channel: 'fixture-gamma' } } });
+    const scrubbed = dispatcher.redact('socket exploded while sending rt-gamma-0123456789abcdef');
+    assert.ok(!scrubbed.includes('rt-gamma-0123456789abcdef'));
+    assert.match(scrubbed, /\[REDACTED\]/);
   });
 
   test('a corrupt token file is a clean error — the JSON.parse SyntaxError (which quotes file content) never escapes', async () => {
@@ -697,9 +789,5 @@ describe('dynamic-mcp T3 — spawned process over real stdio', () => {
       cp.kill();
       fs.rmSync(tree.root, { recursive: true, force: true });
     }
-  });
-
-  test('startServer is exported and wires the dispatcher to process stdio (smoke: does not throw with stub streams)', async () => {
-    assert.equal(typeof startServer, 'function');
   });
 });

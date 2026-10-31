@@ -74,9 +74,11 @@ export function buildNewConfig(config) {
 
 /**
  * One migration run over injected IO. Returns { exitCode }.
- * Dry (default): plan only. Write: backup copy FIRST, then the replacement.
+ * Dry (default): plan only. Write: backup copy FIRST, then the replacement —
+ * and NEVER over an existing same-date backup (the backup is the byte-exact
+ * artifact; clobbering it would destroy the only original copy).
  */
-export async function migrate({ readFile, writeFile, copyFile, log, nowDate = () => new Date().toISOString().slice(0, 10), filePath, write = false }) {
+export async function migrate({ readFile, writeFile, copyFile, fileExists = (p) => fs.existsSync(p), log, nowDate = () => new Date().toISOString().slice(0, 10), filePath, write = false }) {
   const out = (line) => log(line);
   let raw;
   try {
@@ -116,8 +118,13 @@ export async function migrate({ readFile, writeFile, copyFile, log, nowDate = ()
   }
 
   const backupPath = `${filePath}.backup-${nowDate()}`;
+  if (write && fileExists(backupPath)) {
+    out(`[mcp-migrate] refusing: a backup already exists at ${backupPath} — remove or rename it first (never overwrite the byte-exact original)`);
+    return { exitCode: 1 };
+  }
+  const backupNote = !write && fileExists(backupPath) ? ' (already exists — --write will refuse)' : '';
   out(`[mcp-migrate] ${write ? 'WRITE' : 'DRY'} ${filePath}`);
-  out(`[mcp-migrate]   backup  -> ${backupPath}`);
+  out(`[mcp-migrate]   backup  -> ${backupPath}${backupNote}`);
   out(`[mcp-migrate]   remove  ${plan.ytKeys.length} yt-* blocks: ${plan.ytKeys.join(', ')}`);
   out(`[mcp-migrate]   add     "${TARGET_KEY}": ${JSON.stringify(NEW_ENTRY)}`);
   out(`[mcp-migrate]   keep    ${plan.preservedKeys.length} non-yt blocks verbatim: ${plan.preservedKeys.join(', ')}`);

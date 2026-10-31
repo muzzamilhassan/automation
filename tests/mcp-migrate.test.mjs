@@ -62,6 +62,7 @@ const baseOpts = (overrides = {}) => ({
   readFile: () => JSON.stringify(fixtureConfig()),
   writeFile: () => {},
   copyFile: () => {},
+  fileExists: () => false,
   log: () => {},
   nowDate: () => DATE,
   filePath: 'X:\\repo\\.mcp.json',
@@ -184,6 +185,32 @@ describe('mcp-migrate T3 — migrate (dry default, backup-first write)', () => {
     const res = await migrate(baseOpts({ readFile: fake.readFile, writeFile: fake.writeFile, copyFile: fake.copyFile, write: true, log: (l) => lines.push(l) }));
     assert.equal(res.exitCode, 1);
     assert.match(lines.join('\n'), /refus/i);
+    assert.equal(fake.calls.writes.length + fake.calls.copies.length, 0);
+  });
+
+  test('--write REFUSES to clobber an existing same-date backup (exit 1, nothing written)', async () => {
+    const fake = io();
+    const lines = [];
+    const res = await migrate(baseOpts({
+      readFile: fake.readFile, writeFile: fake.writeFile, copyFile: fake.copyFile,
+      fileExists: (p) => p.endsWith('.backup-' + DATE),
+      write: true, log: (l) => lines.push(l),
+    }));
+    assert.equal(res.exitCode, 1);
+    assert.match(lines.join('\n'), /backup.*already exists|refus/i);
+    assert.equal(fake.calls.writes.length + fake.calls.copies.length, 0, 'the old backup and the config are untouched');
+  });
+
+  test('dry only NOTES an existing backup (still exit 0, still no writes)', async () => {
+    const fake = io();
+    const lines = [];
+    const res = await migrate(baseOpts({
+      readFile: fake.readFile, writeFile: fake.writeFile, copyFile: fake.copyFile,
+      fileExists: (p) => p.endsWith('.backup-' + DATE),
+      log: (l) => lines.push(l),
+    }));
+    assert.equal(res.exitCode, 0);
+    assert.match(lines.join('\n'), /already exists/);
     assert.equal(fake.calls.writes.length + fake.calls.copies.length, 0);
   });
 

@@ -24,6 +24,10 @@ the channel is a **parameter on every tool call**.
 }
 ```
 
+The relative `args` path assumes Claude launches project-scope servers with
+the repo root as the working directory (standard for a project `.mcp.json`);
+if your setup differs, use an absolute path at migrate time.
+
 Migrate the old file with the migrator (dry by default — **you** apply the
 write, because a config change needs a Claude restart):
 
@@ -32,8 +36,11 @@ node scripts/mcp-migrate.mjs          # plan (touches nothing)
 node scripts/mcp-migrate.mjs --write  # backup .mcp.json.backup-<date>, then replace
 ```
 
-Only keys starting with `yt-` are removed; everything else (github, n8n-mcp,
-colab-mcp, ...) is preserved verbatim. Re-runs are no-ops.
+Only keys starting with `yt-` are removed; every other block (github, n8n-mcp,
+colab-mcp, ...) is preserved **content-equal** (the new file is
+re-serialized with 2-space indent) — the **backup** is the byte-exact
+artifact, which is why `--write` refuses to overwrite an existing same-date
+backup. Re-runs are no-ops.
 
 ## How channels resolve (per call)
 
@@ -42,7 +49,9 @@ Every tool takes `channel` — the slug from `yt-mcp/studio-channels.json`:
 1. **Registry check** — the slug must be in the registry. The registry is
    re-read on a short TTL (60 s) and re-checked on a miss, so **a channel the
    wizard adds at runtime becomes callable without restarting this server**
-   (only Claude itself needs a restart to load this server once).
+   (only Claude itself needs a restart to load this server once). The same
+   window applies in reverse: a channel **removed** from the registry stays
+   callable for at most 60 s.
 2. **Token resolution** — env `YT_TOKEN_<SLUG>` first (dashes become
    underscores), then `yt-mcp/channels/<slug>/token.json`.
 3. **Access token** — a stored `access_token` that is still fresh is reused
@@ -72,6 +81,13 @@ paths (`video-list` without a query is the default shape); the expensive
 exceptions are marked in the tool descriptions so the model can see the cost
 before calling. **No `video.insert` in v1** — uploads stay in the CI pipeline
 through the intent flow, by design.
+
+`comment-reply` is the **sole write** and is **not idempotent**: it posts a
+public reply AS the channel and cannot be cancelled once sent. A timeout or
+transport error on that call is ambiguous — the reply may still have landed —
+so the server's error explicitly says *verify before retrying* (a blind retry
+double-posts). `videoId` on comment-reply is context only; the API derives
+the video from `parentId`.
 
 ## Protocol
 

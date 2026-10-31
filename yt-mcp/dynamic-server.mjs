@@ -95,7 +95,7 @@ export const TOOLS = [
   },
   {
     name: 'video-list',
-    description: 'List the channel\'s videos. Without `query`: the uploads playlist (1 unit). With `query`: search.list forMine (100 units — use sparingly).',
+    description: 'List the channel\'s videos. Without `query`: the uploads playlist (1 unit, +1 once per server lifetime to find the uploads playlist). With `query`: search.list forMine (100 units — use sparingly).',
     quota: '1 (no query) / 100 (with query)',
     inputSchema: {
       type: 'object',
@@ -129,7 +129,7 @@ export const TOOLS = [
   },
   {
     name: 'comment-reply',
-    description: 'Post a reply to an existing comment (the owner speaks AS the channel). 50 quota units.',
+    description: 'Post a reply to an existing comment (the owner speaks AS the channel). The SOLE WRITE in v1 and NOT idempotent: on a timeout/error the reply may still have succeeded — verify (comment-list) before retrying or you will double-post publicly. 50 quota units. `videoId` is context only — the API derives the video from `parentId`.',
     quota: 50,
     inputSchema: {
       type: 'object',
@@ -236,7 +236,11 @@ async function ytCall(fetchImpl, at, methodPath, params = {}, { httpMethod = 'GE
       signal: AbortSignal.timeout(API_TIMEOUT_MS),
     });
   } catch (e) {
-    throw new ToolFailure(`${methodPath} request failed: ${String(e?.message || e)}`);
+    // An abort/timeout on a POST is AMBIGUOUS (comment-reply is the one v1
+    // write): the reply may still have landed. Never invite a blind retry —
+    // a retry would double-post a public comment AS the channel.
+    const writeWarning = httpMethod === 'POST' ? ' — if this was a write it may still have succeeded; verify before retrying' : '';
+    throw new ToolFailure(`${methodPath} request failed: ${String(e?.message || e)}${writeWarning}`);
   }
   if (!res.ok) {
     let detail = '';
@@ -573,7 +577,12 @@ export function createDispatcher(deps = {}) {
     if (!isPlainObject(msg)) {
       return fail(null, -32600, 'Invalid Request: expected a JSON-RPC 2.0 object');
     }
-    const hasId = 'id' in msg && (typeof msg.id === 'string' || typeof msg.id === 'number' || msg.id === null);
+    const hasId = 'id' in msg;
+    if (hasId && typeof msg.id !== 'string' && typeof msg.id !== 'number' && msg.id !== null) {
+      // an object/bool/array id would otherwise fall through the notification
+      // check below and HANG the caller — reject it explicitly instead
+      return fail(null, -32600, 'Invalid Request: id must be a string, number, or null');
+    }
     const id = hasId ? msg.id : null;
     if (msg.jsonrpc !== '2.0' || typeof msg.method !== 'string') {
       return fail(id, -32600, 'Invalid Request: expected { jsonrpc: "2.0", id, method }');
@@ -601,7 +610,9 @@ export function createDispatcher(deps = {}) {
     }
   }
 
-  return { handleLine };
+  // Exposed for startServer's out-of-dispatch log paths (uncaught exceptions,
+  // stdin-loop teardown) — the belt-and-braces logging must not leak either.
+  return { handleLine, redact: (text) => redact(text, secrets) };
 }
 
 // ---------------------------------------------------------------------------
@@ -613,9 +624,10 @@ export function startServer(deps = {}) {
   const dispatcher = createDispatcher({ ...deps, log });
 
   // Belt and braces: handleLine is total, but a rogue throw anywhere else must
-  // not kill a live conversation — log to stderr and keep serving.
-  process.on('uncaughtException', (e) => log('uncaught: ' + String(e?.message || e)));
-  process.on('unhandledRejection', (e) => log('unhandled rejection: ' + String(e?.message || e)));
+  // not kill a live conversation — log to stderr and keep serving. Every one
+  // of these near-unreachable lines still passes the redactor.
+  process.on('uncaughtException', (e) => log('uncaught: ' + dispatcher.redact(String(e?.message || e))));
+  process.on('unhandledRejection', (e) => log('unhandled rejection: ' + dispatcher.redact(String(e?.message || e))));
   process.stdout.on('error', () => process.exit(0)); // EPIPE — the client is gone
 
   const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
@@ -626,12 +638,12 @@ export function startServer(deps = {}) {
           const resp = await dispatcher.handleLine(line);
           if (resp) process.stdout.write(JSON.stringify(resp) + '\n');
         } catch (e) {
-          log('line handler error: ' + String(e?.message || e));
+          log('line handler error: ' + dispatcher.redact(String(e?.message || e)));
           process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32603, message: 'Internal error' } }) + '\n');
         }
       }
     } catch (e) {
-      log('stdin loop ended: ' + String(e?.message || e));
+      log('stdin loop ended: ' + dispatcher.redact(String(e?.message || e)));
     }
     process.exit(0);
   })();
