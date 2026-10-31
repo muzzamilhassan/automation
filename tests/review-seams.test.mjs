@@ -944,6 +944,31 @@ const SPY_DOC_CLIPS = [
   'export default getTopicClip;',
 ].join('\n');
 
+// T5c round 2 (RESIDUAL): the DOMINANT single-approval flow — the owner
+// approved ONE short, yt-daily rendered + markConsumed it, and the doc child's
+// three resumable lookups (approved-filtered) all miss the consumed row. Only
+// a kind-agnostic, status-agnostic latestForJob still sees whose dispatch
+// this was.
+const SPY_DOC_STORE_CONSUMED_SHORT = [
+  "import { appendFileSync } from 'node:fs';",
+  'const LOG = process.env.PIPELINE_SPY_LOG;',
+  "function rec(fn, args) { try { appendFileSync(LOG, JSON.stringify({ mod: 'docstore', fn, args }) + '\\n'); } catch {} }",
+  'const CONSUMED = {',
+  '  id: "short-consumed-1", status: "consumed", channel_id: "quotequarry", job_id: "held-job-short-2",',
+  '  kind: "short", slot_idx: 0, slot_date: "2026-10-30", title: "A shipped short",',
+  '  full_render_input: { hook: "short hook", points: [{ title: "T", line: "l" }], closing: "c", thumbHeadline: "H" },',
+  '};',
+  'const store = {',
+  '  async saveScript() { rec("saveScript", {}); throw new Error("SAVE FORBIDDEN"); },',
+  '  async latestApprovedForJob() { rec("latestApprovedForJob", {}); return { ok: true, script: null }; },',
+  '  async latestForJob(jobId) { rec("latestForJob", { jobId }); return { ok: true, script: jobId === "held-job-short-2" ? CONSUMED : null }; },',
+  '  async latestApproved() { rec("latestApproved", {}); return { ok: true, script: null }; },',
+  '  async markConsumed() { rec("markConsumed", {}); return { ok: true, id: "x" }; },',
+  '};',
+  "export async function getScriptStore() { rec('getScriptStore', {}); return store; }",
+  'export default getScriptStore;',
+].join('\n');
+
 const SPY_DOC_MUSIC = [
   "import { appendFileSync } from 'node:fs';",
   'const LOG = process.env.PIPELINE_SPY_LOG;',
@@ -1239,5 +1264,23 @@ describe('#106 T5c — RESUME renders the doc from the STORED input (real yt-dee
     assert.equal(r.spy.filter((c) => c.mod === 'docstore' && c.fn === 'markConsumed').length, 0, 'a SHORT row is never consumed with a doc videoId');
     assert.equal(r.spy.filter((c) => c.mod === 'doccp' && c.fn === 'execFileSync').length, 0, 'no render spend on a foreign-kind dispatch');
     assert.equal(r.stateAfter?.deepdiveDate, undefined, 'the doc slot is NOT marked produced by a shorts dispatch');
+  });
+
+  test('round 2 RESIDUAL: a CONSUMED shorts row under the dispatched job (the dominant single-approval flow) — exit 0 with the mismatch log, never a false Episode failure', () => {
+    // owner approves ONE short -> yt-daily renders + markConsumes it -> every
+    // approved-filtered lookup misses; the kind-agnostic job probe still
+    // resolves the dispatch's owner
+    const r = runYtDeepdive({
+      env: { PIPELINE_RESUME_JOB_ID: 'held-job-short-2', PIPELINE_JOB_ID: 'spy-job-doc-4' },
+      engine: SPY_DOC_ENGINE_RESUME, store: SPY_DOC_STORE_CONSUMED_SHORT, intents: SPY_DOC_INTENTS_RESUME,
+    });
+    assert.equal(r.status, 0, 'the single-approval dispatch exits 0 — no false Episode failed + ntfy (pre-T5c behavior)');
+    assert.ok(r.stdout.includes('not the doc lane'), 'the mismatch log names the foreign kind and its status');
+    assert.ok(r.stdout.includes('consumed'), 'the log carries the consumed status (the round-2 case, not just approved)');
+    assert.equal(r.spy.filter((c) => c.mod === 'docengine' && c.fn === 'callScriptBrain').length, 0, 'no generation');
+    assert.equal(r.spy.filter((c) => c.mod === 'docintents' && c.fn === 'uploadWithIntent').length, 0, 'no upload');
+    assert.equal(r.spy.filter((c) => c.mod === 'docstore' && c.fn === 'markConsumed').length, 0, 'no consumption');
+    assert.equal(r.spy.filter((c) => c.mod === 'doccp' && c.fn === 'execFileSync').length, 0, 'no render spend');
+    assert.equal(r.stateAfter?.deepdiveDate, undefined, 'the doc slot is NOT marked produced');
   });
 });

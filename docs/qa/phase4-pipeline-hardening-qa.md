@@ -665,7 +665,11 @@ the dup-title gate pre-render, and retires the record by id AFTER the videoId
 lands (D14). A resumed run bypasses the cadence guards (an approval is a
 deliberate production order). Round 1: the resume is KIND-GUARDED — a
 foreign-kind (shorts) dispatch skips with exit 0 and never renders or consumes
-a short row as a documentary (the /review dispatch is kind-agnostic; a
+a short row as a documentary (the /review dispatch is kind-agnostic; round 2:
+the guard also runs on the null-refusal path via a kind-agnostic,
+status-agnostic job lookup — the dominant single-approval flow arrives with the
+shorts row already CONSUMED by yt-daily, every approved-filtered lookup misses
+it, and only the raw job probe still resolves whose dispatch this was; a
 genuinely-missing doc row stays exit 1 fail-closed) — and the chapter b-roll
 `page` object is actually defined (the module had referenced an undefined
 `page()` since e7fb691: every chapter's ReferenceError was swallowed and doc

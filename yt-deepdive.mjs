@@ -486,19 +486,35 @@ async function resumeApprovedDoc({ slug, jobId, b }) {
     log(`resume: script store read failed (${found.error}) — refusing to re-generate (fail-closed)`);
     return false;
   }
+  // T5c round 1 (BLOCKER 1) + round 2 (RESIDUAL): the /review dispatch is
+  // kind-agnostic — a resumed SHORTS job reaches this lane through the episode
+  // step's inherited resume env. A foreign-kind row is NOT this lane's
+  // dispatch: exit 0 WITHOUT rendering or consuming (pre-T5c behavior — never
+  // a false 'Episode failed' ntfy, and a short script can never ship as a full
+  // documentary). Round 2: the check runs BEFORE the null-refusal too — the
+  // DOMINANT single-approval flow has already CONSUMED the shorts row by the
+  // time this lane looks (yt-daily rendered + markConsumed it), so all three
+  // resumable lookups miss it and only a KIND-AGNOSTIC, status-agnostic
+  // latestForJob can still see whose dispatch this was. Exit 1 stays for
+  // doc-kind rows and truly-absent jobs (fail-closed).
+  if (found.script && found.script.kind && found.script.kind !== 'doc') {
+    log(`resume: job ${String(jobId).slice(0, 12)}… holds a ${found.script.kind} script — not the doc lane's dispatch; skipping (the shorts lane owns that resume)`);
+    return true;
+  }
+  if (!found.script && typeof store.latestForJob === 'function') {
+    let foreign = null;
+    try {
+      const any = await store.latestForJob(jobId);
+      if (any?.ok && any.script && any.script.kind && any.script.kind !== 'doc') foreign = any.script;
+    } catch { }
+    if (foreign) {
+      log(`resume: job ${String(jobId).slice(0, 12)}… holds a ${foreign.kind} script (${foreign.status}) — not the doc lane's dispatch; skipping (the shorts lane owns that resume)`);
+      return true;
+    }
+  }
   if (!found.script) {
     log(`resume: no approved script for job ${String(jobId).slice(0, 12)}… / ${slug} — nothing to render (already consumed, or the approval never landed)`);
     return false;
-  }
-  // T5c round 1 (BLOCKER 1): the /review dispatch is kind-agnostic — a resumed
-  // SHORTS job reaches this lane through the episode step's inherited resume
-  // env. A foreign-kind row is NOT this lane's dispatch: exit 0 WITHOUT
-  // rendering or consuming (pre-T5c behavior — never a false 'Episode failed'
-  // ntfy, and a short script can never ship as a full documentary); a
-  // genuinely-missing doc row stays exit 1 fail-closed below.
-  if (found.script.kind && found.script.kind !== 'doc') {
-    log(`resume: job ${String(jobId).slice(0, 12)}… holds a ${found.script.kind} script — not the doc lane's dispatch; skipping (the shorts lane owns that resume)`);
-    return true;
   }
   const stored = seams.storedInputOf(found.script);
   if (!stored) {
