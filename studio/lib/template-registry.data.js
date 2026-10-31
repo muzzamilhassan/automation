@@ -101,25 +101,6 @@ export const REGISTRY_META = {
     deprecated: false,
     changelog: [{ version: '1.0.0', date: '2026-10-26', note: 'initial registry entry' }],
   },
-  // ==================== DRILL 3 TEMPLATE (Phase 4 exit-gate, #106 T8) — TEMPORARY ====================
-  // Disposable medical-gated family for the unverified-medical-claim drill.
-  // REMOVE after the drill: delete this entry + run sync-template-registry.mjs
-  // + unassign debt-free-doctrine. NOT a production template.
-  'beat-synced-type': {
-    version: '1.0.0',
-    niches: ['Old money habits & quiet wealth'],
-    formats: ['long'],
-    renderer: 'remotion',
-    required_capabilities: ['script-gen', 'tts', 'captions'],
-    variation_rules: [
-      'DRILL family — exists only to prove the review gate holds medical scripts',
-    ],
-    variation_threshold: 0.85,
-    cross_channel_threshold: 0.90,
-    safety: { required_sources: true, review_required: ['medical'] },
-    deprecated: false,
-    changelog: [{ version: '1.0.0', date: '2026-10-31', note: 'DRILL 3 entry — temporary, remove after T8' }],
-  },
   'stats-counters': {
     version: '1.0.0',
     niches: [
