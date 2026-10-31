@@ -435,6 +435,10 @@ export function createDispatcher(deps = {}) {
     const cached = tokenCache.get(slug);
     if (cached && cached.expMs - now() > TOKEN_EXPIRY_MARGIN_MS) return cached.at;
 
+    // Trust model: the token is assumed to belong to `slug` by convention
+    // (env name / folder name). An identity cross-check against the registry
+    // entry is deliberately deferred — see DYNAMIC-SERVER.md "How channels
+    // resolve" item 0.
     const envName = secretNameFor(slug);
     let token = null;
     const envRaw = env[envName];

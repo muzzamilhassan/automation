@@ -46,6 +46,9 @@ backup. Re-runs are no-ops.
 
 Every tool takes `channel` — the slug from `yt-mcp/studio-channels.json`:
 
+0. **Trust model** — the slug→token binding is by convention: the server
+   trusts the env/file token belongs to that slug. An identity cross-check
+   (returned channel id vs the registry entry) is deliberately deferred.
 1. **Registry check** — the slug must be in the registry. The registry is
    re-read on a short TTL (60 s) and re-checked on a miss, so **a channel the
    wizard adds at runtime becomes callable without restarting this server**
