@@ -161,9 +161,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "q7xkAonIM4Q",
-        "publishAt": "2026-10-30T22:35:00Z",
-        "title": "Stop Budgeting With Spreadsheets (Do This Instead)"
+        "videoId": "BZanckvOvT8",
+        "publishAt": "2026-10-31T22:35:00Z",
+        "title": "The 60% Rule That Built a $13,500 Cash Buffer"
       }
     ],
     "imageDate": "2026-10-18",
@@ -238,6 +238,10 @@
       {
         "t": "Stop Budgeting With Spreadsheets (Do This Instead)",
         "at": "2026-10-30T22:35:00Z"
+      },
+      {
+        "t": "The 60% Rule That Built a $13,500 Cash Buffer",
+        "at": "2026-10-31T22:35:00Z"
       }
     ],
     "cooldownSeeds": [
@@ -273,7 +277,8 @@
           "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/692884733",
           "startSec": 72.3,
           "durSec": 22.1,
-          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-02.mp4"
+          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-02.mp4",
+          "postedAt": "2026-10-31T09:50:09.110Z"
         },
         {
           "part": 3,
@@ -295,10 +300,10 @@
         }
       ]
     },
-    "clipLastPostDate": "2026-10-30",
+    "clipLastPostDate": "2026-10-31",
     "uploadsToday": {
-      "date": "2026-10-30",
-      "count": 2
+      "date": "2026-10-31",
+      "count": 1
     },
     "usedLongSeeds": [
       "Mini Monday// Debt story🌻",
