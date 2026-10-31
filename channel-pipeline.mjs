@@ -110,6 +110,11 @@ function makePipelineJobController({ slug, jobs, artifacts, brandKit }) {
   return {
     get id() { return state.id; },
 
+    // #106 T5b: on --resume, the HELD job's id — the /review approval keys
+    // the resume dispatch by it, and the child lane resolves the approved
+    // script by the same id (PIPELINE_RESUME_JOB_ID threading below).
+    get parentJobId() { return state.parent?.job?.id ?? null; },
+
     // --resume lookup: getJob(<id>) or latestResumableJob(slug, 30 min window —
     // REQUIRED: a live-running job must never become a resume target).
     async loadParent() {
@@ -505,6 +510,20 @@ if (warnStore) {
 // production spend. Preflight-blocked and parked runs leave no job row.
 if (jobCtl) await jobCtl.begin({ shortsStep: SHORTS_STEP, template: PREFLIGHT_TEMPLATE });
 
+// ---- #106 T5b: thread the started job (+ the resolved template version) to
+// the child lanes — T3's intent rows and T5b's script rows link to THIS job
+// through process.env.PIPELINE_JOB_ID (spawnSync inherits the parent env).
+// Flag-off (no job row) sets nothing: the children stay byte-identical.
+if (jobCtl?.id) {
+  process.env.PIPELINE_JOB_ID = jobCtl.id;
+  if (PREFLIGHT_TEMPLATE?.version) process.env.PIPELINE_TEMPLATE_VERSION = String(PREFLIGHT_TEMPLATE.version);
+}
+// #106 T5b SEAM 1 (resume): the approval dispatches resume=<held job id> —
+// the CHILD must receive it so it renders from the STORED script input
+// instead of generating (never threaded = the child would run fresh and
+// bypass the approval). Bare --resume takes the resolved parent job id.
+if (RESUME_ARG) process.env.PIPELINE_RESUME_JOB_ID = RESUME_JOB_ID || jobCtl?.parentJobId || '';
+
 // ---- #106 T5 REVIEW-QUEUE GATE (D14-D18 / AC-P4-18/19) — flag REVIEW_QUEUE_ENABLED
 // unset = byte-identical behavior (zero imports, zero calls; pinned by
 // tests/review-gate.test.mjs). Membership-driven ONLY (D15): the assigned
@@ -518,10 +537,13 @@ if (jobCtl) await jobCtl.begin({ shortsStep: SHORTS_STEP, template: PREFLIGHT_TE
 const REVIEW_QUEUE_ENABLED = ['1', 'true'].includes(String(process.env.REVIEW_QUEUE_ENABLED || '').toLowerCase());
 if (REVIEW_QUEUE_ENABLED) {
   let gate = null;
+  let REGISTRY_META = null;
   try {
     const { evaluateReviewGate } = await import('./lib/review-gate.mjs');
-    const { loadChannelState, saveChannelState } = await import('./lib/state.mjs');
-    const { REGISTRY_META } = await import('./studio/lib/template-registry.data.js');
+    const stateMod = await import('./lib/state.mjs');
+    const registryMod = await import('./studio/lib/template-registry.data.js');
+    REGISTRY_META = registryMod.REGISTRY_META;
+    const { loadChannelState, saveChannelState } = stateMod;
     const { getRegistryDb } = await import('./studio/lib/template-registry-db.js');
     const { getScriptStore } = await import('./lib/script-store.mjs');
     const entry = loadChannelState(slug) || {};
@@ -542,15 +564,48 @@ if (REVIEW_QUEUE_ENABLED) {
   } catch (e) {
     log(`[review] WARN review gate unavailable — continuing (a gate crash never darkens production): ${String((e && e.message) || e).slice(0, 120)}`);
   }
+  if (gate && gate.ok && gate.action === 'run') {
+    // #106 T5b SEAM 2 (D18/OQ-4): WHERE the assigned template's DATA enables
+    // picking (review_thumb_pick — the same config surface the gate reads),
+    // the child renders emit N thumbnail candidates. Unset = 1 = today's
+    // single candidate (byte-identical, AC-P4-23).
+    try {
+      const { thumbCandidateCount } = await import('./lib/review-seams.mjs');
+      const tmeta = gate.gating?.familyId ? REGISTRY_META?.[gate.gating.familyId] : null;
+      const n = thumbCandidateCount(tmeta);
+      if (n > 1) {
+        process.env.REVIEW_THUMB_CANDIDATES = String(n);
+        log(`[review] thumbnail picking enabled — ${n} candidates per render (template ${gate.gating.familyId}; candidate 1 ships, swap at Studio > Review)`);
+      }
+    } catch { }
+  }
   if (gate && gate.ok && gate.action === 'hold') {
-    log(`[review] held — slot skipped today (${gate.reason}); approve at Studio > Review to resume at render (D17)`);
+    const generateOnly = gate.reason === 'no_approved_script' && shortsSource !== 'clips';
+    if (generateOnly) {
+      // #106 T5b SEAM 1 (generate-only): the gate held because NO script
+      // exists for today's slot — so generate + persist each slot's script
+      // (awaiting_review) and STOP: no TTS, no render, no upload (AC-P4-17
+      // + D15: nothing renders until an approval row exists). Approval then
+      // dispatches resume=<this job id> and the child renders from the
+      // STORED input. Clips-source channels have no script lane — they keep
+      // today's skip-exact hold.
+      log(`[review] no approved script for slot ${today} — generate-only run (REVIEW_GENERATE_ONLY): scripts are saved awaiting_review, nothing renders or uploads`);
+      process.env.REVIEW_GENERATE_ONLY = '1';
+      process.env.REVIEW_SCRIPT_SLOT_DATE = today;
+      await jobCtl?.startStep(SHORTS_STEP);
+      const okGen = run('yt-daily.mjs', [slug, '--no-episode', ...(FORCE ? ['--force'] : [])]);
+      await jobCtl?.finishStep(SHORTS_STEP, okGen ? 'succeeded' : 'failed', okGen ? null : 'generate-only generation failed');
+    } else {
+      log(`[review] held — slot skipped today (${gate.reason}); approve at Studio > Review to resume at render (D17)`);
+    }
+    const holdNote = generateOnly ? 'review hold: generated_awaiting_review' : `review hold: ${gate.reason}`;
     if (jobCtl?.id) {
       try {
         const { getJobStore } = await import('./lib/job-store.mjs');
         const jobs = await getJobStore();
         await jobs.recordStep(jobCtl.id, 90, 'review'); // idx 90: outside the planned range (PK job_id+idx)
-        await jobs.finishStep(jobCtl.id, 90, { status: 'skipped', error: `held: ${gate.reason}` });
-        await jobs.finishJob(jobCtl.id, { status: 'held', error: `review hold: ${gate.reason}` });
+        await jobs.finishStep(jobCtl.id, 90, { status: 'skipped', error: `held: ${generateOnly ? 'generated_awaiting_review' : gate.reason}` });
+        await jobs.finishJob(jobCtl.id, { status: 'held', error: holdNote });
       } catch (e) {
         log(`[review] WARN hold recording degraded (non-fatal): ${String((e && e.message) || e).slice(0, 120)}`);
       }

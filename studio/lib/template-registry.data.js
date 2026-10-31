@@ -93,6 +93,10 @@ export const REGISTRY_META = {
     // gate thresholds are pinned explicitly here rather than inherited.
     variation_threshold: 0.85,
     cross_channel_threshold: 0.90,
+    // #106 T5b (D18/OQ-4): thumbnail picking is template DATA — review-gated
+    // templates launch ON (3 candidates per render; candidate 1 ships; the
+    // owner swaps at Studio > Review). The T5 gate reads THIS key.
+    review_thumb_pick: true,
     safety: { required_sources: true, review_required: ['finance'] },
     deprecated: false,
     changelog: [{ version: '1.0.0', date: '2026-10-26', note: 'initial registry entry' }],
@@ -112,6 +116,8 @@ export const REGISTRY_META = {
       'no repeated hook across the channel\'s last 5 videos',
       'the headline stat differs from every stat shown in the channel\'s last 10 videos',
     ],
+    // #106 T5b (D18/OQ-4): see finance-explainers — review-gated templates launch with picking ON.
+    review_thumb_pick: true,
     safety: { required_sources: true, review_required: ['finance'] },
     deprecated: false,
     changelog: [{ version: '1.0.0', date: '2026-10-26', note: 'initial registry entry' }],
@@ -131,6 +137,8 @@ export const REGISTRY_META = {
       'no repeated hook across the channel\'s last 5 videos',
       'no repeated chart series: axes, labels, and data range differ from prior videos',
     ],
+    // #106 T5b (D18/OQ-4): see finance-explainers — review-gated templates launch with picking ON.
+    review_thumb_pick: true,
     safety: { required_sources: true, review_required: ['finance'] },
     deprecated: false,
     changelog: [{ version: '1.0.0', date: '2026-10-26', note: 'initial registry entry' }],

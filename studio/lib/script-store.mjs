@@ -364,6 +364,27 @@ export function makeScriptStore(deps) {
   }
 
   /**
+   * T5b: the newest APPROVED row of a dispatched job. A generate-only job
+   * saves one row per SLOT under the same job_id — newest-by-created_at is
+   * not necessarily the row the owner approved, so the resume lookups (the
+   * gate's resumed-run branch and the child lane's findResumableScript)
+   * prefer this over latestForJob and fall back to it.
+   */
+  async function latestApprovedForJob(jobId) {
+    try {
+      const ensured = await ensureSchema();
+      if (!ensured.ok) return { ok: false, error: ensured.error };
+      const rows = await dbClient(
+        `SELECT * FROM scripts WHERE job_id = $1 AND status = 'approved' ORDER BY created_at DESC LIMIT 1`,
+        [jobId],
+      );
+      return { ok: true, script: rows?.[0] ?? null };
+    } catch (e) {
+      return degrade(e);
+    }
+  }
+
+  /**
    * THE write-back (D14): the upload's videoId lands on the script row and
    * the record retires to consumed. Only an approved script consumes — an
    * awaiting/rejected row can never be claimed by an upload.
@@ -409,6 +430,34 @@ export function makeScriptStore(deps) {
     }
   }
 
+  /**
+   * T5b SEAM 2 (D18): record the rendered thumbnail candidates on the script
+   * row as meta.thumb_candidates [{idx, url}] — the exact shape /api/review
+   * GET?id= serves and /review renders (the pick route swaps via the url).
+   * Candidates exist only where a render happened, so like recordThumbPick
+   * this is approved (the resumed render) or consumed (uploaded) only.
+   */
+  async function recordThumbCandidates(id, candidates) {
+    try {
+      const ensured = await ensureSchema();
+      if (!ensured.ok) return { ok: false, error: ensured.error };
+      if (!Array.isArray(candidates) || candidates.length === 0) return { ok: false, error: 'candidates_required' };
+      const cur = await statusOf(id);
+      if (!cur) return { ok: false, reason: 'not_found' };
+      if (cur !== 'approved' && cur !== 'consumed') return { ok: false, reason: 'not_open' };
+      const rows = await dbClient(`SELECT meta FROM scripts WHERE id = $1`, [id]);
+      let meta = {};
+      try { meta = rows?.length && rows[0].meta ? (typeof rows[0].meta === 'string' ? JSON.parse(rows[0].meta) : rows[0].meta) : {}; } catch { meta = {}; }
+      meta.thumb_candidates = candidates
+        .filter((c) => c && Number.isInteger(c.idx))
+        .map((c) => ({ idx: c.idx, url: c.url ?? null }));
+      await dbClient(`UPDATE scripts SET meta = $2 WHERE id = $1`, [id, JSON.stringify(meta)]);
+      return { ok: true, id, meta };
+    } catch (e) {
+      return degrade(e);
+    }
+  }
+
   return {
     ensureSchema,
     saveScript,
@@ -419,8 +468,10 @@ export function makeScriptStore(deps) {
     latestApproved,
     scriptsForSlot,
     latestForJob,
+    latestApprovedForJob,
     markConsumed,
     recordThumbPick,
+    recordThumbCandidates,
   };
 }
 

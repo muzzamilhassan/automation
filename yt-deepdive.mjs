@@ -377,6 +377,41 @@ if (music) {
 sh(['-y', '-v', 'error', '-ss', String(Math.round(total * 0.35)), '-i', final, '-frames:v', '1', `${work}/frame.jpg`]);
 const thumb = await renderYouTubeThumbnail(script.title, `${work}/frame.jpg`, { accent: b.accent, eyebrow: b.eyebrow });
 
+// #106 T5b SEAM 2 (D18/AC-P4-23): WHERE the pipeline's gate enabled picking
+// (REVIEW_THUMB_CANDIDATES from the template DATA), the render emits N
+// candidates staggered across the episode. The upload still proceeds with
+// candidate 1 (M7); the owner picks at Studio > Review. Fail-soft end to end;
+// the env unset = today's single candidate, byte-identical.
+const THUMB_CANDIDATES_N = Math.max(1, Math.min(6, Number(process.env.REVIEW_THUMB_CANDIDATES) || 1));
+if (THUMB_CANDIDATES_N > 1) {
+  const docThumbs = [thumb].filter(Boolean);
+  try {
+    for (const pct of [0.22, 0.48]) {
+      sh(['-y', '-v', 'error', '-ss', String(Math.round(total * pct)), '-i', final, '-frames:v', '1', `${work}/frame-alt.jpg`]);
+      docThumbs.push(await renderYouTubeThumbnail(script.title, `${work}/frame-alt.jpg`, { accent: b.accent, eyebrow: b.eyebrow }));
+      fs.rmSync(`${work}/frame-alt.jpg`, { force: true });
+    }
+  } catch (e) {
+    console.log(`[long] thumb candidates degraded (${String(e.message).slice(0, 60)}) — candidate 1 proceeds`);
+  }
+  try {
+    const seams = await import('./lib/review-seams.mjs');
+    const { makeArtifactStore } = await import('./lib/artifact-store.mjs');
+    let jobs = null;
+    try { jobs = await (await import('./lib/job-store.mjs')).getJobStore(); } catch { }
+    // no doc script row exists (the doc lane has no review seam yet) — the
+    // artifact index carries the candidates
+    const r = await seams.emitThumbCandidates({
+      thumbs: docThumbs, artifacts: makeArtifactStore(), jobs,
+      jobId: process.env.PIPELINE_JOB_ID || null, step: 'episode',
+      log: (m) => console.log(`[review] ${m}`),
+    });
+    if (r.candidates.length) console.log(`[long] ${r.candidates.length} thumbnail candidates emitted (candidate 1 ships; swap at Studio > Review)`);
+  } catch (e) {
+    console.log(`[long] thumb candidate indexing degraded (non-fatal): ${String(e.message).slice(0, 60)}`);
+  }
+}
+
 console.log(`[long] ✅ episode rendered: ${final} (${(total / 60).toFixed(1)} min)`);
 
 // ---------- upload scheduled ----------
@@ -426,6 +461,19 @@ if (up.skipProduction && !up.videoId) {
 if (!up.ok) throw new Error(`upload failed: ${up.error}`);
 const videoId = up.videoId;
 await yt.thumbnails.set({ videoId, media: { body: Readable.from(thumb) } }).catch(() => { });
+
+// #106 T5b SEAM 3 (D14): the video_id write-back — fail-soft; the doc lane has
+// no script rows today, so this is a silent no-op (and the kind guard keeps a
+// doc upload from ever stamping a shorts script row).
+try {
+  const seams = await import('./lib/review-seams.mjs');
+  const { getScriptStore } = await import('./lib/script-store.mjs');
+  await seams.writeBackVideoId({
+    scriptStore: await getScriptStore(), channelId: slug,
+    jobId: process.env.PIPELINE_JOB_ID || null, kind: 'doc', videoId,
+    log: (m) => console.log(`[review] ${m}`),
+  });
+} catch { }
 
 const st = loadState();
 st[slug] = st[slug] || {};

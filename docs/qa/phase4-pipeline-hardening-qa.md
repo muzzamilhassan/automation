@@ -567,6 +567,74 @@ Proves AC-P4-17/18/20/21/22 live. A disposable `medical`-flagged test template h
 
 ---
 
+## T5b addendum — the lane seams close the FULL approval loop (2026-10-31)
+
+T5 shipped the gate (hold fail-closed) and the desk (approve → dispatch resume).
+T5b lands the LANE side, so the loop is now closed end to end: a gated channel
+with no script GENERATES-ONLY and stops; the owner approves; the resumed run
+renders from the STORED render input (never a fresh generation) and retires the
+script with the videoId. Thumbnail candidates (D18) and the upload-side
+video_id write-back (D14) ride the same seams. Spec: D14/D17/D18,
+AC-P4-16..23. New/changed code: `lib/review-seams.mjs` (the shared lane seam),
+`channel-pipeline.mjs` (env threading + generate-only hold path),
+`yt-daily.mjs` (resume-render / generate-only / candidates / write-back),
+`yt-deepdive.mjs` + `longvideo/shorts-clips.mjs` (write-back; doc candidates),
+`youtube-engine.mjs` (optional N-variant thumbnails), `lib/review-gate.mjs`
+(resume prefers the job's APPROVED row), `studio/lib/script-store.mjs`
+(`latestApprovedForJob`, `recordThumbCandidates`), template DATA
+(`review_thumb_pick: true` on the three finance templates — OQ-4 launch
+default).
+
+### Row T5b-1 — Generate-only: a gated hold SAVES the script and renders nothing · `automated`
+
+- Steps: `node --test tests/review-seams.test.mjs` — the spawn-style cases "SEAM 1: gate hold no_approved_script" and the `saveGeneratedScript` unit cases.
+- Expected: the pipeline gate holding with `no_approved_script` runs the child lane once with `REVIEW_GENERATE_ONLY=1` + `REVIEW_SCRIPT_SLOT_DATE` + `PIPELINE_JOB_ID`; the child saves each surviving script as `awaiting_review` with the COMPLETE structured render input (hook/points/closing/thumbHeadline + seed/themes/publishAt, AC-P4-17) and exits 0 — no music, no TTS, no render, no upload, no production state write. A dup-blocked or fallback script is never saved. The job closes `held` with the generated-awaiting-review note.
+- Actual:
+- Evidence (quoted log/output):
+- Status:
+
+### Row T5b-2 — Resume-from-approval renders the STORED input, zero generation calls · `automated`
+
+- Steps: `node --test tests/review-seams.test.mjs` — "RESUME consumes the STORED input (real yt-daily spawn, engine spied)". The REAL yt-daily runs with the script engine spied (the generator also THROWS if touched) and the script store faked to return the approved row.
+- Expected: exactly one render call whose input EQUALS the stored `full_render_input` (hook/points/closing/thumbHeadline), `thumbVariants` threaded from the candidates config, ZERO `generateYouTubeScript` calls, the upload refused at the validation gate (fake bytes) leaving the script APPROVED (never prematurely consumed), exit 1 with the refusal logged. A store read error or a missing approved row also refuses — the child never falls back to generating (fail-closed, D4).
+- Actual:
+- Evidence (quoted log/output):
+- Status:
+
+### Row T5b-3 — markConsumed + video_id write-back (D14 SEAM 3) · `automated`
+
+- Steps: `node --test tests/review-seams.test.mjs` (writeBackVideoId cases) and `tests/script-store.test.mjs` (the store's consume path).
+- Expected: every lane's post-upload success path (yt-daily shorts, yt-deepdive doc, shorts-clips post-next) calls the write-back: the job-linked approved script retires to `consumed` with the videoId; with no job linkage it falls back to the channel's latest approved; a kind mismatch never stamps across lanes; a null store / no rows / consumed-already / dead DB are silent no-ops (the legacy path's log is unchanged). On the resume path the script is consumed by id AFTER the videoId lands.
+- Actual:
+- Evidence (quoted log/output):
+- Status:
+
+### Row T5b-4 — Thumbnail candidates: 3 when the template enables picking, 1 when not (AC-P4-23) · `automated`
+
+- Steps: `node --test tests/review-seams.test.mjs` (thumbCandidateCount + emitThumbCandidates cases, and the spawn cases "SEAM 2 ... / SEAM 2 negative"); `node --test tests/script-store.test.mjs` (recordThumbCandidates).
+- Expected: the count is template DATA (`review_thumb_pick` on the registry meta — finance templates launch ON per OQ-4): the gate threads `REVIEW_THUMB_CANDIDATES=3` onto the child only when the assigned template enables it; the render emits 3 staggered variants (candidate 1 keeps the exact legacy frame and ships — M7); variants land as `thumb_candidate` artifact bytes + job index rows and (where a script row exists) `meta.thumb_candidates [{idx,url}]` — the exact shape `/api/review GET?id=` serves and `/review` renders. Where picking is not enabled the single-candidate path is byte-identical.
+- Actual:
+- Evidence (quoted log/output):
+- Status:
+
+### Row T5b-5 — Flag pin: flags off = byte-identical legacy lanes · `automated`
+
+- Steps: `node --test tests/review-seams.test.mjs` — "FLAG PIN: REVIEW_QUEUE_ENABLED unset..."; plus `node --test tests/pipeline-jobstore.test.mjs` and `tests/review-gate.test.mjs` (the pre-existing flag pins must stay green over the T5b pipeline edits).
+- Expected: with the flags unset the child lane receives NONE of the review env vars, no gate evaluation runs, and `PIPELINE_JOB_ID` is absent (no job row). Non-gated channels render/upload exactly as before (single candidate, no script rows touched).
+- Actual:
+- Evidence (quoted log/output):
+- Status:
+
+### Row T5b-6 — Live approval drill (extends Drill 3's step 8) · `manual`
+
+- Steps: after Drill 3 step 7 (a script held awaiting_review), approve it at `/review` and watch the dispatched `channel-autopilot` run with `resume=<job id>`. PASS checks: (a) the resumed run's log says it rendered from the STORED input with no `[YT Script]` generation line; (b) the video uploads private with publishAt recomputed from the kit slots (D8 — a day-late approval must not publish instantly or be refused); (c) DB-CHECK `select status, video_id from scripts where job_id = '<held job>'` → the approved row is `consumed` with the video's id; (d) with `review_thumb_pick` on the assigned template, `/review` shows 3 candidates for the script and candidate 1 was the one set at upload.
+- Expected: the approval loop closes with zero re-spend of research/generation.
+- Actual:
+- Evidence (quoted log/output):
+- Status:
+
+---
+
 ## Regression — pinned invariants
 
 These hold across the whole phase. Any FAIL here blocks sign-off even if every feature row passes.
@@ -617,5 +685,5 @@ These hold across the whole phase. Any FAIL here blocks sign-off even if every f
 
 ## Summary
 
-Checklist rows: **36 = 33 AC rows + 3 drill rows**, plus 7 regression rows. Coverage map (no AC merged or split silently): AC-P4-1→R1; 2→R2; 3→R3; 4→R4 (+Drill 1 live); 5→R5; 6→R6; 7→R7; 8→R8 (+Drill 1); 9→R9; 10→R10 (+Drill 1 publishAt recompute); 11→R11 (+Drill 2); 12→R12; 13→R13 (+Drill 2); 14→R14 (+Drill 2); 15→R15; 16→R16; 17→R17 (+Drill 3); 18→R18 (+Drill 3); 19→R19; 20→R20 (+Drill 3); 21→R21; 22→R22 (+Drill 3); 23→R23; 24→R24; 25→R25; 26→R26; 27→R27; 28→R28; 29→R29 (+Drill 2 cleanup); 30→R30; 31→R31; 32→R32; 33→R33; Drill-1/2/3→their scripts. The "Resolved by review" findings are proven where they landed: deadlock-out (R13/R14/R15), fail-closed gate (R18), post-upload thumbnail swap (R23), status+bytes resume (R4/Drill 1), intent conflict + resolution scope (R6/R8), dispatch contract (R22), publishAt recompute (R10/Drill 1), scope probes (R24), emitter constraint (R12), snapshot upsert semantics (R24), timeout (R19), DB-down degradation (R5), video_id write-back (R27), quota wiring (R32), retention (R33), drills executable with prep/cleanup (all three).
+Checklist rows: **36 = 33 AC rows + 3 drill rows**, plus 7 regression rows — extended by the **T5b addendum (6 rows)**, which closes the approval loop's lane side (generate-only hold → owner approval → resume-render from the STORED input → consumed + video_id write-back, with the D18 thumbnail candidates). Coverage map (no AC merged or split silently): AC-P4-1→R1; 2→R2; 3→R3; 4→R4 (+Drill 1 live); 5→R5; 6→R6; 7→R7; 8→R8 (+Drill 1); 9→R9; 10→R10 (+Drill 1 publishAt recompute); 11→R11 (+Drill 2); 12→R12; 13→R13 (+Drill 2); 14→R14 (+Drill 2); 15→R15; 16→R16; 17→R17 (+Drill 3); 18→R18 (+Drill 3); 19→R19; 20→R20 (+Drill 3); 21→R21; 22→R22 (+Drill 3); 23→R23; 24→R24; 25→R25; 26→R26; 27→R27; 28→R28; 29→R29 (+Drill 2 cleanup); 30→R30; 31→R31; 32→R32; 33→R33; Drill-1/2/3→their scripts. The "Resolved by review" findings are proven where they landed: deadlock-out (R13/R14/R15), fail-closed gate (R18), post-upload thumbnail swap (R23), status+bytes resume (R4/Drill 1), intent conflict + resolution scope (R6/R8), dispatch contract (R22), publishAt recompute (R10/Drill 1), scope probes (R24), emitter constraint (R12), snapshot upsert semantics (R24), timeout (R19), DB-down degradation (R5), video_id write-back (R27), quota wiring (R32), retention (R33), drills executable with prep/cleanup (all three).
 

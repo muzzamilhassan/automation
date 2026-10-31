@@ -725,6 +725,39 @@ describe('#106 T5 round 1 — gate ordering + resume lookup (MAJOR 3, MAJOR 5)',
     assert.equal(r.reason, 'awaiting_review');
   });
 
+  test('T5b: a resumed run prefers the job\'s APPROVED row — a multi-slot generate-only job must resume the row the owner approved', async () => {
+    const r = await evaluateReviewGate(gatedOpts({
+      slotDate: '2026-11-02', // next day — no slot row for the resumed date
+      resumeJobId: 'held-job-1',
+      scriptStore: {
+        async latestApprovedForJob(jobId) {
+          return { ok: true, script: AWAITING({ id: 's-approved', status: 'approved', job_id: jobId, created_at: '2026-10-31T06:00:00Z' }) };
+        },
+        async latestForJob() {
+          return { ok: true, script: AWAITING({ id: 's-awaiting-newest', status: 'awaiting_review', job_id: 'held-job-1', created_at: '2026-10-31T07:00:00Z' }) };
+        },
+        async scriptsForSlot() { return { ok: true, scripts: [] }; },
+      },
+    }));
+    assert.equal(r.action, 'run', 'the newest row is still awaiting — but the APPROVED one is what the owner dispatched');
+    assert.equal(r.reason, 'approved_resumed');
+    assert.equal(r.script.id, 's-approved');
+  });
+
+  test('T5b: latestApprovedForJob misses (already consumed) -> the any-status latestForJob fallback decides, then the slot lookup', async () => {
+    const r = await evaluateReviewGate(gatedOpts({
+      slotDate: '2026-11-02',
+      resumeJobId: 'held-job-1',
+      scriptStore: {
+        async latestApprovedForJob() { return { ok: true, script: null }; },
+        async latestForJob() { return { ok: true, script: AWAITING({ id: 's-consumed', status: 'consumed', job_id: 'held-job-1' }) }; },
+        async scriptsForSlot() { return { ok: true, scripts: [] }; },
+      },
+    }));
+    assert.equal(r.action, 'hold');
+    assert.equal(r.reason, 'no_approved_script', 'a consumed script is retired — the resumed run holds like any fresh slot');
+  });
+
   test('minor 6: a STALE last-known-assignment cache (past CACHE_TTL_MS) is treated as no cache — fail-closed', async () => {
     assert.equal(CACHE_TTL_MS, 24 * 3600_000);
     const r = await resolveGating({

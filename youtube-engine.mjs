@@ -865,7 +865,12 @@ async function renderSectionCard(pageId, accent, section, handle, kwShort) {
   return file;
 }
 
-export async function renderYouTubeScriptShort(page, script, musicOverride = null) {
+// opts.thumbVariants (T5b D18): WHERE the admin-panel config enables picking,
+// the caller passes N>1 and the render extracts N staggered frames (candidate
+// 1 keeps the exact legacy +3s offset) — out.thumbs carries every variant and
+// out.thumb stays candidate 1. Default/absent = 1 = today's byte-identical
+// single candidate.
+export async function renderYouTubeScriptShort(page, script, musicOverride = null, opts = {}) {
   const brand = resolveBrand(page);
   if (!brand) throw new Error('no YouTube config for page ' + page?.id);
   console.log(`[YouTube Script Short] ${brand.label} ("${script.thumbHeadline}", ${script.source})...`);
@@ -947,16 +952,23 @@ export async function renderYouTubeScriptShort(page, script, musicOverride = nul
   fs.rmSync(buildDir, { recursive: true, force: true });
 
   let thumb = null;
+  const thumbs = [];
   try {
-    const frameFile = `${POOL_DIR}/yt-thumb-frame-${page.id}.jpg`;
-    execFileSync(FF, ['-y', '-v', 'error', '-ss', String(clip.start + 3), '-i', clip.file, '-frames:v', '1', frameFile]);
-    thumb = await renderYouTubeThumbnail(script.thumbHeadline || script.hook, frameFile, { accent: brand.accent, eyebrow: brand.eyebrow || `QUOTE QUARRY // ${brand.label}` });
-    fs.rmSync(frameFile, { force: true });
+    const variants = Math.max(1, Math.min(6, Number(opts?.thumbVariants) || 1));
+    for (let v = 0; v < variants; v++) {
+      const frameFile = `${POOL_DIR}/yt-thumb-frame-${page.id}${v > 0 ? `-v${v}` : ''}.jpg`;
+      // candidate 1 keeps the exact legacy offset (+3s); variants stagger later frames
+      execFileSync(FF, ['-y', '-v', 'error', '-ss', String(clip.start + (v === 0 ? 3 : 2 + v * 1.5)), '-i', clip.file, '-frames:v', '1', frameFile]);
+      const t = await renderYouTubeThumbnail(script.thumbHeadline || script.hook, frameFile, { accent: brand.accent, eyebrow: brand.eyebrow || `QUOTE QUARRY // ${brand.label}` });
+      thumbs.push(t);
+      fs.rmSync(frameFile, { force: true });
+    }
+    thumb = thumbs[0] || null;
   } catch (e) { console.log(`      [YT Script] Thumbnail skipped (${String(e.message).slice(0, 80)})`); }
 
   const meta = buildScriptMeta(page, script, musicOverride ? `${musicOverride.title} — ${musicOverride.credit}` : '');
   console.log(`      ✓ Script Short rendered (${Math.round(buf.length / 1024)} KB, ${total}s, ${sections.length} sections)`);
-  return { buffer: buf, thumb, meta, duration: total };
+  return { buffer: buf, thumb, thumbs, meta, duration: total };
 }
 
 export function buildScriptMeta(page, script, musicLabel = '') {

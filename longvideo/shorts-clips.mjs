@@ -552,6 +552,19 @@ async function postNext() {
   }
   log(`✓ queued ${videoId} -> https://youtube.com/shorts/${videoId}`);
 
+  // #106 T5b SEAM 3 (D14): the video_id write-back — fail-soft; clips channels
+  // never generate scripts, so this is a silent no-op (and the kind guard
+  // keeps a claimed clip from stamping a generated shorts script row).
+  try {
+    const seams = await import('../lib/review-seams.mjs');
+    const { getScriptStore } = await import('../lib/script-store.mjs');
+    await seams.writeBackVideoId({
+      scriptStore: await getScriptStore(), channelId: slug,
+      jobId: process.env.PIPELINE_JOB_ID || null, kind: 'short', videoId,
+      log: (m) => log(`[review] ${m}`),
+    });
+  } catch { }
+
   // ledger (#99) + state marks (publisher once-per-day, verify claims, history)
   const now = new Date().toISOString();
   clip.postedAt = now;

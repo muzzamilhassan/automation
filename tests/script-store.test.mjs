@@ -67,6 +67,18 @@ function makeScriptDb({ fail = false, failOn = null } = {}) {
     if (s.startsWith('SELECT') && s.includes('FROM script_claims WHERE script_id')) {
       return tables.script_claims.filter((r) => r.script_id === params[0]);
     }
+    if (s.startsWith('SELECT') && s.includes('FROM scripts WHERE job_id = $1 AND status')) {
+      return tables.scripts
+        .filter((r) => r.job_id === params[0] && r.status === 'approved')
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 1);
+    }
+    if (s.startsWith('SELECT') && s.includes('FROM scripts WHERE job_id = $1')) {
+      return tables.scripts
+        .filter((r) => r.job_id === params[0])
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 1);
+    }
     if (s.startsWith('SELECT') && s.includes("status = 'approved'")) {
       const rows = tables.scripts
         .filter((r) => r.channel_id === params[0] && r.status === 'approved')
@@ -342,6 +354,60 @@ describe('#106 T5 script store — approval lifecycle (D16) + video_id write-bac
 });
 
 // ---------------------------------------------------------------------------
+// #106 T5b — the resume lookups + the thumb-candidate record (SEAM 1/2)
+// ---------------------------------------------------------------------------
+
+describe('#106 T5b script store — latestApprovedForJob + recordThumbCandidates', () => {
+  // local save helper (the T5 suites keep theirs suite-scoped)
+  async function savedLocal(db, over = {}) {
+    const store = makeScriptStore({ dbClient: db });
+    const r = await store.saveScript({ ...BASE, ...over });
+    assert.equal(r.ok, true);
+    return { store, id: r.id };
+  }
+
+  test('latestApprovedForJob returns the job\'s newest APPROVED row only — a generate-only job with several slot rows resumes THE APPROVED one', async () => {
+    const db = makeScriptDb();
+    const store = makeScriptStore({ dbClient: db });
+    await store.saveScript({ ...BASE, jobId: 'job-A', title: 'slot 0' });
+    await store.saveScript({ ...BASE, jobId: 'job-A', title: 'slot 1' });
+    const noneYet = await store.latestApprovedForJob('job-A');
+    assert.equal(noneYet.ok, true);
+    assert.equal(noneYet.script, null, 'nothing approved yet — no resume');
+    // approve the SECOND row by id (title-keyed — never order-dependent)
+    const rows = await store.scriptsForSlot('quotequarry', '2026-10-31');
+    const target = rows.scripts.find((s) => s.title === 'slot 1');
+    await store.approve(target.id, { by: 'owner' });
+    const r = await store.latestApprovedForJob('job-A');
+    assert.equal(r.script.id, target.id, 'the approved row is the one found — regardless of created_at order');
+    assert.equal(r.script.status, 'approved');
+    const other = await store.latestApprovedForJob('job-B');
+    assert.equal(other.script, null, 'a different job never leaks its rows');
+  });
+
+  test('recordThumbCandidates writes meta.thumb_candidates [{idx,url}] (the /review page shape) for an uploaded script only', async () => {
+    const db = makeScriptDb();
+    const { store, id } = await savedLocal(db);
+    const early = await store.recordThumbCandidates(id, [{ idx: 1, url: 'u1' }]);
+    assert.equal(early.ok, false, 'candidates exist only where a render happened — awaiting scripts take none');
+    assert.equal(early.reason, 'not_open');
+    await store.approve(id, { by: 'owner' });
+    const r = await store.recordThumbCandidates(id, [{ idx: 1, url: 'u1' }, { idx: 2, url: 'u2' }, { idx: 3, url: null }]);
+    assert.equal(r.ok, true);
+    const meta = JSON.parse(db.tables.scripts.find((x) => x.id === id).meta);
+    assert.deepEqual(meta.thumb_candidates, [{ idx: 1, url: 'u1' }, { idx: 2, url: 'u2' }, { idx: 3, url: null }]);
+    const empty = await store.recordThumbCandidates(id, []);
+    assert.equal(empty.ok, false, 'an empty candidate list is a caller bug, not a wipe');
+  });
+
+  test('the dead-DB posture covers the new methods ({ ok:false }, never a throw)', async () => {
+    const store = makeScriptStore({ dbClient: makeScriptDb({ fail: true }) });
+    assert.equal((await store.latestApprovedForJob('j')).ok, false);
+    assert.equal((await store.recordThumbCandidates('x', [{ idx: 1, url: 'u' }])).ok, false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // never-throw (house posture)
 // ---------------------------------------------------------------------------
 
@@ -357,6 +423,7 @@ describe('#106 T5 script store — never-throw degradation (AC-P4-5 posture)', (
     assert.equal((await store.scriptsForSlot('c', 'd')).ok, false);
     assert.equal((await store.markConsumed('x', 'v')).ok, false);
     assert.equal((await store.recordThumbPick('x', {})).ok, false);
+    assert.equal((await store.latestApprovedForJob('x')).ok, false);
   });
 
   test('SCRIPT_STATUSES / CLAIM_VERIFICATIONS are the D14 vocabularies', () => {
