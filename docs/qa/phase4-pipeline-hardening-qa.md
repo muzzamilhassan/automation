@@ -643,6 +643,36 @@ dependency (it is resolved from the studio workspace at build and runtime).
 
 ---
 
+## T5c addendum — the DOC lane joins the approval loop (clips-source channels)
+
+T5b closed the loop for GENERATED channels only: a clips-source channel's
+skip-exact hold left the /review desk with nothing to approve (the doc lane —
+their ONLY script lane — never generated). T5c mirrors yt-daily's two branches
+onto yt-deepdive and extends the pipeline hold: the doc generation runs EXACTLY
+as today (brain walk + dedupe gates — a blocked walk never saves), the survivor
+persists `awaiting_review` (kind 'doc'; the episode maps to hook=title,
+points=chapters, closing=outro, + the cold-open intro in full_render_input),
+then EXIT 0 before any TTS/music/render/upload; deepdiveDate NEVER advances
+(the approval's resume must render today) while the seed rotation DOES
+diversify. The docDay cadence is bypassed on generate-only runs (a gated clips
+channel holds on ANY day — the desk would starve otherwise); pause and
+already-produced guards still apply. The resume renders the doc from the
+STORED input (the generator is structurally unreachable), recomputes publishAt
+from the kit's long slot BEFORE any render spend (AC-P4-19), re-runs the
+dup-title gate pre-render, and retires the record by id AFTER the videoId
+lands (D14). A resumed run bypasses the cadence guards (an approval is a
+deliberate production order).
+
+### Row T5c-1 — Doc generate-only + resume-from-stored (the yt-daily mirror) · `automated`
+
+- Steps: `node --test tests/review-seams.test.mjs` — the T5c suites: the pipeline spawn cases (a clips-source hold spawns yt-deepdive GENERATE-ONLY with the env threaded and the held terminal; --resume threads the held job id to the doc child; flags-off = no review env on any child), and the REAL yt-deepdive spawns (engine/brain/music/trend/dup-gate/intents/googleapis/child_process all seam-spied, network-free).
+- Expected: generate-only — the brain runs ONCE with the doc dedupe gates, exactly one `saveScript` (kind 'doc', awaiting_review, the COMPLETE render input deep-equal, publishAt = the long-slot D8 recompute, template version threaded), ZERO TTS/music/render/upload calls, deepdiveDate unset, usedLongSeeds advanced; a blocked (exhausted) brain walk throws → nonzero exit, nothing saved, no render spend. Resume — ZERO brain calls (the spy throws), ZERO saves, the narration the render consumes EQUALS the stored structure byte-for-byte in render order (intro → chapters → outro), exactly one upload titled from the STORED title with the recomputed future publishAt, and markConsumed lands BY the approved row id AFTER the upload (order pinned).
+- Actual:
+- Evidence (quoted log/output):
+- Status:
+
+---
+
 ## Regression — pinned invariants
 
 These hold across the whole phase. Any FAIL here blocks sign-off even if every feature row passes.

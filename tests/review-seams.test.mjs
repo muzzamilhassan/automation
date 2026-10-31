@@ -414,7 +414,7 @@ const FAKE_YT_DAILY = [
   "// test double: dumps exactly the T5b env keys it received, then exits 0",
   "import { appendFileSync } from 'node:fs';",
   'const KEYS = ["REVIEW_GENERATE_ONLY", "REVIEW_SCRIPT_SLOT_DATE", "PIPELINE_JOB_ID", "PIPELINE_RESUME_JOB_ID", "REVIEW_THUMB_CANDIDATES", "PIPELINE_TEMPLATE_VERSION"];',
-  "appendFileSync(process.env.CHILD_ENV_LOG, JSON.stringify(Object.fromEntries(KEYS.map((k) => [k, process.env[k] ?? null]))) + '\\n');",
+  "appendFileSync(process.env.CHILD_ENV_LOG, JSON.stringify(Object.fromEntries([['child', 'daily'], ...KEYS.map((k) => [k, process.env[k] ?? null])])) + '\\n');",
   "console.log('[fake-yt-daily] ran with the env above');",
 ].join('\n');
 
@@ -426,13 +426,15 @@ function readJsonl(p) {
   }
 }
 
-function runPipeline({ state = {}, env = {}, args = [] } = {}) {
+function runPipeline({ state = {}, env = {}, args = [], deepdive = false, cadence = null } = {}) {
   const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'pipe-t5b-'));
   const spyLog = path.join(sandbox, 'spy.jsonl');
   const childEnvLog = path.join(sandbox, 'child-env.jsonl');
   try {
     fs.writeFileSync(path.join(sandbox, 'yt-daily.mjs'), FAKE_YT_DAILY);
+    if (deepdive) fs.writeFileSync(path.join(sandbox, 'yt-deepdive.mjs'), FAKE_YT_DEEPDIVE);
     fs.mkdirSync(path.join(sandbox, 'yt-mcp', 'state'), { recursive: true });
+    if (cadence) fs.writeFileSync(path.join(sandbox, 'yt-mcp', 'cadence.json'), JSON.stringify(cadence));
     fs.writeFileSync(path.join(sandbox, 'yt-mcp', 'state', SLUG + '.json'), JSON.stringify(state));
     for (const [name, src] of [['spy-gate.mjs', SPY_GATE], ['spy-scriptstore.mjs', SPY_SCRIPTSTORE], ['spy-jobstore.mjs', SPY_JOBSTORE], ['spy-warnings.mjs', SPY_WARNINGS], ['spy-probe.mjs', SPY_PROBE], ['spy-artifacts.mjs', SPY_ARTIFACTS]]) {
       fs.writeFileSync(path.join(sandbox, name), src);
@@ -706,6 +708,471 @@ describe('#106 T5b — RESUME consumes the STORED input (real yt-daily spawn, en
     const consumed = r.spy.filter((c) => c.mod === 'childstore' && c.fn === 'markConsumed');
     assert.equal(consumed.length, 0, 'the upload never completed (validation gate) — the record STAYS approved, never consumed prematurely');
     assert.equal(r.status, 1, 'the fake render bytes fail upload validation — the refusal is the safe terminal');
+    assert.ok(r.stdout.includes('STORED input'), 'the run says it rendered from the STORED input');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #106 T5c — THE DOC LANE (yt-deepdive) JOINS THE APPROVAL LOOP. Clips-source
+// channels (all 4 production channels) keep the skip-exact hold under T5b:
+// nothing generates, so the /review desk has NOTHING to approve for them. T5c
+// mirrors yt-daily's two branches onto the doc lane:
+//   SEAM 1 generate-only — hold no_approved_script spawns yt-deepdive with
+//          REVIEW_GENERATE_ONLY: the doc generation runs EXACTLY as today
+//          (brain walk + dedupe gates — a blocked script never saves), the
+//          survivor persists as awaiting_review (kind 'doc'), then EXIT 0
+//          before any TTS/music/render/upload; the seed rotation advances
+//          (never deepdiveDate) so nightly holds diversify.
+//   SEAM 1 resume — PIPELINE_RESUME_JOB_ID: render the doc from the STORED
+//          full_render_input (the generator is structurally unreachable),
+//          upload, then markConsumed AFTER videoId. publishAt recomputed per
+//          D8; the cadence guards never block a resumed doc run.
+// Spec: docs/superpowers/specs/2026-10-30-phase4-review-queue-analytics-spec.md
+// ---------------------------------------------------------------------------
+
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const TODAY_NAME = DAY_NAMES[new Date().getUTCDay()];
+const NOT_TODAY_NAME = DAY_NAMES[(new Date().getUTCDay() + 1) % 7];
+
+const DOC_EPISODE = {
+  title: 'The Borrowed Life Documentary',
+  intro: 'Cold open sentence one stands alone. Cold open sentence two raises the stakes.',
+  chapters: [
+    { title: 'THE MASK', text: 'Chapter one narration, exactly the stored words.' },
+    { title: 'THE WAGE', text: 'Chapter two narration, exactly the stored words.' },
+    { title: 'THE LEDGER', text: 'Chapter three narration, exactly the stored words.' },
+    { title: 'THE CRACK', text: 'Chapter four narration, exactly the stored words.' },
+    { title: 'THE TURN', text: 'Chapter five narration, exactly the stored words.' },
+    { title: 'THE COST', text: 'Chapter six narration, exactly the stored words.' },
+    { title: 'THE REPAIR', text: 'Chapter seven narration, exactly the stored words.' },
+    { title: 'THE QUIET', text: 'Chapter eight narration, exactly the stored words.' },
+  ],
+  outro: 'Outro sentence one wraps it. Outro sentence two asks for the subscribe.',
+};
+
+// the exact full_render_input shape the doc lane's generate-only save persists
+// (yt-daily's seam shape + the doc's cold-open `intro`)
+const STORED_DOC = {
+  hook: DOC_EPISODE.title,
+  intro: DOC_EPISODE.intro,
+  points: DOC_EPISODE.chapters.map((c) => ({ title: c.title, line: c.text })),
+  closing: DOC_EPISODE.outro,
+  thumbHeadline: DOC_EPISODE.title,
+  seed: 'wave-doc-seed',
+  themes: 'doc topic directive',
+  publishAt: '2026-10-31T14:30:00Z',
+};
+
+// quotequarry's legacy kit longSlot — the D8 recompute both branches must land on
+function expectedDocPublishAt() {
+  const now = new Date();
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 14, 30, 0));
+  if (d <= new Date(now.getTime() + 35 * 60 * 1000)) d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().replace(/\.\d+Z$/, 'Z');
+}
+
+// the pipeline-threading fakes gain the deepdive child (the fake dumps the same
+// T5b env keys, tagged child:'deepdive', so the two lanes are tellable apart)
+const FAKE_YT_DEEPDIVE = [
+  "// test double: dumps exactly the T5c env keys it received, then exits 0",
+  "import { appendFileSync } from 'node:fs';",
+  'const KEYS = ["REVIEW_GENERATE_ONLY", "REVIEW_SCRIPT_SLOT_DATE", "PIPELINE_JOB_ID", "PIPELINE_RESUME_JOB_ID", "REVIEW_THUMB_CANDIDATES", "PIPELINE_TEMPLATE_VERSION"];',
+  "appendFileSync(process.env.CHILD_ENV_LOG, JSON.stringify(Object.fromEntries([['child', 'deepdive'], ...KEYS.map((k) => [k, process.env[k] ?? null])])) + '\\n');",
+  "console.log('[fake-yt-deepdive] ran with the env above');",
+].join('\n');
+
+describe('#106 T5c — the pipeline spawns the DOC lane generate-only on a clips-source hold (spawn-style)', () => {
+  test('SEAM 1 (doc): gate hold no_approved_script on a clips-source channel -> yt-deepdive runs GENERATE-ONLY (env threaded), held terminal', () => {
+    const r = runPipeline({
+      deepdive: true,
+      cadence: { [SLUG]: { shortsSource: 'clips' } },
+      env: { JOB_STORE_ENABLED: '1', REVIEW_QUEUE_ENABLED: '1', PIPELINE_GATE_VERDICT: GATE_HOLD_NO_SCRIPT },
+    });
+    assert.equal(r.status, 0, 'the held run still exits 0');
+    const deep = r.childEnv.filter((e) => e.child === 'deepdive');
+    assert.equal(deep.length, 1, 'the DOC lane child ran exactly once for the hold');
+    assert.equal(deep[0].REVIEW_GENERATE_ONLY, '1', 'the generate-only flag travels to the deepdive child');
+    assert.equal(deep[0].REVIEW_SCRIPT_SLOT_DATE, TODAY);
+    assert.ok(deep[0].PIPELINE_JOB_ID && String(deep[0].PIPELINE_JOB_ID).startsWith('spy-'), 'PIPELINE_JOB_ID lands on the doc child (the saved script links to the job)');
+    assert.equal(deep[0].PIPELINE_RESUME_JOB_ID, null, 'no resume env on a fresh generate-only doc run');
+    const daily = r.childEnv.filter((e) => e.child === 'daily');
+    assert.equal(daily.length, 0, 'a clips-source channel never spawns the shorts generator for a doc-lane hold');
+    const held = r.spy.find((c) => c.mod === 'jobs' && c.fn === 'finishJob');
+    assert.ok(held, 'the job closes');
+    assert.equal(held.args.status, 'held', 'the held terminal stands');
+    assert.match(String(held.args.error || ''), /generated/, 'the terminal records the generated-awaiting-review outcome');
+  });
+
+  test('SEAM 1 (doc) resume: --resume <held id> on a clips-source channel -> yt-deepdive receives PIPELINE_RESUME_JOB_ID (not generate-only)', () => {
+    const r = runPipeline({
+      deepdive: true,
+      cadence: { [SLUG]: { shortsSource: 'clips' } },
+      args: ['--resume', 'held-job-doc-9'],
+      env: {
+        JOB_STORE_ENABLED: '1', REVIEW_QUEUE_ENABLED: '1',
+        PIPELINE_GATE_VERDICT: JSON.stringify({
+          ok: true, action: 'run', reason: 'approved_resumed',
+          gating: { state: 'gated', familyId: 'documentary-frames', reviewRequired: ['finance'] },
+          script: { id: 'doc-1', status: 'approved' },
+        }),
+      },
+    });
+    assert.equal(r.status, 0);
+    const deep = r.childEnv.filter((e) => e.child === 'deepdive');
+    assert.ok(deep.length >= 1, 'the doc lane ran');
+    assert.equal(deep[0].PIPELINE_RESUME_JOB_ID, 'held-job-doc-9', 'the held job id reaches the doc child so it renders from the STORED input');
+    assert.equal(deep[0].REVIEW_GENERATE_ONLY, null, 'a resumed doc run NEVER regenerates');
+  });
+
+  test('FLAG PIN (doc lane): REVIEW_QUEUE_ENABLED unset on a clips-source channel -> NO review env on any child (byte-identical legacy lane)', () => {
+    const r = runPipeline({ deepdive: true, cadence: { [SLUG]: { shortsSource: 'clips' } }, env: {} });
+    assert.ok(r.childEnv.length >= 1, 'the normal production lanes ran');
+    for (const e of r.childEnv) {
+      for (const k of ['REVIEW_GENERATE_ONLY', 'REVIEW_SCRIPT_SLOT_DATE', 'PIPELINE_JOB_ID', 'PIPELINE_RESUME_JOB_ID', 'REVIEW_THUMB_CANDIDATES']) {
+        assert.equal(e[k], null, `${k} must be absent with the flags off (child ${e.child})`);
+      }
+    }
+    assert.equal(r.childEnv.filter((e) => e.child === 'daily').length, 0, 'a clips-source channel never spawns the shorts generator');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// THE DOC GENERATE-ONLY PIN: spawn the REAL yt-deepdive.mjs with module-loader
+// redirects for every seam a generate-only run may touch. PASS = the brain was
+// called ONCE (generation ran), the survivor was saved awaiting_review with the
+// COMPLETE doc render input, and ZERO TTS/music/render/upload happened.
+// ---------------------------------------------------------------------------
+
+const SPY_DOC_ENGINE_GEN = [
+  "import { appendFileSync } from 'node:fs';",
+  'const LOG = process.env.PIPELINE_SPY_LOG;',
+  "function rec(fn, args) { try { appendFileSync(LOG, JSON.stringify({ mod: 'docengine', fn, args }) + '\\n'); } catch {} }",
+  'export async function callScriptBrain(o = {}) {',
+  "  rec('callScriptBrain', { slug: o.slug, dedupe: o.dedupe ? { kind: o.dedupe.kind, threshold: o.dedupe.threshold } : null });",
+  '  if (process.env.T5C_BRAIN_BLOCKED) return { ok: false, error: "all walks blocked" };',
+  '  return { ok: true, provider: "spy-provider", walk: 1, parsed: JSON.parse(process.env.T5C_EPISODE_JSON) };',
+  '}',
+  'export async function fetchBrainContext() { return null; }',
+  'export function brainContextSection() { return ""; }',
+  'export function registryThresholds() { return { variation: 0.82, crossChannel: 0.9, financeGated: false }; }',
+  'export async function renderYouTubeThumbnail() { rec("renderYouTubeThumbnail", {}); throw new Error("RENDER FORBIDDEN IN GENERATE-ONLY"); }',
+  'export async function resolveTemplateId() { return null; }',
+  'export default callScriptBrain;',
+].join('\n');
+
+const SPY_DOC_ENGINE_RESUME = [
+  "import { appendFileSync } from 'node:fs';",
+  'const LOG = process.env.PIPELINE_SPY_LOG;',
+  "function rec(fn, args) { try { appendFileSync(LOG, JSON.stringify({ mod: 'docengine', fn, args }) + '\\n'); } catch {} }",
+  'export async function callScriptBrain() {',
+  "  rec('callScriptBrain', {});",
+  '  throw new Error("GENERATION FORBIDDEN ON A RESUMED RUN");',
+  '}',
+  'export async function fetchBrainContext() { return null; }',
+  'export function brainContextSection() { return ""; }',
+  'export function registryThresholds() { return { variation: 0.82, crossChannel: 0.9, financeGated: false }; }',
+  'export async function renderYouTubeThumbnail() { rec("renderYouTubeThumbnail", {}); return Buffer.from("fake-doc-thumb"); }',
+  'export async function resolveTemplateId() { return null; }',
+  'export default renderYouTubeThumbnail;',
+].join('\n');
+
+const SPY_DOC_STORE_GEN = [
+  "import { appendFileSync } from 'node:fs';",
+  'const LOG = process.env.PIPELINE_SPY_LOG;',
+  "function rec(fn, args) { try { appendFileSync(LOG, JSON.stringify({ mod: 'docstore', fn, args }) + '\\n'); } catch {} }",
+  'const store = {',
+  '  async saveScript(fields) { rec("saveScript", fields); return { ok: true, id: "doc-script-1" }; },',
+  '  async latestApprovedForJob() { return { ok: true, script: null }; },',
+  '  async latestApproved() { return { ok: true, script: null }; },',
+  '  async markConsumed() { rec("markConsumed", {}); return { ok: true, id: "x" }; },',
+  '};',
+  "export async function getScriptStore() { rec('getScriptStore', {}); return store; }",
+  'export default getScriptStore;',
+].join('\n');
+
+const SPY_DOC_STORE_RESUME = [
+  "import { appendFileSync } from 'node:fs';",
+  'const LOG = process.env.PIPELINE_SPY_LOG;',
+  "function rec(fn, args) { try { appendFileSync(LOG, JSON.stringify({ mod: 'docstore', fn, args }) + '\\n'); } catch {} }",
+  'const ROW = {',
+  '  id: "doc-approved-1", status: "approved", channel_id: "quotequarry", job_id: "held-job-doc-1",',
+  '  kind: "doc", slot_idx: 0, slot_date: "2026-10-30", title: "Stored doc",',
+  '  full_render_input: JSON.parse(process.env.T5C_STORED_DOC_JSON),',
+  '};',
+  'const store = {',
+  '  async saveScript() { throw new Error("SAVE FORBIDDEN ON A RESUMED RUN"); },',
+  '  async latestApprovedForJob(jobId) { rec("latestApprovedForJob", { jobId }); return { ok: true, script: jobId === "held-job-doc-1" ? ROW : null }; },',
+  '  async latestForJob(jobId) { rec("latestForJob", { jobId }); return { ok: true, script: null }; },',
+  '  async latestApproved() { rec("latestApproved", {}); return { ok: true, script: ROW }; },',
+  '  async markConsumed(id, videoId) { rec("markConsumed", { id, videoId }); return { ok: true, id }; },',
+  '};',
+  "export async function getScriptStore() { rec('getScriptStore', {}); return store; }",
+  'export default getScriptStore;',
+].join('\n');
+
+const SPY_DOC_MUSIC = [
+  "import { appendFileSync } from 'node:fs';",
+  'const LOG = process.env.PIPELINE_SPY_LOG;',
+  "function rec(fn, args) { try { appendFileSync(LOG, JSON.stringify({ mod: 'docmusic', fn, args }) + '\\n'); } catch {} }",
+  'export async function pickApprovedTrack() { rec("pickApprovedTrack", {}); return null; }',
+  'export async function pickMusicTrack() { rec("pickMusicTrack", {}); return null; }',
+].join('\n');
+
+const SPY_DOC_TREND = [
+  "import { appendFileSync } from 'node:fs';",
+  'const LOG = process.env.PIPELINE_SPY_LOG;',
+  "function rec(fn, args) { try { appendFileSync(LOG, JSON.stringify({ mod: 'doctrend', fn, args }) + '\\n'); } catch {} }",
+  'export async function researchTrend() { rec("researchTrend", {}); return { videos: [{ title: "wave-doc-seed", views: 12345 }], hotKeywords: ["doc", "kw"] }; }',
+  'export default researchTrend;',
+].join('\n');
+
+const SPY_DOC_DUPGATE = [
+  "import { appendFileSync } from 'node:fs';",
+  'const LOG = process.env.PIPELINE_SPY_LOG;',
+  "function rec(fn, args) { try { appendFileSync(LOG, JSON.stringify({ mod: 'docdup', fn, args }) + '\\n'); } catch {} }",
+  'export async function recentUploadTitles() { rec("recentUploadTitles", {}); return []; }',
+  'export function findDup(title) { rec("findDup", { title }); return process.env.T5C_DUP_HIT ? "existing episode" : null; }',
+].join('\n');
+
+const SPY_DOC_INTENTS_GEN = [
+  "import { appendFileSync } from 'node:fs';",
+  'const LOG = process.env.PIPELINE_SPY_LOG;',
+  "function rec(fn, args) { try { appendFileSync(LOG, JSON.stringify({ mod: 'docintents', fn, args }) + '\\n'); } catch {} }",
+  'export async function uploadWithIntent() { rec("uploadWithIntent", {}); throw new Error("UPLOAD FORBIDDEN IN GENERATE-ONLY"); }',
+  'export async function getUploadIntentStore() { rec("getUploadIntentStore", {}); return null; }',
+  'export async function recoverOpenIntents() { return { outcomes: [] }; }',
+  'export function makeFindByTitle() { return async () => null; }',
+  'export async function oauthAccessToken() { return "fake-token"; }',
+  'export function slotISOOnDate() { return null; }',
+  'export default uploadWithIntent;',
+].join('\n');
+
+const SPY_DOC_INTENTS_RESUME = [
+  "import { appendFileSync } from 'node:fs';",
+  'const LOG = process.env.PIPELINE_SPY_LOG;',
+  "function rec(fn, args) { try { appendFileSync(LOG, JSON.stringify({ mod: 'docintents', fn, args }) + '\\n'); } catch {} }",
+  'export async function uploadWithIntent(o = {}) {',
+  '  rec("uploadWithIntent", { title: o.title, publishAt: o.publishAt, kind: o.kind });',
+  '  return { ok: true, videoId: "vid-doc-resumed" };',
+  '}',
+  'export async function getUploadIntentStore() { return {}; }',
+  'export async function recoverOpenIntents() { return { outcomes: [] }; }',
+  'export function makeFindByTitle() { return async () => null; }',
+  'export async function oauthAccessToken() { return "fake-token"; }',
+  'export function slotISOOnDate() { return null; }',
+  'export default uploadWithIntent;',
+].join('\n');
+
+const SPY_GOOGLE = [
+  "import { appendFileSync } from 'node:fs';",
+  'const LOG = process.env.PIPELINE_SPY_LOG;',
+  "function rec(fn, args) { try { appendFileSync(LOG, JSON.stringify({ mod: 'docyt', fn, args }) + '\\n'); } catch {} }",
+  'export const google = {',
+  '  auth: { OAuth2: class { setCredentials() {} } },',
+  '  youtube() {',
+  '    return {',
+  '      thumbnails: { set: async (o) => { rec("thumbnails.set", { videoId: o.videoId }); throw new Error("network disabled in test"); } },',
+  '      commentThreads: { insert: async () => { throw new Error("network disabled in test"); } },',
+  '    };',
+  '  },',
+  '};',
+  'export default google;',
+].join('\n');
+
+// stub the child's ffmpeg/TTS layer: execFileSync only ever answers probeDur
+// (encoding utf8 -> "5.0"); the narration .txt bytes are READ at call time so
+// the test can pin exactly which text the render consumed.
+const SPY_DOC_CP = [
+  "import { appendFileSync, readFileSync } from 'node:fs';",
+  'const LOG = process.env.PIPELINE_SPY_LOG;',
+  "function rec(fn, args) { try { appendFileSync(LOG, JSON.stringify({ mod: 'doccp', fn, args }) + '\\n'); } catch {} }",
+  'export function execFileSync(cmd, args = [], opts = {}) {',
+  '  let txt = null;',
+  '  try { if (String(args[1] || "").endsWith(".txt")) txt = readFileSync(String(args[1]), "utf8"); } catch {}',
+  '  rec("execFileSync", { cmd: String(cmd), txt });',
+  '  return (opts && opts.encoding) === "utf8" ? "5.0" : "";',
+  '}',
+  'export default { execFileSync };',
+].join('\n');
+
+function docChildLoaderSource(sandboxHref, extraBare = {}) {
+  return [
+    "import { registerHooks } from 'node:module';",
+    'const SANDBOX = ' + JSON.stringify(sandboxHref) + ';',
+    'const REDIRECTS = {',
+    '  "youtube-engine.mjs": SANDBOX + "/spy-doc-engine.mjs",',
+    '  "script-store.mjs": SANDBOX + "/spy-doc-store.mjs",',
+    '  "music-engine.mjs": SANDBOX + "/spy-doc-music.mjs",',
+    '  "trend-research.mjs": SANDBOX + "/spy-doc-trend.mjs",',
+    '  "dup-gate.mjs": SANDBOX + "/spy-doc-dupgate.mjs",',
+    '  "upload-intents.mjs": SANDBOX + "/spy-doc-intents.mjs",',
+    '  "googleapis": SANDBOX + "/spy-doc-google.mjs",',
+    '  "node:child_process": SANDBOX + "/spy-doc-cp.mjs",',
+    '};',
+    'registerHooks({',
+    '  resolve(specifier, context, nextResolve) {',
+    '    if (REDIRECTS[specifier]) return { url: REDIRECTS[specifier], shortCircuit: true };',
+    '    const res = nextResolve(specifier, context);',
+    '    if (res && res.url && /\\/yt-deepdive\\.mjs$/.test(String(context && context.parentURL || ""))) {',
+    '      const base = res.url.split("/").pop();',
+    '      if (REDIRECTS[base]) return { url: REDIRECTS[base], shortCircuit: true };',
+    '    }',
+    '    return res;',
+    '  },',
+    '});',
+  ].join('\n');
+}
+
+function runYtDeepdive({ env = {}, engine, store, intents } = {}) {
+  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 't5c-deepdive-'));
+  const spyLog = path.join(sandbox, 'spy.jsonl');
+  try {
+    const runDir = path.join(sandbox, 'run');
+    fs.mkdirSync(path.join(runDir, 'yt-mcp', 'state'), { recursive: true });
+    fs.writeFileSync(path.join(runDir, 'yt-mcp', 'state', SLUG + '.json'), JSON.stringify({}));
+    // a non-docDay cadence: the generate-only bypass of the docDay guard is
+    // proven by generation happening AT ALL on this day
+    fs.writeFileSync(path.join(runDir, 'yt-mcp', 'cadence.json'), JSON.stringify({ [SLUG]: { docDays: [NOT_TODAY_NAME] } }));
+    // the shared tail copies joined.mp4 -> episode.mp4 when no music bed was
+    // picked; the stubbed ffmpeg never builds it, so pre-place it
+    fs.mkdirSync(path.join(runDir, 'demos', 'deepdive-' + SLUG), { recursive: true });
+    fs.writeFileSync(path.join(runDir, 'demos', 'deepdive-' + SLUG, 'joined.mp4'), Buffer.from('fake-joined-bytes'));
+    fs.symlinkSync(ROOT, path.join(sandbox, 'repo'), 'junction');
+    for (const [name, src] of [
+      ['spy-doc-engine.mjs', engine], ['spy-doc-store.mjs', store], ['spy-doc-music.mjs', SPY_DOC_MUSIC],
+      ['spy-doc-trend.mjs', SPY_DOC_TREND], ['spy-doc-dupgate.mjs', SPY_DOC_DUPGATE],
+      ['spy-doc-intents.mjs', intents], ['spy-doc-google.mjs', SPY_GOOGLE], ['spy-doc-cp.mjs', SPY_DOC_CP],
+    ]) {
+      let out = src;
+      if (name === 'spy-doc-intents.mjs') {
+        // the D8 publishAt recompute is PURE slot math the tests assert on —
+        // forward the real implementation (only the NETWORK seams are stubbed)
+        out += '\nexport { nextFutureSlotISO } from ' + JSON.stringify(pathToFileURL(path.join(ROOT, 'lib', 'upload-intents.mjs')).href) + ';';
+      }
+      fs.writeFileSync(path.join(sandbox, name), out);
+    }
+    const loader = path.join(sandbox, 'loader.mjs');
+    fs.writeFileSync(loader, docChildLoaderSource(pathToFileURL(sandbox).href));
+    const r = spawnSync(process.execPath, [path.join(sandbox, 'repo', 'yt-deepdive.mjs'), SLUG], {
+      cwd: runDir,
+      env: {
+        PATH: process.env.PATH,
+        SystemRoot: process.env.SystemRoot,
+        PIPELINE_SPY_LOG: spyLog,
+        NODE_OPTIONS: '--import ' + pathToFileURL(loader).href,
+        YOUTUBE_CLIENT_ID: 'dummy', YOUTUBE_CLIENT_SECRET: 'dummy',
+        YT_TOKEN_QUOTEQUARRY: JSON.stringify({ refresh_token: 'dummy' }),
+        T5C_EPISODE_JSON: JSON.stringify(DOC_EPISODE),
+        T5C_STORED_DOC_JSON: JSON.stringify(STORED_DOC),
+        ...env,
+      },
+      encoding: 'utf8',
+      timeout: 180000,
+    });
+    let stateAfter = null;
+    try { stateAfter = JSON.parse(fs.readFileSync(path.join(runDir, 'yt-mcp', 'state', SLUG + '.json'), 'utf8')); } catch { }
+    return { status: r.status, stdout: r.stdout || '', stderr: r.stderr || '', spy: readJsonl(spyLog), stateAfter };
+  } finally {
+    try { fs.rmSync(sandbox, { recursive: true, force: true }); } catch { }
+  }
+}
+
+const DOC_GEN_ENV = {
+  REVIEW_GENERATE_ONLY: '1',
+  REVIEW_SCRIPT_SLOT_DATE: TODAY,
+  PIPELINE_JOB_ID: 'spy-job-doc-1',
+  PIPELINE_TEMPLATE_VERSION: '2.0.0',
+};
+
+describe('#106 T5c — GENERATE-ONLY saves the doc awaiting_review, zero render spend (real yt-deepdive spawn)', () => {
+  test('hold seam: the brain runs ONCE, the survivor persists kind=doc awaiting_review with the COMPLETE render input, and ZERO TTS/music/render/upload happens', () => {
+    const r = runYtDeepdive({ env: DOC_GEN_ENV, engine: SPY_DOC_ENGINE_GEN, store: SPY_DOC_STORE_GEN, intents: SPY_DOC_INTENTS_GEN });
+    assert.equal(r.status, 0, 'the generate-only doc run exits 0\n' + r.stdout + r.stderr);
+    const brains = r.spy.filter((c) => c.mod === 'docengine' && c.fn === 'callScriptBrain');
+    assert.equal(brains.length, 1, 'the doc generation ran exactly once (the deepdive walk with brain context + dedupe gates)');
+    assert.equal(brains[0].args.dedupe.kind, 'doc', 'the brain walk carried the doc dedupe gates (a blocked walk can never save)');
+    const saves = r.spy.filter((c) => c.mod === 'docstore' && c.fn === 'saveScript');
+    assert.equal(saves.length, 1, 'exactly one script persisted');
+    const f = saves[0].args;
+    assert.equal(f.channelId, SLUG);
+    assert.equal(f.kind, 'doc', 'the doc lane saves kind doc');
+    assert.equal(f.status, 'awaiting_review', 'the generated doc holds for the owner (D15)');
+    assert.equal(f.jobId, 'spy-job-doc-1');
+    assert.equal(f.slotDate, TODAY);
+    assert.equal(f.slotIdx, 0);
+    assert.equal(f.templateVersion, '2.0.0', 'the pipeline template version threads into the doc row');
+    assert.equal(f.title, DOC_EPISODE.title);
+    assert.equal(f.publishAt, expectedDocPublishAt(), 'publishAt is the long-slot D8 recompute');
+    assert.deepEqual(
+      { ...f.fullRenderInput, themes: null },
+      {
+        hook: DOC_EPISODE.title,
+        intro: DOC_EPISODE.intro,
+        points: DOC_EPISODE.chapters.map((c) => ({ title: c.title, line: c.text })),
+        closing: DOC_EPISODE.outro,
+        thumbHeadline: DOC_EPISODE.title,
+        seed: 'wave-doc-seed',
+        themes: null,
+        publishAt: expectedDocPublishAt(),
+      },
+      'the resume renders from THIS object — the complete doc structure the render path re-reads',
+    );
+    assert.ok(String(f.fullRenderInput.themes).includes('wave-doc-seed'), 'the trend directive rides along as themes');
+    assert.ok(f.text.includes(DOC_EPISODE.title) && f.text.includes(DOC_EPISODE.outro), 'text carries the narration for the /review desk');
+    const tts = r.spy.filter((c) => c.mod === 'doccp' && c.fn === 'execFileSync');
+    assert.deepEqual(tts, [], 'ZERO TTS/ffmpeg calls — the generate-only run stops before any render spend');
+    assert.equal(r.spy.filter((c) => c.mod === 'docmusic' && c.fn === 'pickApprovedTrack').length, 0, 'ZERO music picks');
+    assert.equal(r.spy.filter((c) => c.mod === 'docintents' && c.fn === 'uploadWithIntent').length, 0, 'ZERO uploads');
+    assert.equal(r.spy.filter((c) => c.mod === 'docengine' && c.fn === 'renderYouTubeThumbnail').length, 0, 'ZERO renders (the spy also throws)');
+    assert.ok(r.stdout.includes('awaiting_review'), 'the run says the doc script is awaiting review');
+    assert.equal(r.stateAfter?.deepdiveDate, undefined, 'deepdiveDate NEVER advances on a generate-only run (the resume must render TODAY)');
+    assert.ok((r.stateAfter?.usedLongSeeds || []).includes('wave-doc-seed'), 'the seed rotation ADVANCES so nightly holds diversify (T5b round-1 pattern)');
+  });
+
+  test('blocked script never saved: an exhausted brain walk throws before any store write (guard pin)', () => {
+    const r = runYtDeepdive({ env: { ...DOC_GEN_ENV, T5C_BRAIN_BLOCKED: '1' }, engine: SPY_DOC_ENGINE_GEN, store: SPY_DOC_STORE_GEN, intents: SPY_DOC_INTENTS_GEN });
+    assert.notEqual(r.status, 0, 'a total generation failure is a failed run, never a silent skip');
+    assert.equal(r.spy.filter((c) => c.mod === 'docstore' && c.fn === 'saveScript').length, 0, 'a BLOCKED generation never becomes awaiting_review');
+    assert.equal(r.spy.filter((c) => c.mod === 'doccp' && c.fn === 'execFileSync').length, 0, 'no render spend after a blocked walk');
+  });
+});
+
+describe('#106 T5c — RESUME renders the doc from the STORED input (real yt-deepdive spawn)', () => {
+  test('the narration EQUALS the stored structure, the generator is NEVER called, and markConsumed lands AFTER videoId (AC-P4-4/D8/D14)', () => {
+    const r = runYtDeepdive({
+      env: { PIPELINE_RESUME_JOB_ID: 'held-job-doc-1', PIPELINE_JOB_ID: 'spy-job-doc-2' },
+      engine: SPY_DOC_ENGINE_RESUME, store: SPY_DOC_STORE_RESUME, intents: SPY_DOC_INTENTS_RESUME,
+    });
+    assert.equal(r.status, 0, 'the resumed doc run ships and exits 0\n' + r.stdout + r.stderr);
+    assert.equal(r.spy.filter((c) => c.mod === 'docengine' && c.fn === 'callScriptBrain').length, 0, 'a resumed doc NEVER re-generates (the spy also THROWS)');
+    assert.equal(r.spy.filter((c) => c.mod === 'docstore' && c.fn === 'saveScript').length, 0, 'a resumed doc NEVER re-saves');
+    // THE deep-equal: the narration the render consumed, in render order
+    // (intro -> chapters 1..n -> outro), is byte-for-byte the STORED text.
+    const narrated = r.spy.filter((c) => c.mod === 'doccp' && c.fn === 'execFileSync' && c.args.txt != null).map((c) => c.args.txt);
+    assert.deepEqual(
+      narrated,
+      [STORED_DOC.intro, ...STORED_DOC.points.map((p) => p.line), STORED_DOC.closing],
+      'the doc render consumes the STORED narration/structure — byte-for-byte the approved text',
+    );
+    const uploads = r.spy.filter((c) => c.mod === 'docintents' && c.fn === 'uploadWithIntent');
+    assert.equal(uploads.length, 1, 'exactly one upload of the resumed episode');
+    assert.equal(uploads[0].args.title, `${STORED_DOC.hook} | Timeless Wisdom`, 'the upload title rebuilds from the STORED title');
+    assert.equal(uploads[0].args.publishAt, expectedDocPublishAt(), 'publishAt recomputed per D8 — never the stored (stale) schedule');
+    assert.ok(new Date(uploads[0].args.publishAt).getTime() > Date.now(), 'the recomputed publishAt is in the future');
+    assert.equal(uploads[0].args.kind, 'doc');
+    const consumed = r.spy.filter((c) => c.mod === 'docstore' && c.fn === 'markConsumed');
+    assert.equal(consumed.length, 1, 'the record retires exactly once');
+    assert.deepEqual(consumed[0].args, { id: 'doc-approved-1', videoId: 'vid-doc-resumed' }, 'markConsumed is BY the approved row id with the real videoId');
+    const upIdx = r.spy.findIndex((c) => c.mod === 'docintents' && c.fn === 'uploadWithIntent');
+    const mcIdx = r.spy.findIndex((c) => c.mod === 'docstore' && c.fn === 'markConsumed');
+    assert.ok(upIdx > -1 && mcIdx > upIdx, 'markConsumed happens AFTER the videoId landed (D14/SEAM 3 order)');
+    assert.equal(r.stateAfter?.deepdiveDate, TODAY, 'the doc slot is marked produced for THIS lane');
+    assert.equal(r.stateAfter?.deepdiveVideo?.videoId, 'vid-doc-resumed');
+    assert.equal(
+      r.stateAfter?.deepdiveVideo?.text,
+      [STORED_DOC.intro, ...STORED_DOC.points.map((p) => p.line), STORED_DOC.closing].filter(Boolean).join('\n\n'),
+      'the embedded narration is exactly the approved text (brain embed feeds on this)',
+    );
     assert.ok(r.stdout.includes('STORED input'), 'the run says it rendered from the STORED input');
   });
 });

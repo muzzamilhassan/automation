@@ -17,7 +17,7 @@ import { EMBEDDED_FONTS_CSS } from './typography-poster-engine.mjs';
 import { getTopicClip } from './youtube-clips.mjs';
 import { pickApprovedTrack } from './music-engine.mjs';
 const APPROVED_MUSIC = JSON.parse(fs.readFileSync(new URL('./yt-brands/approved-music.json', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'), 'utf8'));
-import { renderYouTubeThumbnail, callScriptBrain, fetchBrainContext, brainContextSection, registryThresholds } from './youtube-engine.mjs';
+import { renderYouTubeThumbnail, callScriptBrain, fetchBrainContext, brainContextSection, registryThresholds, resolveTemplateId } from './youtube-engine.mjs';
 import { bySlug } from './yt-brands/brands.mjs';
 const { recentUploadTitles, findDup } = await import('./lib/dup-gate.mjs');
 const { resolveBrand } = await import('./lib/brand-resolve.mjs');
@@ -26,7 +26,12 @@ import { resolveBinary } from './lib/ffmpeg.mjs';
 import { applyChannelKeys } from './lib/channel-keys.mjs';
 // #106 T3 (S2): upload intents — the note before any videos.insert (D5), the
 // two-step resumable upload (D6), the run-start open-intent resolution (D7a).
-import { getUploadIntentStore, uploadWithIntent, recoverOpenIntents, makeFindByTitle, oauthAccessToken, slotISOOnDate } from './lib/upload-intents.mjs';
+// #106 T5c: nextFutureSlotISO recomputes publishAt per D8 on the review seams
+// (generate-only save + the resume's pre-render AC-P4-19 guard).
+import { getUploadIntentStore, uploadWithIntent, recoverOpenIntents, makeFindByTitle, oauthAccessToken, slotISOOnDate, nextFutureSlotISO } from './lib/upload-intents.mjs';
+// #106 T5c: the review-seam flag parser (pure module — the env travels ONLY on
+// gated/approval runs; unset = byte-identical legacy path).
+import { flagOn } from './lib/review-seams.mjs';
 import { loadEnv } from './lib/env.mjs';
 loadEnv();
 const FF = resolveBinary('ffmpeg');
@@ -42,6 +47,18 @@ if (!b) { console.error('unknown slug (no legacy kit and no registry entry):', s
 // #102 BYOK: this channel's own provider keys (encrypted yt-mcp/channel-keys.json)
 // replace the shared keys so the doc chain burns per-channel quota, not one shared pool.
 applyChannelKeys(slug);
+
+// #106 T5c (S4) — the DOC lane's review seams, threaded by channel-pipeline.mjs's
+// T5 gate (env travels ONLY on gated/approval runs; unset = byte-identical
+// legacy path — this is how clips-source channels close the approval loop):
+//   REVIEW_GENERATE_ONLY    the gate held with no approved script — run the doc
+//                           generation exactly as today (brain walk + dedupe
+//                           gates), persist the survivor awaiting_review, then
+//                           STOP before any TTS/music/render/upload;
+//   PIPELINE_RESUME_JOB_ID  an approval dispatched resume=<held job id> — render
+//                           the doc from the STORED script input, never re-generate.
+const GENERATE_ONLY = flagOn(process.env.REVIEW_GENERATE_ONLY);
+const RESUME_SCRIPT_JOB = String(process.env.PIPELINE_RESUME_JOB_ID || '').trim();
 
 // 09-20: per-channel state files are the source of truth (lib/state.mjs)
 const loadState = () => loadAllStates();
@@ -208,8 +225,339 @@ function segment(cardPng, clipFile, audioFile, outFile, dur, drift = false) {
     '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '21', '-c:a', 'aac', '-b:a', '160k', '-ar', '44100', '-ac', '2', outFile]);
 }
 
+// ---------- render + ship (one path for the normal doc day AND the review resume) ----------
+// #106 T5c: the render+upload tail moved verbatim into ONE function so the
+// resumed doc run consumes the exact same path (the resume rebuilds the script
+// from the STORED input and calls this). The early process.exit(0) lanes became
+// returns so a caller can tell "shipped" from "refused": the normal path
+// ignores the result and the module ends right after (identical behavior), the
+// resume maps a refusal to exit 1 with the script left approved.
+async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null, reviewScript = null } = {}) {
+  fs.mkdirSync(`demos/deepdive-${slug}`, { recursive: true });
+  const work = `demos/deepdive-${slug}`;
+  const segs = [];
+  let total = 0;
+
+  // intro: title card with cold-open narration
+  const introNarr = narrate(script.intro, 'intro');
+  const introDur = Math.max(6, probeDur(introNarr) + 0.8);
+  await renderCard(await introCard(script.title), introNarr, `${work}/seg-00.mp4`, introDur);
+  segs.push({ file: `${work}/seg-00.mp4`, dur: introDur });
+  total += introDur;
+
+  // chapters: b-roll + lower-third + narration
+  for (let i = 0; i < script.chapters.length; i++) {
+    const ch = script.chapters[i];
+    console.log(`[long] chapter ${i + 1}/${script.chapters.length}: ${ch.title}`);
+    const narr = narrate(ch.text, i + 1);
+    const dur = Math.max(14, probeDur(narr) + 1.4);
+    const seg = `${work}/seg-${String(i + 1).padStart(2, '0')}.mp4`;
+    let clip = null;
+    try { clip = await getTopicClip(page(), { headline: ch.title }); } catch { }
+    const lt = await chapterLowerThird(i + 1, ch.title);
+    segment(lt, clip?.file || null, narr, seg, dur, true);
+    segs.push({ file: seg, dur });
+    total += dur;
+    console.log(`  ✓ ${dur.toFixed(0)}s`);
+  }
+
+  // end card with outro narration
+  const endNarr = narrate(script.outro, 'end');
+  const endDur = Math.max(6, probeDur(endNarr) + 1.0);
+  const endSeg = `${work}/seg-end.mp4`;
+  await renderCard(await endCard(), endNarr, endSeg, endDur);
+  segs.push({ file: endSeg, dur: endDur });
+  total += endDur;
+
+  // #96 EPISODE SRT — per-chapter word timestamps (narr-*.mp3.meta.json words
+  // [{w,s,d}]) mapped onto the episode timeline, so the clips-first lane (#97)
+  // can cut sentence-aligned Shorts without re-transcribing. Narration order is
+  // intro, chapters 1..n, end — same order as segs.
+  const narrNames = ['intro', ...script.chapters.map((_, i) => String(i + 1)), 'end'];
+  let srtCursor = 0;
+  const srtCues = [];
+  for (let i = 0; i < segs.length; i++) {
+    try {
+      const meta = JSON.parse(fs.readFileSync(path.join(work, `narr-${narrNames[i]}.mp3.meta.json`), 'utf8'));
+      srtCues.push(...cuesFromWords(meta.words || [], srtCursor));
+    } catch { }
+    srtCursor += segs[i].dur;
+  }
+  fs.writeFileSync(path.join(work, 'episode.srt'), toSrt(srtCues));
+  console.log(`[long] SRT: ${srtCues.length} cues -> ${work}/episode.srt`);
+
+  // concat + music bed
+  const list = `${work}/concat.txt`;
+  fs.writeFileSync(list, segs.map(s => `file '${path.resolve(s.file).replace(/\\/g, '/')}'`).join('\n'));
+  const joined = `${work}/joined.mp4`;
+  sh(['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', joined]);
+  let music = null;
+  // 10-03: channel's own approved pool only. The -stream_loop -1 below already
+  // restarts THIS track when it ends — never a second track (user rule).
+  try { music = await pickApprovedTrack(APPROVED_MUSIC[slug] || []); } catch { }
+  const final = `${work}/episode.mp4`;
+  if (music) {
+    sh(['-y', '-i', joined, '-stream_loop', '-1', '-i', music.file, '-filter_complex',
+      `[1:a]volume=0.09[m];[0:a][m]amix=inputs=2:duration=first:dropout_transition=0[a]`,
+      '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', final]);
+  } else { fs.copyFileSync(joined, final); }
+
+  // premium thumbnail from a mid-episode frame
+  sh(['-y', '-v', 'error', '-ss', String(Math.round(total * 0.35)), '-i', final, '-frames:v', '1', `${work}/frame.jpg`]);
+  const thumb = await renderYouTubeThumbnail(script.title, `${work}/frame.jpg`, { accent: b.accent, eyebrow: b.eyebrow });
+
+  // #106 T5b SEAM 2 (D18/AC-P4-23): WHERE the pipeline's gate enabled picking
+  // (REVIEW_THUMB_CANDIDATES from the template DATA), the render emits N
+  // candidates staggered across the episode. The upload still proceeds with
+  // candidate 1 (M7); the owner picks at Studio > Review. Fail-soft end to end;
+  // the env unset = today's single candidate, byte-identical.
+  const THUMB_CANDIDATES_N = Math.max(1, Math.min(6, Number(process.env.REVIEW_THUMB_CANDIDATES) || 1));
+  if (THUMB_CANDIDATES_N > 1) {
+    const docThumbs = [thumb].filter(Boolean);
+    try {
+      for (const pct of [0.22, 0.48]) {
+        sh(['-y', '-v', 'error', '-ss', String(Math.round(total * pct)), '-i', final, '-frames:v', '1', `${work}/frame-alt.jpg`]);
+        docThumbs.push(await renderYouTubeThumbnail(script.title, `${work}/frame-alt.jpg`, { accent: b.accent, eyebrow: b.eyebrow }));
+        fs.rmSync(`${work}/frame-alt.jpg`, { force: true });
+      }
+    } catch (e) {
+      console.log(`[long] thumb candidates degraded (${String(e.message).slice(0, 60)}) — candidate 1 proceeds`);
+    }
+    try {
+      const seams = await import('./lib/review-seams.mjs');
+      const { makeArtifactStore } = await import('./lib/artifact-store.mjs');
+      let jobs = null;
+      try { jobs = await (await import('./lib/job-store.mjs')).getJobStore(); } catch { }
+      // #106 T5c: where a script row exists (the resumed doc's approved row),
+      // the candidates are ALSO recorded on it — meta.thumb_candidates is the
+      // shape /review reads for the swap. The normal doc day has no row — the
+      // artifact index carries them (unchanged).
+      const r = await seams.emitThumbCandidates({
+        thumbs: docThumbs, artifacts: makeArtifactStore(), jobs,
+        jobId: process.env.PIPELINE_JOB_ID || null, step: 'episode',
+        scriptStore: reviewScript?.store ?? null, scriptId: reviewScript?.id ?? null,
+        log: (m) => console.log(`[review] ${m}`),
+      });
+      if (r.candidates.length) console.log(`[long] ${r.candidates.length} thumbnail candidates emitted (candidate 1 ships; swap at Studio > Review)`);
+    } catch (e) {
+      console.log(`[long] thumb candidate indexing degraded (non-fatal): ${String(e.message).slice(0, 60)}`);
+    }
+  }
+
+  console.log(`[long] ✅ episode rendered: ${final} (${(total / 60).toFixed(1)} min)`);
+
+  // ---------- upload scheduled ----------
+
+  const [hh, mm] = b.longSlot.split(':').map(Number);
+  const now = new Date();
+  const pub = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hh, mm, 0));
+  if (pub <= new Date(now.getTime() + 35 * 60 * 1000)) pub.setUTCDate(pub.getUTCDate() + 1);
+  const publishAt = pub.toISOString().replace(/\.\d+Z$/, 'Z');
+
+  let cum = 0;
+  const chapters = script.chapters.map((c, i) => {
+    const t = cum; cum += segs[i + 1]?.dur || 0;
+    return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')} ${c.title}`;
+  });
+  const description = [`"${script.title}" — a daily ${b.kwShort} episode from ${b.label}.`, '', script.intro, '', ...chapters, '', script.outro, `New episodes every day. ${b.hashtags || ''}`, ...(music ? [`🎵 ${music.credit}`] : [])].join('\n').slice(0, 4900);
+
+  // 10-05 DUPLICATE TITLE GATE — the "Musonius Rufus" doc went out twice in two
+  // days; a near-dup episode must never upload. Skip WITHOUT marking
+  // deepdiveDate so tomorrow's fresh topic can go out cleanly.
+  const docDup = findDup(script.title, await recentUploadTitles(yt));
+  if (docDup) {
+    console.log(`GATE: duplicate episode title "${script.title}" ≈ "${docDup}" — upload skipped`);
+    return { skipped: 'dup' };
+  }
+
+  // #106 T3 (D6/AC-P4-6/7): two-step resumable upload — intent row first (the
+  // INSERT mutex), session URI persisted before the first byte, videoId on 201.
+  // Minor 7: the intent fingerprints the EXACT uploaded title (sliced, as the
+  // resource sends it) so recovery matches the live playlist byte-for-byte.
+  const docTitle = `${script.title} | ${b.authority}`.slice(0, 95);
+  const up = await uploadWithIntent({
+    store: intents, channelId: slug, slotDate: today(), kind: 'doc', slotIdx: 0,
+    title: docTitle, jobId: process.env.PIPELINE_JOB_ID || null,
+    accessToken: await oauthAccessToken(auth),
+    resource: {
+      snippet: { title: docTitle, description, tags: b.tags.slice(0, 12), categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
+      status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false }
+    },
+    bytes: fs.readFileSync(final), publishAt,
+    log: (m) => console.log(`[intent] ${m}`),
+  });
+  if (up.skipProduction && !up.videoId) {
+    console.log(`[intent] doc upload skipped (intent conflict or past publishAt — safe direction); retry on the next doc day`);
+    return { skipped: 'intent' };
+  }
+  if (!up.ok) throw new Error(`upload failed: ${up.error}`);
+  const videoId = up.videoId;
+  await yt.thumbnails.set({ videoId, media: { body: Readable.from(thumb) } }).catch(() => { });
+
+  // #106 T5b SEAM 3 (D14): the video_id write-back — fail-soft; a normal doc
+  // day has no script rows (silent no-op), and the kind guard keeps a doc
+  // upload from ever stamping a shorts script row. The resumed doc retires BY
+  // ID in resumeApprovedDoc (the resumed job id is not the row's job id).
+  try {
+    const seams = await import('./lib/review-seams.mjs');
+    const { getScriptStore } = await import('./lib/script-store.mjs');
+    await seams.writeBackVideoId({
+      scriptStore: await getScriptStore(), channelId: slug,
+      jobId: process.env.PIPELINE_JOB_ID || null, kind: 'doc', videoId, slotDate: today(),
+      log: (m) => console.log(`[review] ${m}`),
+    });
+  } catch { }
+
+  const st = loadState();
+  st[slug] = st[slug] || {};
+  // deepdiveDate = TODAY in BOTH paths (safe direction): the doc slot is produced.
+  st[slug].deepdiveDate = today();
+  if (up.conflict) {
+    // Round-1 MAJOR 4: claimed, not re-uploaded (a crashed run's episode is the
+    // slot's product). Record ITS fingerprint — this run's narration text
+    // belongs to no video and must never be embedded against the claimed id.
+    // No FB outbox (wrong content), no seed write (this run's theme never
+    // shipped — the next doc day may reuse it for a fresh episode).
+    st[slug].deepdiveVideo = { videoId, publishAt, title: up.existing?.title_fingerprint || '', recovered: true };
+    st[slug].uploadsToday = nextCounter(st[slug].uploadsToday);
+    saveChannelState(slug, st[slug]);
+    console.log(`[intent] conflict resolved: ${videoId} already on YouTube — claimed, NOT re-uploaded`);
+    return { claimed: true, videoId };
+  }
+  if (longSeed) {
+    st[slug].usedLongSeeds = [...(st[slug].usedLongSeeds || []), longSeed.title].slice(-40);
+    st[slug].todayTopic = { at: today(), topic: longSeed.title };
+  }
+  // #105: narration text rides along in state (intro + chapters + outro) — the
+  // pipeline embeds it into the Brain at publish time (AC-P3-2: upload accepted
+  // first, so videoId is real here; the dup gate above exits without this write).
+  st[slug].deepdiveVideo = { videoId, publishAt, title: `${script.title} | ${b.authority}`, text: [script.intro, ...(script.chapters || []).map((c) => c?.text || ''), script.outro].filter(Boolean).join('\n\n') };
+  // #99 shared-pool ledger: count this successful upload against the daily budget
+  st[slug].uploadsToday = nextCounter(st[slug].uploadsToday);
+  saveChannelState(slug, st[slug]);
+
+  // FB/IG outbox — episode cross-post (fb-crosspost posts it as scheduled video,
+  // ig-crosspost posts it as feed VIDEO; long content is not a Reel)
+  fs.mkdirSync(`fb-outbox/${slug}`, { recursive: true });
+  const stamp = `ep-${Date.now()}`;
+  fs.copyFileSync(final, `fb-outbox/${slug}/${stamp}.mp4`);
+  fs.writeFileSync(`fb-outbox/${slug}/${stamp}.json`, JSON.stringify({ videoFile: `fb-outbox/${slug}/${stamp}.mp4`, publishAt, title: `${script.title} | ${b.authority}`, description, slug, kind: 'episode' }, null, 2));
+
+  fs.rmSync(`${work}/joined.mp4`, { force: true });
+  for (const s of segs) fs.rmSync(s.file, { force: true });
+  console.log(`\n✅ ${b.label} EPISODE scheduled: https://youtube.com/watch?v=${videoId} → public ${publishAt} (${(total / 60).toFixed(1)} min) + FB/IG outbox`);
+  return { ok: true, videoId };
+}
+
+// ---- #106 T5c SEAM 1 (resume side): an approval dispatched resume=<held job
+// id>. The child renders the DOC from the STORED full_render_input —
+// generation is structurally impossible in this path (pinned by
+// tests/review-seams.test.mjs: the brain spy THROWS if it is touched, and the
+// narration the render consumes EQUALS the stored JSON). The owner's dispatch
+// bypasses the cadence guards below (pause/docDay/already-produced): an
+// approval is a deliberate production order, and D8 recomputes publishAt from
+// the kit's long slot so a review delay can never publish instantly. A store
+// that is unreadable or has no approved script exits WITHOUT regenerating
+// (fail-closed — the approval's whole point is that THIS episode ships).
+async function resumeApprovedDoc({ slug, jobId, b }) {
+  const log = (m) => console.log(`[review] ${m}`);
+  let store = null;
+  let seams = null;
+  try {
+    const [ss, seamsMod] = await Promise.all([import('./lib/script-store.mjs'), import('./lib/review-seams.mjs')]);
+    seams = seamsMod;
+    store = await ss.getScriptStore();
+  } catch (e) {
+    log(`resume: seam import failed (${String(e?.message || e).slice(0, 80)})`);
+    return false;
+  }
+  if (!store) {
+    log('resume: script store unavailable — refusing to re-generate (fail-closed). Re-dispatch once the database is reachable.');
+    return false;
+  }
+  const found = await seams.findResumableScript({ scriptStore: store, jobId, channelId: slug });
+  if (!found.ok) {
+    log(`resume: script store read failed (${found.error}) — refusing to re-generate (fail-closed)`);
+    return false;
+  }
+  if (!found.script) {
+    log(`resume: no approved script for job ${String(jobId).slice(0, 12)}… / ${slug} — nothing to render (already consumed, or the approval never landed)`);
+    return false;
+  }
+  const stored = seams.storedInputOf(found.script);
+  if (!stored) {
+    log(`resume: script ${found.script.id} has no usable stored render input — refusing to re-generate (D4)`);
+    return false;
+  }
+  // Rebuild the EXACT doc structure the render path consumes from the stored
+  // seam shape (hook=title, points=chapters, closing=outro, + the cold-open
+  // intro) — this path never assembles a prompt, so there is no generate call
+  // to remove.
+  const script = {
+    title: stored.hook,
+    intro: typeof stored.intro === 'string' ? stored.intro : '',
+    chapters: (Array.isArray(stored.points) ? stored.points : []).map((p) => ({ title: p?.title || '', text: p?.line || p?.text || '' })),
+    outro: stored.closing || '',
+    source: 'review-stored',
+  };
+  log(`resume: rendering the APPROVED doc from its STORED input (${found.via}) — zero generation calls`);
+  // This branch runs BEFORE the cadence guards, so it builds its own clients
+  // (the yt-daily resume mirror).
+  const auth = new google.auth.OAuth2(process.env.YOUTUBE_CLIENT_ID || '', process.env.YOUTUBE_CLIENT_SECRET || '');
+  const envName = `YT_TOKEN_${slug.toUpperCase().replace(/-/g, '_')}`;
+  const tokRaw = process.env[envName] || fs.readFileSync(path.resolve(HERE, `yt-mcp/channels/${slug}/token.json`), 'utf8');
+  const tok = JSON.parse(tokRaw);
+  auth.setCredentials({ refresh_token: tok.refresh_token });
+  const yt = google.youtube({ version: 'v3', auth });
+  // D8/AC-P4-19: publishAt recomputed from the kit's long slot BEFORE any
+  // render spend — the stored publishAt is history by construction (the
+  // approval came later), and a past publishAt would publish instantly. No
+  // future long slot remains => take the skip terminal WITHOUT rendering.
+  const publishAt = nextFutureSlotISO([b.longSlot], { now: new Date() });
+  if (publishAt && new Date(publishAt).getTime() <= Date.now()) {
+    log(`resume: no future long slot remains (publishAt ${publishAt} already past) — episode skipped before any render spend (AC-P4-19; the script STAYS approved)`);
+    return false;
+  }
+  // 10-05 duplicate-title gate BEFORE the render spend — a near-dup episode
+  // must never re-render; the script stays approved for a fixed redispatch.
+  const docDup = findDup(script.title, await recentUploadTitles(yt));
+  if (docDup) {
+    log(`resume: duplicate episode title "${script.title}" ≈ "${docDup}" — refused before render spend; the script STAYS approved`);
+    return false;
+  }
+  const intents = await getUploadIntentStore();
+  const ship = await renderAndShipEpisode(script, { yt, auth, intents, longSeed: null, reviewScript: { id: found.script.id, store } });
+  if (ship?.claimed) {
+    // The slot was produced by a crashed run's video — claimed, not
+    // re-uploaded. The approval row stands (a re-dispatch would re-render and
+    // re-claim — wasteful, never unsafe).
+    log(`resume: intent conflict resolved — ${ship.videoId} was already on YouTube, claimed, NOT re-uploaded (the script stays approved)`);
+    return true;
+  }
+  if (!ship?.ok || !ship.videoId) {
+    log(`resume: episode not shipped (${ship?.skipped || 'no videoId'}) — the script STAYS approved; fix and redispatch`);
+    return false;
+  }
+  // the videoId landed — NOW the record retires (SEAM 3, by id: this IS the row)
+  try {
+    const mc = await store.markConsumed(found.script.id, ship.videoId);
+    if (mc.ok) log(`script ${found.script.id} -> consumed (${ship.videoId})`);
+    else if (mc.error) log(`WARN consume degraded (non-fatal): ${mc.error}`);
+  } catch { }
+  log(`✓ approved doc shipped — the approval loop is closed (hold → review → resume-render from the STORED input)`);
+  return true;
+}
+
 // ---------- main ----------
 const state = loadState();
+// #106 T5c SEAM 1 (resume): runs BEFORE the cadence guards (pause/docDay/
+// already-produced) — an approval is a deliberate production order (the
+// yt-daily placement). Exit 1 surfaces a refused resume to the pipeline (the
+// job records the failed step; the approval row stands for a later redispatch).
+if (RESUME_SCRIPT_JOB) {
+  const okResume = await resumeApprovedDoc({ slug, jobId: RESUME_SCRIPT_JOB, b });
+  process.exit(okResume ? 0 : 1);
+}
 // 10-05 PAUSE GUARD — feed-collapse cooldown (same field yt-daily/sweeper use)
 if ((state[slug]?.pausedUntil || '') >= today()) {
   console.log(`[${slug}] paused until ${state[slug].pausedUntil} — episode skipped`);
@@ -221,7 +569,13 @@ if ((state[slug]?.pausedUntil || '') >= today()) {
 // #96: docDays ['Tue','Fri'] lists raise the cadence for the clips-first lane;
 // the legacy single docDay keeps working. --force overrides.
 const DOC_DAY_NAME = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date().getUTCDay()];
-if (!isDocDay(b) && !FORCE) {
+// #106 T5c: a GENERATE-ONLY run bypasses the docDay cadence — the review gate
+// holds on ANY day for clips-source channels (the doc is their only script
+// lane), so the /review desk would starve if scripts only generated on doc
+// days. The already-produced and pause guards above/below still apply.
+// force_doc=1 dispatches keep working exactly as before (--force). A RESUMED
+// doc run never reaches this guard (the branch above exits first).
+if (!isDocDay(b) && !FORCE && !GENERATE_ONLY) {
   const days = docDaysOf(b);
   console.log(`[${slug}] doc day${days.length === 1 ? '' : 's'} ${days.join('/') || '(none configured)'} (today is ${DOC_DAY_NAME}) — episode skipped`);
   process.exit(0);
@@ -304,212 +658,59 @@ if (!theme) {
 }
 const script = await llmScript(LONG_PROMPT(b, theme), longSeed?.title || theme);
 
-fs.mkdirSync(`demos/deepdive-${slug}`, { recursive: true });
-const work = `demos/deepdive-${slug}`;
-const segs = [];
-let total = 0;
-
-// intro: title card with cold-open narration
-const introNarr = narrate(script.intro, 'intro');
-const introDur = Math.max(6, probeDur(introNarr) + 0.8);
-await renderCard(await introCard(script.title), introNarr, `${work}/seg-00.mp4`, introDur);
-segs.push({ file: `${work}/seg-00.mp4`, dur: introDur });
-total += introDur;
-
-// chapters: b-roll + lower-third + narration
-for (let i = 0; i < script.chapters.length; i++) {
-  const ch = script.chapters[i];
-  console.log(`[long] chapter ${i + 1}/${script.chapters.length}: ${ch.title}`);
-  const narr = narrate(ch.text, i + 1);
-  const dur = Math.max(14, probeDur(narr) + 1.4);
-  const seg = `${work}/seg-${String(i + 1).padStart(2, '0')}.mp4`;
-  let clip = null;
-  try { clip = await getTopicClip(page(), { headline: ch.title }); } catch { }
-  const lt = await chapterLowerThird(i + 1, ch.title);
-  segment(lt, clip?.file || null, narr, seg, dur, true);
-  segs.push({ file: seg, dur });
-  total += dur;
-  console.log(`  ✓ ${dur.toFixed(0)}s`);
-}
-
-// end card with outro narration
-const endNarr = narrate(script.outro, 'end');
-const endDur = Math.max(6, probeDur(endNarr) + 1.0);
-const endSeg = `${work}/seg-end.mp4`;
-await renderCard(await endCard(), endNarr, endSeg, endDur);
-segs.push({ file: endSeg, dur: endDur });
-total += endDur;
-
-// #96 EPISODE SRT — per-chapter word timestamps (narr-*.mp3.meta.json words
-// [{w,s,d}]) mapped onto the episode timeline, so the clips-first lane (#97)
-// can cut sentence-aligned Shorts without re-transcribing. Narration order is
-// intro, chapters 1..n, end — same order as segs.
-const narrNames = ['intro', ...script.chapters.map((_, i) => String(i + 1)), 'end'];
-let srtCursor = 0;
-const srtCues = [];
-for (let i = 0; i < segs.length; i++) {
-  try {
-    const meta = JSON.parse(fs.readFileSync(path.join(work, `narr-${narrNames[i]}.mp3.meta.json`), 'utf8'));
-    srtCues.push(...cuesFromWords(meta.words || [], srtCursor));
-  } catch { }
-  srtCursor += segs[i].dur;
-}
-fs.writeFileSync(path.join(work, 'episode.srt'), toSrt(srtCues));
-console.log(`[long] SRT: ${srtCues.length} cues -> ${work}/episode.srt`);
-
-// concat + music bed
-const list = `${work}/concat.txt`;
-fs.writeFileSync(list, segs.map(s => `file '${path.resolve(s.file).replace(/\\/g, '/')}'`).join('\n'));
-const joined = `${work}/joined.mp4`;
-sh(['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', joined]);
-let music = null;
-// 10-03: channel's own approved pool only. The -stream_loop -1 below already
-// restarts THIS track when it ends — never a second track (user rule).
-try { music = await pickApprovedTrack(APPROVED_MUSIC[slug] || []); } catch { }
-const final = `${work}/episode.mp4`;
-if (music) {
-  sh(['-y', '-i', joined, '-stream_loop', '-1', '-i', music.file, '-filter_complex',
-    `[1:a]volume=0.09[m];[0:a][m]amix=inputs=2:duration=first:dropout_transition=0[a]`,
-    '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', final]);
-} else { fs.copyFileSync(joined, final); }
-
-// premium thumbnail from a mid-episode frame
-sh(['-y', '-v', 'error', '-ss', String(Math.round(total * 0.35)), '-i', final, '-frames:v', '1', `${work}/frame.jpg`]);
-const thumb = await renderYouTubeThumbnail(script.title, `${work}/frame.jpg`, { accent: b.accent, eyebrow: b.eyebrow });
-
-// #106 T5b SEAM 2 (D18/AC-P4-23): WHERE the pipeline's gate enabled picking
-// (REVIEW_THUMB_CANDIDATES from the template DATA), the render emits N
-// candidates staggered across the episode. The upload still proceeds with
-// candidate 1 (M7); the owner picks at Studio > Review. Fail-soft end to end;
-// the env unset = today's single candidate, byte-identical.
-const THUMB_CANDIDATES_N = Math.max(1, Math.min(6, Number(process.env.REVIEW_THUMB_CANDIDATES) || 1));
-if (THUMB_CANDIDATES_N > 1) {
-  const docThumbs = [thumb].filter(Boolean);
-  try {
-    for (const pct of [0.22, 0.48]) {
-      sh(['-y', '-v', 'error', '-ss', String(Math.round(total * pct)), '-i', final, '-frames:v', '1', `${work}/frame-alt.jpg`]);
-      docThumbs.push(await renderYouTubeThumbnail(script.title, `${work}/frame-alt.jpg`, { accent: b.accent, eyebrow: b.eyebrow }));
-      fs.rmSync(`${work}/frame-alt.jpg`, { force: true });
-    }
-  } catch (e) {
-    console.log(`[long] thumb candidates degraded (${String(e.message).slice(0, 60)}) — candidate 1 proceeds`);
+// #106 T5c SEAM 1 (generate-only): the pipeline's gate held this run with no
+// approved script — the doc generation ran EXACTLY as today (the brain's
+// dedupe walk inside llmScript; an exhausted/blocked walk THREW above and
+// never reaches this branch), so the survivor is persisted BEFORE any render
+// (AC-P4-17) and this run STOPS here: no TTS, no music, no render, no upload.
+// The dup gate runs first — a near-dup episode never sits in the review queue.
+// deepdiveDate NEVER advances (the approval's resume must be able to render
+// TODAY); the seed rotation DOES (the T5b round-1 pattern — an unapproved
+// channel must diversify nightly, not re-pick the same wave).
+if (GENERATE_ONLY) {
+  const docDupGen = findDup(script.title, await recentUploadTitles(yt));
+  if (docDupGen) {
+    console.log(`GATE: duplicate episode title "${script.title}" ≈ "${docDupGen}" — doc script NOT saved (blocked); nothing to review`);
+    process.exit(0);
   }
-  try {
-    const seams = await import('./lib/review-seams.mjs');
-    const { makeArtifactStore } = await import('./lib/artifact-store.mjs');
-    let jobs = null;
-    try { jobs = await (await import('./lib/job-store.mjs')).getJobStore(); } catch { }
-    // no doc script row exists (the doc lane has no review seam yet) — the
-    // artifact index carries the candidates
-    const r = await seams.emitThumbCandidates({
-      thumbs: docThumbs, artifacts: makeArtifactStore(), jobs,
-      jobId: process.env.PIPELINE_JOB_ID || null, step: 'episode',
-      log: (m) => console.log(`[review] ${m}`),
-    });
-    if (r.candidates.length) console.log(`[long] ${r.candidates.length} thumbnail candidates emitted (candidate 1 ships; swap at Studio > Review)`);
-  } catch (e) {
-    console.log(`[long] thumb candidate indexing degraded (non-fatal): ${String(e.message).slice(0, 60)}`);
-  }
-}
-
-console.log(`[long] ✅ episode rendered: ${final} (${(total / 60).toFixed(1)} min)`);
-
-// ---------- upload scheduled ----------
-
-const [hh, mm] = b.longSlot.split(':').map(Number);
-const now = new Date();
-const pub = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hh, mm, 0));
-if (pub <= new Date(now.getTime() + 35 * 60 * 1000)) pub.setUTCDate(pub.getUTCDate() + 1);
-const publishAt = pub.toISOString().replace(/\.\d+Z$/, 'Z');
-
-let cum = 0;
-const chapters = script.chapters.map((c, i) => {
-  const t = cum; cum += segs[i + 1]?.dur || 0;
-  return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')} ${c.title}`;
-});
-const description = [`"${script.title}" — a daily ${b.kwShort} episode from ${b.label}.`, '', script.intro, '', ...chapters, '', script.outro, `New episodes every day. ${b.hashtags || ''}`, ...(music ? [`🎵 ${music.credit}`] : [])].join('\n').slice(0, 4900);
-
-// 10-05 DUPLICATE TITLE GATE — the "Musonius Rufus" doc went out twice in two
-// days; a near-dup episode must never upload. Skip WITHOUT marking
-// deepdiveDate so tomorrow's fresh topic can go out cleanly.
-const docDup = findDup(script.title, await recentUploadTitles(yt));
-if (docDup) {
-  console.log(`GATE: duplicate episode title "${script.title}" ≈ "${docDup}" — upload skipped`);
-  process.exit(0);
-}
-
-// #106 T3 (D6/AC-P4-6/7): two-step resumable upload — intent row first (the
-// INSERT mutex), session URI persisted before the first byte, videoId on 201.
-// Minor 7: the intent fingerprints the EXACT uploaded title (sliced, as the
-// resource sends it) so recovery matches the live playlist byte-for-byte.
-const docTitle = `${script.title} | ${b.authority}`.slice(0, 95);
-const up = await uploadWithIntent({
-  store: intents, channelId: slug, slotDate: today(), kind: 'doc', slotIdx: 0,
-  title: docTitle, jobId: process.env.PIPELINE_JOB_ID || null,
-  accessToken: await oauthAccessToken(auth),
-  resource: {
-    snippet: { title: docTitle, description, tags: b.tags.slice(0, 12), categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
-    status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false }
-  },
-  bytes: fs.readFileSync(final), publishAt,
-  log: (m) => console.log(`[intent] ${m}`),
-});
-if (up.skipProduction && !up.videoId) {
-  console.log(`[intent] doc upload skipped (intent conflict or past publishAt — safe direction); retry on the next doc day`);
-  process.exit(0);
-}
-if (!up.ok) throw new Error(`upload failed: ${up.error}`);
-const videoId = up.videoId;
-await yt.thumbnails.set({ videoId, media: { body: Readable.from(thumb) } }).catch(() => { });
-
-// #106 T5b SEAM 3 (D14): the video_id write-back — fail-soft; the doc lane has
-// no script rows today, so this is a silent no-op (and the kind guard keeps a
-// doc upload from ever stamping a shorts script row).
-try {
   const seams = await import('./lib/review-seams.mjs');
   const { getScriptStore } = await import('./lib/script-store.mjs');
-  await seams.writeBackVideoId({
-    scriptStore: await getScriptStore(), channelId: slug,
-    jobId: process.env.PIPELINE_JOB_ID || null, kind: 'doc', videoId, slotDate: today(),
-    log: (m) => console.log(`[review] ${m}`),
+  const store = await getScriptStore();
+  if (!store) {
+    console.log('[review] script store unavailable — doc script NOT saved (fail-closed; the gate re-holds and this retries next run)');
+    process.exit(0);
+  }
+  const docTemplateId = await resolveTemplateId(slug);
+  const saved = await seams.saveGeneratedScript({
+    scriptStore: store,
+    channelId: slug,
+    templateId: docTemplateId || null,
+    templateVersion: process.env.PIPELINE_TEMPLATE_VERSION || null,
+    kind: 'doc',
+    title: script.title,
+    script: {
+      hook: script.title,
+      intro: script.intro,
+      points: (script.chapters || []).map((c) => ({ title: c.title, line: c.text })),
+      closing: script.outro,
+      thumbHeadline: script.title,
+    },
+    seed: longSeed?.title || null,
+    themes: theme || null,
+    publishAt: nextFutureSlotISO([b.longSlot], { now: new Date() }),
+    slotDate: process.env.REVIEW_SCRIPT_SLOT_DATE || today(),
+    slotIdx: 0,
+    jobId: process.env.PIPELINE_JOB_ID || null,
   });
-} catch { }
-
-const st = loadState();
-st[slug] = st[slug] || {};
-// deepdiveDate = TODAY in BOTH paths (safe direction): the doc slot is produced.
-st[slug].deepdiveDate = today();
-if (up.conflict) {
-  // Round-1 MAJOR 4: claimed, not re-uploaded (a crashed run's episode is the
-  // slot's product). Record ITS fingerprint — this run's narration text
-  // belongs to no video and must never be embedded against the claimed id.
-  // No FB outbox (wrong content), no seed write (this run's theme never
-  // shipped — the next doc day may reuse it for a fresh episode).
-  st[slug].deepdiveVideo = { videoId, publishAt, title: up.existing?.title_fingerprint || '', recovered: true };
-  st[slug].uploadsToday = nextCounter(st[slug].uploadsToday);
-  saveChannelState(slug, st[slug]);
-  console.log(`[intent] conflict resolved: ${videoId} already on YouTube — claimed, NOT re-uploaded`);
+  if (saved.ok) console.log(`[review] doc script saved awaiting_review (${saved.id}) — nothing renders until an owner approves at Studio > Review`);
+  else console.log(`[review] WARN doc script not saved (${saved.error}) — the slot retries on the next run`);
+  if (longSeed) {
+    const stG = loadState();
+    stG[slug] = { ...(stG[slug] || {}), usedLongSeeds: [...(stG[slug]?.usedLongSeeds || []), longSeed.title].slice(-40) };
+    saveChannelState(slug, stG[slug]);
+  }
+  console.log(`[review] generate-only done: doc script ${saved.ok ? 'saved awaiting_review' : 'NOT saved'}, 0 renders, 0 uploads — approve at Studio > Review to resume at render`);
   process.exit(0);
 }
-if (longSeed) {
-  st[slug].usedLongSeeds = [...(st[slug].usedLongSeeds || []), longSeed.title].slice(-40);
-  st[slug].todayTopic = { at: today(), topic: longSeed.title };
-}
-// #105: narration text rides along in state (intro + chapters + outro) — the
-// pipeline embeds it into the Brain at publish time (AC-P3-2: upload accepted
-// first, so videoId is real here; the dup gate above exits without this write).
-st[slug].deepdiveVideo = { videoId, publishAt, title: `${script.title} | ${b.authority}`, text: [script.intro, ...(script.chapters || []).map((c) => c?.text || ''), script.outro].filter(Boolean).join('\n\n') };
-// #99 shared-pool ledger: count this successful upload against the daily budget
-st[slug].uploadsToday = nextCounter(st[slug].uploadsToday);
-saveChannelState(slug, st[slug]);
 
-// FB/IG outbox — episode cross-post (fb-crosspost posts it as scheduled video,
-// ig-crosspost posts it as feed VIDEO; long content is not a Reel)
-fs.mkdirSync(`fb-outbox/${slug}`, { recursive: true });
-const stamp = `ep-${Date.now()}`;
-fs.copyFileSync(final, `fb-outbox/${slug}/${stamp}.mp4`);
-fs.writeFileSync(`fb-outbox/${slug}/${stamp}.json`, JSON.stringify({ videoFile: `fb-outbox/${slug}/${stamp}.mp4`, publishAt, title: `${script.title} | ${b.authority}`, description, slug, kind: 'episode' }, null, 2));
-
-fs.rmSync(`${work}/joined.mp4`, { force: true });
-for (const s of segs) fs.rmSync(s.file, { force: true });
-console.log(`\n✅ ${b.label} EPISODE scheduled: https://youtube.com/watch?v=${videoId} → public ${publishAt} (${(total / 60).toFixed(1)} min) + FB/IG outbox`);
+await renderAndShipEpisode(script, { yt, auth, intents, longSeed });

@@ -596,21 +596,31 @@ if (REVIEW_QUEUE_ENABLED) {
     } catch { }
   }
   if (gate && gate.ok && gate.action === 'hold') {
-    const generateOnly = gate.reason === 'no_approved_script' && shortsSource !== 'clips';
-    if (generateOnly) {
-      // #106 T5b SEAM 1 (generate-only): the gate held because NO script
-      // exists for today's slot — so generate + persist each slot's script
-      // (awaiting_review) and STOP: no TTS, no render, no upload (AC-P4-17
-      // + D15: nothing renders until an approval row exists). Approval then
-      // dispatches resume=<this job id> and the child renders from the
-      // STORED input. Clips-source channels have no script lane — they keep
-      // today's skip-exact hold.
+    // #106 T5b/T5c SEAM 1 (generate-only): the gate held because NO script
+    // exists for today's slot — the channel's SCRIPT LANE generates + persists
+    // the survivor awaiting_review and STOPS: no TTS, no render, no upload
+    // (AC-P4-17 + D15: nothing renders until an approval row exists).
+    // Approval then dispatches resume=<this job id> and the child renders from
+    // the STORED input. A GENERATED channel's script lane is yt-daily (shorts
+    // scripts); a CLIPS-source channel's only script lane is the DOC
+    // (yt-deepdive — T5b's skip-exact hold left the /review desk with nothing
+    // to approve for them; the docDay cadence is bypassed by the child's
+    // GENERATE_ONLY flag, the pause/already-produced guards still apply).
+    const generateOnly = gate.reason === 'no_approved_script';
+    if (generateOnly && shortsSource !== 'clips') {
       log(`[review] no approved script for slot ${today} — generate-only run (REVIEW_GENERATE_ONLY): scripts are saved awaiting_review, nothing renders or uploads`);
       process.env.REVIEW_GENERATE_ONLY = '1';
       process.env.REVIEW_SCRIPT_SLOT_DATE = today;
       await jobCtl?.startStep(SHORTS_STEP);
       const okGen = run('yt-daily.mjs', [slug, '--no-episode', ...(FORCE ? ['--force'] : [])]);
       await jobCtl?.finishStep(SHORTS_STEP, okGen ? 'succeeded' : 'failed', okGen ? null : 'generate-only generation failed');
+    } else if (generateOnly) {
+      log(`[review] no approved doc script — generate-only run on the DOC lane (REVIEW_GENERATE_ONLY): the episode script is saved awaiting_review, nothing renders or uploads`);
+      process.env.REVIEW_GENERATE_ONLY = '1';
+      process.env.REVIEW_SCRIPT_SLOT_DATE = today;
+      await jobCtl?.startStep('episode');
+      const okGen = run('yt-deepdive.mjs', [slug]);
+      await jobCtl?.finishStep('episode', okGen ? 'succeeded' : 'failed', okGen ? null : 'generate-only doc generation failed');
     } else {
       log(`[review] held — slot skipped today (${gate.reason}); approve at Studio > Review to resume at render (D17)`);
     }
