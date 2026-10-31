@@ -500,9 +500,9 @@
       "count": 2
     },
     "reviewGate": {
-      "assigned": false,
-      "gated": false,
-      "checkedAt": "2026-10-31T14:02:54.591Z"
+      "assigned": true,
+      "gated": true,
+      "checkedAt": "2026-10-31T14:32:25.642Z"
     }
   },
   "quotequarry": {
