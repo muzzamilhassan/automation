@@ -11,6 +11,7 @@
   "dependencies": {
     "@internationalized/date": "^3.12.4",
     "@untitledui/icons": "^0.0.23",
+    "@vercel/blob": "^2.8.2",
     "clsx": "^2.1.1",
     "libsodium-wrappers": "^0.7.15",
     "lucide-react": "^1.48.0",

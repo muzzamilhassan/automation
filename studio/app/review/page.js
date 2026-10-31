@@ -255,7 +255,9 @@ export default function ReviewDeskPage() {
               <div className="px-5 pb-5 flex gap-4 flex-wrap">
                 {detail.thumbCandidates.map((c) => (
                   <div key={c.idx} className="space-y-1">
-                    {c.url ? <img src={c.url} alt={`candidate ${c.idx}`} className="rounded-lg w-40" /> : <div className="w-40 h-24 bg-black/20 rounded-lg" />}
+                    {/* private store: the bytes are served by the route (server-side
+                        meta resolution + hash check) — the raw blob URL 401s in a browser */}
+                    {c.url ? <img src={`/api/review/thumb?id=${detail.script.id}&idx=${c.idx}`} alt={`candidate ${c.idx}`} className="rounded-lg w-40" /> : <div className="w-40 h-24 bg-black/20 rounded-lg" />}
                     <div className="flex items-center gap-2">
                       <span className="text-[11.5px] text-muted">#{c.idx}</span>
                       {detail.thumbPick?.candidate === c.idx ? <Chip tone="accent" dot>picked</Chip> : null}

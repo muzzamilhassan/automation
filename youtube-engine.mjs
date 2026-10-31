@@ -870,6 +870,12 @@ async function renderSectionCard(pageId, accent, section, handle, kwShort) {
 // 1 keeps the exact legacy +3s offset) — out.thumbs carries every variant and
 // out.thumb stays candidate 1. Default/absent = 1 = today's byte-identical
 // single candidate.
+// T5b round 1 (pure, unit-pinned): candidate 1's frame offset is the LEGACY
+// +3 seconds — the enabled path must not move the auto-set thumbnail.
+export function thumbFrameOffset(v) {
+  return v === 0 ? 3 : 2 + v * 1.5;
+}
+
 export async function renderYouTubeScriptShort(page, script, musicOverride = null, opts = {}) {
   const brand = resolveBrand(page);
   if (!brand) throw new Error('no YouTube config for page ' + page?.id);
@@ -958,7 +964,7 @@ export async function renderYouTubeScriptShort(page, script, musicOverride = nul
     for (let v = 0; v < variants; v++) {
       const frameFile = `${POOL_DIR}/yt-thumb-frame-${page.id}${v > 0 ? `-v${v}` : ''}.jpg`;
       // candidate 1 keeps the exact legacy offset (+3s); variants stagger later frames
-      execFileSync(FF, ['-y', '-v', 'error', '-ss', String(clip.start + (v === 0 ? 3 : 2 + v * 1.5)), '-i', clip.file, '-frames:v', '1', frameFile]);
+      execFileSync(FF, ['-y', '-v', 'error', '-ss', String(clip.start + thumbFrameOffset(v)), '-i', clip.file, '-frames:v', '1', frameFile]);
       const t = await renderYouTubeThumbnail(script.thumbHeadline || script.hook, frameFile, { accent: brand.accent, eyebrow: brand.eyebrow || `QUOTE QUARRY // ${brand.label}` });
       thumbs.push(t);
       fs.rmSync(frameFile, { force: true });

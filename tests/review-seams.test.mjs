@@ -57,6 +57,23 @@ describe('#106 T5b — flag + config parsing', () => {
     assert.equal(flagOn(null), false);
   });
 
+  test('round 1 minor 7: thumbFrameOffset is pure and candidate 1 keeps the LEGACY +3s frame (the auto-set thumb never moves)', async () => {
+    const { thumbFrameOffset } = await import('../youtube-engine.mjs');
+    assert.equal(thumbFrameOffset(0), 3, 'candidate 1 = the exact pre-T5b offset');
+    assert.equal(thumbFrameOffset(1), 3.5, 'variant 1 staggers +0.5s later');
+    assert.equal(thumbFrameOffset(2), 5);
+    assert.notEqual(thumbFrameOffset(1), thumbFrameOffset(0), 'variants are genuinely different frames');
+  });
+
+  test('round 1 IMPORTANT 2 (source pin): the NORMAL shorts render threads the candidate count — no dead emission, no lying log', async () => {
+    const src = fs.readFileSync(path.join(ROOT, 'yt-daily.mjs'), 'utf8');
+    assert.match(
+      src,
+      /renderYouTubeScriptShort\(page, script, music, \{ thumbVariants: THUMB_CANDIDATES \}\)/,
+      'the normal slot-body render passes { thumbVariants } or the pipeline\'s candidate log is false',
+    );
+  });
+
   test('AC-P4-23: candidate count comes from the template DATA — truthy = 3, numeric honored, absent = 1', () => {
     assert.equal(thumbCandidateCount({ review_thumb_pick: true }), 3, 'the enabled default is N=3');
     assert.equal(thumbCandidateCount({ review_thumb_pick: 4 }), 4, 'a numeric template count is honored');
@@ -196,16 +213,43 @@ describe('#106 T5b — writeBackVideoId (D14 SEAM 3: the upload sites hold video
     assert.equal(logs.length, 1, 'one visible line when the record retires');
   });
 
-  test('no job linkage -> the channel+latest-approved fallback; never cross-kind', async () => {
-    const shortsRow = { id: 's-short', status: 'approved', kind: 'short' };
+  test('no job linkage -> the channel+latest-approved fallback is SLOT-SCOPED (same day only); never cross-kind', async () => {
+    const shortsRow = { id: 's-short', status: 'approved', kind: 'short', slot_date: TODAY, job_id: 'other-job' };
     const store = {
       async latestApproved() { return { ok: true, script: shortsRow }; },
       async markConsumed() { return { ok: true, id: 's-short' }; },
     };
-    const rShort = await writeBackVideoId({ scriptStore: store, channelId: SLUG, jobId: null, kind: 'short', videoId: 'v1' });
-    assert.equal(rShort.consumed, true);
-    const rDoc = await writeBackVideoId({ scriptStore: store, channelId: SLUG, jobId: null, kind: 'doc', videoId: 'v2' });
+    const rShort = await writeBackVideoId({ scriptStore: store, channelId: SLUG, jobId: null, kind: 'short', videoId: 'v1', slotDate: TODAY });
+    assert.equal(rShort.consumed, true, 'same-slot approved script + same-day upload = the legitimate fallback');
+    const rDoc = await writeBackVideoId({ scriptStore: store, channelId: SLUG, jobId: null, kind: 'doc', videoId: 'v2', slotDate: TODAY });
     assert.equal(rDoc.consumed, false, 'a doc upload must never stamp a SHORT script row (and vice versa)');
+  });
+
+  test('round 1: the fallback NEVER retires an unrelated approved script — A stays shippable when unreviewed B ships (S5 joins stay true)', async () => {
+    // interleaving: A approved (held job, slot 2026-10-30) -> its render was
+    // validation-refused -> a normal dispatch generates B and uploads it ->
+    // the write-back resolves the channel's latest approved = A -> must NOT
+    // consume A with B's videoId
+    const rowA = { id: 's-A', status: 'approved', kind: 'short', slot_date: '2026-10-30', job_id: 'held-job-A' };
+    const consumed = [];
+    const store = {
+      async latestApproved() { return { ok: true, script: rowA }; },
+      async markConsumed(id, videoId) { consumed.push([id, videoId]); return { ok: true, id }; },
+    };
+    const r = await writeBackVideoId({ scriptStore: store, channelId: SLUG, jobId: 'fresh-job-B', kind: 'short', videoId: 'video-of-B', slotDate: TODAY });
+    assert.equal(r.consumed, false, 'A (other day, other job) is unrelated to B\'s upload');
+    assert.equal(r.skippedUnrelated, true);
+    assert.deepEqual(consumed, [], 'no consumption happened at all');
+  });
+
+  test('round 1: the fallback DOES consume a same-job approved row even across days (the resumed run\'s own script)', async () => {
+    const rowA = { id: 's-A', status: 'approved', kind: 'short', slot_date: '2026-10-30', job_id: 'fresh-job-B' };
+    const store = {
+      async latestApproved() { return { ok: true, script: rowA }; },
+      async markConsumed(id, videoId) { return { ok: true, id }; },
+    };
+    const r = await writeBackVideoId({ scriptStore: store, channelId: SLUG, jobId: 'fresh-job-B', kind: 'short', videoId: 'v1', slotDate: TODAY });
+    assert.equal(r.consumed, true, 'job-linked rows are precise by construction');
   });
 
   test('fail-soft everywhere: null store, no rows, consumed-already, store throw — never a crash, silent when a legacy lane has no rows', async () => {
@@ -244,8 +288,12 @@ describe('#106 T5b — emitThumbCandidates (D18/AC-P4-23)', () => {
     assert.deepEqual(artifacts.puts.map((p) => p.kind), ['thumb_candidate', 'thumb_candidate', 'thumb_candidate']);
     assert.equal(indexed.length, 3);
     assert.equal(indexed[0].kind, 'thumb_candidate');
-    assert.deepEqual(metas[0], ['s1', [{ idx: 1, url: 'https://blob/h1' }, { idx: 2, url: 'https://blob/h2' }, { idx: 3, url: 'https://blob/h3' }]],
-      'meta.thumb_candidates [{idx,url}] — the exact shape /api/review GET?id= serves and /review renders');
+    assert.deepEqual(metas[0], ['s1', [
+      { idx: 1, url: 'https://blob/h1', hash: 'h1' },
+      { idx: 2, url: 'https://blob/h2', hash: 'h2' },
+      { idx: 3, url: 'https://blob/h3', hash: 'h3' },
+    ]],
+      'meta.thumb_candidates [{idx,url,hash}] — the shape /api/review GET?id= serves, /review renders, and the thumb route hash-verifies');
   });
 
   test('fail-soft: one degraded candidate never blocks the render; no script row = artifact-index only', async () => {
@@ -462,6 +510,24 @@ describe('#106 T5b — the pipeline threads the gate verdict to the child lanes 
     assert.equal(env.REVIEW_GENERATE_ONLY, null, 'a resumed run NEVER regenerates');
     const gateCall = r.spy.find((c) => c.mod === 'gate' && c.fn === 'evaluateReviewGate');
     assert.equal(gateCall.args.resumeJobId, 'held-job-9', 'the gate resolves the approval by the held job id');
+  });
+
+  test('round 1 IMPORTANT 1: a SCHEDULED run whose slot lookup finds an APPROVED script threads the stored-script job — the child re-renders it instead of generating fresh', () => {
+    const r = runPipeline({
+      env: {
+        JOB_STORE_ENABLED: '1', REVIEW_QUEUE_ENABLED: '1',
+        PIPELINE_GATE_VERDICT: JSON.stringify({
+          ok: true, action: 'run', reason: 'approved',
+          gating: { state: 'gated', familyId: 'finance-explainers', reviewRequired: ['finance'] },
+          script: { id: 's-approved', status: 'approved', job_id: 'held-job-7' },
+        }),
+      },
+    });
+    assert.equal(r.status, 0);
+    assert.equal(r.childEnv.length, 1);
+    assert.equal(r.childEnv[0].PIPELINE_RESUME_JOB_ID, 'held-job-7',
+      'no --resume arg — but the approved script\'s job rides to the child so the STORED text ships, never a fresh generation');
+    assert.equal(r.childEnv[0].REVIEW_GENERATE_ONLY, null);
   });
 
   test('SEAM 2: the gate\'s template meta review_thumb_pick=true -> REVIEW_THUMB_CANDIDATES=3 on the child', () => {

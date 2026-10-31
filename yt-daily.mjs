@@ -31,6 +31,8 @@ const { archiveUpload } = await import('./yt-archive.mjs');
 const { recentUploadTitles, findDup } = await import('./lib/dup-gate.mjs');
 const { shouldSuppressNext } = await import('./lib/schedule.mjs');
 import { nextCounter } from './lib/quota-ledger.mjs';
+// #106 T5b: the review-seam helpers (pure module — no store/DB at import).
+import { flagOn } from './lib/review-seams.mjs';
 // #106 T3 (S2): upload intents — the note written before any videos.insert
 // (D5); the two-step resumable upload whose session URI is ours to keep (D6);
 // the run-start open-intent resolution that kills the duplicate class (D7a).
@@ -53,7 +55,7 @@ const TOPUP_N = topupArg ? Math.max(0, Number(topupArg.split('=')[1]) || 0) : 0;
 //                           from the STORED script input, never re-generate;
 //   REVIEW_THUMB_CANDIDATES the template DATA enables picking — N variants per
 //                           render (1 = today's single candidate).
-const GENERATE_ONLY = ['1', 'true'].includes(String(process.env.REVIEW_GENERATE_ONLY || '').toLowerCase());
+const GENERATE_ONLY = flagOn(process.env.REVIEW_GENERATE_ONLY);
 const RESUME_SCRIPT_JOB = String(process.env.PIPELINE_RESUME_JOB_ID || '').trim();
 const THUMB_CANDIDATES = Math.max(1, Math.min(6, Number(process.env.REVIEW_THUMB_CANDIDATES) || 1));
 const b = await resolveBrand(slug);
@@ -138,13 +140,13 @@ async function emitRenderThumbCandidates(thumbs, scriptId = null, scriptStore = 
 // only code that holds both the returned videoId and the job id. Fail-soft;
 // a legacy (non-gated) lane has no script rows, so this is a SILENT no-op
 // there (byte-identical log).
-async function writeBackVideoIdFor(slug, videoId, kind) {
+async function writeBackVideoIdFor(slug, videoId, kind, slotDate = null) {
   try {
     const seams = await import('./lib/review-seams.mjs');
     const { getScriptStore } = await import('./lib/script-store.mjs');
     await seams.writeBackVideoId({
       scriptStore: await getScriptStore(), channelId: slug,
-      jobId: process.env.PIPELINE_JOB_ID || null, kind, videoId,
+      jobId: process.env.PIPELINE_JOB_ID || null, kind, videoId, slotDate,
       log: (m) => console.log(`  [review] ${m}`),
     });
   } catch { }
@@ -193,6 +195,15 @@ async function resumeApprovedScript({ slug, jobId, b }) {
   const page = { id: 'yt-' + slug, ytSlug: slug, name: b.label, niche: b.niche, ytBrand: b };
   log(`resume: rendering the APPROVED script from its STORED input (${found.via}) — zero generation calls`);
   const script = { hook: stored.hook, points: stored.points, closing: stored.closing || '', thumbHeadline: stored.thumbHeadline || '', source: 'review-stored' };
+  // D8/AC-P4-19: publishAt recomputed from the kit's slot times BEFORE any
+  // render spend — the stored publishAt is history by construction (the
+  // approval came later), and a past publishAt would publish instantly. No
+  // future slot remains today => take the skip terminal WITHOUT rendering.
+  const publishAt = nextFutureSlotISO(b.slots, { now: new Date() }) || stored.publishAt || (b.slots?.length ? nextSlotISO(b.slots[0]) : null);
+  if (publishAt && new Date(publishAt).getTime() <= Date.now()) {
+    log(`resume: no future slot remains today (publishAt ${publishAt} already past) — slot skipped before any render spend (AC-P4-19; the script STAYS approved)`);
+    return false;
+  }
   let music = null;
   try {
     const pool = APPROVED_MUSIC[slug];
@@ -203,10 +214,6 @@ async function resumeApprovedScript({ slug, jobId, b }) {
   } catch (e) { console.log(`  [music] skipped: ${String(e.message).slice(0, 60)}`); }
   const out = await renderYouTubeScriptShort(page, script, music, { thumbVariants: THUMB_CANDIDATES });
   const meta = buildScriptMeta(page, script, music ? `${music.title} — ${music.credit}` : '');
-  // D8: publishAt recomputed from the kit's slot times — the stored publishAt
-  // is history by construction (the approval came later); a past publishAt
-  // would publish instantly, which a review delay must never cause.
-  const publishAt = nextFutureSlotISO(b.slots, { now: new Date() }) || stored.publishAt || (b.slots?.length ? nextSlotISO(b.slots[0]) : null);
   const slotIdx = Number.isInteger(found.script.slot_idx) ? found.script.slot_idx : 0;
   const slotDate = /^\d{4}-\d{2}-\d{2}$/.test(String(found.script.slot_date || '')) ? found.script.slot_date : today;
   const stamp = `review-${Date.now()}`;
@@ -548,7 +555,10 @@ if (RUN_SHORTS) {
       if (music) console.log(`  ♫ ${music.title} (${music.feel || 'mood'})`);
       else if (!pool?.length && !b.musicFeels?.length) console.log('  [music] no pool and no musicFeels — rendering without music');
     } catch (e) { console.log(`  [music] skipped: ${String(e.message).slice(0, 60)}`); }
-    const out = await renderYouTubeScriptShort(page, script, music);
+    // T5b round 1: the candidate count threads into EVERY gated-config render —
+    // without it this path always produced a single thumb and the pipeline's
+    // "3 candidates" log lied.
+    const out = await renderYouTubeScriptShort(page, script, music, { thumbVariants: THUMB_CANDIDATES });
     const meta = buildScriptMeta(page, script, music ? `${music.title} — ${music.credit}` : '');
 
     const stamp = `${Date.now()}-s${i}`;
@@ -625,8 +635,9 @@ if (RUN_SHORTS) {
     // the legacy render path — the index carries them.
     await emitRenderThumbCandidates(out.thumbs, null, null);
     // #106 T5b SEAM 3: video_id write-back (D14) — silent no-op on the
-    // legacy (no script rows) path.
-    await writeBackVideoIdFor(slug, videoId, 'short');
+    // legacy (no script rows) path; the fallback is SLOT-SCOPED (round 1:
+    // an unrelated approved script is never retired with this video's id).
+    await writeBackVideoIdFor(slug, videoId, 'short', today);
     try {
       await yt.commentThreads.insert({ part: 'snippet', requestBody: { snippet: { videoId, topLevelComment: { snippet: { textOriginal: `Which one hit hardest? 👇 Subscribe for daily ${b.kwShort}.` } } } } });
     } catch { }
@@ -678,12 +689,19 @@ if (RUN_SHORTS) {
     }
   }
   // #106 T5b SEAM 1 (generate-only): the slot is NOT produced — nothing was
-  // rendered or uploaded, so the run writes NO production state (lastRunDate
-  // stays unset: an approval's resume must be able to render TODAY, and a
-  // rejection frees tomorrow's fresh generation). The generated scripts live
-  // in the script ledger, not the state file.
+  // rendered or uploaded, so lastRunDate NEVER advances (an approval's resume
+  // must be able to render TODAY, and a rejection frees tomorrow's fresh
+  // generation). Round 1: the seed rotation DOES advance (used + cooled
+  // seeds) — an unapproved channel must diversify nightly, not spin on the
+  // same near-identical topics while its scripts sit in the queue.
   if (GENERATE_ONLY) {
     const generated = results.filter((r) => r.awaitingReview).length;
+    state[slug] = {
+      ...(state[slug] || {}),
+      usedTrendSeeds: [...usedSeeds, ...themesToday.map(t => t.seed)].slice(-40),
+      cooldownSeeds: [...(state[slug]?.cooldownSeeds || []), ...rejectedSeeds].slice(-12),
+    };
+    saveState();
     console.log(`[review] generate-only done: ${generated} script(s) saved awaiting_review, 0 renders, 0 uploads — approve at Studio > Review to resume at render`);
     process.exit(0);
   }

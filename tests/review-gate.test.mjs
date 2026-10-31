@@ -827,6 +827,9 @@ describe('#106 T5 round 1 — /api/review route path (BLOCKER 2)', () => {
       '@/lib/db.mjs': write('db.mjs', 'export const db = {}; export const dbReady = true; export function dbUnavailable() { return null; }'),
       '@/lib/provider-routing': write('provider.mjs', 'export function adaptPostgres() { return globalThis.__T5_SQL; }'),
       '@/lib/script-store.mjs': pathToFileURL(path.join(ROOT, 'studio', 'lib', 'script-store.mjs')).href,
+      // T5b round 1: the pick/thumb paths construct the REAL artifact store
+      // (pure module — no Blob without the token, so the route import is inert)
+      '@/lib/artifact-store.mjs': pathToFileURL(path.join(ROOT, 'studio', 'lib', 'artifact-store.mjs')).href,
       '@/lib/warnings-store.mjs': pathToFileURL(path.join(ROOT, 'studio', 'lib', 'warnings-store.mjs')).href,
       '@/lib/data.mjs': write('data.mjs', 'export const ENV = {};'), // no GITHUB_TOKEN — dispatch fails WITHOUT network
       '@/lib/audit': write('audit.mjs', 'export async function appendAudit(...a) { globalThis.__T5_AUDIT.push(a); }'),

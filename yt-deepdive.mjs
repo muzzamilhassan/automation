@@ -470,7 +470,7 @@ try {
   const { getScriptStore } = await import('./lib/script-store.mjs');
   await seams.writeBackVideoId({
     scriptStore: await getScriptStore(), channelId: slug,
-    jobId: process.env.PIPELINE_JOB_ID || null, kind: 'doc', videoId,
+    jobId: process.env.PIPELINE_JOB_ID || null, kind: 'doc', videoId, slotDate: today(),
     log: (m) => console.log(`[review] ${m}`),
   });
 } catch { }

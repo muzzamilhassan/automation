@@ -450,7 +450,7 @@ export function makeScriptStore(deps) {
       try { meta = rows?.length && rows[0].meta ? (typeof rows[0].meta === 'string' ? JSON.parse(rows[0].meta) : rows[0].meta) : {}; } catch { meta = {}; }
       meta.thumb_candidates = candidates
         .filter((c) => c && Number.isInteger(c.idx))
-        .map((c) => ({ idx: c.idx, url: c.url ?? null }));
+        .map((c) => ({ idx: c.idx, url: c.url ?? null, hash: c.hash ?? null }));
       await dbClient(`UPDATE scripts SET meta = $2 WHERE id = $1`, [id, JSON.stringify(meta)]);
       return { ok: true, id, meta };
     } catch (e) {

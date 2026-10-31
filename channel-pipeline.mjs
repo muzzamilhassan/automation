@@ -29,6 +29,9 @@ if (!b) { console.error(`[pipeline] unknown slug: ${slug}`); process.exit(1); }
 const today = new Date().toISOString().slice(0, 10);
 // 09-20: per-channel state files are the source of truth (lib/state.mjs)
 import { loadAllStates } from './lib/state.mjs';
+// #106 T5b: the review-seam flag parser (PURE module — zero imports of its
+// own, so the flag-off contract's "no store imports" is untouched).
+import { flagOn } from './lib/review-seams.mjs';
 // 10-09 BYOK: this channel's own provider keys (encrypted yt-mcp/channel-keys.json)
 // replace the shared keys for the rest of the run — children inherit process.env.
 import { applyChannelKeys, checkChannelKeys, dropChannelKeys } from './lib/channel-keys.mjs';
@@ -50,7 +53,7 @@ const errors = [];
 // supports --resume (D4). Every store call is fail-open: a dead Neon
 // degrades to log-only with ONE warn (AC-P4-5) and never changes the
 // pipeline's exit semantics (AC-P4-3).
-const JOB_STORE_ENABLED = ['1', 'true'].includes(String(process.env.JOB_STORE_ENABLED || '').toLowerCase());
+const JOB_STORE_ENABLED = flagOn(process.env.JOB_STORE_ENABLED);
 const RESUME_ARG = process.argv.includes('--resume');
 const _resumeVal = RESUME_ARG ? process.argv[process.argv.indexOf('--resume') + 1] : undefined;
 const RESUME_JOB_ID = RESUME_ARG && _resumeVal && !String(_resumeVal).startsWith('--') ? _resumeVal : null;
@@ -534,7 +537,7 @@ if (RESUME_ARG) process.env.PIPELINE_RESUME_JOB_ID = RESUME_JOB_ID || jobCtl?.pa
 // today, exit 0 — same shape as the park-check exit), recorded in T2's job
 // vocabulary as a 'review' step + the 'held' job terminal, and approval later
 // resumes at render via the /review dispatch (channel + resume=job_id).
-const REVIEW_QUEUE_ENABLED = ['1', 'true'].includes(String(process.env.REVIEW_QUEUE_ENABLED || '').toLowerCase());
+const REVIEW_QUEUE_ENABLED = flagOn(process.env.REVIEW_QUEUE_ENABLED);
 if (REVIEW_QUEUE_ENABLED) {
   let gate = null;
   let REGISTRY_META = null;
@@ -558,13 +561,26 @@ if (REVIEW_QUEUE_ENABLED) {
       warningsStore: warnStore,
       emit: emitWarningFn,
       jobId: jobCtl?.id ?? null,
-      resumeJobId: RESUME_JOB_ID, // round-1 MAJOR 5: the held job's id keys the approval on a resumed run
+      // round-1 MAJOR 5 + T5b round 1 minor 4: the held job's id keys the
+      // approval on a resumed run — and on a BARE --resume the parent job id
+      // (the gate and the child must agree, or the resumed run holds while
+      // the child renders, and the shipped video never brain-embeds).
+      resumeJobId: RESUME_JOB_ID || jobCtl?.parentJobId || null,
       log,
     });
   } catch (e) {
     log(`[review] WARN review gate unavailable — continuing (a gate crash never darkens production): ${String((e && e.message) || e).slice(0, 120)}`);
   }
   if (gate && gate.ok && gate.action === 'run') {
+    // T5b round 1: the gate found an APPROVED script (slot lookup on a plain
+    // scheduled run, or the resumed run's job lookup) — the CHILD must render
+    // THAT stored script, never generate fresh (the fresh generation would
+    // ship an unreviewed text while the approved one rots). Resume semantics
+    // on every approved run; --resume keeps its own threading above.
+    if (gate.script?.job_id && !process.env.PIPELINE_RESUME_JOB_ID) {
+      process.env.PIPELINE_RESUME_JOB_ID = String(gate.script.job_id);
+      log(`[review] approved script on the slot — the child renders the STORED input (job ${String(gate.script.job_id).slice(0, 12)}…), no fresh generation`);
+    }
     // #106 T5b SEAM 2 (D18/OQ-4): WHERE the assigned template's DATA enables
     // picking (review_thumb_pick — the same config surface the gate reads),
     // the child renders emit N thumbnail candidates. Unset = 1 = today's

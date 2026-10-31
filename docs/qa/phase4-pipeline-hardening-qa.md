@@ -579,40 +579,48 @@ AC-P4-16..23. New/changed code: `lib/review-seams.mjs` (the shared lane seam),
 `channel-pipeline.mjs` (env threading + generate-only hold path),
 `yt-daily.mjs` (resume-render / generate-only / candidates / write-back),
 `yt-deepdive.mjs` + `longvideo/shorts-clips.mjs` (write-back; doc candidates),
-`youtube-engine.mjs` (optional N-variant thumbnails), `lib/review-gate.mjs`
-(resume prefers the job's APPROVED row), `studio/lib/script-store.mjs`
-(`latestApprovedForJob`, `recordThumbCandidates`), template DATA
-(`review_thumb_pick: true` on the three finance templates — OQ-4 launch
-default).
+`youtube-engine.mjs` (optional N-variant thumbnails + the pure
+`thumbFrameOffset`), `lib/review-gate.mjs` (resume prefers the job's APPROVED
+row), `studio/lib/script-store.mjs` (`latestApprovedForJob`,
+`recordThumbCandidates`), template DATA (`review_thumb_pick: true` on the three
+finance templates — OQ-4 launch default). Round 1: the write-back fallback is
+slot-scoped (an unrelated approved script is never retired with another
+video's id); the normal render threads the candidate count (no dead emission);
+the PRIVATE candidate bytes are read only through the token-authenticated
+artifact store — which moved into the Next root
+(`studio/lib/artifact-store.mjs`; the repo-root `lib/artifact-store.mjs` is a
+re-export shim, the script-store split) so `GET /api/review/thumb` and the
+pick swap can hash-verify what they serve; `@vercel/blob` is now a studio
+dependency (it is resolved from the studio workspace at build and runtime).
 
 ### Row T5b-1 — Generate-only: a gated hold SAVES the script and renders nothing · `automated`
 
 - Steps: `node --test tests/review-seams.test.mjs` — the spawn-style cases "SEAM 1: gate hold no_approved_script" and the `saveGeneratedScript` unit cases.
-- Expected: the pipeline gate holding with `no_approved_script` runs the child lane once with `REVIEW_GENERATE_ONLY=1` + `REVIEW_SCRIPT_SLOT_DATE` + `PIPELINE_JOB_ID`; the child saves each surviving script as `awaiting_review` with the COMPLETE structured render input (hook/points/closing/thumbHeadline + seed/themes/publishAt, AC-P4-17) and exits 0 — no music, no TTS, no render, no upload, no production state write. A dup-blocked or fallback script is never saved. The job closes `held` with the generated-awaiting-review note.
+- Expected: the pipeline gate holding with `no_approved_script` runs the child lane once with `REVIEW_GENERATE_ONLY=1` + `REVIEW_SCRIPT_SLOT_DATE` + `PIPELINE_JOB_ID`; the child saves each surviving script as `awaiting_review` with the COMPLETE structured render input (hook/points/closing/thumbHeadline + seed/themes/publishAt, AC-P4-17) and exits 0 — no music, no TTS, no render, no upload. `lastRunDate` NEVER advances (an approval's resume must render today); the seed rotation DOES advance (usedTrendSeeds/cooldownSeeds — round 1: an unapproved channel diversifies nightly instead of re-proposing near-identical topics). A dup-blocked or fallback script is never saved. The job closes `held` with the generated-awaiting-review note.
 - Actual:
 - Evidence (quoted log/output):
 - Status:
 
 ### Row T5b-2 — Resume-from-approval renders the STORED input, zero generation calls · `automated`
 
-- Steps: `node --test tests/review-seams.test.mjs` — "RESUME consumes the STORED input (real yt-daily spawn, engine spied)". The REAL yt-daily runs with the script engine spied (the generator also THROWS if touched) and the script store faked to return the approved row.
-- Expected: exactly one render call whose input EQUALS the stored `full_render_input` (hook/points/closing/thumbHeadline), `thumbVariants` threaded from the candidates config, ZERO `generateYouTubeScript` calls, the upload refused at the validation gate (fake bytes) leaving the script APPROVED (never prematurely consumed), exit 1 with the refusal logged. A store read error or a missing approved row also refuses — the child never falls back to generating (fail-closed, D4).
+- Steps: `node --test tests/review-seams.test.mjs` — "RESUME consumes the STORED input (real yt-daily spawn, engine spied)" plus the round-1 spawn case "a SCHEDULED run whose slot lookup finds an APPROVED script threads the stored-script job". The REAL yt-daily runs with the script engine spied (the generator also THROWS if touched) and the script store faked to return the approved row.
+- Expected: exactly one render call whose input EQUALS the stored `full_render_input` (hook/points/closing/thumbHeadline), `thumbVariants` threaded from the candidates config, ZERO `generateYouTubeScript` calls, the upload refused at the validation gate (fake bytes) leaving the script APPROVED (never prematurely consumed), exit 1 with the refusal logged. A store read error or a missing approved row also refuses — the child never falls back to generating (fail-closed, D4). A plain scheduled run (no `--resume`) whose gate finds an approved script threads `PIPELINE_RESUME_JOB_ID` from the gate's script — the stored text ships, never a fresh generation (round 1). If no future slot remains today, the AC-P4-19 skip is taken BEFORE any render spend and the script STAYS approved.
 - Actual:
 - Evidence (quoted log/output):
 - Status:
 
 ### Row T5b-3 — markConsumed + video_id write-back (D14 SEAM 3) · `automated`
 
-- Steps: `node --test tests/review-seams.test.mjs` (writeBackVideoId cases) and `tests/script-store.test.mjs` (the store's consume path).
-- Expected: every lane's post-upload success path (yt-daily shorts, yt-deepdive doc, shorts-clips post-next) calls the write-back: the job-linked approved script retires to `consumed` with the videoId; with no job linkage it falls back to the channel's latest approved; a kind mismatch never stamps across lanes; a null store / no rows / consumed-already / dead DB are silent no-ops (the legacy path's log is unchanged). On the resume path the script is consumed by id AFTER the videoId lands.
+- Steps: `node --test tests/review-seams.test.mjs` (writeBackVideoId cases incl. the round-1 interleaving) and `tests/script-store.test.mjs` (the store's consume path).
+- Expected: every lane's post-upload success path (yt-daily shorts, yt-deepdive doc, shorts-clips post-next) calls the write-back: the job-linked approved script retires to `consumed` with the videoId. Round 1: the channel-latest-approved FALLBACK is slot-scoped — it consumes only a same-slot (`slot_date === slotDate`) or same-job row, so an unrelated approved script A is never retired with an unreviewed B's videoId (the exact interleaving is unit-pinned: A approved → render refused → normal dispatch ships B → A must stay approved and shippable, and the S5 win-rate join stays true). A kind mismatch never stamps across lanes; a null store / no rows / consumed-already / dead DB are silent no-ops (the legacy path's log is unchanged). On the resume path the script is consumed by id AFTER the videoId lands.
 - Actual:
 - Evidence (quoted log/output):
 - Status:
 
 ### Row T5b-4 — Thumbnail candidates: 3 when the template enables picking, 1 when not (AC-P4-23) · `automated`
 
-- Steps: `node --test tests/review-seams.test.mjs` (thumbCandidateCount + emitThumbCandidates cases, and the spawn cases "SEAM 2 ... / SEAM 2 negative"); `node --test tests/script-store.test.mjs` (recordThumbCandidates).
-- Expected: the count is template DATA (`review_thumb_pick` on the registry meta — finance templates launch ON per OQ-4): the gate threads `REVIEW_THUMB_CANDIDATES=3` onto the child only when the assigned template enables it; the render emits 3 staggered variants (candidate 1 keeps the exact legacy frame and ships — M7); variants land as `thumb_candidate` artifact bytes + job index rows and (where a script row exists) `meta.thumb_candidates [{idx,url}]` — the exact shape `/api/review GET?id=` serves and `/review` renders. Where picking is not enabled the single-candidate path is byte-identical.
+- Steps: `node --test tests/review-seams.test.mjs` (thumbCandidateCount + emitThumbCandidates + `thumbFrameOffset` cases, the spawn cases "SEAM 2 ... / SEAM 2 negative", and the round-1 source pin that the NORMAL render threads `{ thumbVariants }`); `node --test tests/script-store.test.mjs` (recordThumbCandidates).
+- Expected: the count is template DATA (`review_thumb_pick` on the registry meta — finance templates launch ON per OQ-4): the gate threads `REVIEW_THUMB_CANDIDATES=3` onto the child only when the assigned template enables it; EVERY render on that channel (normal and resumed) emits 3 staggered variants — candidate 1 keeps the exact LEGACY +3s frame offset (pure `thumbFrameOffset(0) === 3`, pinned) and ships (M7). Variants land as `thumb_candidate` artifact bytes + job index rows and (where a script row exists) `meta.thumb_candidates [{idx,url,hash}]`. The PRIVATE store's bytes are read only through the token-authenticated primitive: `GET /api/review/thumb?id&idx` (owner+staff) resolves the URL from the script meta SERVER-SIDE (never a client URL — open-proxy guard), hash-verifies, and serves image/jpeg — `/review`'s `<img>` points there (raw blob URLs 401 in a browser), and the pick swap reads the same bytes. Where picking is not enabled the single-candidate path is byte-identical.
 - Actual:
 - Evidence (quoted log/output):
 - Status:

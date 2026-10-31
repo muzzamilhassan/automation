@@ -14,13 +14,21 @@
 //       four official categories must be answered or approval is refused.
 //   POST  /api/review { action: 'reject', id, note }               → owner-only.
 //   POST  /api/review { action: 'redispatch', id }                 → owner-only.
+//   GET  /api/review/thumb?id=<uuid>&idx=<n>  → owner+staff. The candidate's
+//       bytes from the PRIVATE artifact store, resolved from the script row's
+//       meta SERVER-SIDE (a raw client URL is never fetched — open-proxy
+//       guard) and hash-verified before serving image/jpeg. /review's <img>
+//       points here: private-store blob URLs need the token-authenticated
+//       read, which a browser <img> cannot do.
 //   POST  /api/review { action: 'pick-thumb', id, candidate }      → owner-only.
 //       D18 post-upload swap: applies (thumbnails.set) before publishAt,
-//       recorded-only after; unpicked = candidate 1 (M7).
+//       recorded-only after; unpicked = candidate 1 (M7). The candidate bytes
+//       are read through the same token-authenticated primitive.
 import { getUser, requireRole } from '@/lib/route-auth';
 import { db, dbReady } from '@/lib/db.mjs';
 import { adaptPostgres } from '@/lib/provider-routing';
 import { makeScriptStore } from '@/lib/script-store.mjs';
+import { makeArtifactStore } from '@/lib/artifact-store.mjs';
 import { makeWarningsStore, emitWarning } from '@/lib/warnings-store.mjs';
 import { ENV } from '@/lib/data.mjs';
 import { appendAudit } from '@/lib/audit';
@@ -71,7 +79,29 @@ export async function GET(req) {
   if (!user || !['owner', 'staff'].includes(user.role)) return Response.json({ error: 'not signed in' }, { status: 401 });
   if (!dbReady) return Response.json({ scripts: [], error: 'db unavailable' });
   const s = store();
-  const id = new URL(req.url).searchParams.get('id');
+  const url = new URL(req.url);
+  const id = url.searchParams.get('id');
+
+  // T5b round 1: the thumbnail-candidate bytes. The URL/hash come from the
+  // SCRIPT ROW's meta (server-side) — the client only names id+idx, never a
+  // URL (a raw client URL would make this an open proxy for the artifact
+  // store). PRIVATE store: the token-authenticated getBytes is the only read.
+  if (url.searchParams.get('thumb') === '1') {
+    if (!id) return Response.json({ error: 'id required' }, { status: 400 });
+    const idx = Number(url.searchParams.get('idx'));
+    const g = await s.getScript(id);
+    if (!g.ok) return Response.json({ error: g.error }, { status: 503 });
+    if (!g.script) return Response.json({ error: 'not found' }, { status: 404 });
+    const meta = parseRenderInput(g.script.meta) || {};
+    const candidate = (meta.thumb_candidates || []).find((c) => Number(c.idx) === idx);
+    if (!candidate?.url) return Response.json({ error: 'candidate not found' }, { status: 404 });
+    const got = await makeArtifactStore().getBytes(candidate.url, { expectedHash: candidate.hash || undefined });
+    if (!got.ok) return Response.json({ error: `candidate bytes unreadable: ${got.error}` }, { status: 404 });
+    return new Response(new Uint8Array(got.bytes), {
+      headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=3600' },
+    });
+  }
+
   if (id) {
     const g = await s.getScript(id);
     if (!g.ok) return Response.json({ error: g.error }, { status: 503 });
@@ -182,12 +212,14 @@ export async function POST(req) {
       try {
         const accessToken = createAccessToken({ fetchImpl: fetch });
         const token = await accessToken(g.script.channel_id);
-        const img = await fetch(candidate.url);
-        if (!img.ok) throw new Error(`candidate fetch HTTP ${img.status}`);
-        const bytes = Buffer.from(await img.arrayBuffer());
+        // T5b round 1: the PRIVATE artifact store's bytes come through the
+        // token-authenticated primitive (hash-verified) — a plain fetch of the
+        // blob URL gets a 401, and fetching an arbitrary URL would be a proxy.
+        const got = await makeArtifactStore().getBytes(candidate.url, { expectedHash: candidate.hash || undefined });
+        if (!got.ok) throw new Error(`candidate bytes unreadable: ${got.error}`);
         const setRes = await fetch(
           `https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=${encodeURIComponent(g.script.video_id)}`,
-          { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/octet-stream' }, body: bytes },
+          { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/octet-stream' }, body: new Uint8Array(got.bytes) },
         );
         if (!setRes.ok) throw new Error(`thumbnails.set HTTP ${setRes.status}`);
         applied = true;

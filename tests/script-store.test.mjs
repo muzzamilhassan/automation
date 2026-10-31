@@ -395,7 +395,11 @@ describe('#106 T5b script store — latestApprovedForJob + recordThumbCandidates
     const r = await store.recordThumbCandidates(id, [{ idx: 1, url: 'u1' }, { idx: 2, url: 'u2' }, { idx: 3, url: null }]);
     assert.equal(r.ok, true);
     const meta = JSON.parse(db.tables.scripts.find((x) => x.id === id).meta);
-    assert.deepEqual(meta.thumb_candidates, [{ idx: 1, url: 'u1' }, { idx: 2, url: 'u2' }, { idx: 3, url: null }]);
+    assert.deepEqual(meta.thumb_candidates, [
+      { idx: 1, url: 'u1', hash: null },
+      { idx: 2, url: 'u2', hash: null },
+      { idx: 3, url: null, hash: null },
+    ], 'the hash rides for the /api/review/thumb route\'s byte verification');
     const empty = await store.recordThumbCandidates(id, []);
     assert.equal(empty.ok, false, 'an empty candidate list is a caller bug, not a wipe');
   });
