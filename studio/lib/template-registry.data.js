@@ -107,7 +107,7 @@ export const REGISTRY_META = {
   // + unassign debt-free-doctrine. NOT a production template.
   'beat-synced-type': {
     version: '1.0.0',
-    niches: ['Personal finance rules & money habits'],
+    niches: ['Old money habits & quiet wealth'],
     formats: ['long'],
     renderer: 'remotion',
     required_capabilities: ['script-gen', 'tts', 'captions'],
