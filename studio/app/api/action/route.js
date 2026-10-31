@@ -12,14 +12,14 @@ export const dynamic = 'force-dynamic';
 const REPO = ENV.GITHUB_REPO || 'muzzamilhassan/automation';
 const TOKEN = ENV.GITHUB_TOKEN || ENV.GITHUB_PAT || '';
 
-const SLUGS = ['quotequarry', 'investors-compass', 'money-rulebook', 'debt-free-doctrine'];
-
-// action (+ optional slug) → workflow file + inputs
+// action (+ optional slug) → workflow file + inputs. yt-daily/deepdive run the
+// GENERIC autopilot for EVERY channel — the per-channel legacy workflows were
+// deleted in a1ebac4 (#77), so dispatching them was a guaranteed GitHub 404.
 const MAP = {
-  'yt-daily': (slug) => ({ workflow: `channel-${slug}.yml`, inputs: {} }),
-  'deepdive': (slug) => ({ workflow: `channel-${slug}.yml`, inputs: {} }), // episodes follow docDay inside the channel run; legacy uploader disabled 10-05
+  'yt-daily': (slug) => ({ workflow: 'channel-autopilot.yml', inputs: { channel: slug }, channelRun: true }),
+  'deepdive': (slug) => ({ workflow: 'channel-autopilot.yml', inputs: { channel: slug }, channelRun: true }), // episodes follow docDay inside the channel run; legacy uploader disabled 10-05
   'ig-crosspost': () => ({ workflow: 'ig-slot-poster.yml', inputs: {} }),
-  'tiktok': () => ({ workflow: 'tiktok-post.yml', inputs: {} }),
+  'tiktok': () => ({ retired: true }), // the workflow was deleted; the button answers a clean 400 instead of a GitHub 404
   'fb-crosspost': () => ({ workflow: 'fb-now.yml', inputs: { job: 'reels' } }),
   'fb-images': () => ({ workflow: 'fb-now.yml', inputs: { job: 'posters' } }),
 };
@@ -49,23 +49,25 @@ export async function POST(req) {
   if (!TOKEN) return Response.json({ error: 'server has no GITHUB_TOKEN' }, { status: 500 });
   await appendAudit(actor, 'produce', `${body.action}${slug ? ' · ' + slug : ''}`);
 
-  // 10-08 CHANNEL FACTORY: wizard channels dispatch the generic autopilot
-  // workflow with a channel input; legacy 4 keep their own workflows. The
-  // episode buttons now dispatch the CHANNEL run (episodes follow docDay).
-  let workflow, inputs;
-  if ((body.action === 'yt-daily' || body.action === 'deepdive') && !SLUGS.includes(slug)) {
+  // 10-31 T1a (#106): ONE target for the run buttons — channel-autopilot.yml
+  // for EVERY channel (legacy 4 + wizard alike). Registry membership stays as
+  // the unknown-slug guard, now enforced for every channel; body.topup
+  // (positive integer) heals N slots through the autopilot's topup input.
+  const spec = fn(slug);
+  if (spec.retired) return Response.json({ error: 'workflow retired' }, { status: 400 });
+  if (spec.channelRun) {
     const inRegistry = await registryChannels()
       .then((l) => l.some((c) => c.slug === slug))
       .catch(() => false);
     if (!inRegistry) return Response.json({ error: 'unknown channel' }, { status: 400 });
-    workflow = 'channel-autopilot.yml';
-    inputs = { channel: slug };
-  } else {
-    if (['yt-daily', 'deepdive'].includes(body.action) && !SLUGS.includes(slug)) {
-      return Response.json({ error: 'unknown channel' }, { status: 400 });
+    if (body.topup != null) {
+      if (!Number.isInteger(body.topup) || body.topup < 1) {
+        return Response.json({ error: 'topup must be a positive integer' }, { status: 400 });
+      }
+      spec.inputs.topup = String(body.topup);
     }
-    ({ workflow, inputs } = fn(slug));
   }
+  const { workflow, inputs } = spec;
   const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${workflow}/dispatches`, {
     method: 'POST',
     headers: {
