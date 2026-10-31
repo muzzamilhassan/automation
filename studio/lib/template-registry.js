@@ -6,7 +6,7 @@ const SEMVER_RE = /^\d+\.\d+\.\d+$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const ALLOWED_FORMATS = ['short', 'long'];
 const ALLOWED_CAPABILITIES = ['script-gen', 'tts', 'captions', 'image-gen'];
-const ALLOWED_REVIEW_REQUIRED = ['health', 'finance', 'all'];
+const ALLOWED_REVIEW_REQUIRED = ['health', 'finance', 'medical', 'all']; // 'medical' per D17 (Phase 4 review gate — health/medical YMYL lane)
 
 /**
  * Pipeline-truth capability baseline (Phase 1): what the production pipeline
