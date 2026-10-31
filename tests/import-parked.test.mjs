@@ -10,6 +10,8 @@ import {
   identifyChannel,
   buildRegistryEntry,
   renderSummaryTable,
+  fatalLog,
+  main,
 } from '../scripts/import-parked-channels.mjs';
 
 // ---------------------------------------------------------------------------
@@ -56,11 +58,12 @@ function fakeRegistry(initial = []) {
   };
 }
 
-function harness({ slugs = THREE, dry, initialRegistry = [], skipRefresh = new Set(), failRefresh = new Set(), missingFiles = new Set(), yutuShape = new Set(), secretFails = new Set(), identify } = {}) {
+function harness({ slugs = THREE, dry, initialRegistry = [], skipRefresh = new Set(), failRefresh = new Set(), missingFiles = new Set(), yutuShape = new Set(), secretFails = new Set(), identify, registryReadFails = false } = {}) {
   const lines = [];
   const secretCalls = [];
   const localWrites = [];
   const registry = fakeRegistry(initialRegistry);
+  if (registryReadFails) registry.read = async () => { throw new Error('db down'); };
   const tokens = {};
   for (const slug of slugs) {
     if (missingFiles.has(slug)) continue;
@@ -179,6 +182,21 @@ describe('import-parked T2 — token refresh reuses createAccessToken', () => {
     assert.equal(calls[0].opts.body.get('grant_type'), 'refresh_token');
   });
 
+  test('makeRefresh resets the response capture per call (no stale verdict/expiry attribution)', async () => {
+    let n = 0;
+    const fetchImpl = async () => {
+      n += 1;
+      const body = n === 1 ? { access_token: 'at-1', expires_in: 1000 } : { access_token: 'at-2' };
+      return { ok: true, status: 200, text: async () => JSON.stringify(body), json: async () => body };
+    };
+    const refresh = await makeRefresh({ env: { YOUTUBE_CLIENT_ID: 'cid', YOUTUBE_CLIENT_SECRET: 'csec' }, fetchImpl });
+    const first = await refresh('ai-observer', { refresh_token: 'rt-a' });
+    assert.equal(first.expiresIn, 1000);
+    const second = await refresh('closing-table', { refresh_token: 'rt-b' });
+    assert.equal(second.expiresIn, 0, 'call 2 must not inherit call 1\'s expires_in');
+    assert.equal(second.accessToken, 'at-2');
+  });
+
   test('makeRefresh surfaces refresh failures (dead refresh_token) as throwables for the skip path', async () => {
     const fetchImpl = async () => ({
       ok: true,
@@ -266,16 +284,16 @@ describe('import-parked T2 — registry entry contract', () => {
     assert.equal(e.accent, '#38BDF8');
   });
 
-  test('re-run over an existing row: update-in-place — consent fields + owner-set niche/kit survive, autopilot true is preserved (never disabled)', () => {
+  test('re-run over an existing row (same channelId — drift is guarded upstream): consent fields + owner-set niche/kit survive, autopilot true is preserved (never disabled)', () => {
     const existing = {
-      slug: 'ai-observer', label: 'Old Label', channelId: 'UC-old', handle: '@old', subs: 3,
+      slug: 'ai-observer', label: 'Old Label', channelId: 'UC-1', handle: '@old', subs: 3,
       niche: 'owner niche', kit: { niches: ['x'] }, accent: '#FF0000', slots: ['14:00'],
       autopilot: true, autopilotStartedAt: '2026-02-02T00:00:00.000Z', connectedAt: '2026-01-01T00:00:00.000Z',
       consent: { at: 'yes' }, consentedAt: '2026-02-02T00:00:00.000Z', status: 'autopilot on', ownerEmail: 'owner@test',
     };
     const e = buildRegistryEntry({
       slug: 'ai-observer',
-      identity: { channelId: 'UC-new', title: 'AI Observer', handle: '@aiobserver', subs: 12 },
+      identity: { channelId: 'UC-1', title: 'AI Observer', handle: '@aiobserver', subs: 12 },
       tokenEncStr: 'enc:9',
       secretName: 'YT_TOKEN_AI_OBSERVER',
       existing,
@@ -292,7 +310,7 @@ describe('import-parked T2 — registry entry contract', () => {
     assert.deepEqual(e.slots, ['14:00']);
     assert.equal(e.ownerEmail, 'owner@test');
     assert.equal(e.status, 'autopilot on', 'owner-facing status survives');
-    assert.equal(e.channelId, 'UC-new', 'identity fields refresh');
+    assert.equal(e.channelId, 'UC-1', 'identity unchanged — a channelId CHANGE is identity drift and skips upstream');
     assert.equal(e.label, 'AI Observer', 'label follows the identified YouTube title');
     assert.equal(e.subs, 12);
   });
@@ -395,7 +413,7 @@ describe('import-parked T2 — LIVE: the full bring-into-panel flow', () => {
 
   test('idempotent re-run: existing row is updated in place — still exactly one row for the slug', async () => {
     const existing = {
-      slug: 'ai-observer', label: 'Old Label', channelId: 'UC-old', subs: 3,
+      slug: 'ai-observer', label: 'Old Label', channelId: 'UC-ai-observer', subs: 3,
       niche: 'pre-set', autopilot: true, connectedAt: '2026-01-01T00:00:00.000Z',
       consentedAt: '2026-02-02T00:00:00.000Z', consent: { at: 'yes' }, status: 'autopilot on',
     };
@@ -408,9 +426,82 @@ describe('import-parked T2 — LIVE: the full bring-into-panel flow', () => {
     assert.equal(rows[0].autopilot, true, 're-run must not flip owner consent off');
     assert.equal(rows[0].connectedAt, '2026-01-01T00:00:00.000Z');
     assert.equal(rows[0].niche, 'pre-set');
-    assert.equal(rows[0].channelId, 'UC-ai-observer', 'identity refreshed');
+    assert.equal(rows[0].channelId, 'UC-ai-observer', 'same channel identity — update in place');
     const live = res.results.find((r) => r.slug === 'ai-observer');
     assert.equal(live.registryAction, 'update');
+  });
+
+  test('IDENTITY DRIFT: a slug whose existing row points at a DIFFERENT channelId is hard-skipped — consent cannot cross an identity change', async () => {
+    // a mislabeled folder holding a fresh grant for a DIFFERENT never-consented
+    // channel must NOT re-point the row while autopilot/consent stay true
+    const existing = {
+      slug: 'ai-observer', label: 'Old Label', channelId: 'UC-DEAD-OTHER', autopilot: true,
+      autopilotStartedAt: '2026-02-02T00:00:00.000Z', consentedAt: '2026-02-02T00:00:00.000Z', consent: { at: 'yes' },
+    };
+    const h = harness({ dry: false, slugs: ['ai-observer', 'closing-table'], initialRegistry: [existing] });
+    const res = await runImport(h.opts);
+    assert.equal(res.exitCode, 0, 'a drift skip is not a hard failure');
+    const drift = res.results.find((r) => r.slug === 'ai-observer');
+    assert.equal(drift.outcome, 'skipped');
+    assert.match(drift.reason, /identity_drift/);
+    assert.match(drift.reason, /consent .* cannot cross|per-channel/);
+    assert.equal(h.secretCalls.filter((c) => c.name === 'YT_TOKEN_AI_OBSERVER').length, 0, 'no secret rewrite for a drifted identity');
+    assert.equal(h.registry.upserts.filter((e) => e.slug === 'ai-observer').length, 0, 'no registry re-point');
+    assert.equal(h.localWrites.filter((w) => w.slug === 'ai-observer').length, 0, 'token file left untouched');
+    const row = h.registry.channels.find((c) => c.slug === 'ai-observer');
+    assert.equal(row.channelId, 'UC-DEAD-OTHER', 'the existing row keeps its identity');
+    assert.equal(row.autopilot, true, 'the existing row keeps its consent untouched');
+    assert.ok(res.results.find((r) => r.slug === 'closing-table').outcome === 'ok', 'the other channel still imports');
+    assert.match(h.lines.join('\n'), /identity_drift/);
+  });
+
+  test('identity drift also fires in dry (planned-skip, still nothing written)', async () => {
+    const existing = { slug: 'ai-observer', channelId: 'UC-DEAD-OTHER', autopilot: true };
+    const h = harness({ slugs: ['ai-observer'], initialRegistry: [existing] }); // dry default
+    const res = await runImport(h.opts);
+    assert.equal(res.results[0].outcome, 'planned-skip');
+    assert.match(res.results[0].reason, /identity_drift/);
+    assert.equal(h.secretCalls.length + h.registry.upserts.length + h.localWrites.length, 0);
+  });
+
+  test('LIVE + registry read failure is FAIL-CLOSED: runImport throws before any per-channel work', async () => {
+    const h = harness({ dry: false, slugs: THREE, registryReadFails: true });
+    await assert.rejects(
+      () => runImport(h.opts),
+      /registry read failed/,
+      'live must refuse to run blind — a fresh-vs-existing misread would clobber autopilot/niche/kit',
+    );
+    assert.equal(h.secretCalls.length, 0, 'no secrets written');
+    assert.equal(h.registry.upserts.length, 0, 'no registry writes');
+    assert.equal(h.localWrites.length, 0, 'no local writes');
+  });
+
+  test('dry + registry read failure stays fail-open (a plan may run without the registry; it writes nothing)', async () => {
+    const h = harness({ slugs: THREE, registryReadFails: true });
+    const res = await runImport(h.opts);
+    assert.equal(res.exitCode, 0);
+    assert.ok(res.results.every((r) => r.outcome === 'planned'));
+    assert.equal(h.secretCalls.length + h.registry.upserts.length + h.localWrites.length, 0);
+  });
+
+  test('in-run duplicate: two folders whose tokens identify the SAME channel — the second is skipped, the first imported', async () => {
+    const h = harness({
+      dry: false,
+      slugs: ['ai-observer', 'closing-table'],
+      identify: async (at) => {
+        const slug = String(at).replace('at-new-', '');
+        return { channelId: 'UC-SAME-CHANNEL', title: TITLES[slug] || slug, handle: '@' + slug, subs: 11 };
+      },
+    });
+    const res = await runImport(h.opts);
+    assert.equal(res.exitCode, 0);
+    const first = res.results.find((r) => r.slug === 'ai-observer');
+    const second = res.results.find((r) => r.slug === 'closing-table');
+    assert.equal(first.outcome, 'ok');
+    assert.equal(second.outcome, 'skipped');
+    assert.match(second.reason, /already registered as slug "ai-observer" \(imported earlier in this run\)/);
+    assert.equal(h.registry.upserts.filter((e) => e.slug === 'closing-table').length, 0, 'no second registry row for the same channel');
+    assert.equal(h.secretCalls.filter((c) => c.name === 'YT_TOKEN_CLOSING_TABLE').length, 0, 'no second secret for the same channel');
   });
 
   test('per-channel isolation: a hard failure on one channel never stops the others (exit 1)', async () => {
@@ -465,9 +556,9 @@ describe('import-parked T2 — LIVE: the full bring-into-panel flow', () => {
     assert.equal(h.registry.channels.filter((c) => c.slug === 'investors-compass').length, 1, 'the existing row is untouched');
   });
 
-  test('duplicate identity is also caught by HANDLE when the existing row lacks channelId (repo-JSON rows)', async () => {
+  test('duplicate identity is also caught by HANDLE (leading @ stripped on BOTH sides) when the existing row lacks channelId (repo-JSON rows)', async () => {
     // dry reads the repo registry JSON — legacy rows there carry handle but no channelId
-    const existing = { slug: 'investors-compass', label: "Investor's Compass", handle: '@investorscompasshq', autopilot: true };
+    const existing = { slug: 'investors-compass', label: "Investor's Compass", handle: 'investorscompasshq', autopilot: true };
     const h = harness({
       slugs: ['escrow-estate'], initialRegistry: [existing], // dry default
       identify: async () => ({ channelId: 'UC2LLA-REAL', title: "Investor's Compass", handle: '@investorscompasshq', subs: 9 }),
@@ -480,7 +571,7 @@ describe('import-parked T2 — LIVE: the full bring-into-panel flow', () => {
   });
 
   test('same-slug re-run is NOT treated as a duplicate (update-in-place wins over the collision guard)', async () => {
-    const existing = { slug: 'ai-observer', label: 'Old', channelId: 'UC-old', autopilot: true };
+    const existing = { slug: 'ai-observer', label: 'Old', channelId: 'UC-ai-observer', autopilot: true };
     const h = harness({ dry: false, slugs: ['ai-observer'], initialRegistry: [existing] });
     const res = await runImport(h.opts);
     assert.equal(res.results[0].outcome, 'ok');
@@ -496,5 +587,58 @@ describe('import-parked T2 — LIVE: the full bring-into-panel flow', () => {
     assert.match(text, /AI Observer/);
     assert.match(text, /YT_TOKEN_AI_OBSERVER/);
     assert.match(text, /refresh_failed/);
+  });
+
+  test('the fatal line passes the redactor: token material touched by the run never reaches an uncaught stack', async () => {
+    const h = harness({ slugs: ['ai-observer'] }); // dry default — still remembers the folder's tokens
+    await runImport(h.opts);
+    const line = fatalLog(new Error('boom at rt-ai-observer and at-new-ai-observer'));
+    assert.match(line, /^\[import-parked\] fatal: /);
+    assert.ok(!line.includes('rt-ai-observer'), 'refresh token leaked into the fatal line');
+    assert.ok(!line.includes('at-new-ai-observer'), 'access token leaked into the fatal line');
+    assert.match(line, /\[REDACTED\]/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F. main() wiring — dry exits 0 and NEVER imports the write paths
+// (hermetic child process: fetch stubbed, env stubbed, module tracker via
+// registerHooks — the review-gate loader pattern)
+// ---------------------------------------------------------------------------
+
+describe('import-parked T2 — main() wiring (dry never imports channels-registry)', () => {
+  test("main(['--dry']) exits 0 planning from the real local token files, without importing channels-registry", async () => {
+    const child = [
+      "import { registerHooks } from 'node:module';",
+      'const seen = [];',
+      'registerHooks({ resolve(spec, ctx, next) { const r = next(spec, ctx); if (r && r.url) seen.push(r.url); return r; } });',
+      'globalThis.fetch = async (url) => {',
+      '  const u = String(url);',
+      "  if (u.startsWith('https://oauth2.googleapis.com/token')) { const body = { access_token: 'at-child', expires_in: 999 }; return { ok: true, status: 200, text: async () => JSON.stringify(body), json: async () => body }; }",
+      "  if (u.startsWith('https://www.googleapis.com/youtube/v3/channels')) { return { ok: true, status: 200, json: async () => ({ items: [{ id: 'UC-CHILD', snippet: { title: 'Child Fixture', customUrl: '@childfixture' }, statistics: { subscriberCount: '5' } }] }) }; }",
+      "  throw new Error('unexpected fetch in main child: ' + u);",
+      '};',
+      "const { pathToFileURL } = await import('node:url');",
+      'const mod = await import(pathToFileURL(process.env.CHILD_SCRIPT).href);',
+      "process.env.YOUTUBE_CLIENT_ID = 'test-cid';",
+      "process.env.YOUTUBE_CLIENT_SECRET = 'test-csec';",
+      "const code = await mod.main(['--dry']);",
+      "console.log('CODE=' + code);",
+      "console.log('YTTOKEN_SEAM=' + seen.some((u) => u.endsWith('/studio/lib/yt-token.mjs')));",
+      "console.log('REGISTRY_IMPORTED=' + seen.some((u) => u.endsWith('/studio/lib/channels-registry.js')));",
+    ].join('\n');
+    const { spawnSync } = await import('node:child_process');
+    const { fileURLToPath } = await import('node:url');
+    const scriptPath = fileURLToPath(new URL('../scripts/import-parked-channels.mjs', import.meta.url));
+    const root = fileURLToPath(new URL('..', import.meta.url));
+    const run = spawnSync(process.execPath, ['--input-type=module', '-e', child], {
+      cwd: root,
+      encoding: 'utf8',
+      env: { ...process.env, CHILD_SCRIPT: scriptPath },
+    });
+    assert.equal(run.status, 0, 'child exited 0 — stderr: ' + run.stderr);
+    assert.match(run.stdout, /CODE=0/, 'main(--dry) exits 0');
+    assert.match(run.stdout, /YTTOKEN_SEAM=true/, 'positive control: the tracker saw the refresh seam import');
+    assert.match(run.stdout, /REGISTRY_IMPORTED=false/, 'dry must never import channels-registry (the write paths)');
   });
 });

@@ -32,6 +32,16 @@
 //     connectedAt) survive a re-run. A token folder that turns out to belong
 //     to a channel ALREADY registered under another slug is skipped (no
 //     duplicate channel identity — surfaced by the first real dry run).
+//   - CONSENT CANNOT CROSS AN IDENTITY CHANGE: a slug whose existing row
+//     points at a DIFFERENT channelId is hard-skipped (identity_drift) —
+//     autopilot/consent are per-channelId, and re-pointing the row with
+//     consent still true would auto-upload to a channel nobody consented to.
+//   - LIVE FAILS CLOSED on an unreadable registry: the run aborts before any
+//     write (treating existing rows as fresh would clobber autopilot/niche/
+//     kit — only the consent trio + token_enc are COALESCEd upstream).
+//   - Label casing: the label is the identified YouTube title AS-IS (title
+//     case, matching the legacy-4 registry rows) — the wizard's toUpperCase()
+//     is deliberately not copied (documented divergence).
 //   - Token material is never logged — every output line passes a redactor.
 //
 // Usage: node scripts/import-parked-channels.mjs [--dry|--live] [--only=a,b,c]
@@ -46,6 +56,13 @@ const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const CHANNELS_LIST = 'https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true';
 
 // The parked set (Phase 4.5 investigation): local token present, nothing else.
+// NO-STATIC-MAPS DIRECTIVE (owner rule: channels scale with zero code changes;
+// brand specifics live in kit/registry data, never hardcoded maps) — this
+// allowlist is the deliberate exception, and ONLY because this is a ONE-SHOT
+// migration tool whose safety depends on it: an unknown yt-mcp/channels/<slug>/
+// folder must never be auto-imported as a side effect of listing directories.
+// Filesystem discovery stays the norm everywhere else (analytics-nightly,
+// upload-reconcile); --only=a,b,c is the explicit escape hatch for other slugs.
 export const PARKED_SLUGS = [
   'ai-observer', 'closing-table', 'corner-office', 'deep-work-os', 'escrow-estate',
   'founders-margin', 'iron-discipline', 'longevity-code', 'old-money-code',
@@ -64,6 +81,16 @@ export function redact(text, secrets) {
     if (s && String(s).length >= 12) out = out.split(s).join('[REDACTED]');
   }
   return out;
+}
+
+// Every token string the run has touched — shared across runImport AND the
+// fatal handler, so even an uncaught stack passes the redactor (contract:
+// no token material on ANY output line, including the fatal one).
+const seenTokens = new Set();
+
+/** The fatal handler's one line — stack through the redactor. */
+export function fatalLog(e) {
+  return '[import-parked] fatal: ' + redact(String(e?.stack || e).slice(0, 400), seenTokens);
 }
 
 /**
@@ -175,6 +202,7 @@ export async function makeRefresh({ env, fetchImpl = fetch }) {
   });
   return async function refresh(slug, token) {
     pendingToken = token;
+    responses.length = 0; // reset the capture per call — a stale response must never attribute its verdict/expiry to THIS channel
     try {
       const accessToken = await accessTokenFor(slug);
       const resp = responses[responses.length - 1] || {};
@@ -231,7 +259,7 @@ export async function runImport(opts = {}) {
     if (!dep) throw new Error(`import-parked: missing injected dep "${name}" (fail-closed — never half-wired IO)`);
   }
 
-  const seen = new Set(); // token material for the redactor
+  const seen = seenTokens; // token material for the redactor (module-level: the fatal handler redacts against it too)
   const remember = (token) => {
     for (const s of [token?.access_token, token?.refresh_token]) {
       if (typeof s === 'string' && s.length >= 12) {
@@ -244,15 +272,21 @@ export async function runImport(opts = {}) {
 
   emit(`[import-parked] mode=${dry ? 'DRY (touches nothing — pass --live to write)' : 'LIVE (writes secrets, registry, local token files)'} channels=${slugs.length}`);
 
-  // existing-state detection (read-only; tolerated to fail — the plan then
-  // says "create" and the live upsert stays authoritative via ON CONFLICT)
+  // existing-state detection. LIVE FAILS CLOSED: an unreadable registry must
+  // not look like "no existing rows" — every upsert would then clobber owner
+  // state (autopilot/niche/kit; only the consent trio + token_enc COALESCE).
+  // Dry stays fail-open (a plan may run without the registry; it writes nothing).
   let regChannels = null;
   try {
     regChannels = (await registry.read())?.channels || [];
   } catch {
     regChannels = null;
   }
+  if (!dry && !regChannels) {
+    throw new Error('live import aborted: registry read failed — refusing to run blind over existing rows (a fresh-vs-existing misread would clobber autopilot/consent state). Fix the registry and re-run.');
+  }
 
+  const importedInRun = new Map(); // channelId -> slug, filled after each live upsert (in-run duplicate net)
   const results = [];
   for (const slug of slugs) {
     const row = {
@@ -291,27 +325,42 @@ export async function runImport(opts = {}) {
       row.title = identity.title;
       row.channelId = identity.channelId;
 
-      // duplicate-identity guard (surfaced by the first real dry run): a token
-      // folder can hold a SECOND grant for a channel the registry ALREADY has
-      // under another slug (e.g. escrow-estate/token.json belongs to investors-
-      // compass). Importing it would duplicate that channel — skip + report.
-      // Handle matching covers repo-JSON rows that carry no channelId (dry).
-      const duplicate = regChannels
-        ? regChannels.find((c) =>
-            c.slug !== slug &&
-            ((c.channelId && c.channelId === identity.channelId) ||
-              (c.handle && identity.handle && String(c.handle).toLowerCase() === identity.handle.toLowerCase())))
-        : null;
-      if (duplicate) {
+      const freshToken = freshLocalToken(file.token, { access_token: fresh.accessToken, expires_in: fresh.expiresIn }, now());
+      const existing = regChannels ? regChannels.find((c) => c.slug === slug) || null : null;
+      row.registryAction = dry ? (existing ? 'planned-update' : 'planned-create') : (existing ? 'update' : 'create');
+
+      // IDENTITY DRIFT (consent cannot cross an identity change): the existing
+      // row for THIS slug points at a DIFFERENT channelId. buildRegistryEntry
+      // would re-point the row while preserving autopilot/consent — auto-upload
+      // to a channel nobody consented to. Hard-skip, never write.
+      if (existing?.channelId && existing.channelId !== identity.channelId) {
         row.outcome = dry ? 'planned-skip' : 'skipped';
-        row.reason = `channelId_duplicate — ${identity.channelId} is already registered as slug "${duplicate.slug}" (likely a mislabeled token folder); import skipped, local token file left untouched`;
+        row.reason = `identity_drift — slug "${slug}" holds a dead grant for channelId ${existing.channelId}, not ${identity.channelId}; consent is per-channel and cannot cross an identity change — re-auth via the wizard (local token file left untouched)`;
         emit(`[import-parked] ${dry ? 'would-skip' : 'skip'} slug=${slug} reason=${row.reason}`);
         continue;
       }
 
-      const freshToken = freshLocalToken(file.token, { access_token: fresh.accessToken, expires_in: fresh.expiresIn }, now());
-      const existing = regChannels ? regChannels.find((c) => c.slug === slug) || null : null;
-      row.registryAction = dry ? (existing ? 'planned-update' : 'planned-create') : (existing ? 'update' : 'create');
+      // duplicate-identity guard (surfaced by the first real dry run): a token
+      // folder can hold a SECOND grant for a channel the registry ALREADY has
+      // under another slug (e.g. escrow-estate/token.json belongs to investors-
+      // compass), or a sibling folder earlier in THIS run already imported the
+      // same channel. Importing it would duplicate that channel — skip + report.
+      // Handle matching (leading @ stripped on BOTH sides) covers repo-JSON rows
+      // that carry no channelId (dry reads the repo file).
+      const normHandle = (h) => String(h || '').toLowerCase().replace(/^@+/, '');
+      const duplicate = regChannels
+        ? regChannels.find((c) =>
+            c.slug !== slug &&
+            ((c.channelId && c.channelId === identity.channelId) ||
+              (c.handle && identity.handle && normHandle(c.handle) === normHandle(identity.handle))))
+        : null;
+      const inRunSlug = importedInRun.get(identity.channelId);
+      if (duplicate || inRunSlug) {
+        row.outcome = dry ? 'planned-skip' : 'skipped';
+        row.reason = `channelId_duplicate — ${identity.channelId} is already registered as slug "${duplicate ? duplicate.slug : inRunSlug}"${inRunSlug ? ' (imported earlier in this run)' : ' (likely a mislabeled token folder)'}; import skipped, local token file left untouched`;
+        emit(`[import-parked] ${dry ? 'would-skip' : 'skip'} slug=${slug} reason=${row.reason}`);
+        continue;
+      }
 
       // (d) GitHub secret YT_TOKEN_<SLUG>
       if (!dry) await writeSecret(row.secret, JSON.stringify(freshToken, null, 2) + '\n');
@@ -326,6 +375,7 @@ export async function runImport(opts = {}) {
         nowIso: new Date(now()).toISOString(),
       });
       if (!dry) await registry.upsert(entry);
+      importedInRun.set(identity.channelId, slug); // in-run duplicate net for the next folder
 
       // (f) local token.json refresh — fresh access token + updated expiry,
       // the file's own shape; never deleted
@@ -444,7 +494,7 @@ if (isMain) {
   main().then(
     (code) => process.exit(code || 0),
     (e) => {
-      console.error(`[import-parked] fatal: ${String(e?.stack || e).slice(0, 400)}`);
+      console.error(fatalLog(e)); // the fatal line passes the redactor too
       process.exit(1);
     },
   );
