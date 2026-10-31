@@ -624,13 +624,17 @@ if (REVIEW_QUEUE_ENABLED) {
     } else {
       log(`[review] held — slot skipped today (${gate.reason}); approve at Studio > Review to resume at render (D17)`);
     }
-    const holdNote = generateOnly ? 'review hold: generated_awaiting_review' : `review hold: ${gate.reason}`;
+    // T5c round 1 (minor 4): the note is deliberately SOFT — the pipeline
+    // cannot see whether the child saved a survivor (store down / dup-block /
+    // pause guards all exit 0), so the terminal must not claim a generation
+    // that may not exist.
+    const holdNote = generateOnly ? 'review hold: generate-only run (scripts awaiting review where produced)' : `review hold: ${gate.reason}`;
     if (jobCtl?.id) {
       try {
         const { getJobStore } = await import('./lib/job-store.mjs');
         const jobs = await getJobStore();
         await jobs.recordStep(jobCtl.id, 90, 'review'); // idx 90: outside the planned range (PK job_id+idx)
-        await jobs.finishStep(jobCtl.id, 90, { status: 'skipped', error: `held: ${generateOnly ? 'generated_awaiting_review' : gate.reason}` });
+        await jobs.finishStep(jobCtl.id, 90, { status: 'skipped', error: `held: ${generateOnly ? 'generate-only' : gate.reason}` });
         await jobs.finishJob(jobCtl.id, { status: 'held', error: holdNote });
       } catch (e) {
         log(`[review] WARN hold recording degraded (non-fatal): ${String((e && e.message) || e).slice(0, 120)}`);

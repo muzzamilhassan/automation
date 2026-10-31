@@ -489,7 +489,7 @@ describe('#106 T5b — the pipeline threads the gate verdict to the child lanes 
     const held = r.spy.find((c) => c.mod === 'jobs' && c.fn === 'finishJob');
     assert.ok(held, 'the job closes');
     assert.equal(held.args.status, 'held', 'the held terminal stands');
-    assert.match(String(held.args.error || ''), /generated/, 'the terminal records the generated-awaiting-review outcome');
+    assert.match(String(held.args.error || ''), /generate-only/, 'the terminal records the generate-only run (softened: the pipeline cannot see whether the child saved)');
     assert.ok(r.spy.some((c) => c.mod === 'gate' && c.fn === 'evaluateReviewGate'), 'the gate was evaluated');
   });
 
@@ -800,7 +800,7 @@ describe('#106 T5c — the pipeline spawns the DOC lane generate-only on a clips
     const held = r.spy.find((c) => c.mod === 'jobs' && c.fn === 'finishJob');
     assert.ok(held, 'the job closes');
     assert.equal(held.args.status, 'held', 'the held terminal stands');
-    assert.match(String(held.args.error || ''), /generated/, 'the terminal records the generated-awaiting-review outcome');
+    assert.match(String(held.args.error || ''), /generate-only/, 'the terminal records the generate-only run (softened: the pipeline cannot see whether the child saved)');
   });
 
   test('SEAM 1 (doc) resume: --resume <held id> on a clips-source channel -> yt-deepdive receives PIPELINE_RESUME_JOB_ID (not generate-only)', () => {
@@ -910,6 +910,40 @@ const SPY_DOC_STORE_RESUME = [
   'export default getScriptStore;',
 ].join('\n');
 
+// T5c round 1 (BLOCKER 1): a dispatch for a SHORTS job reaches this lane via
+// the episode step's inherited resume env — the row is kind 'short' and must
+// never render or consume here.
+const SPY_DOC_STORE_SHORT_RESUME = [
+  "import { appendFileSync } from 'node:fs';",
+  'const LOG = process.env.PIPELINE_SPY_LOG;',
+  "function rec(fn, args) { try { appendFileSync(LOG, JSON.stringify({ mod: 'docstore', fn, args }) + '\\n'); } catch {} }",
+  'const ROW = {',
+  '  id: "short-approved-1", status: "approved", channel_id: "quotequarry", job_id: "held-job-short-1",',
+  '  kind: "short", slot_idx: 0, slot_date: "2026-10-30", title: "A short script",',
+  '  full_render_input: { hook: "short hook", points: [{ title: "T", line: "l" }], closing: "c", thumbHeadline: "H" },',
+  '};',
+  'const store = {',
+  '  async saveScript() { rec("saveScript", {}); throw new Error("SAVE FORBIDDEN"); },',
+  '  async latestApprovedForJob(jobId) { rec("latestApprovedForJob", { jobId }); return { ok: true, script: jobId === "held-job-short-1" ? ROW : null }; },',
+  '  async latestApproved() { rec("latestApproved", {}); return { ok: true, script: ROW }; },',
+  '  async markConsumed() { rec("markConsumed", {}); return { ok: true, id: "x" }; },',
+  '};',
+  "export async function getScriptStore() { rec('getScriptStore', {}); return store; }",
+  'export default getScriptStore;',
+].join('\n');
+
+// T5c round 1 (IMPORTANT 2): youtube-clips is seam-spied so the test can pin
+// that getTopicClip receives a TRUTHY page (the module referenced an undefined
+// `page()` since e7fb691 — the ReferenceError was swallowed per-chapter and
+// doc chapters silently never attached Pixabay b-roll).
+const SPY_DOC_CLIPS = [
+  "import { appendFileSync } from 'node:fs';",
+  'const LOG = process.env.PIPELINE_SPY_LOG;',
+  "function rec(fn, args) { try { appendFileSync(LOG, JSON.stringify({ mod: 'docclips', fn, args }) + '\\n'); } catch {} }",
+  'export async function getTopicClip(page, opts = {}) { rec("getTopicClip", { pageTruthy: !!page, id: page && page.id, headline: opts.headline }); return null; }',
+  'export default getTopicClip;',
+].join('\n');
+
 const SPY_DOC_MUSIC = [
   "import { appendFileSync } from 'node:fs';",
   'const LOG = process.env.PIPELINE_SPY_LOG;',
@@ -1007,6 +1041,7 @@ function docChildLoaderSource(sandboxHref, extraBare = {}) {
     '  "dup-gate.mjs": SANDBOX + "/spy-doc-dupgate.mjs",',
     '  "upload-intents.mjs": SANDBOX + "/spy-doc-intents.mjs",',
     '  "googleapis": SANDBOX + "/spy-doc-google.mjs",',
+    '  "youtube-clips.mjs": SANDBOX + "/spy-doc-clips.mjs",',
     '  "node:child_process": SANDBOX + "/spy-doc-cp.mjs",',
     '};',
     'registerHooks({',
@@ -1041,7 +1076,7 @@ function runYtDeepdive({ env = {}, engine, store, intents } = {}) {
     for (const [name, src] of [
       ['spy-doc-engine.mjs', engine], ['spy-doc-store.mjs', store], ['spy-doc-music.mjs', SPY_DOC_MUSIC],
       ['spy-doc-trend.mjs', SPY_DOC_TREND], ['spy-doc-dupgate.mjs', SPY_DOC_DUPGATE],
-      ['spy-doc-intents.mjs', intents], ['spy-doc-google.mjs', SPY_GOOGLE], ['spy-doc-cp.mjs', SPY_DOC_CP],
+      ['spy-doc-intents.mjs', intents], ['spy-doc-google.mjs', SPY_GOOGLE], ['spy-doc-cp.mjs', SPY_DOC_CP], ['spy-doc-clips.mjs', SPY_DOC_CLIPS],
     ]) {
       let out = src;
       if (name === 'spy-doc-intents.mjs') {
@@ -1135,6 +1170,15 @@ describe('#106 T5c — GENERATE-ONLY saves the doc awaiting_review, zero render 
     assert.equal(r.spy.filter((c) => c.mod === 'docstore' && c.fn === 'saveScript').length, 0, 'a BLOCKED generation never becomes awaiting_review');
     assert.equal(r.spy.filter((c) => c.mod === 'doccp' && c.fn === 'execFileSync').length, 0, 'no render spend after a blocked walk');
   });
+
+  test('round 1 minor 3: a DUP-BLOCKED generate-only exit still advances the seed rotation (a gated clips channel never re-derives the same theme nightly)', () => {
+    const r = runYtDeepdive({ env: { ...DOC_GEN_ENV, T5C_DUP_HIT: '1' }, engine: SPY_DOC_ENGINE_GEN, store: SPY_DOC_STORE_GEN, intents: SPY_DOC_INTENTS_GEN });
+    assert.equal(r.status, 0, 'a dup-blocked hold exits 0 (nothing to review is not a failure)');
+    assert.equal(r.spy.filter((c) => c.mod === 'docstore' && c.fn === 'saveScript').length, 0, 'a near-dup episode never sits in the review queue');
+    assert.equal(r.spy.filter((c) => c.mod === 'doccp' && c.fn === 'execFileSync').length, 0, 'no render spend after the dup block');
+    assert.ok((r.stateAfter?.usedLongSeeds || []).includes('wave-doc-seed'), 'the blocked theme is consumed for rotation');
+    assert.equal(r.stateAfter?.deepdiveDate, undefined, 'deepdiveDate still never advances');
+  });
 });
 
 describe('#106 T5c — RESUME renders the doc from the STORED input (real yt-deepdive spawn)', () => {
@@ -1174,5 +1218,26 @@ describe('#106 T5c — RESUME renders the doc from the STORED input (real yt-dee
       'the embedded narration is exactly the approved text (brain embed feeds on this)',
     );
     assert.ok(r.stdout.includes('STORED input'), 'the run says it rendered from the STORED input');
+    // T5c round 1 (IMPORTANT 2): every chapter asked for b-roll with a TRUTHY
+    // page — the module spent e7fb691..now calling an undefined `page()`, the
+    // per-chapter catch swallowed the ReferenceError, and doc chapters never
+    // attached Pixabay b-roll.
+    const clips = r.spy.filter((c) => c.mod === 'docclips' && c.fn === 'getTopicClip');
+    assert.equal(clips.length, STORED_DOC.points.length, 'one b-roll attempt per chapter');
+    assert.ok(clips.every((c) => c.args.pageTruthy && c.args.id === 'yt-' + SLUG), 'getTopicClip receives the real page object (no swallowed ReferenceError)');
+  });
+
+  test('BLOCKER 1: a resumed SHORTS-kind job never renders or consumes a short row as a documentary — not this lane (exit 0, pre-T5c behavior)', () => {
+    const r = runYtDeepdive({
+      env: { PIPELINE_RESUME_JOB_ID: 'held-job-short-1', PIPELINE_JOB_ID: 'spy-job-doc-3' },
+      engine: SPY_DOC_ENGINE_RESUME, store: SPY_DOC_STORE_SHORT_RESUME, intents: SPY_DOC_INTENTS_RESUME,
+    });
+    assert.equal(r.status, 0, 'a foreign-kind resume skips cleanly — never a false episode failure (pre-T5c behavior)');
+    assert.ok(r.stdout.includes('not the doc lane'), 'the run names the kind mismatch');
+    assert.equal(r.spy.filter((c) => c.mod === 'docengine' && c.fn === 'callScriptBrain').length, 0, 'no generation');
+    assert.equal(r.spy.filter((c) => c.mod === 'docintents' && c.fn === 'uploadWithIntent').length, 0, 'a SHORT row is never uploaded as a documentary');
+    assert.equal(r.spy.filter((c) => c.mod === 'docstore' && c.fn === 'markConsumed').length, 0, 'a SHORT row is never consumed with a doc videoId');
+    assert.equal(r.spy.filter((c) => c.mod === 'doccp' && c.fn === 'execFileSync').length, 0, 'no render spend on a foreign-kind dispatch');
+    assert.equal(r.stateAfter?.deepdiveDate, undefined, 'the doc slot is NOT marked produced by a shorts dispatch');
   });
 });

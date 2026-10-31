@@ -44,6 +44,12 @@ const slug = process.argv[2];
 const FORCE = process.argv.includes('--force');
 const b = (await resolveBrand(slug)) || bySlug[slug];
 if (!b) { console.error('unknown slug (no legacy kit and no registry entry):', slug); process.exit(1); }
+// T5c round 1 (IMPORTANT 2): the page-like object getTopicClip expects — the
+// same shape yt-daily builds (yt-daily.mjs). This module has referenced
+// `page()` since e7fb691 without defining it: every chapter's ReferenceError
+// was swallowed by the per-chapter try/catch, so doc chapters have silently
+// rendered flat backgrounds with no Pixabay b-roll ever since.
+const page = () => ({ id: 'yt-' + slug, ytSlug: slug, name: b.label, niche: b.niche, ytBrand: b });
 // #102 BYOK: this channel's own provider keys (encrypted yt-mcp/channel-keys.json)
 // replace the shared keys so the doc chain burns per-channel quota, not one shared pool.
 applyChannelKeys(slug);
@@ -484,6 +490,16 @@ async function resumeApprovedDoc({ slug, jobId, b }) {
     log(`resume: no approved script for job ${String(jobId).slice(0, 12)}… / ${slug} — nothing to render (already consumed, or the approval never landed)`);
     return false;
   }
+  // T5c round 1 (BLOCKER 1): the /review dispatch is kind-agnostic — a resumed
+  // SHORTS job reaches this lane through the episode step's inherited resume
+  // env. A foreign-kind row is NOT this lane's dispatch: exit 0 WITHOUT
+  // rendering or consuming (pre-T5c behavior — never a false 'Episode failed'
+  // ntfy, and a short script can never ship as a full documentary); a
+  // genuinely-missing doc row stays exit 1 fail-closed below.
+  if (found.script.kind && found.script.kind !== 'doc') {
+    log(`resume: job ${String(jobId).slice(0, 12)}… holds a ${found.script.kind} script — not the doc lane's dispatch; skipping (the shorts lane owns that resume)`);
+    return true;
+  }
   const stored = seams.storedInputOf(found.script);
   if (!stored) {
     log(`resume: script ${found.script.id} has no usable stored render input — refusing to re-generate (D4)`);
@@ -516,6 +532,7 @@ async function resumeApprovedDoc({ slug, jobId, b }) {
   const publishAt = nextFutureSlotISO([b.longSlot], { now: new Date() });
   if (publishAt && new Date(publishAt).getTime() <= Date.now()) {
     log(`resume: no future long slot remains (publishAt ${publishAt} already past) — episode skipped before any render spend (AC-P4-19; the script STAYS approved)`);
+    // Unreachable via nextFutureSlotISO (always future-or-null) — belt-and-braces for a null-slot fallback evolution.
     return false;
   }
   // 10-05 duplicate-title gate BEFORE the render spend — a near-dup episode
@@ -670,6 +687,14 @@ const script = await llmScript(LONG_PROMPT(b, theme), longSeed?.title || theme);
 if (GENERATE_ONLY) {
   const docDupGen = findDup(script.title, await recentUploadTitles(yt));
   if (docDupGen) {
+    // T5c round 1 (minor 3): the blocked theme is CONSUMED for rotation even
+    // though nothing saved — a gated clips channel must not re-derive the same
+    // near-dup theme nightly (the yt-daily rejectedSeeds mirror).
+    if (longSeed) {
+      const stD = loadState();
+      stD[slug] = { ...(stD[slug] || {}), usedLongSeeds: [...(stD[slug]?.usedLongSeeds || []), longSeed.title].slice(-40) };
+      saveChannelState(slug, stD[slug]);
+    }
     console.log(`GATE: duplicate episode title "${script.title}" ≈ "${docDupGen}" — doc script NOT saved (blocked); nothing to review`);
     process.exit(0);
   }

@@ -654,19 +654,29 @@ persists `awaiting_review` (kind 'doc'; the episode maps to hook=title,
 points=chapters, closing=outro, + the cold-open intro in full_render_input),
 then EXIT 0 before any TTS/music/render/upload; deepdiveDate NEVER advances
 (the approval's resume must render today) while the seed rotation DOES
-diversify. The docDay cadence is bypassed on generate-only runs (a gated clips
-channel holds on ANY day — the desk would starve otherwise); pause and
-already-produced guards still apply. The resume renders the doc from the
-STORED input (the generator is structurally unreachable), recomputes publishAt
-from the kit's long slot BEFORE any render spend (AC-P4-19), re-runs the
-dup-title gate pre-render, and retires the record by id AFTER the videoId
+diversify — including on a dup-blocked exit (round 1: the blocked theme is
+consumed for rotation, so a gated clips channel never re-derives the same
+near-dup theme nightly). The docDay cadence is bypassed on generate-only runs
+(a gated clips channel holds on ANY day — the desk would starve otherwise);
+pause and already-produced guards still apply. The resume renders the doc from
+the STORED input (the generator is structurally unreachable), recomputes
+publishAt from the kit's long slot BEFORE any render spend (AC-P4-19), re-runs
+the dup-title gate pre-render, and retires the record by id AFTER the videoId
 lands (D14). A resumed run bypasses the cadence guards (an approval is a
-deliberate production order).
+deliberate production order). Round 1: the resume is KIND-GUARDED — a
+foreign-kind (shorts) dispatch skips with exit 0 and never renders or consumes
+a short row as a documentary (the /review dispatch is kind-agnostic; a
+genuinely-missing doc row stays exit 1 fail-closed) — and the chapter b-roll
+`page` object is actually defined (the module had referenced an undefined
+`page()` since e7fb691: every chapter's ReferenceError was swallowed and doc
+chapters silently rendered flat backgrounds with no Pixabay b-roll). The held
+terminal's note is softened to "generate-only run (scripts awaiting review
+where produced)" — the pipeline cannot see whether the child saved a survivor.
 
 ### Row T5c-1 — Doc generate-only + resume-from-stored (the yt-daily mirror) · `automated`
 
-- Steps: `node --test tests/review-seams.test.mjs` — the T5c suites: the pipeline spawn cases (a clips-source hold spawns yt-deepdive GENERATE-ONLY with the env threaded and the held terminal; --resume threads the held job id to the doc child; flags-off = no review env on any child), and the REAL yt-deepdive spawns (engine/brain/music/trend/dup-gate/intents/googleapis/child_process all seam-spied, network-free).
-- Expected: generate-only — the brain runs ONCE with the doc dedupe gates, exactly one `saveScript` (kind 'doc', awaiting_review, the COMPLETE render input deep-equal, publishAt = the long-slot D8 recompute, template version threaded), ZERO TTS/music/render/upload calls, deepdiveDate unset, usedLongSeeds advanced; a blocked (exhausted) brain walk throws → nonzero exit, nothing saved, no render spend. Resume — ZERO brain calls (the spy throws), ZERO saves, the narration the render consumes EQUALS the stored structure byte-for-byte in render order (intro → chapters → outro), exactly one upload titled from the STORED title with the recomputed future publishAt, and markConsumed lands BY the approved row id AFTER the upload (order pinned).
+- Steps: `node --test tests/review-seams.test.mjs` — the T5c suites: the pipeline spawn cases (a clips-source hold spawns yt-deepdive GENERATE-ONLY with the env threaded and the held terminal; --resume threads the held job id to the doc child; flags-off = no review env on any child), and the REAL yt-deepdive spawns (engine/brain/music/trend/dup-gate/intents/googleapis/child_process/youtube-clips all seam-spied, network-free).
+- Expected: generate-only — the brain runs ONCE with the doc dedupe gates, exactly one `saveScript` (kind 'doc', awaiting_review, the COMPLETE render input deep-equal, publishAt = the long-slot D8 recompute, template version threaded), ZERO TTS/music/render/upload calls, deepdiveDate unset, usedLongSeeds advanced; a blocked (exhausted) brain walk throws → nonzero exit, nothing saved, no render spend; a DUP-BLOCKED exit saves nothing, spends nothing, and STILL advances the seed rotation (round 1). Resume — ZERO brain calls (the spy throws), ZERO saves, the narration the render consumes EQUALS the stored structure byte-for-byte in render order (intro → chapters → outro), exactly one upload titled from the STORED title with the recomputed future publishAt, markConsumed lands BY the approved row id AFTER the upload (order pinned), every chapter's getTopicClip received a truthy page object (round 1), and a resumed SHORTS-kind job exits 0 having rendered NOTHING, consumed NOTHING, and marked no doc slot produced (round 1 BLOCKER 1: the kind guard — never a false episode failure, never a short shipped as a documentary).
 - Actual:
 - Evidence (quoted log/output):
 - Status:
