@@ -16,6 +16,8 @@ import {
   Layers,
   PlugZap,
   Gauge,
+  ClipboardCheck,
+  TriangleAlert,
 } from 'lucide-react';
 
 export const NAV = [
@@ -27,6 +29,7 @@ export const NAV = [
       { href: '/videos', label: 'Videos', icon: Film, desc: 'Everything published' },
       { href: '/analytics', label: 'Analytics', icon: TrendingUp, desc: 'Retention, growth, SEO' },
       { href: '/topics', label: 'Topic Desk', icon: ListChecks, desc: 'Approve what gets made' },
+      { href: '/review', label: 'Review Desk', icon: ClipboardCheck, desc: '#106 — fail-closed script approvals: sources, claims, disclosure' },
       { href: '/client', label: 'Client View', icon: UserCheck, desc: 'DFY client workspace' },
       { href: '/create', label: 'Create Video', icon: Sparkles, desc: 'AI-designed vertical shorts' },
       { href: '/templates', label: 'Video Templates', icon: Clapperboard, desc: '100+ broadcast video engines & demos' },
@@ -45,6 +48,7 @@ export const NAV = [
     items: [
       { href: '/logs', label: 'Logs', icon: ScrollText, desc: 'Every post, newest first' },
       { href: '/tasks', label: 'Tasks', icon: SquareKanban, desc: 'Roadmap board' },
+      { href: '/warnings', label: 'Warnings', icon: TriangleAlert, desc: '#106 — every alert, durable: severity ladder, citations, park status' },
       { href: '/usage', label: 'Usage', icon: Gauge, desc: 'Quota ledger — units spent per day' },
       { href: '/users', label: 'Users', icon: UsersIcon, desc: 'Super admin — all user data' },
       { href: '/sessions', label: 'Sessions', icon: MonitorSmartphone, desc: 'Owner — every sign-in, revoke any device' },

@@ -579,7 +579,9 @@ describe('#106 T1 job store — never-throw writers (AC-P4-5)', () => {
     assert.deepEqual([...TRIGGERS].sort(), ['cron', 'dispatch', 'resume', 'studio'], 'D1 triggers');
     assert.deepEqual([...ARTIFACT_KINDS].sort(), ['review_render', 'script_payload', 'thumb_candidate', 'tts_audio']);
     assert.deepEqual([...STEP_NAMES].sort(),
-      ['brain-embed', 'clips', 'episode', 'fb', 'post', 'poster', 'preflight', 'render', 'research', 'script', 'staging', 'tts', 'verify'],
-      'lane vocabulary + the D2 top-level steps preflight/brain-embed/episode/staging');
+      // 'review' is #106 T5's additive step name (D15/D17): the review-gate
+      // hold records a 'review' step + closes the job with the 'held' terminal.
+      ['brain-embed', 'clips', 'episode', 'fb', 'post', 'poster', 'preflight', 'render', 'research', 'review', 'script', 'staging', 'tts', 'verify'],
+      'lane vocabulary + the D2 top-level steps preflight/brain-embed/episode/staging (+ T5 review)');
   });
 });

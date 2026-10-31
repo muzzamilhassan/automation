@@ -505,6 +505,62 @@ if (warnStore) {
 // production spend. Preflight-blocked and parked runs leave no job row.
 if (jobCtl) await jobCtl.begin({ shortsStep: SHORTS_STEP, template: PREFLIGHT_TEMPLATE });
 
+// ---- #106 T5 REVIEW-QUEUE GATE (D14-D18 / AC-P4-18/19) — flag REVIEW_QUEUE_ENABLED
+// unset = byte-identical behavior (zero imports, zero calls; pinned by
+// tests/review-gate.test.mjs). Membership-driven ONLY (D15): the assigned
+// template's review_required list decides — generator risk flags never gate.
+// Unreadable assignment state holds FAIL-CLOSED via the LAST-KNOWN-ASSIGNMENT
+// cache in this channel's state file (C2); drift writes M3's
+// review_gating_inactive row. A hold = the S4-era lane terminal (slot skipped
+// today, exit 0 — same shape as the park-check exit), recorded in T2's job
+// vocabulary as a 'review' step + the 'held' job terminal, and approval later
+// resumes at render via the /review dispatch (channel + resume=job_id).
+const REVIEW_QUEUE_ENABLED = ['1', 'true'].includes(String(process.env.REVIEW_QUEUE_ENABLED || '').toLowerCase());
+if (REVIEW_QUEUE_ENABLED) {
+  let gate = null;
+  try {
+    const { evaluateReviewGate } = await import('./lib/review-gate.mjs');
+    const { loadChannelState, saveChannelState } = await import('./lib/state.mjs');
+    const { REGISTRY_META } = await import('./studio/lib/template-registry.data.js');
+    const { getRegistryDb } = await import('./studio/lib/template-registry-db.js');
+    const { getScriptStore } = await import('./lib/script-store.mjs');
+    const entry = loadChannelState(slug) || {};
+    gate = await evaluateReviewGate({
+      slug,
+      slotDate: today,
+      scriptStore: await getScriptStore(), // null -> gate says { ok:false }, run continues (AC-P4-5)
+      registryDb: () => getRegistryDb(), // thunk: construction failure = the C2 unreadable path, never a crash
+      templateMeta: (familyId) => REGISTRY_META[familyId] ?? null,
+      cache: entry.reviewGate ?? null,
+      saveCache: (next) => saveChannelState(slug, { ...(loadChannelState(slug) || {}), reviewGate: next }),
+      warningsStore: warnStore,
+      emit: emitWarningFn,
+      jobId: jobCtl?.id ?? null,
+      log,
+    });
+  } catch (e) {
+    log(`[review] WARN review gate unavailable — continuing (a gate crash never darkens production): ${String((e && e.message) || e).slice(0, 120)}`);
+  }
+  if (gate && gate.ok && gate.action === 'hold') {
+    log(`[review] held — slot skipped today (${gate.reason}); approve at Studio > Review to resume at render (D17)`);
+    if (jobCtl?.id) {
+      try {
+        const { getJobStore } = await import('./lib/job-store.mjs');
+        const jobs = await getJobStore();
+        await jobs.recordStep(jobCtl.id, 90, 'review'); // idx 90: outside the planned range (PK job_id+idx)
+        await jobs.finishStep(jobCtl.id, 90, { status: 'skipped', error: `held: ${gate.reason}` });
+        await jobs.finishJob(jobCtl.id, { status: 'held', error: `review hold: ${gate.reason}` });
+      } catch (e) {
+        log(`[review] WARN hold recording degraded (non-fatal): ${String((e && e.message) || e).slice(0, 120)}`);
+      }
+    }
+    process.exit(0); // before end(): the 'held' terminal stands (same exit shape as the park-check)
+  }
+  if (gate && !gate.ok) {
+    log(`[review] WARN review state unavailable (${gate.error}) — continuing (AC-P4-5: a dead store never darkens production)`);
+  }
+}
+
 if (jobCtl?.isSkipped(SHORTS_STEP)) {
   log(`resume: skip ${SHORTS_STEP} (artifact verified)`);
   results.shorts = true;
