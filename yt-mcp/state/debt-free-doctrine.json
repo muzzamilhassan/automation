@@ -175,5 +175,10 @@
   "uploadsToday": {
     "date": "2026-10-30",
     "count": 2
+  },
+  "reviewGate": {
+    "assigned": false,
+    "gated": false,
+    "checkedAt": "2026-10-31T14:02:54.591Z"
   }
 }
