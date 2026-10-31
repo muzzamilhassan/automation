@@ -344,6 +344,26 @@ export function makeScriptStore(deps) {
   }
 
   /**
+   * The newest script row linked to a JOB id — the resumed-run approval
+   * lookup (round-1 MAJOR 5): the approval dispatches resume=<held job id>,
+   * and the resumed run may happen days after the slot date, so the gate
+   * resolves the held job's script by job_id first.
+   */
+  async function latestForJob(jobId) {
+    try {
+      const ensured = await ensureSchema();
+      if (!ensured.ok) return { ok: false, error: ensured.error };
+      const rows = await dbClient(
+        `SELECT * FROM scripts WHERE job_id = $1 ORDER BY created_at DESC LIMIT 1`,
+        [jobId],
+      );
+      return { ok: true, script: rows?.[0] ?? null };
+    } catch (e) {
+      return degrade(e);
+    }
+  }
+
+  /**
    * THE write-back (D14): the upload's videoId lands on the script row and
    * the record retires to consumed. Only an approved script consumes — an
    * awaiting/rejected row can never be claimed by an upload.
@@ -368,13 +388,16 @@ export function makeScriptStore(deps) {
   }
 
   /** Merge the thumbnail pick into meta (D18 pick state lives on the record:
-   * { thumb_pick: { candidate, at, by, applied } }). */
+   * { thumb_pick: { candidate, at, by, applied } }). Round-1 minor 11: only
+   * an uploaded script may take a pick — approved (pre-consume) or consumed
+   * (uploaded; the recorded-not-applied case). */
   async function recordThumbPick(id, pick) {
     try {
       const ensured = await ensureSchema();
       if (!ensured.ok) return { ok: false, error: ensured.error };
       const cur = await statusOf(id);
       if (!cur) return { ok: false, reason: 'not_found' };
+      if (cur !== 'approved' && cur !== 'consumed') return { ok: false, reason: 'not_open' };
       const rows = await dbClient(`SELECT meta FROM scripts WHERE id = $1`, [id]);
       let meta = {};
       try { meta = rows?.length && rows[0].meta ? (typeof rows[0].meta === 'string' ? JSON.parse(rows[0].meta) : rows[0].meta) : {}; } catch { meta = {}; }
@@ -395,6 +418,7 @@ export function makeScriptStore(deps) {
     getScript,
     latestApproved,
     scriptsForSlot,
+    latestForJob,
     markConsumed,
     recordThumbPick,
   };

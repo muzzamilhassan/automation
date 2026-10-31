@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 // #106 PHASE 4 S4 (T5) — nightly approval-timeout sweep (M4/D17/AC-P4-19).
+// SCHEDULE: warning-probe.yml's `review-sweep` job — the 05:41 UTC off-peak
+// workflow, network-wide (runs ONCE after the per-channel probe matrix; the
+// sweep has no channel context, no tokens, no YouTube quota).
 // Pairs with the run-start half inside the review gate: every awaiting_review
 // script past its slot's publishAt (else end-of-day) gets ONE Action-required
 // `review_timeout` warning row — and the script is RETAINED awaiting_review
 // (retain-and-resume: approval later resumes at render without re-spend; the
-// sweep NEVER approves, rejects, or consumes). No YouTube calls, no quota.
+// sweep NEVER approves, rejects, or consumes).
 //
 // All seams injected; nothing here runs in tests (same contract as
 // scripts/upload-reconcile.mjs).

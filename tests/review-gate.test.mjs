@@ -5,7 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { resolveGating, evaluateReviewGate, sweepReviewTimeouts } from '../lib/review-gate.mjs';
+import { registerHooks } from 'node:module';
+import { resolveGating, evaluateReviewGate, sweepReviewTimeouts, CACHE_TTL_MS } from '../lib/review-gate.mjs';
 import {
   DISCLOSURE_CATEGORIES,
   dispatchResumeRun,
@@ -114,7 +115,7 @@ describe('#106 T5 review gate — C2 truth table: membership x unreadable state 
   test('C2: registry UNREADABLE + cached gated assignment -> still gated (the hold survives DB blips)', async () => {
     const r = await resolveGating({
       slug: 'quotequarry', registryDb: BROKEN_DB, templateMeta: () => META_FINANCE,
-      cache: { assigned: true, gated: true, checkedAt: '2026-10-30T00:00:00Z' },
+      cache: { assigned: true, gated: true, checkedAt: new Date().toISOString() },
     });
     assert.equal(r.state, 'gated');
     assert.equal(r.viaCache, true, 'the LAST-KNOWN-ASSIGNMENT cache answers when the DB blips (D15b)');
@@ -123,7 +124,7 @@ describe('#106 T5 review gate — C2 truth table: membership x unreadable state 
   test('C2: registry UNREADABLE + cached legacy (ungated) channel -> ungated (legacy runs as today through blips)', async () => {
     const r = await resolveGating({
       slug: 'legacy-chan', registryDb: BROKEN_DB, templateMeta: () => META_PLAIN,
-      cache: { assigned: false, gated: false, checkedAt: '2026-10-30T00:00:00Z' },
+      cache: { assigned: false, gated: false, checkedAt: new Date().toISOString() },
     });
     assert.equal(r.state, 'ungated');
     assert.equal(r.viaCache, true);
@@ -620,5 +621,230 @@ describe('#106 T5 pipeline gate block — REVIEW_QUEUE_ENABLED flag pin', () => 
     assert.match(r.stdout, /\[review\].*held/);
     assert.ok(!r.spy.some((c) => c.mod === 'jobs'), 'no job store is constructed without its own flag');
     assert.ok(!r.stdout.includes('Phase 1'));
+  });
+});
+
+// ===========================================================================
+// G. Round 1 (fix round 1/5) — resume dispatch pin, durable route-path failure
+//    rows, fail-closed gate ordering, scheduled sweep, day-boundary resume.
+// ===========================================================================
+
+// ---- workflow content pins (BLOCKER 1 + MAJOR 4) ---------------------------
+
+const yamlMod = await import('js-yaml');
+const yaml = yamlMod.default || yamlMod;
+const readWorkflow = (name) => yaml.load(fs.readFileSync(path.join(ROOT, '.github', 'workflows', name), 'utf8'));
+
+describe('#106 T5 round 1 — workflow pins (BLOCKER 1 + MAJOR 4)', () => {
+  test('BLOCKER 1: channel-autopilot.yml declares the resume dispatch input and threads the SPACE-form --resume into the run', () => {
+    const y = readWorkflow('channel-autopilot.yml');
+    const on = y.on ?? y.true; // YAML 1.1 parses a bare `on:` key as boolean true in some loaders
+    const inputs = on['workflow_dispatch'].inputs;
+    assert.ok(inputs.resume, 'the resume input is DECLARED — GitHub rejects undeclared dispatch inputs with 422, so every approve would fail forever without it');
+    const produce = y.jobs.produce;
+    const runStep = (produce.steps || []).find((s) => String(s.run || '').includes('node channel-pipeline.mjs'));
+    assert.ok(runStep, 'the pipeline run step exists');
+    assert.match(
+      runStep.run,
+      /format\('--resume \{0\}', inputs\.resume\)/,
+      'the run threads --resume <job_id> — SPACE form, because channel-pipeline.mjs parses argv.includes("--resume") + the next arg (an --resume=<id> token would be silently ignored)',
+    );
+  });
+
+  test('MAJOR 4: the approval-timeout sweep is SCHEDULED — warning-probe.yml runs scripts/review-sweep.mjs network-wide on its nightly cron', () => {
+    const y = readWorkflow('warning-probe.yml');
+    assert.ok(y.on?.schedule, 'the workflow carries the nightly cron');
+    const job = y.jobs['review-sweep'];
+    assert.ok(job, 'the review-sweep job exists (network-wide — the probe job is a per-channel matrix; the sweep runs ONCE)');
+    const run = (job.steps || []).map((s) => s.run || '').find((r) => r.includes('scripts/review-sweep.mjs'));
+    assert.ok(run, 'the sweep script is invoked');
+  });
+});
+
+// ---- fail-closed gate ordering (MAJOR 3) + day-boundary resume (MAJOR 5) ---
+
+describe('#106 T5 round 1 — gate ordering + resume lookup (MAJOR 3, MAJOR 5)', () => {
+  test('MAJOR 3: readable GATED registry + NULL script store => HOLD (a store construction failure can no longer fail a gated channel open)', async () => {
+    const emit = fakeEmit();
+    const r = await evaluateReviewGate(gatedOpts({
+      scriptStore: null,
+      registryDb: REGISTRY_DB_WITH(assignmentRow()),
+      emit,
+    }));
+    assert.equal(r.action, 'hold', 'C2: without the ledger no approval can be proven — fail-closed');
+    assert.equal(r.reason, 'script_store_unavailable');
+    const holds = emit.rows.filter((e) => e.code === 'review_hold');
+    assert.equal(holds.length, 1, 'the hold is visible (ntfy is the fallback when the row store shares the dead DB)');
+  });
+
+  test('MAJOR 3: ungated channel + NULL script store => RUN (AC-P4-5: a dead store never darkens legacy production)', async () => {
+    const r = await evaluateReviewGate(gatedOpts({
+      scriptStore: null,
+      registryDb: REGISTRY_DB_WITH(null),
+    }));
+    assert.equal(r.action, 'run');
+  });
+
+  test('MAJOR 3: gated + script-store READ error => HOLD (never the old { ok:false } continue)', async () => {
+    const r = await evaluateReviewGate(gatedOpts({
+      scriptStore: { async scriptsForSlot() { return { ok: false, error: 'db down' }; } },
+    }));
+    assert.equal(r.action, 'hold');
+    assert.equal(r.reason, 'script_store_unavailable');
+  });
+
+  test('MAJOR 5: a resumed run resolves the approval by the HELD job id — next-day approval proceeds', async () => {
+    const r = await evaluateReviewGate(gatedOpts({
+      slotDate: '2026-11-02', // the resumed run happens the NEXT day — no slot row exists
+      resumeJobId: 'held-job-1',
+      scriptStore: {
+        async latestForJob(jobId) {
+          return { ok: true, script: AWAITING({ id: 's-held', status: 'approved', job_id: jobId }) };
+        },
+        async scriptsForSlot() { return { ok: true, scripts: [] }; },
+      },
+    }));
+    assert.equal(r.action, 'run');
+    assert.equal(r.reason, 'approved_resumed', 'the approval keyed by the held job survives the day boundary');
+  });
+
+  test('MAJOR 5: a resumed run whose script is STILL awaiting re-holds (alert keyed by the job)', async () => {
+    const emit = fakeEmit();
+    const r = await evaluateReviewGate(gatedOpts({
+      slotDate: '2026-11-02',
+      resumeJobId: 'held-job-1',
+      emit,
+      scriptStore: {
+        async latestForJob() {
+          return { ok: true, script: AWAITING({ id: 's-held', status: 'awaiting_review', job_id: 'held-job-1' }) };
+        },
+        async scriptsForSlot() { return { ok: true, scripts: [] }; },
+      },
+    }));
+    assert.equal(r.action, 'hold');
+    assert.equal(r.reason, 'awaiting_review');
+  });
+
+  test('minor 6: a STALE last-known-assignment cache (past CACHE_TTL_MS) is treated as no cache — fail-closed', async () => {
+    assert.equal(CACHE_TTL_MS, 24 * 3600_000);
+    const r = await resolveGating({
+      slug: 'legacy-chan', registryDb: BROKEN_DB, templateMeta: () => META_PLAIN,
+      cache: { assigned: false, gated: false, checkedAt: new Date(Date.now() - 3 * 24 * 3600_000).toISOString() },
+    });
+    assert.equal(r.state, 'gated', 'a 3-day-old "legacy" verdict must not answer gating — fail-closed');
+    assert.equal(r.failClosed, true);
+  });
+
+  test('minor 8: MULTIPLE active assignments are ambiguous — drift (hold + conservative cache)', async () => {
+    const r = await resolveGating({
+      slug: 'quotequarry',
+      registryDb: async () => ({
+        async listAssignments() { return [assignmentRow('finance-explainers'), assignmentRow('stats-counters')]; },
+      }),
+      templateMeta: () => META_FINANCE,
+      cache: null,
+    });
+    assert.equal(r.state, 'drift');
+    assert.deepEqual(r.cacheUpdate, { assigned: true, gated: true, checkedAt: r.cacheUpdate.checkedAt });
+  });
+});
+
+// ---- route-path approve: the durable dispatch-failure row (BLOCKER 2) -------
+
+describe('#106 T5 round 1 — /api/review route path (BLOCKER 2)', () => {
+  // The ROUTE is loaded for real ('@/...' aliases mapped to seams), the real
+  // script/warnings stores run over one injected SQL fake, and the dispatch
+  // fails deterministically (no GITHUB_TOKEN in the fake ENV — zero network).
+  async function loadRouteWith(scriptRow) {
+    const routeUrl = pathToFileURL(path.join(ROOT, 'studio', 'app', 'api', 'review', 'route.js')).href;
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'route-t5-'));
+    const write = (name, src) => {
+      fs.writeFileSync(path.join(tmp, name), src);
+      return pathToFileURL(path.join(tmp, name)).href;
+    };
+    const sql = (() => {
+      const warnRows = [];
+      const client = async (sqlText, params) => {
+        const s = String(sqlText).replace(/\s+/g, ' ').trim();
+        if (s.startsWith('CREATE ') || s.startsWith('DO ') || s.startsWith('ALTER ')) return [];
+        if (s.startsWith('SELECT * FROM scripts WHERE id = $1')) return scriptRow ? [scriptRow] : [];
+        if (s.startsWith('SELECT status FROM scripts WHERE id = $1')) return scriptRow ? [{ status: scriptRow.status }] : [];
+        if (s.startsWith('SELECT id, script_id, url')) return [];
+        if (s.startsWith('SELECT id, script_id, claim')) return [];
+        if (s.includes("SET status = 'approved'")) { scriptRow.status = 'approved'; return [{ id: scriptRow.id }]; }
+        if (s.startsWith('SELECT id, state FROM warnings WHERE dedupe_key')) {
+          return warnRows.filter((r) => r.dedupe_key === params[0] && r.state !== 'resolved').map((r) => ({ id: r.id, state: r.state }));
+        }
+        if (s.startsWith('INSERT INTO warnings')) {
+          const m = s.match(/INSERT INTO warnings \(([^)]*)\)/);
+          const row = { id: warnRows.length + 1, state: 'open' };
+          m[1].split(',').map((c) => c.trim()).forEach((c, i) => { row[c] = params[i]; });
+          warnRows.push(row);
+          return [{ id: row.id }];
+        }
+        throw new Error(`route fake db: unexpected sql: ${s.slice(0, 90)}`);
+      };
+      client.warnRows = warnRows;
+      return client;
+    })();
+    globalThis.__T5_SQL = sql;
+    globalThis.__T5_AUDIT = [];
+    const fmap = {
+      '@/lib/route-auth': write('auth.mjs', 'export async function getUser() { return { email: "owner@test", role: "owner", session_id: 0 }; } export async function requireRole() { return "owner"; }'),
+      '@/lib/db.mjs': write('db.mjs', 'export const db = {}; export const dbReady = true; export function dbUnavailable() { return null; }'),
+      '@/lib/provider-routing': write('provider.mjs', 'export function adaptPostgres() { return globalThis.__T5_SQL; }'),
+      '@/lib/script-store.mjs': pathToFileURL(path.join(ROOT, 'studio', 'lib', 'script-store.mjs')).href,
+      '@/lib/warnings-store.mjs': pathToFileURL(path.join(ROOT, 'studio', 'lib', 'warnings-store.mjs')).href,
+      '@/lib/data.mjs': write('data.mjs', 'export const ENV = {};'), // no GITHUB_TOKEN — dispatch fails WITHOUT network
+      '@/lib/audit': write('audit.mjs', 'export async function appendAudit(...a) { globalThis.__T5_AUDIT.push(a); }'),
+      '@/lib/yt-token.mjs': write('yt.mjs', 'export function createAccessToken() { return async () => "at"; }'),
+      '@/lib/review-actions.mjs': pathToFileURL(path.join(ROOT, 'studio', 'lib', 'review-actions.mjs')).href, // the REAL module under test's own import — @/ is a Next alias, not a node package
+    };
+    registerHooks({
+      resolve(specifier, context, nextResolve) {
+        // Only the route module uses '@/' specifiers in this test process, so
+        // matching on the specifier alone is safe (the parentURL check does
+        // not survive every loader path here).
+        if (fmap[specifier]) {
+          return { url: fmap[specifier], shortCircuit: true };
+        }
+        return nextResolve(specifier, context);
+      },
+    });
+    const route = await import(routeUrl);
+    return {
+      route,
+      sql,
+      async post(body) {
+        return route.POST({ json: async () => body });
+      },
+      cleanup() {
+        delete globalThis.__T5_SQL;
+        delete globalThis.__T5_AUDIT;
+        try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { }
+      },
+    };
+  }
+
+  test('BLOCKER 2: a failed approve dispatch writes the Action-required warning row — approved-but-never-rendered is never silent', async () => {
+    const ctx = await loadRouteWith({
+      id: 'script-1', channel_id: 'quotequarry', job_id: 'job-9', status: 'awaiting_review', full_render_input: null,
+    });
+    try {
+      const res = await ctx.post({ action: 'approve', id: 'script-1', note: '', disclosure: null });
+      assert.equal(res.status, 202, 'the approval STANDS even though the dispatch failed (D16: the owner re-triggers)');
+      const body = await res.json();
+      assert.equal(body.approved, true);
+      assert.equal(body.dispatched, false);
+      const rows = ctx.sql.warnRows.filter((r) => r.code === 'approval_dispatch_failed');
+      assert.equal(rows.length, 1, 'exactly ONE durable row (AC-P4-22: never a silent approved-but-not-rendered)');
+      assert.equal(rows[0].severity, 'action_required');
+      assert.equal(rows[0].channel_id, 'quotequarry');
+      assert.equal(rows[0].job_id, 'job-9');
+      assert.equal(rows[0].dedupe_key, 'quotequarry:approval_dispatch_failed');
+      assert.equal(ctx.sql.warnRows.length, 1, 'no other rows');
+    } finally {
+      ctx.cleanup();
+    }
   });
 });

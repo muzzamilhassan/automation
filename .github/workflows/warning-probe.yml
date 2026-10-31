@@ -100,3 +100,31 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: node scripts/warnings-probe.mjs "$SLUG"
+
+  # #106 T5 round 1 (MAJOR 4 — M4/D17/AC-P4-19's nightly half): approval-timeout
+  # sweep, folded into this off-peak workflow (05:41 UTC) as a NETWORK-WIDE job
+  # — the probe job above is a per-channel matrix, but the sweep has no channel
+  # context (no tokens, no YouTube quota), so it runs ONCE after the matrix.
+  # Every awaiting_review script past its slot publishAt (else end-of-day) gets
+  # ONE Action-required review_timeout warning and is RETAINED awaiting_review
+  # (retain-and-resume: a later approval resumes at render without re-spend).
+  # The run-start half lives in the review gate (channel-pipeline.mjs).
+  review-sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: ⚙️ Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: 📦 Install Dependencies
+        run: npm install
+      - name: ⏰ Sweep approval timeouts (retain-and-resume)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/review-sweep.mjs

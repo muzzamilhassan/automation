@@ -318,9 +318,13 @@ describe('#106 T5 script store — approval lifecycle (D16) + video_id write-bac
     assert.equal(wrong.ok, false, 'consumed is terminal');
   });
 
-  test('recordThumbPick merges the pick into meta (D18 pick state lives on the script record)', async () => {
+  test('recordThumbPick merges the pick into meta (D18) but ONLY for an uploaded (approved/consumed) script — round-1 minor 11', async () => {
     const db = makeScriptDb();
     const { store, id } = await saved(db);
+    const early = await store.recordThumbPick(id, { candidate: 2, at: '2026-10-31T10:00:00Z', by: 'owner', applied: true });
+    assert.equal(early.ok, false, 'an awaiting script has no video to swap — the pick is refused');
+    assert.equal(early.reason, 'not_open');
+    await store.approve(id, { by: 'owner' });
     const r = await store.recordThumbPick(id, { candidate: 2, at: '2026-10-31T10:00:00Z', by: 'owner', applied: true });
     assert.equal(r.ok, true);
     assert.equal(db.tables.scripts.find((x) => x.id === id).meta, JSON.stringify({ thumb_pick: { candidate: 2, at: '2026-10-31T10:00:00Z', by: 'owner', applied: true } }));

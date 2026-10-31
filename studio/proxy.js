@@ -56,8 +56,11 @@ export default async function proxy(req) {
     // sessions admin (#106: the page only — /api/sessions stays self-service and
     // re-checks owner mode server-side)
     { match: (p) => p === '/settings' || p === '/users' || p === '/sessions' || p.startsWith('/api/users') || p.startsWith('/api/team') || p === '/api/oauth/start' || (p.startsWith('/api/channels/') && p !== '/api/channels/flow' && p !== '/api/channels/keys'), roles: ['owner'] },
-    // owner + staff — the engine room (clients live on Topics/Analytics/Channels)
-    { match: (p) => p === '/production' || p === '/api/action' || p === '/music' || p === '/social' || p.startsWith('/api/audit'), roles: ['owner', 'staff'] },
+    // owner + staff — the engine room (clients live on Topics/Analytics/Channels).
+    // #106 T5: /review (the approval desk) and /warnings (the durable alert
+    // record) join it — fail-closed approvals stay owner-only at the ROUTE
+    // (staff read + prepare here; the routes re-check every mutation).
+    { match: (p) => p === '/production' || p === '/api/action' || p === '/music' || p === '/social' || p.startsWith('/api/audit') || p === '/review' || p === '/warnings' || p.startsWith('/api/review') || p.startsWith('/api/warnings'), roles: ['owner', 'staff'] },
     { match: (p) => p === '/create' || p.startsWith('/api/create-video'), roles: ['owner', 'staff'] },
     { match: (p) => p === '/thumbs' || p.startsWith('/api/thumbs/'), roles: ['owner', 'staff', 'client'] },
     // clients join the Topic Desk for their own channels (server checks ownership)

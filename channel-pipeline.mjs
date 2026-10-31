@@ -536,6 +536,7 @@ if (REVIEW_QUEUE_ENABLED) {
       warningsStore: warnStore,
       emit: emitWarningFn,
       jobId: jobCtl?.id ?? null,
+      resumeJobId: RESUME_JOB_ID, // round-1 MAJOR 5: the held job's id keys the approval on a resumed run
       log,
     });
   } catch (e) {

@@ -24,10 +24,10 @@ export async function GET(req) {
   if (!user || !['owner', 'staff'].includes(user.role)) return Response.json({ error: 'not signed in' }, { status: 401 });
   if (!dbReady) return Response.json({ open: [], resolved: [], error: 'db unavailable' });
   const s = store();
-  const open = await s.listWarnings({ includeResolved: false });
-  const resolved = await s.listWarnings({ includeResolved: true, limit: 50 });
+  const open = await s.listWarnings({});
+  const resolved = await s.listWarnings({ resolvedOnly: true, limit: 50 });
   if (!open.ok) return Response.json({ error: open.error }, { status: 503 });
-  const resolvedRows = resolved.ok ? resolved.rows.filter((r) => r.state === 'resolved') : [];
+  const resolvedRows = resolved.ok ? resolved.rows : [];
   // parked-channel badges: channels with an open blocks_publishing row (D11)
   const parked = [...new Set(open.rows.filter((r) => r.blocks_publishing === true).map((r) => r.channel_id))];
   return Response.json({ open: open.rows, resolved: resolvedRows, parked });

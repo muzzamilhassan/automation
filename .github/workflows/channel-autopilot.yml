@@ -31,6 +31,10 @@ on:
         description: "1 = force today's documentary even off docDay (testing/manual)"
         required: false
         default: ""
+      resume:
+        description: "job_id to resume (review-queue approval — the held job's id; blank = fresh run)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -163,7 +167,13 @@ jobs:
           BRAIN_ENABLED: '1'
           BRAIN_EMBED_ENABLED: '1'
           BRAIN_PORT: '8000'
-        run: node channel-pipeline.mjs "$SLUG" ${{ inputs.topup && format('--topup={0}', inputs.topup) || '' }} ${{ inputs.force_doc == '1' && '--force' || '' }}
+        # --resume is SPACE-form on purpose: channel-pipeline.mjs parses
+        # `--resume <job_id>` (argv.includes('--resume') + next arg) — a
+        # `--resume=<id>` token would be silently ignored (no resume trigger).
+        # This is the review-queue approval path (#106 T5): approve at
+        # Studio > Review dispatches resume=<held job id> and the run
+        # re-enters at the first non-succeeded step (D4).
+        run: node channel-pipeline.mjs "$SLUG" ${{ inputs.topup && format('--topup={0}', inputs.topup) || '' }} ${{ inputs.force_doc == '1' && '--force' || '' }} ${{ inputs.resume && format('--resume {0}', inputs.resume) || '' }}
 
       - name: 📦 Keep reels for IG slot poster
         if: ${{ hashFiles(format('fb-outbox/{0}/*.json*', matrix.slug.slug)) != '' }}

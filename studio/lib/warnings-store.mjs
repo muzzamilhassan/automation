@@ -389,19 +389,21 @@ END $$`, []);
 
   /**
    * T5 /warnings dashboard reader (D12/AC-P4-16): every row for the board —
-   * open + acknowledged by default, resolved history via includeResolved
-   * (rendered below the open table). channelId null = the whole network.
-   * Newest first. Never throws; a dead DB is { ok:false } (ntfy stays the
-   * fallback channel — AC-P4-5).
+   * open + acknowledged by default (state <> 'resolved'), or the resolved
+   * history with resolvedOnly: true (WHERE state = 'resolved' — round-1
+   * minor 9: the filter is SQL-level, not client-side). channelId null = the
+   * whole network. Newest first. Never throws; a dead DB is { ok:false }
+   * (ntfy stays the fallback channel — AC-P4-5).
    */
-  async function listWarnings({ channelId = null, includeResolved = false, limit = 200 } = {}) {
+  async function listWarnings({ channelId = null, resolvedOnly = false, limit = 200 } = {}) {
     try {
       const ensured = await ensureWarningsSchema();
       if (!ensured.ok) return { ok: false, error: ensured.error };
       const cap = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 1000) : 200;
+      const stateFilter = resolvedOnly ? `state = 'resolved'` : `state <> 'resolved'`;
       const rows = await dbClient(
         `SELECT * FROM warnings
-         WHERE ($1::text IS NULL OR channel_id = $1)${includeResolved ? '' : ` AND state <> 'resolved'`}
+         WHERE ($1::text IS NULL OR channel_id = $1) AND ${stateFilter}
          ORDER BY created_at DESC LIMIT ${cap}`,
         [channelId],
       );
@@ -466,17 +468,20 @@ export async function emitWarning(store, fields, opts = {}) {
   return { ...write, alert };
 }
 
-// Real-path store: lazily built over studio/lib/db.mjs (same lazy-import seam
-// as ai-adapter's default usage writer), memoized per process. Null -> the
+// Real-path store: lazily built over ./db.mjs (same lazy-import seam as
+// ai-adapter's default usage writer), memoized per process. Null -> the
 // caller degrades to ntfy-only; a missing DATABASE_URL must not halt the run.
+// (Round-1 fix: the canonical module moved into studio/lib — the old
+// '../studio/lib/db.mjs' paths only resolved from the repo-root shim and made
+// every getDefaultWarningsStore() call degrade to null at runtime.)
 let defaultStorePromise = null;
 export async function getDefaultWarningsStore() {
   if (!defaultStorePromise) {
     defaultStorePromise = (async () => {
       try {
-        const { db, dbReady } = await import('../studio/lib/db.mjs');
+        const { db, dbReady } = await import('./db.mjs');
         if (!dbReady || !db) return null;
-        const { adaptPostgres } = await import('../studio/lib/provider-routing.js');
+        const { adaptPostgres } = await import('./provider-routing.js');
         const store = makeWarningsStore(adaptPostgres(db));
         const ensured = await store.ensureWarningsSchema();
         return ensured.ok ? store : null;

@@ -250,7 +250,7 @@ export default function ReviewDeskPage() {
               <CardHead
                 icon={ImageIcon}
                 title="Thumbnail candidates"
-                sub={`pick swaps via thumbnails.set any time before publishAt — after publishAt the pick is recorded only · unpicked = candidate ${detail.defaultCandidate}`}
+                sub={`pick swaps via thumbnails.set any time before publishAt — after publishAt the pick is recorded only · unpicked = candidate ${detail.defaultCandidate} · before the video uploads a pick is refused (candidate 1 is auto-set at upload)`}
               />
               <div className="px-5 pb-5 flex gap-4 flex-wrap">
                 {detail.thumbCandidates.map((c) => (

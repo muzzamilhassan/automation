@@ -21,7 +21,7 @@ import { getUser, requireRole } from '@/lib/route-auth';
 import { db, dbReady } from '@/lib/db.mjs';
 import { adaptPostgres } from '@/lib/provider-routing';
 import { makeScriptStore } from '@/lib/script-store.mjs';
-import { makeWarningsStore } from '@/lib/warnings-store.mjs';
+import { makeWarningsStore, emitWarning } from '@/lib/warnings-store.mjs';
 import { ENV } from '@/lib/data.mjs';
 import { appendAudit } from '@/lib/audit';
 import {
@@ -39,7 +39,30 @@ const REPO = ENV.GITHUB_REPO || 'muzzamilhassan/automation';
 const TOKEN = ENV.GITHUB_TOKEN || ENV.GITHUB_PAT || '';
 
 function store() {
-  return makeScriptStore(adaptPostgres(db));
+  return makeScriptStore({ dbClient: adaptPostgres(db) }); // makeScriptStore takes the DEPS object (makeJobStore pattern) — not the bare client
+}
+
+// The durable-warning seam (round-1 BLOCKER 2): the approve AND redispatch
+// paths emit through the real warnings store, with the push suppressed (the
+// owner is IN the dashboard acting — a dispatch failure still gets its
+// Action-required row; ntfy re-alerts are the dedupe's business).
+function warnings() {
+  return makeWarningsStore(adaptPostgres(db));
+}
+
+async function recordDispatchFailure(script, scriptId, detail) {
+  await emitWarning(warnings(), {
+    channel_id: script.channel_id,
+    severity: 'action_required',
+    code: 'approval_dispatch_failed',
+    title: 'approval recorded but the resume dispatch FAILED — the video will not render until re-triggered',
+    explanation: 'The owner approved the script and Studio tried to dispatch channel-autopilot.yml with resume=<job_id>, but GitHub rejected the dispatch. The approval row stands; nothing renders until the dispatch is re-triggered from /review.',
+    evidence: `script ${scriptId}, job ${script.job_id ?? 'none'} — ${detail}`,
+    recommended_action: 'Re-trigger the dispatch from Studio > Review (Redispatch). If it keeps failing, check the GITHUB_TOKEN server secret.',
+    auto_verifiable: false,
+    job_id: script.job_id ?? null,
+    dedupe_key: `${script.channel_id}:approval_dispatch_failed`,
+  }, { sendAlert: async () => ({ channel: 'none', ok: true }) });
 }
 
 export async function GET(req) {
@@ -81,6 +104,11 @@ export async function POST(req) {
     if (!body.id) return Response.json({ error: 'id required' }, { status: 400 });
     const r = await approveScriptAndDispatch({
       scriptStore: s,
+      // BLOCKER 2 fix: the durable row is written from the ROUTE's own store —
+      // a failed dispatch can never leave approved-but-never-rendered silent
+      // (AC-P4-22; the row lands on /warnings with the Redispatch escape hatch).
+      warningsStore: warnings(),
+      emit: emitWarning,
       scriptId: body.id,
       by: user.email,
       note: body.note ?? null,
@@ -116,20 +144,7 @@ export async function POST(req) {
     const dispatch = await dispatchResumeRun({ slug: g.script.channel_id, jobId: g.script.job_id, token: TOKEN, repo: REPO });
     if (!dispatch.ok) {
       // Same durable record as the approve path — never silent.
-      const warnings = makeWarningsStore(adaptPostgres(db));
-      const { emitWarning } = await import('@/lib/warnings-store.mjs');
-      await emitWarning(warnings, {
-        channel_id: g.script.channel_id,
-        severity: 'action_required',
-        code: 'approval_dispatch_failed',
-        title: 're-dispatch of an approved script FAILED — still not rendering',
-        explanation: 'The owner re-triggered the resume dispatch for an approved script, but GitHub rejected it again. The approval stands; nothing renders until a dispatch succeeds.',
-        evidence: `script ${g.script.id}, job ${g.script.job_id ?? 'none'} — ${dispatch.error}`,
-        recommended_action: 'Check the GITHUB_TOKEN server secret and dispatch again from Studio > Review.',
-        auto_verifiable: false,
-        job_id: g.script.job_id ?? null,
-        dedupe_key: `${g.script.channel_id}:approval_dispatch_failed`,
-      }, { sendAlert: async () => ({ channel: 'none', ok: true }) });
+      await recordDispatchFailure(g.script, g.script.id, `re-dispatch rejected: ${dispatch.error}`);
       await appendAudit(user.email, 'review-redispatch', `${body.id} · FAILED (${dispatch.error})`);
       return Response.json({ error: dispatch.error }, { status: 502 });
     }
