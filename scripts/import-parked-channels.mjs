@@ -327,7 +327,6 @@ export async function runImport(opts = {}) {
 
       const freshToken = freshLocalToken(file.token, { access_token: fresh.accessToken, expires_in: fresh.expiresIn }, now());
       const existing = regChannels ? regChannels.find((c) => c.slug === slug) || null : null;
-      row.registryAction = dry ? (existing ? 'planned-update' : 'planned-create') : (existing ? 'update' : 'create');
 
       // IDENTITY DRIFT (consent cannot cross an identity change): the existing
       // row for THIS slug points at a DIFFERENT channelId. buildRegistryEntry
@@ -361,6 +360,10 @@ export async function runImport(opts = {}) {
         emit(`[import-parked] ${dry ? 'would-skip' : 'skip'} slug=${slug} reason=${row.reason}`);
         continue;
       }
+
+      // only a channel that actually reaches the write path carries a registry
+      // action — skipped rows show '-' in the summary table, never 'update'
+      row.registryAction = dry ? (existing ? 'planned-update' : 'planned-create') : (existing ? 'update' : 'create');
 
       // (d) GitHub secret YT_TOKEN_<SLUG>
       if (!dry) await writeSecret(row.secret, JSON.stringify(freshToken, null, 2) + '\n');

@@ -443,6 +443,7 @@ describe('import-parked T2 — LIVE: the full bring-into-panel flow', () => {
     assert.equal(res.exitCode, 0, 'a drift skip is not a hard failure');
     const drift = res.results.find((r) => r.slug === 'ai-observer');
     assert.equal(drift.outcome, 'skipped');
+    assert.equal(drift.registryAction, '', 'a skipped channel carries no registry action in the summary');
     assert.match(drift.reason, /identity_drift/);
     assert.match(drift.reason, /consent .* cannot cross|per-channel/);
     assert.equal(h.secretCalls.filter((c) => c.name === 'YT_TOKEN_AI_OBSERVER').length, 0, 'no secret rewrite for a drifted identity');
@@ -548,6 +549,7 @@ describe('import-parked T2 — LIVE: the full bring-into-panel flow', () => {
     assert.equal(res.exitCode, 0, 'a duplicate-identity skip is not a hard failure');
     const dup = res.results.find((r) => r.slug === 'escrow-estate');
     assert.equal(dup.outcome, 'skipped');
+    assert.equal(dup.registryAction, '', 'a skipped channel carries no registry action in the summary');
     assert.match(dup.reason, /already registered as slug "investors-compass"/);
     assert.equal(h.secretCalls.filter((c) => c.name === 'YT_TOKEN_ESCROW_ESTATE').length, 0, 'no duplicate secret for an existing channel');
     assert.equal(h.registry.upserts.filter((e) => e.slug === 'escrow-estate').length, 0, 'no duplicate registry row');
@@ -602,43 +604,71 @@ describe('import-parked T2 — LIVE: the full bring-into-panel flow', () => {
 
 // ---------------------------------------------------------------------------
 // F. main() wiring — dry exits 0 and NEVER imports the write paths
-// (hermetic child process: fetch stubbed, env stubbed, module tracker via
-// registerHooks — the review-gate loader pattern)
+// (hermetic child process on a FIXTURE TREE: fetch stubbed, env stubbed,
+// module tracker via registerHooks — the review-gate loader pattern. The
+// child imports a COPY of the script from a tmp tree that carries its own
+// lib/ + studio/lib/ + yt-mcp/channels fixtures, so the test is portable to
+// a fresh CI checkout where yt-mcp/channels (gitignored) does not exist.)
 // ---------------------------------------------------------------------------
 
-describe('import-parked T2 — main() wiring (dry never imports channels-registry)', () => {
-  test("main(['--dry']) exits 0 planning from the real local token files, without importing channels-registry", async () => {
-    const child = [
-      "import { registerHooks } from 'node:module';",
-      'const seen = [];',
-      'registerHooks({ resolve(spec, ctx, next) { const r = next(spec, ctx); if (r && r.url) seen.push(r.url); return r; } });',
-      'globalThis.fetch = async (url) => {',
-      '  const u = String(url);',
-      "  if (u.startsWith('https://oauth2.googleapis.com/token')) { const body = { access_token: 'at-child', expires_in: 999 }; return { ok: true, status: 200, text: async () => JSON.stringify(body), json: async () => body }; }",
-      "  if (u.startsWith('https://www.googleapis.com/youtube/v3/channels')) { return { ok: true, status: 200, json: async () => ({ items: [{ id: 'UC-CHILD', snippet: { title: 'Child Fixture', customUrl: '@childfixture' }, statistics: { subscriberCount: '5' } }] }) }; }",
-      "  throw new Error('unexpected fetch in main child: ' + u);",
-      '};',
-      "const { pathToFileURL } = await import('node:url');",
-      'const mod = await import(pathToFileURL(process.env.CHILD_SCRIPT).href);',
-      "process.env.YOUTUBE_CLIENT_ID = 'test-cid';",
-      "process.env.YOUTUBE_CLIENT_SECRET = 'test-csec';",
-      "const code = await mod.main(['--dry']);",
-      "console.log('CODE=' + code);",
-      "console.log('YTTOKEN_SEAM=' + seen.some((u) => u.endsWith('/studio/lib/yt-token.mjs')));",
-      "console.log('REGISTRY_IMPORTED=' + seen.some((u) => u.endsWith('/studio/lib/channels-registry.js')));",
-    ].join('\n');
-    const { spawnSync } = await import('node:child_process');
+describe('import-parked T2 — main() wiring (dry never imports channels-registry; CI-portable fixture tree)', () => {
+  test("main(['--dry']) on a fixture tree exits 0 and resolves NOTHING from the real repo (yt-mcp/channels-independent)", async () => {
+    const fs = await import('node:fs');
+    const os = await import('node:os');
+    const nodePath = await import('node:path');
     const { fileURLToPath } = await import('node:url');
-    const scriptPath = fileURLToPath(new URL('../scripts/import-parked-channels.mjs', import.meta.url));
-    const root = fileURLToPath(new URL('..', import.meta.url));
-    const run = spawnSync(process.execPath, ['--input-type=module', '-e', child], {
-      cwd: root,
-      encoding: 'utf8',
-      env: { ...process.env, CHILD_SCRIPT: scriptPath },
-    });
-    assert.equal(run.status, 0, 'child exited 0 — stderr: ' + run.stderr);
-    assert.match(run.stdout, /CODE=0/, 'main(--dry) exits 0');
-    assert.match(run.stdout, /YTTOKEN_SEAM=true/, 'positive control: the tracker saw the refresh seam import');
-    assert.match(run.stdout, /REGISTRY_IMPORTED=false/, 'dry must never import channels-registry (the write paths)');
+    const repoRoot = fileURLToPath(new URL('..', import.meta.url));
+    const tmp = fs.mkdtempSync(nodePath.join(os.tmpdir(), 'import-parked-main-'));
+    try {
+      // the fixture tree mirrors the script's ROOT-relative layout; the COPY's
+      // import.meta.url-derived ROOT redirects every token/registry read into tmp
+      for (const rel of ['scripts/import-parked-channels.mjs', 'lib/env.mjs', 'studio/lib/yt-token.mjs', 'studio/lib/data.mjs']) {
+        fs.mkdirSync(nodePath.dirname(nodePath.join(tmp, rel)), { recursive: true });
+        fs.copyFileSync(nodePath.join(repoRoot, rel), nodePath.join(tmp, rel));
+      }
+      for (const slug of ['fixture-one', 'fixture-two']) {
+        fs.mkdirSync(nodePath.join(tmp, 'yt-mcp', 'channels', slug), { recursive: true });
+        fs.writeFileSync(
+          nodePath.join(tmp, 'yt-mcp', 'channels', slug, 'token.json'),
+          JSON.stringify({ access_token: 'at-' + slug, token_type: 'Bearer', refresh_token: 'rt-' + slug, expiry: '2026-01-01T00:00:00.000Z' }),
+        );
+      }
+      const child = [
+        "import { registerHooks } from 'node:module';",
+        'const seen = [];',
+        'let CH = 0;',
+        'registerHooks({ resolve(spec, ctx, next) { const r = next(spec, ctx); if (r && r.url) seen.push(r.url); return r; } });',
+        'globalThis.fetch = async (url) => {',
+        '  const u = String(url);',
+        "  if (u.startsWith('https://oauth2.googleapis.com/token')) { const body = { access_token: 'at-child', expires_in: 999 }; return { ok: true, status: 200, text: async () => JSON.stringify(body), json: async () => body }; }",
+        "  if (u.startsWith('https://www.googleapis.com/youtube/v3/channels')) { CH += 1; const id = 'UC-CHILD-' + CH; return { ok: true, status: 200, json: async () => ({ items: [{ id, snippet: { title: 'Child Fixture ' + CH, customUrl: '@childfixture' + CH }, statistics: { subscriberCount: '5' } }] }) }; }",
+        "  throw new Error('unexpected fetch in main child: ' + u);",
+        '};',
+        "const { pathToFileURL } = await import('node:url');",
+        'const mod = await import(pathToFileURL(process.env.CHILD_SCRIPT).href);',
+        "process.env.YOUTUBE_CLIENT_ID = 'test-cid';",
+        "process.env.YOUTUBE_CLIENT_SECRET = 'test-csec';",
+        "const code = await mod.main(['--dry', '--only=fixture-one,fixture-two']);",
+        "console.log('CODE=' + code);",
+        "console.log('YTTOKEN_SEAM=' + seen.some((u) => u.endsWith('/studio/lib/yt-token.mjs')));",
+        "console.log('REGISTRY_IMPORTED=' + seen.some((u) => u.endsWith('/studio/lib/channels-registry.js')));",
+        "const rootUrl = pathToFileURL(process.env.CHILD_ROOT).href;",
+        "console.log('SELF_CONTAINED=' + seen.filter((u) => u.startsWith('file:')).every((u) => u.startsWith(rootUrl)));",
+      ].join('\n');
+      const { spawnSync } = await import('node:child_process');
+      const run = spawnSync(process.execPath, ['--input-type=module', '-e', child], {
+        cwd: tmp,
+        encoding: 'utf8',
+        env: { ...process.env, CHILD_SCRIPT: nodePath.join(tmp, 'scripts', 'import-parked-channels.mjs'), CHILD_ROOT: tmp },
+      });
+      assert.equal(run.status, 0, 'child exited 0 — stderr: ' + run.stderr);
+      assert.match(run.stdout, /CODE=0/, 'main(--dry) exits 0 on the fixture tree');
+      assert.match(run.stdout, /YTTOKEN_SEAM=true/, 'positive control: the tracker saw the refresh seam import');
+      assert.match(run.stdout, /REGISTRY_IMPORTED=false/, 'dry must never import channels-registry (the write paths)');
+      assert.match(run.stdout, /SELF_CONTAINED=true/, 'the child resolved NOTHING from the real repo — CI checkouts without yt-mcp/channels stay green');
+      assert.match(run.stdout, /planned=2/, 'both fixture channels were planned');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
   });
 });
