@@ -167,6 +167,9 @@ jobs:
           BRAIN_ENABLED: '1'
           BRAIN_EMBED_ENABLED: '1'
           BRAIN_PORT: '8000'
+          # Phase 4 (#106): job save-points + resume, review-queue gate.
+          JOB_STORE_ENABLED: '1'
+          REVIEW_QUEUE_ENABLED: '1'
         # --resume is SPACE-form on purpose: channel-pipeline.mjs parses
         # `--resume <job_id>` (argv.includes('--resume') + next arg) — a
         # `--resume=<id>` token would be silently ignored (no resume trigger).
