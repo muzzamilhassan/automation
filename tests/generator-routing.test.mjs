@@ -660,3 +660,44 @@ test('T2a: template title_patterns override the kit title line; the kit hook rul
     assert.ok(prompt.includes('• Point 4 MUST BE: slot four.'), 'a 4-beat template on a 4-point kit renders all four slots');
   });
 });
+
+test('T2a: payoff_rule pins the closing constraint in the slot-line period style (exactly one final period)', async () => {
+  await withStoryTemplate({
+    beats: ['slot one', 'slot two', 'slot three', 'slot four'],
+    payoff_rule: 'make the viewer recompute their own budget',
+  }, async (id) => {
+    const prompt = await promptFor(PIN_PAGE, { templateId: id });
+    assert.ok(prompt.includes('• Point 1 MUST BE: slot one.'), 'slot lines end with a period');
+    assert.ok(prompt.includes('• Closing MUST: make the viewer recompute their own budget.'), 'the closing line renders the payoff rule — same period style');
+  });
+  await withStoryTemplate({
+    beats: ['slot one', 'slot two', 'slot three', 'slot four'],
+    payoff_rule: 'already ends with a dot.',
+  }, async (id) => {
+    const prompt = await promptFor(PIN_PAGE, { templateId: id });
+    assert.ok(prompt.includes('• Closing MUST: already ends with a dot.'), 'an authored trailing period is normalized to exactly one');
+    assert.ok(!prompt.includes('a dot..'), 'never a doubled period');
+  });
+});
+
+test('T2a: all-whitespace beats are treated as no beats — the kit structure line survives byte-identically', async () => {
+  await withStoryTemplate({ beats: ['   ', ''] }, async (id) => {
+    const prompt = await promptFor(PIN_PAGE, { templateId: id });
+    assert.equal(prompt, PINNED_PROMPT, 'whitespace-only beats == absent: the kit path, byte for byte');
+    assert.ok(!prompt.includes('POINT-SLOT'), 'an empty beat plan must never render');
+  });
+});
+
+test('T2a: kit-less brand + beats below the skeleton floor pad to 4 slots (validShortsScript can never shape-reject the plan)', async () => {
+  const NO_KIT_PAGE = { ...PIN_PAGE, ytBrand: { label: 'Pin Kit', niche: 'Pin Niche', niches: ['pin niche'] } };
+  await withStoryTemplate({ beats: ['beat one', 'beat two', 'beat three'] }, async (id) => {
+    const { out: prompt, logs } = await captureLogs(() => promptFor(NO_KIT_PAGE, { templateId: id }));
+    assert.ok(!prompt.includes('PACING RULES'), 'fixture sanity: the kit really has no script block');
+    assert.equal((prompt.match(/• Point \d+ MUST BE:/g) || []).length, 4, 'the plan is floored at the skeleton\'s 4 points');
+    assert.ok(prompt.includes('• Point 1 MUST BE: beat one.'), 'authored beats keep their slots');
+    assert.ok(prompt.includes('• Point 4 MUST BE: free point (unconstrained by the template — the shorts skeleton floors at 4 points).'),
+      'the padded slot is an explicit free point, not silence');
+    assert.ok(!prompt.includes('Structure: a curiosity-gap hook'), 'the beat plan still replaces the kit-less default structure line');
+    assert.ok(logs.some((l) => l.includes('[story-structure]') && l.includes('below the shorts skeleton floor (4)') && l.includes('beats=3')), 'the floor is logged');
+  });
+});

@@ -811,10 +811,16 @@ function titlePatternsLine(story) {
 // self-contradicting prompt is the worse failure, and refusal would turn an
 // authoring mistake into a dead run. The sync-time validator stays the first
 // line of defense; this guard covers the brand-blind gap it cannot check. The
-// mapping is also logged, machine-parseably.
+// mapping is also logged, machine-parseably. All-whitespace beats are the same
+// as no beats ('' return — the caller keeps the kit line), and a kit-less plan
+// below SKELETON_FLOOR pads with explicit free slots (validShortsScript's
+// >=4-points gate would otherwise shape-reject every reply). Every constraint
+// line ends with exactly one final period — the slot lines' style.
+const SKELETON_FLOOR = 4;
 function storyStructureLine(story, SC) {
   const beats = (Array.isArray(story.beats) ? story.beats : [])
     .map((b) => String(b || '').trim()).filter(Boolean);
+  if (!beats.length) return '';
   const kitPoints = typeof SC?.points === 'number' ? SC.points : null;
   let slots = beats;
   let absorbNote = '';
@@ -822,15 +828,20 @@ function storyStructureLine(story, SC) {
     slots = [...beats.slice(0, kitPoints - 1), beats.slice(kitPoints - 1).join(' Then: ')];
     absorbNote = ` (absorbs the template's beats ${kitPoints + 1}-${beats.length} — the kit's ${kitPoints}-point skeleton is immutable)`;
     console.log(`[story-structure] template beats=${beats.length} exceed the kit's ${kitPoints}-point skeleton — mapped INTO the kit count (slot ${kitPoints} absorbs beats ${kitPoints + 1}-${beats.length}); constrain-not-refuse (Phase 5 T2a)`);
+  } else if (!kitPoints && beats.length < SKELETON_FLOOR) {
+    slots = [...slots, ...Array.from({ length: SKELETON_FLOOR - beats.length }, () =>
+      `free point (unconstrained by the template — the shorts skeleton floors at ${SKELETON_FLOOR} points)`)];
+    console.log(`[story-structure] template beats=${beats.length} below the shorts skeleton floor (${SKELETON_FLOOR}) — ${SKELETON_FLOOR - beats.length} free slot(s) added (kit-less lane, Phase 5 T2a)`);
   }
   const lineWords = story.line_words ?? SC?.lineWords ?? null;
   const head = `Structure: hook (≤10 words), numbered points as POINT-SLOT constraints${lineWords ? ` (each line ${lineWords} words)` : ''}, closing (≤10 words).${SC?.targetSeconds ? ` Target: ~${SC.targetSeconds} seconds spoken.` : ''}`;
   const slotLines = slots
     .map((b, i) => `• Point ${i + 1} MUST BE: ${b}${i === slots.length - 1 ? absorbNote : ''}.`)
     .join('\n');
-  return story.payoff_rule
-    ? `${head}\n${slotLines}\n• Closing MUST: ${String(story.payoff_rule).trim()}`
-    : `${head}\n${slotLines}`;
+  const payoff = story.payoff_rule
+    ? `• Closing MUST: ${String(story.payoff_rule).trim().replace(/\.?$/, '.')}`
+    : '';
+  return payoff ? `${head}\n${slotLines}\n${payoff}` : `${head}\n${slotLines}`;
 }
 
 export async function generateYouTubeScript(page, forcedTheme = null, opts = {}) {
@@ -873,11 +884,12 @@ Write in EASY, CLEAR, punchy English with high curiosity and immediate practical
 • Closing: a punchline, challenge, or mic-drop line (≤10 words) that makes the viewer rewatch or comment. NEVER a summary and never "follow for more".` : '';
   const titleRule = titlePatternsLine(story)
     || (SC ? `\nthumb_headline MUST use this proven ${SC.titleStyle} pattern: ${SC.titleExamples}. Max 8 words.` : '');
-  const structureLine = story?.beats?.length
-    ? storyStructureLine(story, SC)
-    : SC
-      ? `Structure: hook (≤10 words), ${SC.points} numbered points (each line ${SC.lineWords} words), closing (≤10 words). Target: ~${SC.targetSeconds} seconds spoken.`
-      : 'Structure: a curiosity-gap hook, 5 numbered points, a memorable closing line.';
+  const kitStructureLine = SC
+    ? `Structure: hook (≤10 words), ${SC.points} numbered points (each line ${SC.lineWords} words), closing (≤10 words). Target: ~${SC.targetSeconds} seconds spoken.`
+    : 'Structure: a curiosity-gap hook, 5 numbered points, a memorable closing line.';
+  // An empty beat plan (all-whitespace beats) renders '' and falls back to the
+  // kit line here — absent and empty are the same template (Phase 5 T2a).
+  const structureLine = (story?.beats?.length && storyStructureLine(story, SC)) || kitStructureLine;
   const prompt = `${styleLine}
 Write in EASY, CLEAR, punchy English.
 ${themeLine}${trendBlock}${hookRule}${pacingRule}${titleRule}
