@@ -764,6 +764,75 @@ export async function callScriptBrain({ slug = null, jobId = null, prompt, isVal
 // The shorts JSON contract — identical check across every retired provider arm.
 const validShortsScript = (p) => p?.hook && Array.isArray(p.points) && p.points.length >= 4;
 
+// ---------------------------------------------------------------------------
+// Phase 5 T2a (spec D2) — story_structure prompt threading. A template's
+// story_structure authors POINT-SLOT CONSTRAINTS over the immutable shorts
+// skeleton (hook + 4-5 numbered points + closing — validShortsScript above
+// never changes); it never redefines the JSON shape. Every helper below
+// returns '' / null for a template without the field, so the kit path stays
+// byte-identical (AC-P5-3).
+// ---------------------------------------------------------------------------
+
+// The resolved template's story_structure block, or null (template-less lanes
+// and the legacy 7 have none). Reads the registry data by the ONE identity
+// string — the same template_id the assignment/brain/review gates use (D19).
+function templateStoryStructure(templateId) {
+  const meta = templateId ? REGISTRY_META[templateId] : null;
+  return (meta && typeof meta === 'object' && meta.story_structure) || null;
+}
+
+// The template's hook_classes[] APPEND one constraints line to the kit's hook
+// rule (D2) — the kit line itself always survives.
+function hookClassesLine(story) {
+  const classes = (Array.isArray(story?.hook_classes) ? story.hook_classes : [])
+    .map((c) => String(c || '').trim()).filter(Boolean);
+  return classes.length
+    ? `\nHOOK CLASSES (template constraint — the hook must be one of these types): ${classes.join(' | ')}.`
+    : '';
+}
+
+// The template's title_patterns[] REPLACE the kit's title line when declared
+// (Phase 5 T2a); when the template omits them the kit line survives untouched.
+function titlePatternsLine(story) {
+  const patterns = (Array.isArray(story?.title_patterns) ? story.title_patterns : [])
+    .map((p) => String(p || '').trim()).filter(Boolean);
+  return patterns.length
+    ? `\nthumb_headline MUST follow one of this template's title patterns: ${patterns.join(' | ')}. Max 8 words.`
+    : '';
+}
+
+// GUARD CHOICE (Phase 5 T2a — the T1 reviewer's watch-item): CONSTRAIN, never
+// refuse. When the template's beats exceed the kit's declared point count, the
+// beats are mapped INTO the kit count — the FINAL slot absorbs the overflow
+// (merged "Then:" clauses) — and the prompt itself carries the absorption
+// note, so nothing is truncated silently and an authoring slip never kills a
+// live channel's production day. The kit owns the point count because its
+// pacingRule (kit-owned, unchanged per D2) commands "Exactly N points" — a
+// self-contradicting prompt is the worse failure, and refusal would turn an
+// authoring mistake into a dead run. The sync-time validator stays the first
+// line of defense; this guard covers the brand-blind gap it cannot check. The
+// mapping is also logged, machine-parseably.
+function storyStructureLine(story, SC) {
+  const beats = (Array.isArray(story.beats) ? story.beats : [])
+    .map((b) => String(b || '').trim()).filter(Boolean);
+  const kitPoints = typeof SC?.points === 'number' ? SC.points : null;
+  let slots = beats;
+  let absorbNote = '';
+  if (kitPoints && beats.length > kitPoints) {
+    slots = [...beats.slice(0, kitPoints - 1), beats.slice(kitPoints - 1).join(' Then: ')];
+    absorbNote = ` (absorbs the template's beats ${kitPoints + 1}-${beats.length} — the kit's ${kitPoints}-point skeleton is immutable)`;
+    console.log(`[story-structure] template beats=${beats.length} exceed the kit's ${kitPoints}-point skeleton — mapped INTO the kit count (slot ${kitPoints} absorbs beats ${kitPoints + 1}-${beats.length}); constrain-not-refuse (Phase 5 T2a)`);
+  }
+  const lineWords = story.line_words ?? SC?.lineWords ?? null;
+  const head = `Structure: hook (≤10 words), numbered points as POINT-SLOT constraints${lineWords ? ` (each line ${lineWords} words)` : ''}, closing (≤10 words).${SC?.targetSeconds ? ` Target: ~${SC.targetSeconds} seconds spoken.` : ''}`;
+  const slotLines = slots
+    .map((b, i) => `• Point ${i + 1} MUST BE: ${b}${i === slots.length - 1 ? absorbNote : ''}.`)
+    .join('\n');
+  return story.payoff_rule
+    ? `${head}\n${slotLines}\n• Closing MUST: ${String(story.payoff_rule).trim()}`
+    : `${head}\n${slotLines}`;
+}
+
 export async function generateYouTubeScript(page, forcedTheme = null, opts = {}) {
   const brand = resolveBrand(page);
   const fallback = fallbackScriptFor(brand);
@@ -787,16 +856,28 @@ Write in EASY, CLEAR, punchy English with high curiosity and immediate practical
   // RETENTION ENGINE (09-19: IC/MR/DFD sat at 35-54% avg-watched and the Shorts
   // feed buried them; QQ's 86% proves the format works when viewers stay)
   const SC = brand.script || null;
-  const hookRule = SC ? `\nHOOK RULES (the first 2 seconds decide the swipe — obey ALL):
+  // Phase 5 T2a (spec D2) — story_structure threading. The assigned template's
+  // story_structure REPLACES the kit's structureLine with its beat plan as
+  // point-slot constraints (the template's OWN point count + line words over
+  // the IMMUTABLE shorts skeleton — the JSON-contract line below is untouched);
+  // its hook_classes[] APPEND one constraints line to the kit's hook rule; its
+  // title_patterns[] REPLACE the kit's title line. Wherever the template omits
+  // a field — or no template is assigned — every line is today's kit text,
+  // byte-identical (AC-P5-3).
+  const story = templateStoryStructure(opts.templateId || null);
+  const hookRule = (SC ? `\nHOOK RULES (the first 2 seconds decide the swipe — obey ALL):
 • Open with a question, a shocking number, or a stake that involves "you". NEVER a definition, a greeting, a setup, or a list announcement ("here are N things..." is BANNED).
-• The hook must open a loop that only closes at the end.` : '';
+• The hook must open a loop that only closes at the end.` : '') + hookClassesLine(story);
   const pacingRule = SC ? `\nPACING RULES (viewers swipe away at the first weak line):
 • Exactly ${SC.points} points. Each point line: ${SC.lineWords} words. One concrete idea per line, opened with the payoff itself — zero filler, zero transitions, no repeating an earlier point.
 • Closing: a punchline, challenge, or mic-drop line (≤10 words) that makes the viewer rewatch or comment. NEVER a summary and never "follow for more".` : '';
-  const titleRule = SC ? `\nthumb_headline MUST use this proven ${SC.titleStyle} pattern: ${SC.titleExamples}. Max 8 words.` : '';
-  const structureLine = SC
-    ? `Structure: hook (≤10 words), ${SC.points} numbered points (each line ${SC.lineWords} words), closing (≤10 words). Target: ~${SC.targetSeconds} seconds spoken.`
-    : 'Structure: a curiosity-gap hook, 5 numbered points, a memorable closing line.';
+  const titleRule = titlePatternsLine(story)
+    || (SC ? `\nthumb_headline MUST use this proven ${SC.titleStyle} pattern: ${SC.titleExamples}. Max 8 words.` : '');
+  const structureLine = story?.beats?.length
+    ? storyStructureLine(story, SC)
+    : SC
+      ? `Structure: hook (≤10 words), ${SC.points} numbered points (each line ${SC.lineWords} words), closing (≤10 words). Target: ~${SC.targetSeconds} seconds spoken.`
+      : 'Structure: a curiosity-gap hook, 5 numbered points, a memorable closing line.';
   const prompt = `${styleLine}
 Write in EASY, CLEAR, punchy English.
 ${themeLine}${trendBlock}${hookRule}${pacingRule}${titleRule}

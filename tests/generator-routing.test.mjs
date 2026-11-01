@@ -30,6 +30,7 @@ import {
   generateYouTubeScript,
 } from '../youtube-engine.mjs';
 import { PROVIDERS, capabilityProviders } from '../studio/lib/provider-catalog.js';
+import { REGISTRY_META } from '../studio/lib/template-registry.data.js';
 
 // ---- fixtures (ai-adapter.test.mjs style) ----
 
@@ -507,4 +508,155 @@ test('youtube-engine: shorts brain routes through the registry — zero hand cha
   assert.equal(geminiRefs.length, 1, 'gemini literal may appear only in the extraction classifier');
   assert.ok(src.includes("routeAndCall('script-gen'") || src.includes('callScriptBrain'), 'shorts brain must call the registry seam');
   assert.ok(src.includes("source: 'fallback'"), 'template fallback terminal state stays');
+});
+
+// ---- Phase 5 T2a (spec D2): story_structure prompt threading + the kit-bound beats guard ----
+//
+// Pins, per AC-P5-3 and the T1 reviewer's watch-item:
+//   - UNASSIGNED / legacy-template (no story_structure): the kit-level prompt
+//     stays BYTE-IDENTICAL (spawn pin — the committed prompt literal below).
+//   - template WITH story_structure: the beat plan REPLACES the kit's
+//     structure line with the template's OWN point count; the kit's hook rule
+//     survives and hook_classes[] append one constraints line; pacing stays
+//     kit-owned; the JSON-contract line is untouched.
+//   - beats > kit points: CONSTRAIN, never refuse — the beats are mapped INTO
+//     the kit's point count, the final slot absorbs the overflow, the prompt
+//     notes it, and the mapping is logged (chosen in youtube-engine.mjs).
+//   - title_patterns[] REPLACE the kit's title line when declared; the kit
+//     line survives when the template omits them.
+//
+// All runs use an injected ytBrand (resolveBrand short-circuits on page.ytBrand —
+// zero fs reads) and a stub provider, house style.
+
+const PIN_PAGE = {
+  id: 'p1', slug: 'zz-story-pin', name: 'Pin Chan',
+  ytBrand: {
+    label: 'Pin Kit', niche: 'Pin Niche', niches: ['pin niche'],
+    script: { targetSeconds: 32, points: 4, lineWords: '9-12', titleStyle: 'numbered listicle + stakes', titleExamples: '"Example One", "Example Two"' },
+  },
+};
+
+// The committed kit-level prompt, byte-for-byte (captured from the engine on
+// 2026-11-01, pre-T2a). Any drift on the unassigned path fails this pin.
+const PINNED_PROMPT = `You write viral, high-retention YouTube Shorts scripts for "Pin Chan" (Niche: Pin Niche).
+Target content pillars: pin niche.
+Write in EASY, CLEAR, punchy English with high curiosity and immediate practical payoff. The points must deliver concrete insider-level insights that feel like real knowledge, not generic surface-level fluff.
+Write in EASY, CLEAR, punchy English.
+Topic for this script (MUST be about exactly this): pin topic
+HOOK RULES (the first 2 seconds decide the swipe — obey ALL):
+• Open with a question, a shocking number, or a stake that involves "you". NEVER a definition, a greeting, a setup, or a list announcement ("here are N things..." is BANNED).
+• The hook must open a loop that only closes at the end.
+PACING RULES (viewers swipe away at the first weak line):
+• Exactly 4 points. Each point line: 9-12 words. One concrete idea per line, opened with the payoff itself — zero filler, zero transitions, no repeating an earlier point.
+• Closing: a punchline, challenge, or mic-drop line (≤10 words) that makes the viewer rewatch or comment. NEVER a summary and never "follow for more".
+thumb_headline MUST use this proven numbered listicle + stakes pattern: "Example One", "Example Two". Max 8 words.
+Structure: hook (≤10 words), 4 numbered points (each line 9-12 words), closing (≤10 words). Target: ~32 seconds spoken.
+Return ONLY valid JSON:
+{"hook":"<=12 words","thumb_headline":"<=6 word ALL CAPS thumbnail headline","points":[{"title":"2-5 word ALL CAPS title","line":"1-2 short sentences"},{"title":"...","line":"..."},{"title":"...","line":"..."},{"title":"...","line":"..."}],"closing":"<=12 words"}`;
+
+async function captureLogs(fn) {
+  const logs = [];
+  const orig = console.log;
+  console.log = (...a) => logs.push(a.map(String).join(' '));
+  try { return { out: await fn(), logs }; }
+  finally { console.log = orig; }
+}
+
+// Runs the engine against the stub gemini provider and returns the exact prompt
+// bytes it sent. `extra` merges at the generateYouTubeScript opts TOP level
+// (engineOpts only builds `injected` — templateId must ride beside it).
+async function promptFor(page, extra = {}) {
+  const calls = [];
+  const fetchStub = async (url, init) => {
+    calls.push({ url: String(url), init });
+    return stubResponse(geminiBody(SHORTS_JSON(4, true)));
+  };
+  const script = await generateYouTubeScript(page, 'pin topic', {
+    ...engineOpts({
+      routes: [{ providerId: 'gemini', priority: 1, source: 'channel' }],
+      keys: (slug, env) => { env.GEMINI_API_KEY = 'AIza_x'; return ['gemini']; },
+      fetch: fetchStub,
+    }),
+    ...extra,
+  });
+  assert.equal(script.source, 'gemini', 'fixture sanity: the stub provider answered');
+  return JSON.parse(calls[0].init.body).contents[0].parts[0].text;
+}
+
+// Registers a story_structure fixture template in the in-memory registry for
+// the duration of fn (added/deleted around it — the data file is untouched).
+async function withStoryTemplate(story, fn) {
+  const id = 'zz-story-tpl';
+  const prev = Object.prototype.hasOwnProperty.call(REGISTRY_META, id) ? REGISTRY_META[id] : undefined;
+  REGISTRY_META[id] = {
+    version: '1.0.0', template_id: id, niches: ['Pin Niche'], formats: ['short', 'long'],
+    renderer: 'remotion', required_capabilities: ['script-gen', 'tts', 'captions'],
+    variation_rules: [], safety: { required_sources: false, review_required: [] },
+    deprecated: false, changelog: [], story_structure: story,
+  };
+  try { return await fn(id); }
+  finally {
+    if (prev === undefined) delete REGISTRY_META[id];
+    else REGISTRY_META[id] = prev;
+  }
+}
+
+test('T2a pin: unassigned and legacy-template prompts are byte-identical (AC-P5-3)', async () => {
+  const noTemplate = await promptFor(PIN_PAGE);
+  assert.equal(noTemplate, PINNED_PROMPT, 'the kit-level prompt is pinned byte-for-byte (committed behavior)');
+  const legacyTemplate = await promptFor(PIN_PAGE, { templateId: 'finance-explainers' });
+  assert.equal(legacyTemplate, PINNED_PROMPT, 'a template WITHOUT story_structure must not touch a single byte');
+});
+
+test('T2a: template story_structure replaces the kit structure line with its own point count; the kit hook rule survives', async () => {
+  await withStoryTemplate({
+    beats: [
+      'the popular belief, stated as the viewer lives it',
+      'the first piece of reversal evidence',
+      'the what-to-do payoff',
+    ],
+    hook_classes: ['question', 'shocking number'],
+    line_words: '9-11',
+  }, async (id) => {
+    const prompt = await promptFor(PIN_PAGE, { templateId: id });
+    assert.ok(prompt.includes('Structure: hook (≤10 words), numbered points as POINT-SLOT constraints (each line 9-11 words), closing (≤10 words). Target: ~32 seconds spoken.'),
+      'the template head carries its OWN line words over the kit\'s');
+    assert.ok(prompt.includes('• Point 1 MUST BE: the popular belief, stated as the viewer lives it.'), 'beat 1 rides as a point-slot constraint');
+    assert.equal((prompt.match(/• Point \d+ MUST BE:/g) || []).length, 3, 'the slot count is the template\'s OWN beat count (3), not the kit\'s 4');
+    assert.ok(!prompt.includes('Structure: hook (≤10 words), 4 numbered points (each line 9-12 words)'), 'the kit structure line is REPLACED');
+    assert.ok(prompt.includes('HOOK RULES (the first 2 seconds decide the swipe — obey ALL)'), 'the kit hook rule survives');
+    assert.ok(prompt.includes('HOOK CLASSES (template constraint — the hook must be one of these types): question | shocking number.'), 'hook_classes[] append their constraints line');
+    assert.ok(prompt.includes('• Exactly 4 points. Each point line: 9-12 words.'), 'the kit pacing rule survives (kit-owned per D2)');
+    assert.ok(prompt.includes('thumb_headline MUST use this proven numbered listicle + stakes pattern: "Example One", "Example Two".'), 'the kit title line survives when the template omits title_patterns');
+    assert.ok(prompt.includes('Return ONLY valid JSON:'), 'the JSON-contract line is untouched');
+  });
+});
+
+test('T2a GUARD: beats exceeding the kit point count are mapped INTO it — final slot absorbs, never silent (constrain, not refuse)', async () => {
+  await withStoryTemplate({
+    beats: ['beat one', 'beat two', 'beat three', 'beat four', 'beat five', 'beat six'],
+  }, async (id) => {
+    const { out: prompt, logs } = await captureLogs(() => promptFor(PIN_PAGE, { templateId: id }));
+    assert.equal((prompt.match(/• Point \d+ MUST BE:/g) || []).length, 4, 'exactly the kit\'s 4 slots render — the template count never overrides the kit');
+    assert.ok(prompt.includes('• Point 4 MUST BE: beat four Then: beat five Then: beat six (absorbs the template\'s beats 5-6 — the kit\'s 4-point skeleton is immutable).'),
+      'the final slot absorbs the overflow and the prompt NOTES the constraint');
+    assert.ok(!prompt.includes('• Point 5 MUST BE:'), 'no slot beyond the kit count may exist');
+    assert.ok(logs.some((l) => l.includes('[story-structure]') && l.includes('mapped INTO the kit count') && l.includes('beats=6')),
+      'the mapping is logged machine-parseably (constrain-not-refuse, never dark)');
+  });
+});
+
+test('T2a: template title_patterns override the kit title line; the kit hook rule still survives', async () => {
+  await withStoryTemplate({
+    beats: ['slot one', 'slot two', 'slot three', 'slot four'],
+    title_patterns: ['$N Money Rules That Quietly Work', 'The $ADJ Rule Nobody Talks About'],
+  }, async (id) => {
+    const prompt = await promptFor(PIN_PAGE, { templateId: id });
+    assert.ok(prompt.includes("thumb_headline MUST follow one of this template's title patterns: $N Money Rules That Quietly Work | The $ADJ Rule Nobody Talks About. Max 8 words."),
+      'the template patterns REPLACE the title rule');
+    assert.ok(!prompt.includes('MUST use this proven numbered listicle + stakes pattern'), 'the kit title line is gone when the template declares patterns');
+    assert.ok(prompt.includes('HOOK RULES (the first 2 seconds decide the swipe — obey ALL)'), 'the kit hook rule still survives (no hook_classes declared here)');
+    assert.ok(!prompt.includes('HOOK CLASSES'), 'no hook constraints line when the template omits hook_classes');
+    assert.ok(prompt.includes('• Point 4 MUST BE: slot four.'), 'a 4-beat template on a 4-point kit renders all four slots');
+  });
 });
