@@ -1,5 +1,14 @@
 name: 📊 Daily/Weekly/Monthly Reports (Excel + ntfy)
 
+# #106 T4b: reporting is registry-driven — ONE matrix job per ACTIVE registry
+# channel fetches that channel's numbers with its OWN YT_TOKEN_<ENSSLUG>
+# secret (the channel-autopilot.yml dynamic-secret pattern — the only way to
+# map secret names from a registry; a single job cannot construct secret
+# names), writing a fragment JSON artifact. The collect job then merges the
+# fragments into the SAME daily workbook, ntfy push, state commit and
+# artifacts as before. A channel with a missing/dead token GAPs its rows —
+# it never kills the report for the others.
+
 on:
   schedule:
     # 16:45 UTC = 21:45 PKT — after all three posting slots have run
@@ -17,7 +26,89 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      channels: ${{ steps.disc.outputs.channels }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🔎 Read the channel registry
+        id: disc
+        run: |
+          node -e "
+            const fs = require('fs');
+            let chans = [];
+            try {
+              const reg = JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8'));
+              chans = (reg.channels || [])
+                .filter(c => c.active !== false)
+                .map(c => ({
+                  slug: c.slug,
+                  envSlug: c.slug.toUpperCase().replace(/-/g, '_')
+                }));
+            } catch (e) { console.log('registry unreadable:', e.message); }
+            console.log(JSON.stringify(chans));
+            fs.writeFileSync(process.env.GITHUB_OUTPUT, 'channels=' + JSON.stringify(chans));
+          "
+
   report:
+    name: 📈 Fetch channel data — ${{ matrix.slug.slug }}
+    needs: discover
+    if: ${{ needs.discover.outputs.channels != '[]' && needs.discover.outputs.channels != '' }}
+    strategy:
+      matrix:
+        slug: ${{ fromJSON(needs.discover.outputs.channels) }}
+      max-parallel: 4
+      fail-fast: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SLUG: ${{ matrix.slug.slug }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: 📦 Install Dependencies
+        run: npm install
+
+      - name: 🔑 Resolve this channel's token
+        env:
+          DYN_TOKEN: ${{ secrets[format('YT_TOKEN_{0}', matrix.slug.envSlug)] }}
+        run: |
+          ENV_NAME="YT_TOKEN_$(echo "$SLUG" | tr '[:lower:]' '[:upper:]' | tr '-' '_')"
+          if [ -z "$DYN_TOKEN" ]; then
+            # reporting GAP semantics (unchanged): a missing token empties this
+            # channel's YouTube rows — it must not kill the channel's FB half
+            echo "::warning::secret ${ENV_NAME} is missing — YouTube rows for this channel will GAP"
+            exit 0
+          fi
+          echo "${ENV_NAME}=${DYN_TOKEN}" >> "$GITHUB_ENV"
+
+      - name: 📈 Fetch this channel's data (fragment for the collect job)
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+        run: node daily-excel-report.mjs --channel "$SLUG"
+
+      - name: ⬆️ Upload channel fragment
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-fragment-${{ matrix.slug.slug }}
+          path: reports/fragments
+          retention-days: 7
+          if-no-files-found: error
+
+  collect:
+    name: 📊 Build & send the daily payload
+    needs: [discover, report]
+    if: ${{ !cancelled() && needs.discover.outputs.channels != '[]' && needs.discover.outputs.channels != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -34,25 +125,26 @@ jobs:
       - name: 📦 Install Dependencies
         run: npm install
 
+      - name: ⬇️ Download every channel fragment (missing ones GAP in the workbook)
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: report-fragment-*
+          merge-multiple: true
+          path: reports/fragments
+
       - name: Build & Send Reports
         env:
-          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
-          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-          YT_TOKEN_QUOTEQUARRY: ${{ secrets.YT_TOKEN_QUOTEQUARRY }}
-          YT_TOKEN_INVESTORS_COMPASS: ${{ secrets.YT_TOKEN_INVESTORS_COMPASS }}
-          YT_TOKEN_MONEY_RULEBOOK: ${{ secrets.YT_TOKEN_MONEY_RULEBOOK }}
-          YT_TOKEN_DEBT_FREE_DOCTRINE: ${{ secrets.YT_TOKEN_DEBT_FREE_DOCTRINE }}
-          FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
           THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
           THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
-          node daily-excel-report.mjs daily
+          node daily-excel-report.mjs daily --collect
           # PKT weekday: 0=Sunday → also weekly; 1st of month → also monthly
           PKTDOW=$(date -u -d "+5 hours" +%w)
           PKTDATE=$(date -u -d "+5 hours" +%d)
-          if [ "$PKTDOW" = "0" ]; then node daily-excel-report.mjs weekly; fi
-          if [ "$PKTDATE" = "01" ]; then node daily-excel-report.mjs monthly; fi
+          if [ "$PKTDOW" = "0" ]; then node daily-excel-report.mjs weekly --collect; fi
+          if [ "$PKTDATE" = "01" ]; then node daily-excel-report.mjs monthly --collect; fi
 
       - name: 🧹 Weekly FB duplicate-reel cleanup (Mondays only)
         if: ${{ github.event.schedule != '' }}

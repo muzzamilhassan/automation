@@ -3,6 +3,12 @@
 # posters = daily niche poster images per FB page
 # Everything else (shorts, episodes, IG slots) has its own workflow — this file
 # only exists for the two FB scripts that had no cloud home.
+#
+# #106 T4b: ONE matrix job per ACTIVE registry channel (discover step reads
+# yt-mcp/studio-channels.json — the channel-autopilot.yml pattern). New
+# channels join automatically; a job whose fb-outbox/<slug> cache misses is a
+# harmless no-op. The drain scripts scan fb-outbox/ and only ever see the one
+# slug dir this job restored, so per-channel behavior is unchanged.
 name: 🎛️ Studio — FB now
 
 on:
@@ -13,20 +19,58 @@ on:
         required: true
         default: "reels"
 
-concurrency:
-  #63: one shared group — both workflows write the same outbox cache;
-  # parallel runs overwrote each other's save, resurrecting posted reels
-  group: outbox-drain
-  cancel-in-progress: false
-
 # State commits below need write access (default-token restrictions would silently break them — see issue #70)
 permissions:
   contents: write
 
 jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      channels: ${{ steps.disc.outputs.channels }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🔎 Read the channel registry
+        id: disc
+        run: |
+          node -e "
+            const fs = require('fs');
+            let chans = [];
+            try {
+              const reg = JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8'));
+              chans = (reg.channels || [])
+                .filter(c => c.active !== false)
+                .map(c => ({
+                  slug: c.slug,
+                  envSlug: c.slug.toUpperCase().replace(/-/g, '_')
+                }));
+            } catch (e) { console.log('registry unreadable:', e.message); }
+            console.log(JSON.stringify(chans));
+            fs.writeFileSync(process.env.GITHUB_OUTPUT, 'channels=' + JSON.stringify(chans));
+          "
+
   run:
+    name: 🎛️ ${{ inputs.job }} — ${{ matrix.slug.slug }}
+    needs: discover
+    if: ${{ needs.discover.outputs.channels != '[]' && needs.discover.outputs.channels != '' }}
+    strategy:
+      matrix:
+        slug: ${{ fromJSON(needs.discover.outputs.channels) }}
+      max-parallel: 3
+      fail-fast: false
+    concurrency:
+      #63: same-slug drains serialize across BOTH drain workflows (this one and
+      # ig-slot-poster share the group name — no workflow dimension). Parallel
+      # same-slug runs overwrote each other's outbox cache, resurrecting posted
+      # reels. Drains restore-only and never re-save, and different slugs have
+      # disjoint cache paths, so cross-slug jobs parallelize safely.
+      group: crosspost-${{ matrix.slug.slug }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    env:
+      SLUG: ${{ matrix.slug.slug }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -36,33 +80,12 @@ jobs:
         with:
           node-version: 24
 
-      - name: ♻️ Restore quotequarry reels
+      - name: ♻️ Restore queued reels for ${{ matrix.slug.slug }}
         uses: actions/cache@v4
         with:
-          path: fb-outbox/quotequarry
-          key: ig-outbox-quotequarry-${{ github.run_id }}
-          restore-keys: ig-outbox-quotequarry-
-
-      - name: ♻️ Restore investors-compass reels
-        uses: actions/cache@v4
-        with:
-          path: fb-outbox/investors-compass
-          key: ig-outbox-investors-compass-${{ github.run_id }}
-          restore-keys: ig-outbox-investors-compass-
-
-      - name: ♻️ Restore money-rulebook reels
-        uses: actions/cache@v4
-        with:
-          path: fb-outbox/money-rulebook
-          key: ig-outbox-money-rulebook-${{ github.run_id }}
-          restore-keys: ig-outbox-money-rulebook-
-
-      - name: ♻️ Restore debt-free-doctrine reels
-        uses: actions/cache@v4
-        with:
-          path: fb-outbox/debt-free-doctrine
-          key: ig-outbox-debt-free-doctrine-${{ github.run_id }}
-          restore-keys: ig-outbox-debt-free-doctrine-
+          path: fb-outbox/${{ matrix.slug.slug }}
+          key: ig-outbox-${{ matrix.slug.slug }}-${{ github.run_id }}
+          restore-keys: ig-outbox-${{ matrix.slug.slug }}-
 
       - name: 📦 Install dependencies
         run: npm install
@@ -80,7 +103,7 @@ jobs:
           FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
         run: node fb-crosspost.mjs
 
-      - name: 🖼️ FB posters — daily niche image per page
+      - name: 🖼️ FB posters — daily niche image for this page
         if: ${{ inputs.job == 'posters' }}
         env:
           FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
@@ -88,7 +111,7 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-        run: node fb-images.mjs
+        run: node fb-images.mjs "$SLUG"
 
       - name: 💾 Commit publishing state
         run: |

@@ -20,7 +20,38 @@ permissions:
   contents: write
 
 jobs:
+  discover:
+    # #106 T4b: the sweep itself stays ONE job (sweeper.mjs loops the registry
+    # itself — a matrix here would multiply every heal); the registry read
+    # drives the per-slug cache HANDOFF below.
+    runs-on: ubuntu-latest
+    outputs:
+      channels: ${{ steps.disc.outputs.channels }}
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+      - name: 🔎 Read the channel registry
+        id: disc
+        run: |
+          node -e "
+            const fs = require('fs');
+            let chans = [];
+            try {
+              const reg = JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8'));
+              chans = (reg.channels || [])
+                .filter(c => c.active !== false)
+                .map(c => ({
+                  slug: c.slug,
+                  envSlug: c.slug.toUpperCase().replace(/-/g, '_')
+                }));
+            } catch (e) { console.log('registry unreadable:', e.message); }
+            console.log(JSON.stringify(chans));
+            fs.writeFileSync(process.env.GITHUB_OUTPUT, 'channels=' + JSON.stringify(chans));
+          "
+
   sweep:
+    needs: discover
+    if: ${{ needs.discover.outputs.channels != '[]' && needs.discover.outputs.channels != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 100
     steps:
@@ -84,33 +115,19 @@ jobs:
             node sweeper.mjs
           fi
 
-      - name: 📦 Keep healed reels for IG slot poster (quotequarry)
-        if: ${{ hashFiles('fb-outbox/quotequarry/*.json*') != '' }}
-        uses: actions/cache/save@v4
+      - name: 📦 Hand healed reels to the per-slug cache save (matrix job below)
+        # T4b: this REPLACES the four hardcoded per-slug save steps. One
+        # artifact of everything the heal produced; the handoff matrix then
+        # writes each slug's cache with the exact keys the drain lanes
+        # restore (ig-outbox-<slug>-sweep-<run_id>). No heal today = no
+        # artifact = no saves (same as the hash-gated steps it replaced).
+        if: ${{ hashFiles('fb-outbox/**/*.json*') != '' }}
+        uses: actions/upload-artifact@v4
         with:
-          path: fb-outbox/quotequarry
-          key: ig-outbox-quotequarry-sweep-${{ github.run_id }}
-
-      - name: 📦 Keep healed reels for IG slot poster (investors-compass)
-        if: ${{ hashFiles('fb-outbox/investors-compass/*.json*') != '' }}
-        uses: actions/cache/save@v4
-        with:
-          path: fb-outbox/investors-compass
-          key: ig-outbox-investors-compass-sweep-${{ github.run_id }}
-
-      - name: 📦 Keep healed reels for IG slot poster (money-rulebook)
-        if: ${{ hashFiles('fb-outbox/money-rulebook/*.json*') != '' }}
-        uses: actions/cache/save@v4
-        with:
-          path: fb-outbox/money-rulebook
-          key: ig-outbox-money-rulebook-sweep-${{ github.run_id }}
-
-      - name: 📦 Keep healed reels for IG slot poster (debt-free-doctrine)
-        if: ${{ hashFiles('fb-outbox/debt-free-doctrine/*.json*') != '' }}
-        uses: actions/cache/save@v4
-        with:
-          path: fb-outbox/debt-free-doctrine
-          key: ig-outbox-debt-free-doctrine-sweep-${{ github.run_id }}
+          name: healed-outbox
+          path: fb-outbox
+          retention-days: 1
+          if-no-files-found: ignore
 
       - name: 💾 Commit logs back
         run: |
@@ -119,3 +136,37 @@ jobs:
           git add logs/ state/ yt-mcp/state/ yt-mcp/schedule-state.json || true
           git diff --cached --quiet || git commit -m "sweeper log: $(date -u +%F)"
           git push || true
+
+  handoff:
+    name: 📦 Keep healed reels for IG slot poster (${{ matrix.slug.slug }})
+    needs: [discover, sweep]
+    if: ${{ always() && needs.discover.outputs.channels != '[]' && needs.discover.outputs.channels != '' }}
+    strategy:
+      matrix:
+        slug: ${{ fromJSON(needs.discover.outputs.channels) }}
+      max-parallel: 4
+      fail-fast: false
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⬇️ Download the healed outbox (missing = nothing was healed today)
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: healed-outbox
+          path: healed-outbox
+
+      - name: 🗂️ Restore the outbox layout
+        run: |
+          mkdir -p fb-outbox
+          if [ -d healed-outbox/fb-outbox ]; then
+            cp -a healed-outbox/fb-outbox/. fb-outbox/
+          else
+            cp -a healed-outbox/. fb-outbox/ 2>/dev/null || true
+          fi
+
+      - name: 💾 Keep healed reels for IG slot poster
+        if: ${{ hashFiles(format('fb-outbox/{0}/*.json*', matrix.slug.slug)) != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: fb-outbox/${{ matrix.slug.slug }}
+          key: ig-outbox-${{ matrix.slug.slug }}-sweep-${{ github.run_id }}

@@ -1,15 +1,24 @@
-// Daily Excel Report — ALL 4 brand channels, ALL platforms, structured data.
+// Daily Excel Report — ALL active registry channels, ALL platforms, structured data.
 // Fix 2026-09-12: channels.list(mine:true) returned the account's ACTIVE channel
 // (Quote Quarry) for every token — all 4 channels are on one Google account.
 // Now stats are fetched per-handle via channels.list({ forHandle }) which is
-// ownership-independent. FB pages filtered to the 4 CURRENT brand pages
+// ownership-independent. FB pages filtered to the CURRENT brand pages
 // (old brand pages no longer pollute the report). IG / Threads / TikTok added.
-// Usage: node daily-excel-report.mjs [daily|weekly|monthly]
+// #106 T4b: the channel list comes from the registry (yt-mcp/studio-channels.json,
+// active only, via lib/registry-slugs.mjs) — new channels join without a code
+// change. For the reporting-daily matrix the script gains per-invocation modes:
+//   node daily-excel-report.mjs [daily|weekly|monthly]              full report (legacy path)
+//   node daily-excel-report.mjs --channel <slug>                    one channel → fragment JSON
+//                                                                   (reporting-daily matrix job)
+//   node daily-excel-report.mjs [mode] --collect                    merge fragment JSONs into
+//                                                                   the same workbook (collect job)
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import ExcelJS from 'exceljs';
 import { google } from 'googleapis';
 import { fbPageId as registryFbPageId } from './lib/registry.mjs';
+import { activeRegistryChannels, loadRegistryChannels } from './lib/registry-slugs.mjs';
 import { loadEnv } from './lib/env.mjs';
 
 loadEnv();
@@ -17,20 +26,35 @@ loadEnv();
 
 
 
+
 const CLIENT_ID = process.env.YOUTUBE_CLIENT_ID;
 const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET;
 const FB_TOKEN = process.env.FB_PAGE_TOKEN;
-const MODE = (process.argv[2] || 'daily').toLowerCase();
+
+// ---- CLI: positional mode + --channel <slug> (per-channel fragment for the
+// reporting matrix) + --collect (merge fragments into the daily payload) ----
+export function parseReportArgs(argv = process.argv.slice(2)) {
+  const channelIdx = argv.indexOf('--channel');
+  const channel = channelIdx >= 0 ? argv[channelIdx + 1] : null;
+  // the value after --channel is a slug, never the mode
+  const mode = (argv.find((a, i) => !a.startsWith('--') && (channelIdx < 0 || i !== channelIdx + 1)) || 'daily').toLowerCase();
+  return { mode, channel, collect: argv.includes('--collect') };
+}
+
+// T4b: channels come from the registry (yt-mcp/studio-channels.json, active
+// only) — labels/handles ride the entry; fbPageId resolves via lib/registry.mjs
+// (canonical legacy map, then the entry's destinations). NO hardcoded list.
+export function reportChannels() {
+  return activeRegistryChannels(loadRegistryChannels()).map((c) => ({
+    ...c,
+    fbPageId: registryFbPageId(c.slug),
+  }));
+}
+const CHANNELS = reportChannels();
 
 // FB pairing mirrors fb-crosspost.mjs PAGE_MAP (audience-matched: the YT channel
 // feeds a page whose name is a legacy brand name — both are shown in the report).
-const CHANNELS = [
-  { slug: 'quotequarry', label: 'Quote Quarry', handle: '@quotequarry302', fbPageId: registryFbPageId('quotequarry') },
-  { slug: 'investors-compass', label: "Investor's Compass", handle: '@investorscompasshq', fbPageId: registryFbPageId('investors-compass') },
-  { slug: 'money-rulebook', label: 'The Money Rulebook', handle: '@themoneyrulebook-p4y', fbPageId: registryFbPageId('money-rulebook') },
-  { slug: 'debt-free-doctrine', label: 'Debt-Free Doctrine', handle: '@debtfreedoctrine', fbPageId: registryFbPageId('debt-free-doctrine') }
-];
-// Extra owned page, not part of the 4-brand pairing (kept visible for its stats)
+// Extra owned page, not part of the brand pairing (kept visible for its stats)
 const EXTRA_PAGE_IDS = []; // Reliq North is now QQ's primary FB page (moved 09-20)
 const KNOWN_PAGE_IDS = new Set([...CHANNELS.map(c => c.fbPageId), ...EXTRA_PAGE_IDS]);
 
@@ -50,9 +74,9 @@ function getYtAuth(slug) {
 }
 
 let workingAuth = null;
-async function getWorkingAuth() {
+async function getWorkingAuth(channels = CHANNELS) {
   if (workingAuth) return workingAuth;
-  for (const ch of CHANNELS) {
+  for (const ch of channels) {
     const auth = getYtAuth(ch.slug);
     if (!auth) { console.log('[report] no token for ' + ch.slug); continue; }
     try {
@@ -67,14 +91,15 @@ async function getWorkingAuth() {
   return null;
 }
 
-async function fetchAll() {
+async function fetchAll(channels = CHANNELS) {
   const ytData = [];
-  const auth = await getWorkingAuth();
+  const knownPageIds = new Set([...channels.map(c => c.fbPageId), ...EXTRA_PAGE_IDS]);
+  const auth = await getWorkingAuth(channels);
   if (!auth) console.log('[report] GAP: no working YouTube token — YouTube rows will be empty');
   if (auth) {
     const yt = google.youtube({ version: 'v3', auth });
     const ya = google.youtubeAnalytics({ version: 'v2', auth });
-    for (const ch of CHANNELS) {
+    for (const ch of channels) {
       try {
         const res = await yt.channels.list({ part: 'snippet,statistics,contentDetails', forHandle: ch.handle });
         const c = res.data.items && res.data.items[0];
@@ -126,7 +151,7 @@ async function fetchAll() {
     }
   }
 
-  // FB: fetch all pages once, keep ONLY the 4 current brand pages
+  // FB: fetch all pages once, keep ONLY the current brand pages
   let fbPages = [];
   if (FB_TOKEN) {
     try {
@@ -134,9 +159,9 @@ async function fetchAll() {
       const d = await res.json();
       if (d.error) console.log('[report] FB API error: ' + d.error.message);
       const all = d.data || [];
-      const dropped = all.filter(p => !KNOWN_PAGE_IDS.has(p.id));
+      const dropped = all.filter(p => !knownPageIds.has(p.id));
       if (dropped.length) console.log('[report] FB: ignoring ' + dropped.length + ' unknown page(s)');
-      for (const ch of CHANNELS) {
+      for (const ch of channels) {
         const p = all.find(x => x.id === ch.fbPageId);
         if (!p) { console.log('[report] GAP: FB page missing or not linked to this token: ' + ch.label + ' (id ' + ch.fbPageId + ')'); continue; }
         fbPages.push({
@@ -166,17 +191,70 @@ async function fetchAll() {
   }
 
   // Threads: profile read (best effort)
-  let threads = null;
-  if (process.env.THREADS_ACCESS_TOKEN) {
-    try {
-      const res = await fetch('https://graph.threads.net/v1.0/me?fields=username,threads_profile_picture_url&access_token=' + process.env.THREADS_ACCESS_TOKEN);
-      const d = await res.json();
-      if (d.username) threads = { username: d.username, followers: null };
-      else console.log('[report] Threads read failed: ' + (d.error ? d.error.message : 'no username'));
-    } catch (e) { console.log('[report] Threads error: ' + e.message); }
-  }
+  const threads = await fetchThreads();
 
   return { ytData, fbPages, threads };
+}
+
+async function fetchThreads() {
+  if (!process.env.THREADS_ACCESS_TOKEN) return null;
+  try {
+    const res = await fetch('https://graph.threads.net/v1.0/me?fields=username,threads_profile_picture_url&access_token=' + process.env.THREADS_ACCESS_TOKEN);
+    const d = await res.json();
+    if (d.username) return { username: d.username, followers: null };
+    console.log('[report] Threads read failed: ' + (d.error ? d.error.message : 'no username'));
+  } catch (e) { console.log('[report] Threads error: ' + e.message); }
+  return null;
+}
+
+// ---- per-channel fragment mode (reporting-daily matrix) ----
+// One channel per invocation; the fragment artifact is merged by --collect.
+export function fragmentOf(slug, data) {
+  return {
+    slug,
+    yt: data.ytData[0] || null,
+    fb: data.fbPages[0] || null,
+    fetchedAt: new Date().toISOString()
+  };
+}
+
+function fragmentsDir(reportsDir = 'reports') {
+  return path.join(reportsDir, 'fragments');
+}
+
+async function runChannelMode(slug) {
+  const ch = CHANNELS.find(c => c.slug === slug);
+  if (!ch) throw new Error('unknown channel: ' + slug + ' (not an active registry channel)');
+  const data = await fetchAll([ch]);
+  const frag = fragmentOf(slug, data);
+  const dir = fragmentsDir();
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, slug + '.json');
+  fs.writeFileSync(file, JSON.stringify(frag, null, 2));
+  console.log('[report] fragment written: ' + file);
+  return file;
+}
+
+// Merge per-channel fragments into the SAME payload fetchAll used to build —
+// registry order (Excel row order preserved), missing fragments GAP their rows.
+export function collectFragments(channels = CHANNELS, dir = fragmentsDir()) {
+  const frags = {};
+  for (const f of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
+    if (!f.endsWith('.json')) continue;
+    try {
+      const j = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+      if (j && j.slug) frags[j.slug] = j;
+    } catch (e) { console.log('[report] unreadable fragment ' + f + ': ' + e.message.slice(0, 80)); }
+  }
+  const ytData = [];
+  const fbPages = [];
+  for (const ch of channels) {
+    const frag = frags[ch.slug];
+    if (!frag) { console.log('[report] GAP: no fragment for ' + ch.slug + ' — channel rows will be empty'); continue; }
+    if (frag.yt) ytData.push(frag.yt);
+    if (frag.fb) fbPages.push(frag.fb);
+  }
+  return { ytData, fbPages };
 }
 
 // ---- growth deltas vs last snapshot ----
@@ -214,7 +292,7 @@ function styleHeader(ws) {
   row.height = 22;
 }
 
-async function buildExcel(ytData, fbPages, threads) {
+async function buildExcel(ytData, fbPages, threads, { stateDir = 'state', reportsDir = 'reports' } = {}) {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Quarry Studio';
 
@@ -294,15 +372,13 @@ async function buildExcel(ytData, fbPages, threads) {
     { header: 'Change ', width: 12 }
   ];
   styleHeader(ws5);
-  const stateDir = 'state';
-  const stateFile = path.join(stateDir, 'report-stats.json');
-  fs.mkdirSync(stateDir, { recursive: true });
   const cur = statsKey(ytData, fbPages);
   let prev = null;
-  try { prev = JSON.parse(fs.readFileSync(stateFile, 'utf8')); } catch { }
+  try { prev = JSON.parse(fs.readFileSync(path.join(stateDir, 'report-stats.json'), 'utf8')); } catch { }
   if (prev && prev.date !== cur.date) growthRows(prev, cur).forEach(r => ws5.addRow(r));
   else ws5.addRow(['(first run — deltas appear from the next report on)', '', '', '', '']);
-  fs.writeFileSync(stateFile, JSON.stringify(cur, null, 2));
+  fs.mkdirSync(stateDir, { recursive: true });
+  fs.writeFileSync(path.join(stateDir, 'report-stats.json'), JSON.stringify(cur, null, 2));
 
   // Per-video views across the brand channels — red = under 1K views
   const ws6 = wb.addWorksheet('Video Views');
@@ -328,9 +404,8 @@ async function buildExcel(ytData, fbPages, threads) {
   if (!videoCount) ws6.addRow(['(no video rows — YouTube fetch failed)', '', '', '', '', '', '', '']);
   console.log('[report] Video Views sheet: ' + videoCount + ' videos, ' + lowCount + ' under 1K views');
 
-  const dir = 'reports';
-  fs.mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, 'daily-report-' + new Date().toISOString().slice(0, 10) + '.xlsx');
+  fs.mkdirSync(reportsDir, { recursive: true });
+  const file = path.join(reportsDir, 'daily-report-' + new Date().toISOString().slice(0, 10) + '.xlsx');
   await wb.xlsx.writeFile(file);
 
   // NTFY push with the Excel attached (headers ASCII-only)
@@ -355,14 +430,28 @@ async function buildExcel(ytData, fbPages, threads) {
   return file;
 }
 
+export { buildExcel };
+
 // ---- main ----
-console.log('[report] Fetching all channel data (' + MODE + ')...');
-fetchAll().then(function (data) {
-  console.log('[report] YouTube rows: ' + data.ytData.length + '/4, FB pages: ' + data.fbPages.length + '/4');
-  buildExcel(data.ytData, data.fbPages, data.threads).then(function (file) {
-    console.log('[report] Excel saved: ' + file);
-    console.log('[report] Done');
+async function main() {
+  const { mode, channel, collect } = parseReportArgs();
+  if (channel) {
+    console.log('[report] Channel fragment mode (' + channel + ')...');
+    await runChannelMode(channel);
+    return;
+  }
+  console.log('[report] ' + (collect ? 'Collecting channel fragments' : 'Fetching all channel data') + ' (' + mode + ')...');
+  const fetched = collect ? await collectFragments() : await fetchAll();
+  const threads = collect ? await fetchThreads() : fetched.threads;
+  console.log('[report] YouTube rows: ' + fetched.ytData.length + '/' + CHANNELS.length + ', FB pages: ' + fetched.fbPages.length + '/' + CHANNELS.length);
+  const file = await buildExcel(fetched.ytData, fetched.fbPages, threads);
+  console.log('[report] Excel saved: ' + file);
+  console.log('[report] Done');
+}
+
+const IS_MAIN = Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (IS_MAIN) {
+  main().then(function () { }, function (e) {
+    console.error('[report] Error: ' + e.message);
   });
-}).catch(function (e) {
-  console.error('[report] Error: ' + e.message);
-});
+}

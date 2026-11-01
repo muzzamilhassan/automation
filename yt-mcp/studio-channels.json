@@ -54,8 +54,8 @@
     },
     {
       "slug": "money-rulebook",
-      "label": "Money Rulebook",
-      "handle": "@moneyrulebook",
+      "label": "The Money Rulebook",
+      "handle": "@themoneyrulebook-p4y",
       "cron": "21 3 * * *",
       "docDay": "Thu",
       "active": true,
