@@ -19,6 +19,13 @@ import { pickApprovedTrack } from './music-engine.mjs';
 const APPROVED_MUSIC = JSON.parse(fs.readFileSync(new URL('./yt-brands/approved-music.json', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'), 'utf8'));
 import { renderYouTubeThumbnail, callScriptBrain, fetchBrainContext, brainContextSection, registryThresholds, resolveTemplateId } from './youtube-engine.mjs';
 import { bySlug } from './yt-brands/brands.mjs';
+// P5-T2e (D15/AC-P5-15/16): the doc lane's template reads — the assigned doc
+// template's section plan and the foreign-format loud skip. Pure helpers: this
+// module executes top-level code, so the logic lives in lib/ for the suite.
+import { docStoryPlan, docStoryPlanLines, foreignDocFormat, skipForeignDocFormat } from './lib/doc-template.mjs';
+// REGISTRY_META is registry DATA keyed by the ONE identity string (D19) — the
+// doc lane reads the ASSIGNED template's own block (no family fallback).
+import { REGISTRY_META } from './studio/lib/template-registry.data.js';
 const { recentUploadTitles, findDup } = await import('./lib/dup-gate.mjs');
 const { resolveBrand } = await import('./lib/brand-resolve.mjs');
 
@@ -90,14 +97,22 @@ const docDedupeChunks = (p) => [{
   text: [p.title, p.intro, ...(Array.isArray(p.chapters) ? p.chapters : []).map(c => c?.text || ''), p.outro]
     .filter(Boolean).join('\n'),
 }];
-async function llmScript(prompt, topic) {
+async function llmScript(prompt, topic, templateId = null) {
   const jobId = `deepdive:${slug}:${today()}`;
   // #105 Task 7 — /context BEFORE prompt assembly (no-op unless the brain is
   // enabled AND reachable; disabled = byte-identical committed prompt).
   const ctx = await fetchBrainContext({ channel: slug, kind: 'doc', topic, jobId });
-  // No template assignment on the doc lane yet — D8 defaults, non-finance
-  // (D6 tiers 2/4/5 apply). When doc templates are assigned, thread the id here.
-  const docGate = registryThresholds(null);
+  // P5-T2e (D15/AC-P5-15): the channel's ONE active template assignment
+  // (resolved at run start) threads here — thresholds, the dedupe identity,
+  // and the review-class derivation all read the template's own DATA. The
+  // class derivation is the doc lane's OWN dedupe tiering (finance => BLOCK
+  // fails closed, non-finance => today's WARN-downgrade): the pipeline's hold
+  // already happened upstream, before this process was spawned. Unassigned
+  // (null) = D8 defaults, non-finance tiered — byte-identical.
+  const docGate = registryThresholds(templateId);
+  if (templateId) {
+    console.log(`[long] template ${templateId}: review class [${(docGate.reviewRequired || []).join(', ') || 'none'}] — dedupe thresholds ${docGate.variation}/${docGate.crossChannel}${docGate.financeGated ? ' (finance fail-closed)' : ' (non-finance WARN-downgrade)'}`);
+  }
   const res = await callScriptBrain({
     slug,
     jobId,
@@ -108,7 +123,7 @@ async function llmScript(prompt, topic) {
     dedupe: {
       channel: slug,
       kind: 'doc',
-      templateId: null,
+      templateId,
       threshold: docGate.variation,
       crossThreshold: docGate.crossChannel,
       financeGated: docGate.financeGated,
@@ -123,12 +138,17 @@ async function llmScript(prompt, topic) {
   throw new Error('all script providers failed');
 }
 
-const LONG_PROMPT = (b, theme) => `You write premium long-form YouTube documentary episodes for "${b.label}" (Niche: ${b.niche}), in the style of top ${b.authority} channels for a US audience.
+// P5-T2e (D15/AC-P5-16): the LAST line is the shape directive — the hardcoded
+// 8-chapters default when no doc plan is assigned (byte-identical), the
+// assigned doc template's section plan (chapter count + word floor, clamped
+// onto the validEpisode contract) when one is. The JSON contract line above
+// it is the immutable episode shape and never changes.
+const LONG_PROMPT = (b, theme, docPlan = null) => `You write premium long-form YouTube documentary episodes for "${b.label}" (Niche: ${b.niche}), in the style of top ${b.authority} channels for a US audience.
 Episode theme: ${theme}.
 STRICT RULES: every chapter delivers concrete, specific ${b.niches[0]} insight — stories, mechanisms, numbers, mistakes, consequences. NO generic motivation, NO repetition between chapters. Documentary storytelling: each chapter opens a tension and closes a payoff.
 Return ONLY valid JSON:
 {"title":"episode title <=60 chars, curiosity gap","intro":"2 sentence cold-open that sets stakes","chapters":[{"title":"<=40 chars","text":"120-150 words of spoken-style narration"}],"outro":"2 sentences with a natural subscribe push"}
-Exactly 8 chapters. Every chapter text MUST be 120-150 words.`;
+${docPlan ? docStoryPlanLines(docPlan) : 'Exactly 8 chapters. Every chapter text MUST be 120-150 words.'}`;
 
 function sh(args, timeout = 900000) {
   try {
@@ -667,6 +687,24 @@ if (intents) {
   }
 }
 
+// P5-T2e (D15/AC-P5-15): resolve the channel's ONE active template assignment —
+// the same getActiveAssignment pattern the pipeline gate uses (resolveTemplateId
+// wraps it). Fail-open null (registry dark) = today's template-less defaults.
+// A shorts-only assignment skips the slot LOUDLY — one Action-required warning
+// + log line, zero production: a shorts-shaped template is never rendered as a
+// documentary. The resume branch above never reaches this (it renders the
+// STORED approved script — no generation, no template read).
+const docTemplateId = await resolveTemplateId(slug);
+const docTemplate = docTemplateId ? (REGISTRY_META[docTemplateId] || null) : null;
+const foreignDoc = foreignDocFormat(docTemplate);
+if (foreignDoc) {
+  let warnStore = null;
+  try { warnStore = await (await import('./lib/warnings-store.mjs')).getDefaultWarningsStore(); } catch { }
+  await skipForeignDocFormat({ slug, templateId: docTemplateId, foreign: foreignDoc, store: warnStore, log: console.log });
+  process.exit(0);
+}
+const docPlan = docStoryPlan(docTemplate);
+
 console.log(`[long] ${b.label} — premium daily episode`);
 // 09-30: episode topics are RESEARCH-LED too (static banks removed). The
 // topic comes from the strongest current story in the niche; seeds already
@@ -689,7 +727,7 @@ if (!theme) {
   // Last-resort evergreen angle (not a static list — derived from the niche).
   theme = `The most searched, most argued-about question in ${b.niche} right now, told as a story-driven documentary for ${b.label}.`;
 }
-const script = await llmScript(LONG_PROMPT(b, theme), longSeed?.title || theme);
+const script = await llmScript(LONG_PROMPT(b, theme, docPlan), longSeed?.title || theme, docTemplateId);
 
 // #106 T5c SEAM 1 (generate-only): the pipeline's gate held this run with no
 // approved script — the doc generation ran EXACTLY as today (the brain's

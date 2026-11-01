@@ -544,7 +544,7 @@ test('yt-deepdive: doc lane wires /context + checkDup with kind doc and keeps it
   assert.ok(src.includes('crossThreshold'), 'the registry cross-channel band is transported');
   assert.ok(src.includes('financeGated'), 'the D6 tiering signal is explicit on the doc descriptor');
   assert.ok(src.includes('docDedupeChunks'), 'the episode rides to /dedupe as pooled chunks');
-  assert.ok(src.includes('llmScript(LONG_PROMPT(b, theme)'), 'the call site passes the prompt (and topic) through the brain seam');
+  assert.ok(src.includes('llmScript(LONG_PROMPT(b, theme, docPlan), longSeed?.title || theme, docTemplateId)'), 'the call site passes the prompt (and topic) + the resolved template id through the brain seam (P5-T2e)');
   assert.ok(src.includes("throw new Error('all script providers failed')"), 'exhausted walks still throw (episode retried next doc day)');
   assert.ok(src.includes('maxAttempts: 3'), 'the 3-walk escalation ceiling stays');
 });
