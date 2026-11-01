@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import ExcelJS from 'exceljs';
-import { reportChannels, parseReportArgs, fragmentOf, collectFragments, buildExcel } from '../daily-excel-report.mjs';
+import { reportChannels, parseReportArgs, fragmentOf, collectFragments, buildExcel, ntfyHeaders } from '../daily-excel-report.mjs';
 import { activeRegistryChannels, loadRegistryChannels } from '../lib/registry-slugs.mjs';
 import { fbPageId as registryFbPageId } from '../lib/registry.mjs';
 
@@ -139,6 +139,43 @@ test('T4b buildExcel on fixture data: identical workbook format (sheets, headers
 
   const snap = JSON.parse(fs.readFileSync(path.join(stateDir, 'report-stats.json'), 'utf8'));
   assert.equal(snap.yt['Quote Quarry'].subs, 1000, 'the growth snapshot is still written for the next run');
+});
+
+test('T4b ntfyHeaders: the push title/filename carry the report mode (daily/weekly/monthly), ASCII-only', () => {
+  assert.deepEqual(ntfyHeaders('daily', 4, 4), {
+    'Title': 'Quarry daily report - 4 YT / 4 FB channels',
+    'Tags': 'chart',
+    'Filename': 'daily-report-' + new Date().toISOString().slice(0, 10) + '.xlsx',
+  });
+  assert.equal(ntfyHeaders('weekly', 1, 1).Title, 'Quarry weekly report - 1 YT / 1 FB channels');
+  assert.equal(ntfyHeaders('monthly', 1, 1).Filename, 'monthly-report-' + new Date().toISOString().slice(0, 10) + '.xlsx');
+});
+
+test('T4b buildExcel with NTFY_TOPIC set: the push really goes out and carries the mode (fetch intercepted, no network)', async (t) => {
+  const reportsDir = tmpDir(t, 'reports-ntfy');
+  const stateDir = tmpDir(t, 'state-ntfy');
+  const calls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => {
+    calls.push({ url, title: opts.headers.Title, filename: opts.headers.Filename });
+    return { ok: true, status: 200 };
+  };
+  process.env.NTFY_TOPIC = 'test-topic';
+  try {
+    await buildExcel(
+      [{ label: 'Quote Quarry', title: 'Quote Quarry', handle: '@quotequarry302', subs: 1, views: 1, videos: 1, retention: null, videoRows: [] }],
+      [],
+      null,
+      { mode: 'weekly', reportsDir, stateDir },
+    );
+  } finally {
+    globalThis.fetch = realFetch;
+    if (process.env.NTFY_TOPIC === 'test-topic') delete process.env.NTFY_TOPIC;
+  }
+  assert.equal(calls.length, 1, 'exactly one ntfy push per build');
+  assert.match(calls[0].url, /ntfy\.sh\/test-topic$/);
+  assert.match(calls[0].title, /Quarry weekly report/, 'the mode must reach the push title (regression: orphaned MODE reference)');
+  assert.match(calls[0].filename, /^weekly-report-\d{4}-\d{2}-\d{2}\.xlsx$/);
 });
 
 test('T4b buildExcel: growth deltas appear when the previous snapshot is from an earlier day', async (t) => {

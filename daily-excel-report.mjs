@@ -292,7 +292,16 @@ function styleHeader(ws) {
   row.height = 22;
 }
 
-async function buildExcel(ytData, fbPages, threads, { stateDir = 'state', reportsDir = 'reports' } = {}) {
+// NTFY push headers (ASCII-only title/filename); the mode rides both.
+export function ntfyHeaders(mode, ytCount, fbCount) {
+  return {
+    'Title': 'Quarry ' + mode + ' report - ' + ytCount + ' YT / ' + fbCount + ' FB channels',
+    'Tags': 'chart',
+    'Filename': mode + '-report-' + new Date().toISOString().slice(0, 10) + '.xlsx'
+  };
+}
+
+async function buildExcel(ytData, fbPages, threads, { mode = 'daily', stateDir = 'state', reportsDir = 'reports' } = {}) {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Quarry Studio';
 
@@ -414,11 +423,7 @@ async function buildExcel(ytData, fbPages, threads, { stateDir = 'state', report
     const ntfyBody = fs.readFileSync(file);
     const res = await fetch('https://ntfy.sh/' + topic, {
       method: 'POST',
-      headers: {
-        'Title': 'Quarry ' + MODE + ' report - ' + ytData.length + ' YT / ' + fbPages.length + ' FB channels',
-        'Tags': 'chart',
-        'Filename': MODE + '-report-' + new Date().toISOString().slice(0, 10) + '.xlsx'
-      },
+      headers: ntfyHeaders(mode, ytData.length, fbPages.length),
       body: ntfyBody
     });
     if (res.ok) console.log('[report] NTFY: Excel sent to phone OK');
@@ -444,7 +449,7 @@ async function main() {
   const fetched = collect ? await collectFragments() : await fetchAll();
   const threads = collect ? await fetchThreads() : fetched.threads;
   console.log('[report] YouTube rows: ' + fetched.ytData.length + '/' + CHANNELS.length + ', FB pages: ' + fetched.fbPages.length + '/' + CHANNELS.length);
-  const file = await buildExcel(fetched.ytData, fetched.fbPages, threads);
+  const file = await buildExcel(fetched.ytData, fetched.fbPages, threads, { mode });
   console.log('[report] Excel saved: ' + file);
   console.log('[report] Done');
 }
