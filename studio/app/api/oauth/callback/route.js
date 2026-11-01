@@ -159,6 +159,12 @@ async function handle(req) {
     tokenSecretSaved: !secretWarning,
     connectedAt: new Date().toISOString(),
     status: secretWarning ? 'connected · token secret FAILED (see note)' : 'connected · automation wiring pending',
+    // T4d round 1 (#106): a re-connect keeps the brand kit the channel already
+    // has — destinations (FB page / Threads handle), gateCron (T4a) and the
+    // generated niches live there. The kit is overwritten when the WIZARD
+    // saves its fields, never by the OAuth callback. (upsertChannel also
+    // merges field-level, so a partial kit cannot wipe stored keys.)
+    ...(existing?.kit ? { kit: existing.kit } : {}),
     ...(secretWarning ? { tokenSecretError: secretWarning } : {}),
   };
   // 10-08: fetch what the channel ALREADY has on YouTube — description and

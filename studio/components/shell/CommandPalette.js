@@ -62,12 +62,14 @@ export default function CommandPalette({ open, onClose }) {
 
   // T4d (#106): one run entry per registry channel, labeled by the registry
   // label — the dispatch route accepts every channel (T1a), so the palette
-  // no longer hardcodes the legacy 4.
+  // no longer hardcodes the legacy 4. Round 1: controlChannels (unfiltered
+  // by the production filter) keeps a channel runnable even when its live
+  // YouTube read errors — that is when a manual run is needed most.
   useEffect(() => {
     if (!open || chans) return;
     fetch('/api/overview')
       .then((r) => r.json())
-      .then((d) => setChans((d?.channels || []).map((c) => ({ slug: c.slug, label: c.label || c.slug }))))
+      .then((d) => setChans((d?.controlChannels || d?.channels || []).map((c) => ({ slug: c.slug, label: c.label || c.slug }))))
       .catch(() => setChans([]));
   }, [open, chans]);
 

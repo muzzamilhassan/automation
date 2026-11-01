@@ -84,6 +84,21 @@ function registryMemo() {
   });
 }
 
+// T4d round 1 (#106): per-channel state files are read through a memo that
+// caches NEGATIVE results too — ghFile only memoizes successes, so in cloud
+// mode a registry channel without a state file yet re-fetched a 404 on every
+// dashboard request (N channels × polling = a 404 storm). 60s, like ghFile.
+const stateFileMemo = {}; // slug → { at, val }
+async function readStateFile(slug) {
+  const m = stateFileMemo[slug];
+  if (m && Date.now() - m.at < 60_000) return m.val;
+  const val = await (CLOUD
+    ? ghFile(`yt-mcp/state/${slug}.json`)
+    : Promise.resolve().then(() => JSON.parse(fs.readFileSync(path.resolve(ROOT, `yt-mcp/state/${slug}.json`), 'utf8'))).catch(() => null));
+  stateFileMemo[slug] = { at: Date.now(), val: val || null };
+  return val || null;
+}
+
 // Per-channel state files (yt-mcp/state/<slug>.json) are the source of truth
 // since 09-20 — the legacy schedule-state.json is a best-effort mirror. Merge
 // both, per-channel file wins, so episodes + QQ videos always show.
@@ -102,12 +117,8 @@ export async function state() {
   // simply skipped, and the schedule-state mirror above still answers.
   const entries = (await registryMemo()) || [];
   for (const slug of registrySlugs(entries)) {
-    try {
-      const per = CLOUD
-        ? await ghFile(`yt-mcp/state/${slug}.json`)
-        : JSON.parse(fs.readFileSync(path.resolve(ROOT, `yt-mcp/state/${slug}.json`), 'utf8'));
-      merged[slug] = { ...(merged[slug] || {}), ...(per || {}) };
-    } catch { }
+    const per = await readStateFile(slug).catch(() => null);
+    if (per) merged[slug] = { ...(merged[slug] || {}), ...per };
   }
   return merged;
 }

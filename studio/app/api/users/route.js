@@ -86,7 +86,9 @@ export async function GET(req) {
     // T4d (#106): the owner's own channels come from the registry bindings
     // (the requesting owner's bound entries), not a hardcoded legacy-4 list —
     // the wizard binds channels to the owner email the same way it does for
-    // clients. Informational payload; the users page renders unboundChannels.
+    // clients. Depends on Neon owner_email (db mode); repo-file fallback
+    // entries carry no ownerEmail, so a DB-less server resolves an empty list.
+    // Informational payload; the users page renders unboundChannels.
     const legacy = bound(String(user.email).toLowerCase()).map((c) => ({ slug: c.slug }));
 
     return Response.json({

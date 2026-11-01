@@ -10,11 +10,19 @@ import { loadEnv } from './lib/env.mjs';
 // yt-mcp/channels/*/token.json locally. Same discovery as analytics-nightly;
 // a channel joins the doctor by adding its secret, never by editing code.
 import { discoverChannels } from './scripts/analytics-nightly.mjs';
+import { listChannels } from './lib/registry.mjs';
 
 loadEnv();
 
 
-const SLUGS = discoverChannels(process.env);
+// T4d round 1 (#106): passive discovery (token files / mapped secrets) is
+// gated on the ACTIVE registry+brands set — the parked brands keep local
+// token files and would otherwise guarantee doctor failures for channels
+// that are parked on purpose. An explicit CHANNELS env list overrides the
+// gate (the documented escape hatch).
+const discovered = discoverChannels(process.env);
+const knownActive = new Set(listChannels().map((c) => c.slug));
+const SLUGS = process.env.CHANNELS ? discovered : discovered.filter((s) => knownActive.has(s));
 const results = [];
 
 import { validateWorkflows } from './lib/workflow-validator.mjs';

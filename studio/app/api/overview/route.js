@@ -86,6 +86,13 @@ export async function GET(req) {
   const visible = owned ? producing.filter((c) => owned.includes(c.slug)) : producing;
   const visibleLogs = owned ? logs.filter((l) => owned.includes(l.slug)) : logs;
 
+  // T4d round 1 (#106): control surfaces (command palette, music tabs) must
+  // keep every channel's entry even when its live YouTube read errors — the
+  // production filter above hides exactly those, and that is when the owner
+  // needs a manual run. Unfiltered registry-derived list, still client-scoped.
+  const controlChannels = (owned ? channels.filter((c) => owned.includes(c.slug)) : channels)
+    .map((c) => ({ slug: c.slug, label: c.label || c.slug, accent: c.accent }));
+
   const totals = {
     ytSubs: visible.reduce((a, c) => a + (c.yt?.subs || 0), 0),
     ytViews: visible.reduce((a, c) => a + (c.yt?.views || 0), 0),
@@ -98,5 +105,5 @@ export async function GET(req) {
     const t = await trend(c.slug);
     if (t) trends[c.slug] = { keywords: (t.hotKeywords || []).slice(0, 8), viral: (t.videos || []).slice(0, 3) };
   }
-  return Response.json({ channels: visible, totals, logs: visibleLogs.slice(0, 40), trends, mode: MODE });
+  return Response.json({ channels: visible, controlChannels, totals, logs: visibleLogs.slice(0, 40), trends, mode: MODE });
 }

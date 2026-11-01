@@ -31,6 +31,7 @@ const socialSrc = read('studio/app/social/page.js');
 const siteDataSrc = read('studio/lib/site-data.js');
 const doctorSrc = read('ci-doctor.mjs');
 const studioRegistrySrc = read('studio/lib/channels-registry.js');
+const oauthCallbackSrc = read('studio/app/api/oauth/callback/route.js');
 const registryFeed = JSON.parse(read('yt-mcp/studio-channels.json'));
 
 // ---------------------------------------------------------------------------
@@ -190,4 +191,47 @@ test('T4d: ci-doctor discovers channels the nightly way — the LEGACY_SLUGS gat
   assert.equal(doctorSrc.includes('LEGACY_SLUGS'), false, 'the health check must not be bounded by the legacy fleet');
   assert.match(doctorSrc, /import\s*\{\s*discoverChannels\s*\}\s*from\s*'\.\/scripts\/analytics-nightly\.mjs'/, 'the nightly discovery pattern is the source');
   assert.match(doctorSrc, /discoverChannels\(/, 'the doctor must call the discover function');
+});
+
+// ---------------------------------------------------------------------------
+// Round 1 review fixes — the kit JSONB survives an OAuth re-connect; control
+// surfaces get an unfiltered list; cloud 404 storm; parked-channel gate.
+// ---------------------------------------------------------------------------
+
+test('T4d round 1: the OAuth re-connect carries the existing kit — upsert cannot clobber the kit JSONB', () => {
+  // the reviewer-confirmed clobber: the callback built a kit-less entry and
+  // upsertChannel blind-SET kit = EXCLUDED.kit — one re-connect wiped
+  // destinations, gateCron (T4a) and the generated niches in Neon
+  assert.match(oauthCallbackSrc, /existing\?\.kit/, 'the callback must carry the existing entry kit into the new entry');
+  assert.equal(/kit = EXCLUDED\.kit/.test(studioRegistrySrc), false, 'the blind kit SET must be gone');
+  assert.match(
+    studioRegistrySrc,
+    /kit = COALESCE\(channels\.kit, '\{\}'::jsonb\) \|\| COALESCE\(EXCLUDED\.kit, '\{\}'::jsonb\)/,
+    'field-level jsonb merge: caller-sent fields win, absent fields survive (destinations, gateCron)',
+  );
+});
+
+test('T4d round 1: overview exposes controlChannels — unfiltered by the production filter, still client-scoped', () => {
+  assert.ok(/controlChannels/.test(overviewSrc), 'the control list must exist');
+  assert.match(
+    overviewSrc,
+    /owned \? channels\.filter\(\(c\) => owned\.includes\(c\.slug\)\) : channels/,
+    'controlChannels must be built from the UNFILTERED channels array (pre producing-filter), scoped for clients',
+  );
+  assert.match(overviewSrc, /\{ channels: visible, controlChannels,/, 'the payload must include controlChannels');
+});
+
+test('T4d round 1: palette and music consume controlChannels so an erroring channel keeps its controls', () => {
+  assert.match(paletteSrc, /controlChannels \|\| d\?\.channels/, 'palette run entries must prefer the control list');
+  assert.match(musicSrc, /controlChannels \|\| d\?\.channels/, 'music tabs must prefer the control list');
+});
+
+test('T4d round 1: state-file reads memoize negative results — no cloud 404 storm per dashboard request', () => {
+  assert.match(dataSrc, /stateFileMemo/, 'the negative-result memo must exist');
+  assert.match(dataSrc, /readStateFile\(/, 'state() must read per-channel state files through the memo');
+});
+
+test('T4d round 1: ci-doctor gates passive discovery on the active registry+brands set — CHANNELS env overrides', () => {
+  assert.match(doctorSrc, /import\s*\{\s*listChannels\s*\}\s*from\s*'\.\/lib\/registry\.mjs'/, 'the active set comes from the registry+brands merge');
+  assert.match(doctorSrc, /process\.env\.CHANNELS \? discovered : discovered\.filter/, 'an explicit CHANNELS list overrides the parked-channel gate');
 });

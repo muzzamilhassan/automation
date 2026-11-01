@@ -29,8 +29,11 @@ export default function MusicPage() {
     let alive = true;
     (async () => {
       const d = await fetch('/api/overview').then((r) => r.json()).catch(() => null);
-      if (!alive || !d?.channels?.length) return;
-      setChans(d.channels.map((c) => ({ slug: c.slug, label: c.label || c.slug, accent: c.accent })));
+      // Round 1 (#106): controlChannels (unfiltered by the production filter)
+      // keeps a channel's tab when its live YouTube read errors.
+      const list = d?.controlChannels || d?.channels || [];
+      if (!alive || !list.length) return;
+      setChans(list.map((c) => ({ slug: c.slug, label: c.label || c.slug, accent: c.accent })));
     })();
     return () => { alive = false; };
   }, []);

@@ -193,7 +193,13 @@ export async function upsertChannel(entry, message) {
           owner_email = EXCLUDED.owner_email, label = EXCLUDED.label, handle = EXCLUDED.handle,
           channel_id = EXCLUDED.channel_id, niche = EXCLUDED.niche, style = EXCLUDED.style,
           voice = EXCLUDED.voice, accent = EXCLUDED.accent, slots = EXCLUDED.slots,
-          doc_day = EXCLUDED.doc_day, autopilot = EXCLUDED.autopilot, kit = EXCLUDED.kit,
+          doc_day = EXCLUDED.doc_day, autopilot = EXCLUDED.autopilot,
+          -- T4d round 1 (#106): field-level kit merge — a caller that omits or
+          -- rebuilds a partial kit (the OAuth re-connect sends none; the wizard
+          -- form doesn't know every key) must not wipe what other flows stored
+          -- there: destinations (FB/Threads), gateCron (T4a), generated niches.
+          -- Fields the caller DOES send win; absent fields keep their values.
+          kit = COALESCE(channels.kit, '{}'::jsonb) || COALESCE(EXCLUDED.kit, '{}'::jsonb),
           yt_description = EXCLUDED.yt_description, yt_keywords = EXCLUDED.yt_keywords,
           token_enc = COALESCE(EXCLUDED.token_enc, channels.token_enc),
           token_secret = EXCLUDED.token_secret, subs = EXCLUDED.subs,
