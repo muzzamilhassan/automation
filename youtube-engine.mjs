@@ -29,6 +29,7 @@ const POOL_DIR = 'pixabay-pool';
 // THROUGH the adapter (routeAndCall -> applyChannelKeys, capability-filtered)
 // at call time — provider selection never reads env directly anymore.
 import { resolveBrand as resolveBrandKit } from './lib/brand-resolve.mjs';
+import { loadChannelState, saveChannelState } from './lib/state.mjs';
 
 // Resolve the brand for a page/channel. Delegates to unified lib/brand-resolve.mjs.
 function resolveBrand(page) {
@@ -1005,6 +1006,67 @@ export function thumbFrameOffset(v) {
   return v === 0 ? 3 : 2 + v * 1.5;
 }
 
+// #106 Phase 5 T2d (D12/D14, AC-P5-12..14) — the candidate SOURCE switch: WHERE
+// picking is enabled (thumbVariants > 1, threaded from the template DATA by the
+// T5 gate) and the channel's niche resolves thumbnail-registry designs,
+// candidates 2..N are REGISTRY renders instead of staggered frames. Candidate 1
+// stays today's frame thumbnail (thumbFrameOffset(0) === 3 above — the
+// regression pin). Fail-soft by contract: null whenever the registry cannot
+// contribute (import failure, unreadable state, 0 eligible) so the caller keeps
+// today's staggered frames byte-identically — the count still comes from the
+// template data; the SOURCE is the only change (QA Row R6's source-switch cell).
+// Rotation (AC-P5-13): the last-used design id persists in the channel state
+// file (`thumb_last_design`); a missing/unreadable state degrades to
+// first-eligible, never a block.
+async function registryThumbCandidates(brand, page, script, slots) {
+  try {
+    const slug = page?.ytSlug || page?.slug || page?.id;
+    if (!brand || !slug) return null;
+    const reg = await import('./studio/lib/thumb-registry.mjs');
+    let lastPickedId = null;
+    try { lastPickedId = loadChannelState(slug)?.thumb_last_design ?? null; } catch { }
+    const picks = reg.uniqueDesigns(reg.pickCandidates(brand?.niche, slots, { lastPickedId }));
+    if (!picks.length) return null; // 0 eligible — today's staggered frames stand
+    const lastId = picks[picks.length - 1].id;
+    if (lastId !== lastPickedId) {
+      try {
+        const state = loadChannelState(slug) || {};
+        state.thumb_last_design = lastId;
+        saveChannelState(slug, state);
+      } catch { }
+    }
+    console.log(`      [YT Script] thumb registry candidates: ${picks.map((d) => d.id).join(', ')} (last used: ${lastPickedId || 'none'})`);
+    return { designs: picks, pickedIds: picks.map((d) => d.id) };
+  } catch (e) {
+    console.log(`      [YT Script] thumb registry unavailable (non-fatal): ${String(e?.message || e).slice(0, 80)}`);
+    return null;
+  }
+}
+
+// ONE registry design rendered through the EXISTING v2 renderer with the
+// channel's brand tokens (D11: accent/bg/label — the same inputs the Studio
+// preview route passes; entry-level token pins win, D14). JPEG <= 2 MB (the
+// YouTube cap): one lower-quality re-encode, then the candidate is dropped —
+// per-variant fail-soft, candidate 1 still ships.
+async function renderRegistryThumb(design, brand, script) {
+  const [{ renderV2 }, reg] = await Promise.all([
+    import('./studio/lib/thumb-templates-v2.js'),
+    import('./studio/lib/thumb-registry.mjs'),
+  ]);
+  const tokens = reg.thumbRenderTokens(design, brand);
+  const svg = renderV2(`v2/${design.id}`, {
+    title: script.thumbHeadline || script.hook,
+    accent: tokens.accent,
+    shade: tokens.shade,
+    brand: tokens.brand,
+    eyebrow: tokens.eyebrow,
+  });
+  let jpeg = await sharp(Buffer.from(svg)).jpeg({ quality: 90 }).toBuffer();
+  if (jpeg.length > 2 * 1024 * 1024) jpeg = await sharp(Buffer.from(svg)).jpeg({ quality: 78 }).toBuffer();
+  if (jpeg.length > 2 * 1024 * 1024) throw new Error(`encoded ${(jpeg.length / 1048576).toFixed(2)} MB exceeds the 2 MB YouTube cap`);
+  return jpeg;
+}
+
 export async function renderYouTubeScriptShort(page, script, musicOverride = null, opts = {}) {
   const brand = resolveBrand(page);
   if (!brand) throw new Error('no YouTube config for page ' + page?.id);
@@ -1088,9 +1150,21 @@ export async function renderYouTubeScriptShort(page, script, musicOverride = nul
 
   let thumb = null;
   const thumbs = [];
+  let thumbReg = null; // T2d: the picked registry designs (returned for the lane's rotation mark)
   try {
     const variants = Math.max(1, Math.min(6, Number(opts?.thumbVariants) || 1));
-    for (let v = 0; v < variants; v++) {
+    // #106 P5 T2d (D12/AC-P5-12): candidates 2..N come from the thumbnail
+    // registry WHEN picking is enabled and the niche resolves designs; candidate
+    // 1 stays today's frame thumbnail (the exact legacy +3s offset below — the
+    // regression pin). Registry unavailable or 0 eligible = null = today's
+    // staggered frames, byte-identical (the COUNT still comes from the template
+    // data; the SOURCE is the only change).
+    if (variants > 1) {
+      try { thumbReg = await registryThumbCandidates(brand, page, script, variants - 1); } catch (e) { thumbReg = null; }
+    }
+    const reg = thumbReg;
+    const frameVariants = reg ? 1 : variants;
+    for (let v = 0; v < frameVariants; v++) {
       const frameFile = `${POOL_DIR}/yt-thumb-frame-${page.id}${v > 0 ? `-v${v}` : ''}.jpg`;
       // candidate 1 keeps the exact legacy offset (+3s); variants stagger later frames
       execFileSync(FF, ['-y', '-v', 'error', '-ss', String(clip.start + thumbFrameOffset(v)), '-i', clip.file, '-frames:v', '1', frameFile]);
@@ -1098,12 +1172,22 @@ export async function renderYouTubeScriptShort(page, script, musicOverride = nul
       thumbs.push(t);
       fs.rmSync(frameFile, { force: true });
     }
+    if (reg) {
+      for (const design of reg.designs) {
+        try {
+          thumbs.push(await renderRegistryThumb(design, brand, script));
+        } catch (e) {
+          console.log(`      [YT Script] registry thumb ${design.id} degraded (non-fatal): ${String(e.message).slice(0, 80)}`);
+        }
+      }
+      if (thumbs.length > 1) console.log(`      [YT Script] ${thumbs.length} thumb candidates (1 frame + ${thumbs.length - 1} registry) — candidate 1 ships, swap at Studio > Review`);
+    }
     thumb = thumbs[0] || null;
   } catch (e) { console.log(`      [YT Script] Thumbnail skipped (${String(e.message).slice(0, 80)})`); }
 
   const meta = buildScriptMeta(page, script, musicOverride ? `${musicOverride.title} — ${musicOverride.credit}` : '');
   console.log(`      ✓ Script Short rendered (${Math.round(buf.length / 1024)} KB, ${total}s, ${sections.length} sections)`);
-  return { buffer: buf, thumb, thumbs, meta, duration: total };
+  return { buffer: buf, thumb, thumbs, meta, duration: total, thumbDesigns: thumbReg ? thumbReg.pickedIds : null };
 }
 
 export function buildScriptMeta(page, script, musicLabel = '') {

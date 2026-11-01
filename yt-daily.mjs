@@ -572,6 +572,14 @@ if (RUN_SHORTS) {
     // "3 candidates" log lied.
     const out = await renderYouTubeScriptShort(page, script, music, { thumbVariants: THUMB_CANDIDATES });
     const meta = buildScriptMeta(page, script, music ? `${music.title} — ${music.credit}` : '');
+    // #106 P5 T2d (AC-P5-13): the registry rotation mark rides THIS run's own
+    // end-of-run state write — this in-memory copy wins here, so the mark the
+    // engine recorded during the render is re-carried (the resume path exits
+    // before any end-of-run save, which is why the engine writes state itself).
+    if (Array.isArray(out.thumbDesigns) && out.thumbDesigns.length) {
+      state[slug] = state[slug] || {};
+      state[slug].thumb_last_design = out.thumbDesigns[out.thumbDesigns.length - 1];
+    }
 
     const stamp = `${Date.now()}-s${i}`;
     // #53: the .json is the FB/IG cross-post pickup marker — it is written

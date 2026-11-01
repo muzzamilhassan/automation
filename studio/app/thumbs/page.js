@@ -64,6 +64,8 @@ export default function ThumbsPage() {
   const [bulkMsg, setBulkMsg] = useState(null);
   const [tpls, setTpls] = useState([]);
   const [catTab, setCatTab] = useState('all');
+  // Phase 5 T2d: the thumbnail registry launch set (read-only browse)
+  const [regDesigns, setRegDesigns] = useState([]);
   // 10-18 face library + template rotation (owner request)
   const [rotation, setRotation] = useState([]);
   const [faces, setFaces] = useState(null); // [{file, dataUrl}]
@@ -75,6 +77,10 @@ export default function ThumbsPage() {
       .then((r) => r.json())
       .then((d) => setTpls(d.templates || []))
       .catch(() => setTpls([]));
+    fetch('/api/thumbs/registry')
+      .then((r) => r.json())
+      .then((d) => setRegDesigns(d.registry || []))
+      .catch(() => setRegDesigns([]));
   }, []);
 
   const pickChannel = (c) => {
@@ -493,6 +499,23 @@ export default function ThumbsPage() {
                 </div>
                 <div className="text-[10px] text-muted mt-1">Bulk redesign applies them in this order, looping. Video 1 → first, video 2 → second, …</div>
               </div>
+            ) : null}
+            {regDesigns.length ? (
+              <details className="border border-line rounded-lg p-2">
+                <summary className="text-[10.5px] text-muted cursor-pointer select-none">
+                  Thumbnail registry — {regDesigns.length} launch designs (read-only; per-niche candidate sets with rotation)
+                </summary>
+                <div className="mt-2 space-y-1">
+                  {Object.entries(regDesigns.reduce((acc, d) => {
+                    for (const n of d.niches || []) (acc[n] = acc[n] || []).push(d.label);
+                    return acc;
+                  }, {})).map(([niche, labels]) => (
+                    <div key={niche} className="text-[10.5px] text-muted leading-snug">
+                      <span className="text-ink">{niche}:</span> {labels.join(', ')}
+                    </div>
+                  ))}
+                </div>
+              </details>
             ) : null}
             <label className="block">
               <span className="text-[11px] text-muted">Headline (≤4 words clicks best)</span>
