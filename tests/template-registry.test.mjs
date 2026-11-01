@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import { validateRegistryMeta, loadRegistryTemplates, resolveAssignment, validateAssignment, channelConfigFromRegistryEntry } from '../studio/lib/template-registry.js';
 import { REGISTRY_META } from '../studio/lib/template-registry.data.js';
 import { TEMPLATES_DATA } from '../studio/lib/templates-catalog.js';
+import { CANONICAL_NICHES, NICHE_MAP, NICHE_CATALOG } from '../studio/lib/niches.js';
 
 const valid = {
   version: '1.0.0',
-  niches: ['history'],
+  niches: ['History stories'],
   formats: ['short'],
   renderer: 'remotion',
   required_capabilities: ['script-gen', 'tts', 'captions'],
@@ -42,7 +43,7 @@ test('empty variation_rules fails', () => {
 function makeValidMeta(version = '1.0.0') {
   return {
     version,
-    niches: ['history'],
+    niches: ['History stories'],
     formats: ['short'],
     renderer: 'remotion',
     required_capabilities: ['script-gen', 'tts', 'captions'],
@@ -152,7 +153,7 @@ test('resolver: picks highest patch within same minor (numeric, not lexicographi
 
 // Capability map that satisfies `valid` meta's required_capabilities + its renderer.
 const fullCaps = { 'script-gen': true, tts: true, captions: true, remotion: true };
-const matchingChannel = { formats: ['short'], niches: ['history'], brand_kit: true };
+const matchingChannel = { formats: ['short'], niches: ['History stories'], brand_kit: true };
 
 test('validator: compatible assignment passes', () => {
   assert.deepEqual(validateAssignment(valid, matchingChannel, fullCaps), { ok: true });
@@ -369,4 +370,171 @@ test('validator: collects >=2 errors on a single multi-broken block (not first-o
   assert.ok(r.errors.length >= 2, `expected >=2 collected errors, got ${r.errors.length}: ${JSON.stringify(r.errors)}`);
   assert.ok(r.errors.some((e) => e.includes('version')));
   assert.ok(r.errors.some((e) => e.includes('formats')));
+});
+
+// ---- Phase 5 T1: schema v2 — the template_id/family identity split (D1) ----
+// One string, four homes (D19 invariant): assignment id == registry key ==
+// brain-gate id == review-gate meta id. The registry KEY is the identity; a
+// block's `template_id` must equal its key; `family` names the VISUAL family
+// for the gallery/aspect-ratio join and may be shared by many templates.
+
+const V2_TEMPLATE_ID = 'myth-vs-money';
+const V2_FAMILY_ID = 'stats-counters';
+
+function makeV2Meta(over = {}) {
+  return {
+    ...makeValidMeta(),
+    template_id: V2_TEMPLATE_ID,
+    family: V2_FAMILY_ID,
+    niches: ['Personal finance rules & money habits'],
+    ...over,
+  };
+}
+
+test('validator v2: template_id must be a non-empty string when present', () => {
+  for (const bad of ['', null, 42]) {
+    const r = validateRegistryMeta({ ...makeValidMeta(), template_id: bad });
+    assert.equal(r.ok, false, `template_id ${JSON.stringify(bad)} must fail`);
+    assert.ok(r.errors.some((e) => e.includes('template_id')), `named error for ${JSON.stringify(bad)}: ${JSON.stringify(r.errors)}`);
+  }
+});
+
+test('validator v2: family must be a non-empty string when present', () => {
+  for (const bad of ['', null, 42]) {
+    const r = validateRegistryMeta({ ...makeValidMeta(), family: bad });
+    assert.equal(r.ok, false, `family ${JSON.stringify(bad)} must fail`);
+    assert.ok(r.errors.some((e) => e.includes('family')), `named error for ${JSON.stringify(bad)}: ${JSON.stringify(r.errors)}`);
+  }
+});
+
+test('validator v2: a schema v2 entry (family declared) without template_id is rejected with a named error', () => {
+  const { template_id, ...familyOnly } = makeV2Meta();
+  assert.equal(familyOnly.family, V2_FAMILY_ID, 'fixture sanity: family present, template_id absent');
+  const r = validateRegistryMeta(familyOnly);
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.includes('template_id') && e.includes('required')), JSON.stringify(r.errors));
+});
+
+test('validator v2: legacy blocks (no template_id, no family) keep validating unchanged (AC-P5-2)', () => {
+  assert.deepEqual(validateRegistryMeta(valid), { ok: true });
+});
+
+test('validator v2 (D17): a niche string outside the closed vocabulary is rejected with a named error', () => {
+  const r = validateRegistryMeta({ ...makeValidMeta(), niches: ['Personal finance rulez & money habits'] });
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.includes('vocabulary') && e.includes('Personal finance rulez')), JSON.stringify(r.errors));
+});
+
+test('validator v2 (D17): every canonical vocabulary string passes the niches check', () => {
+  for (const n of CANONICAL_NICHES) {
+    const r = validateRegistryMeta({ ...makeValidMeta(), niches: [n] });
+    assert.deepEqual(r, { ok: true }, `canonical string "${n}" must validate`);
+  }
+});
+
+// ---- Phase 5 T1: the loader joins metadata to the catalog BY family and
+// resolves identity by template_id (registry key). Fail-closed with named
+// errors on identity drift. ----
+
+const identityCatalog = [
+  { id: V2_FAMILY_ID, name: 'Stats Counters', family: V2_FAMILY_ID, aspectRatios: ['16:9', '9:16'] },
+];
+
+test('loader: a schema v2 entry resolves under its template_id, joined to its visual family', () => {
+  const { templates, invalid } = loadRegistryTemplates(identityCatalog, { [V2_TEMPLATE_ID]: makeV2Meta() });
+  assert.deepEqual(invalid, []);
+  assert.equal(templates.length, 1);
+  assert.equal(templates[0].templateId, V2_TEMPLATE_ID);
+  assert.equal(templates[0].familyId, V2_TEMPLATE_ID, 'familyId carries the registry KEY (the assignment identity)');
+  assert.equal(templates[0].family, V2_FAMILY_ID);
+  assert.equal(templates[0].catalog.id, V2_FAMILY_ID, 'the catalog join is the VISUAL family, not the key');
+});
+
+test('loader: a legacy block without template_id defaults its identity to the registry key (family fallback)', () => {
+  const { templates, invalid } = loadRegistryTemplates(identityCatalog, { [V2_FAMILY_ID]: makeValidMeta() });
+  assert.deepEqual(invalid, []);
+  assert.equal(templates[0].templateId, V2_FAMILY_ID);
+  assert.equal(templates[0].familyId, V2_FAMILY_ID);
+  assert.equal(templates[0].family, V2_FAMILY_ID);
+});
+
+test('loader: template_id disagreeing with the registry key is a named invalid (the key IS the identity)', () => {
+  const { templates, invalid } = loadRegistryTemplates(
+    identityCatalog,
+    { [V2_FAMILY_ID]: { ...makeValidMeta(), template_id: V2_TEMPLATE_ID } },
+  );
+  assert.equal(templates.length, 0);
+  assert.equal(invalid.length, 1);
+  assert.equal(invalid[0].familyId, V2_FAMILY_ID);
+  assert.ok(invalid[0].errors.some((e) => e.includes('template_id')), JSON.stringify(invalid[0].errors));
+});
+
+test('loader: a family that does not exist in the catalog is a named invalid (D1: family must exist)', () => {
+  const { templates, invalid } = loadRegistryTemplates(
+    identityCatalog,
+    { [V2_TEMPLATE_ID]: makeV2Meta({ family: 'no-such-family' }) },
+  );
+  assert.equal(templates.length, 0);
+  assert.equal(invalid.length, 1);
+  assert.ok(invalid[0].errors.some((e) => e.includes('family') && e.includes('no-such-family')), JSON.stringify(invalid[0].errors));
+});
+
+test('loader: two templates may share one visual family (the split is the point)', () => {
+  const { templates, invalid } = loadRegistryTemplates(identityCatalog, {
+    [V2_FAMILY_ID]: makeValidMeta(),
+    [V2_TEMPLATE_ID]: makeV2Meta(),
+  });
+  assert.deepEqual(invalid, []);
+  assert.equal(templates.length, 2);
+  assert.ok(templates.every((t) => t.family === V2_FAMILY_ID));
+  assert.deepEqual(templates.map((t) => t.templateId).sort(), [V2_FAMILY_ID, V2_TEMPLATE_ID].sort());
+});
+
+// ---- Phase 5 T1: pins over the REAL data file (identity + closed vocabulary) ----
+
+const LEGACY_IDS = [
+  'documentary-frames',
+  'timeline-history',
+  'photo-stories',
+  'finance-explainers',
+  'stats-counters',
+  'chart-animations',
+  'editorial-headlines',
+];
+
+test('seeds: the legacy 7 carry template_id equal to their family id (backward compatible, D1)', () => {
+  const keys = Object.keys(REGISTRY_META);
+  for (const id of LEGACY_IDS) {
+    assert.ok(keys.includes(id), `missing legacy entry ${id}`);
+    assert.equal(REGISTRY_META[id].template_id, id, `legacy entry ${id}: template_id defaults to (= is pinned to) the family id`);
+    assert.equal(REGISTRY_META[id].family, undefined, `legacy entry ${id}: no family override — the key is the family (no data migration)`);
+  }
+});
+
+test('identity pin: every REGISTRY_META key equals its template_id (the registry home of the one-string invariant)', () => {
+  for (const [key, meta] of Object.entries(REGISTRY_META)) {
+    assert.equal(meta.template_id, key, `registry key "${key}" must equal template_id — assignment/brain/review all index by this string`);
+  }
+});
+
+test('vocabulary pin (D17): every REGISTRY_META niches[] string is a member of the closed vocabulary', () => {
+  for (const [key, meta] of Object.entries(REGISTRY_META)) {
+    for (const n of meta.niches) {
+      assert.ok(CANONICAL_NICHES.includes(n), `${key}: niche "${n}" is not in the closed D17 vocabulary — a paraphrase must fail CI before it can niche_mismatch in production`);
+    }
+  }
+});
+
+test('vocabulary pin (I5): every NICHE_MAP key is a member of the closed D17 vocabulary', () => {
+  for (const key of Object.keys(NICHE_MAP)) {
+    assert.ok(CANONICAL_NICHES.includes(key), `wizard catalog key "${key}" paraphrases the closed vocabulary`);
+  }
+  assert.deepEqual(NICHE_CATALOG, Object.keys(NICHE_MAP), 'NICHE_CATALOG is derived from NICHE_MAP');
+});
+
+test('vocabulary pin (D17): the 3 NEW canonical strings exist in the wizard catalog (Drill A PREP step 1 gate)', () => {
+  for (const n of ['Science & how things work', 'Travel & geography explained', 'Human psychology & social dynamics']) {
+    assert.ok(CANONICAL_NICHES.includes(n), `"${n}" must be in the closed vocabulary`);
+    assert.ok(NICHE_CATALOG.includes(n), `"${n}" must be offered by the wizard catalog (NICHE_MAP key)`);
+  }
 });

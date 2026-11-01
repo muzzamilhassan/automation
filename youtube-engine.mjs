@@ -618,6 +618,15 @@ export async function checkDup(options) {
  * defaults — variation 0.85, cross-channel 0.90. `financeGated` mirrors the
  * template's safety.review_required containing 'finance' (D6 tiering input).
  * Never a hardcoded per-channel map.
+ *
+ * KIND-SAFE IDENTITY (Phase 5 T1, D1/D19): `templateId` is the registry KEY —
+ * the one string of the four-homes invariant (assignment id == registry key ==
+ * brain-gate id == review-gate meta id). REGISTRY_META is keyed by that exact
+ * string, so the resolution below reads the ASSIGNED template's own block and
+ * never falls back to its visual family's historical association (there is
+ * deliberately NO family fallback here: for legacy rows the assignment string
+ * already IS the family id, and re-deriving a family's meta for a v2 template
+ * would gate on the wrong block).
  */
 export function registryThresholds(templateId) {
   const meta = templateId ? REGISTRY_META[templateId] : null;
@@ -638,6 +647,13 @@ export function registryThresholds(templateId) {
  * -> registry meta). Fail-open null on any failure — template-less lanes get
  * the documented default thresholds and are NOT finance-gated. Lazy: no DB
  * import/network until called.
+ *
+ * KIND-SAFE IDENTITY (Phase 5 T1, D1/D19): the returned string is the
+ * assignment row's id — the registry KEY (template_id). For pre-Phase-5 rows
+ * that string equals the family id (template_id == family_id for the legacy
+ * 7, zero migration); for schema v2 rows it is the template's own id. Whatever
+ * comes back feeds registryThresholds/REGISTRY_META[...] unchanged — every
+ * consumer reads the SAME string the assignment stores.
  */
 export async function resolveTemplateId(channelId) {
   if (!channelId) return null;

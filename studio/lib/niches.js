@@ -1,8 +1,54 @@
 // NICHE & SUB-NICHE CATALOG: researched, proven lanes for the wizard.
 // Free text still wins — the catalog provides one-tap shortcuts and smart sub-niche defaults.
+//
+// D17 (Phase 5 spec, 2026-11-01): the niche vocabulary is CLOSED. Assignment
+// matching is exact-string, so a paraphrase can silently `niche_mismatch` in
+// production — every NICHE_MAP key and every registry `niches[]` entry must be
+// a member of CANONICAL_NICHES (pin-tested in tests/template-registry.test.mjs;
+// the validator rejects paraphrasing registry blocks at sync time). The wizard
+// keys are aligned to the channel-kit niche strings (studio/lib/brands.json):
+// legacy paraphrase keys were renamed to their canonical strings
+// ('Stoicism & daily motivation' -> 'Timeless wisdom, self-mastery & human
+// psychology', 'Old money habits & quiet luxury' -> 'Old money habits &
+// quiet wealth', 'Deep work & productivity' -> 'Focus & productivity systems',
+// 'Health & fitness habits' -> the health trio, 'Tech & AI explained' ->
+// 'AI & future tech', 'Entrepreneurship lessons' -> 'Entrepreneurship & lean
+// business'), the three strings with no launch-niche counterpart were removed,
+// and the three NEW launch niches gain their one-tap entries.
+
+// The closed D17 vocabulary — the 10 launch niches' verbatim kit strings plus
+// the three NEW canonical strings. One list, shared by the wizard catalog, the
+// video template registry, and (later) the thumbnail registry.
+export const CANONICAL_NICHES = [
+  // history
+  'History stories',
+  // finance cluster (6 strings — the whole money vertical)
+  'Investing psychology & market wisdom',
+  'Personal finance rules & money habits',
+  'Old money habits & quiet wealth',
+  'Real estate wisdom & property',
+  'Insurance explained simply',
+  'Small-business tax & legal principles',
+  // business trio
+  'Entrepreneurship & lean business',
+  'Sales & negotiation psychology',
+  'Leadership & management wisdom',
+  // wisdom / tech / productivity
+  'Timeless wisdom, self-mastery & human psychology',
+  'AI & future tech',
+  'Focus & productivity systems',
+  // health trio
+  'Healthspan & longevity habits',
+  'Sleep & recovery science',
+  'Gym & training motivation',
+  // the three NEW canonical strings (Phase 5 D17)
+  'Science & how things work',
+  'Travel & geography explained',
+  'Human psychology & social dynamics',
+];
 
 export const NICHE_MAP = {
-  'Stoicism & daily motivation': [
+  'Timeless wisdom, self-mastery & human psychology': [
     'human psychology & respect',
     'power of silence & solitude',
     'dark psychology defense',
@@ -26,33 +72,19 @@ export const NICHE_MAP = {
     'first $100k blueprint',
     'assets vs liabilities'
   ],
-  'Old money habits & quiet luxury': [
+  'Old money habits & quiet wealth': [
     'silent wealth standards',
     'stealth wealth etiquette',
     'generational wealth rules',
     'taste over flash',
     'quiet confidence habits'
   ],
-  'Quran recitation & reflection': [
-    'heart soothing recitation',
-    'powerful short surahs',
-    'fajr morning reflections',
-    'duas for anxiety & peace',
-    'quranic life lessons'
-  ],
-  'Deep work & productivity': [
-    'dopamine detox',
-    'focus without distraction',
-    'morning routine rules',
-    'monk mode blueprint',
-    'time blocking habits'
-  ],
-  'Health & fitness habits': [
-    'longevity habits',
-    'fat loss psychology',
-    'sleep architecture',
-    'strength & discipline',
-    'nutrition rules'
+  'Entrepreneurship & lean business': [
+    'founder mistakes to avoid',
+    'scaling a business from zero',
+    'pricing psychology',
+    'hiring & culture rules',
+    'ruthless business execution'
   ],
   'History stories': [
     'unbelievable battlefield tactics',
@@ -61,33 +93,61 @@ export const NICHE_MAP = {
     'dark history facts',
     'unsolved historical mysteries'
   ],
-  'Tech & AI explained': [
+  'AI & future tech': [
     'ai tools replacing jobs',
     'future tech predictions',
     'cybersecurity warnings',
     'breakthrough inventions',
     'how algorithms control you'
   ],
-  'Entrepreneurship lessons': [
-    'founder mistakes to avoid',
-    'scaling a business from zero',
-    'pricing psychology',
-    'hiring & culture rules',
-    'ruthless business execution'
+  'Focus & productivity systems': [
+    'dopamine detox',
+    'focus without distraction',
+    'morning routine rules',
+    'monk mode blueprint',
+    'time blocking habits'
   ],
-  'Calm evening routines': [
-    'unwinding an anxious mind',
-    'digital sunset habits',
+  'Healthspan & longevity habits': [
+    'longevity habits',
+    'daily health habits',
+    'nutrition rules',
+    'fat loss psychology',
+    'healthy aging'
+  ],
+  'Sleep & recovery science': [
+    'sleep architecture',
     'deep sleep routines',
+    'recovery habits',
     'evening journaling prompts',
-    'peaceful solitude'
+    'circadian rhythm'
   ],
-  'Luxury lifestyle & aesthetics': [
-    'timeless fashion rules',
-    'architectural masterpieces',
-    'high-status body language',
-    'bespoke craftsmanship',
-    'refined social etiquette'
+  'Gym & training motivation': [
+    'strength & discipline',
+    'gym motivation',
+    'training discipline',
+    'no excuses fitness'
+  ],
+  // the three NEW canonical strings (Phase 5 D17) — one-tap wizard entries
+  'Science & how things work': [
+    'how things work',
+    'science facts explained',
+    'breakthrough science',
+    'myth vs science',
+    'mechanisms explained'
+  ],
+  'Travel & geography explained': [
+    'why borders look like this',
+    'geography explained',
+    'country deep dives',
+    'maps that explain the world',
+    'travel facts'
+  ],
+  'Human psychology & social dynamics': [
+    'dark psychology defense',
+    'social rules explained',
+    'why humans do this',
+    'persuasion & influence',
+    'human behavior'
   ],
 };
 

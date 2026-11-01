@@ -12,9 +12,10 @@ import { runPreflight, capabilityMapFromAppliedProviders } from '../lib/template
 // ---------------------------------------------------------------------------
 
 // Schema-valid registry metadata (same shape tests/template-registry.test.mjs uses).
+// Phase 5 T1: niches must be members of the closed D17 vocabulary (niches.js).
 const META_V120 = {
   version: '1.2.0',
-  niches: ['personal finance'],
+  niches: ['Personal finance rules & money habits'],
   formats: ['short'],
   renderer: 'remotion',
   required_capabilities: ['script-gen', 'tts'],
@@ -34,8 +35,8 @@ const REGISTRY_META_FIXTURE = { 'finance-explainer': META_V120 };
 // shape the Studio assign route validated against at save time).
 const CHANNEL_ENTRY = {
   slug: 'money-rulebook',
-  niche: 'personal finance',
-  kit: { niches: ['personal finance'], longSlot: null },
+  niche: 'Personal finance rules & money habits',
+  kit: { niches: ['Personal finance rules & money habits'], longSlot: null },
 };
 
 // Both capabilities available; renderer intentionally absent (route parity:
@@ -208,4 +209,108 @@ test('guard: legacy contract — disabled preflight lib still exports the flag c
   const lib = await import('../lib/template-preflight.mjs');
   assert.equal(typeof lib.runPreflight, 'function');
   assert.equal(typeof lib.capabilityMapFromAppliedProviders, 'function');
+});
+
+// ---------------------------------------------------------------------------
+// Phase 5 T1 — the identity invariant (D19 / principal I7): one string, four
+// homes. The assignment row's id is THE string; the preflight's registry
+// resolution and meta lookup resolve by that id and NEVER fall back to the
+// family's historical association — proven with a template whose class
+// DIFFERS from its family's (the Drill B pairing: medical-flavored template
+// on the finance-associated stats-counters family).
+// ---------------------------------------------------------------------------
+
+const V2_TEMPLATE_ID = 'myth-vs-money';
+const V2_FAMILY_ID = 'stats-counters';
+
+// The v2 template: gated finance class, its OWN variation rules.
+const V2_TEMPLATE_META = {
+  version: '1.0.0',
+  template_id: V2_TEMPLATE_ID,
+  family: V2_FAMILY_ID,
+  niches: ['Personal finance rules & money habits'],
+  formats: ['short'],
+  renderer: 'remotion',
+  required_capabilities: ['script-gen', 'tts'],
+  variation_rules: ['slot 1 is the popular belief', 'slots 2-3 reverse it with evidence'],
+  safety: { required_sources: true, review_required: ['finance'] },
+  deprecated: false,
+  changelog: [{ version: '1.0.0', date: '2026-11-01', note: 'identity fixture' }],
+};
+
+// The visual family's own legacy block — DIFFERENT rules, NO review class.
+const FAMILY_META = {
+  version: '1.0.0',
+  niches: ['Investing psychology & market wisdom'],
+  formats: ['short', 'long'],
+  renderer: 'remotion',
+  required_capabilities: ['script-gen', 'tts', 'captions'],
+  variation_rules: ['family-level default rules — must never be consulted for the v2 template'],
+  safety: { required_sources: true, review_required: [] },
+  deprecated: false,
+  changelog: [{ version: '1.0.0', date: '2026-10-26', note: 'family seed' }],
+};
+
+const IDENTITY_CATALOG = [
+  { id: V2_FAMILY_ID, name: 'Stats Counters', family: V2_FAMILY_ID, aspectRatios: ['16:9', '9:16'] },
+];
+const IDENTITY_META = {
+  [V2_TEMPLATE_ID]: V2_TEMPLATE_META,
+  [V2_FAMILY_ID]: FAMILY_META,
+};
+
+test('identity: preflight resolves the ASSIGNMENT id — meta lookup never falls back to the family', async () => {
+  const pre = await runPreflight({
+    channelId: 'money-rulebook',
+    registryDb: stubDb([{ ...ASSIGNMENT_ROW, family_id: V2_TEMPLATE_ID }]),
+    catalog: IDENTITY_CATALOG,
+    meta: IDENTITY_META,
+    channelEntry: CHANNEL_ENTRY,
+    capabilityMap: CAPS,
+  });
+  assert.equal(pre.mode, 'enforce');
+  assert.equal(pre.verdict.ok, true, JSON.stringify(pre.verdict));
+  assert.equal(pre.verdict.template_id, V2_TEMPLATE_ID, 'home c: the verdict id is the assignment id');
+  assert.notEqual(pre.verdict.template_id, V2_FAMILY_ID);
+  assert.deepEqual(
+    pre.verdict.metaSummary.variation_rules,
+    V2_TEMPLATE_META.variation_rules,
+    'the TEMPLATE meta is consumed, never the family association',
+  );
+  assert.deepEqual(
+    pre.verdict.metaSummary.safety.review_required,
+    ['finance'],
+    'the template carries the class; the family block (review_required: []) is never consulted',
+  );
+});
+
+test('identity: legacy block without template_id resolves under its registry key (family fallback)', async () => {
+  const legacyMeta = { ...META_V120 };
+  assert.equal(legacyMeta.template_id, undefined, 'fixture sanity: no template_id field');
+  const pre = await runPreflight({
+    channelId: 'money-rulebook',
+    registryDb: stubDb([ASSIGNMENT_ROW]), // family_id = 'finance-explainer' = the fixture key
+    catalog: CATALOG,
+    meta: { 'finance-explainer': legacyMeta },
+    channelEntry: CHANNEL_ENTRY,
+    capabilityMap: CAPS,
+  });
+  assert.equal(pre.verdict.ok, true, JSON.stringify(pre.verdict));
+  assert.equal(pre.verdict.template_id, 'finance-explainer', 'absent template_id falls back to the family id — the same string everywhere');
+});
+
+test('identity: the resolved id round-trips — assignment row, registry key, and verdict are one string', async () => {
+  const assignment = { ...ASSIGNMENT_ROW, family_id: V2_TEMPLATE_ID };
+  const pre = await runPreflight({
+    channelId: 'money-rulebook',
+    registryDb: stubDb([assignment]),
+    catalog: IDENTITY_CATALOG,
+    meta: IDENTITY_META,
+    channelEntry: CHANNEL_ENTRY,
+    capabilityMap: CAPS,
+  });
+  const registryKey = Object.keys(IDENTITY_META).find((k) => k === V2_TEMPLATE_ID);
+  assert.equal(registryKey, V2_TEMPLATE_ID, 'home b: the registry key');
+  assert.equal(assignment.family_id, pre.verdict.template_id, 'home a (assignment row) == home c (preflight verdict)');
+  assert.equal(registryKey, pre.verdict.template_id, 'registry key == the resolved id');
 });

@@ -66,3 +66,56 @@ test('fbPageId: canonical page ids for all four legacy channels (09-20 page swap
 test('fbPageId: wizard channel without a destination and unknown slugs return undefined', () => {
   assert.equal(fbPageId('definitely-not-a-channel'), undefined);
 });
+
+// ---------------------------------------------------------------------------
+// Phase 5 T1 — the registryThresholds identity truth table (AC-P5-5 / D8 /
+// D19). The brain gate resolves thresholds + the review signal from
+// REGISTRY_META[templateId] — the SAME string the assignment row stores (the
+// registry key). Declared values win; absent values fall to the documented
+// defaults; a v2 template resolves by ITS key, never its family's block.
+// ---------------------------------------------------------------------------
+
+import { registryThresholds } from '../youtube-engine.mjs';
+import { REGISTRY_META as REGISTRY_DATA } from '../studio/lib/template-registry.data.js';
+
+test('registryThresholds: declared values win, defaults fill the rest (truth table)', () => {
+  // finance-explainers declares 0.85/0.90 explicitly (Phase 3 pin, re-run)
+  const fin = registryThresholds('finance-explainers');
+  assert.equal(fin.variation, 0.85);
+  assert.equal(fin.crossChannel, 0.90);
+  assert.deepEqual(fin.reviewRequired, ['finance']);
+  assert.equal(fin.financeGated, true);
+
+  // a template with no declared values inherits the documented defaults
+  const plain = registryThresholds('documentary-frames');
+  assert.equal(plain.variation, 0.85);
+  assert.equal(plain.crossChannel, 0.90);
+  assert.deepEqual(plain.reviewRequired, []);
+  assert.equal(plain.financeGated, false);
+
+  // unknown / template-less ids: defaults, never a throw, never gated
+  assert.equal(registryThresholds('not-a-template').financeGated, false);
+  assert.equal(registryThresholds('not-a-template').variation, 0.85);
+  assert.equal(registryThresholds(null).variation, 0.85);
+  assert.equal(registryThresholds(null).financeGated, false);
+});
+
+test('registryThresholds: a schema v2 template resolves by ITS key, never the family block (identity)', () => {
+  const key = 'qa-identity-v2';
+  const prev = REGISTRY_DATA[key];
+  REGISTRY_DATA[key] = {
+    variation_threshold: 0.78,
+    cross_channel_threshold: 0.84,
+    safety: { review_required: ['medical'] },
+  };
+  try {
+    const t = registryThresholds(key);
+    assert.equal(t.variation, 0.78, 'the v2 template\'s declared threshold wins');
+    assert.equal(t.crossChannel, 0.84);
+    assert.deepEqual(t.reviewRequired, ['medical'], 'the template\'s own review signal, not the family\'s');
+    assert.equal(t.financeGated, false);
+  } finally {
+    if (prev === undefined) delete REGISTRY_DATA[key];
+    else REGISTRY_DATA[key] = prev;
+  }
+});

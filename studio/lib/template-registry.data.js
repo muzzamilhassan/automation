@@ -1,5 +1,20 @@
-// Template registry metadata — schema v1 (validated by template-registry.js).
-// Keyed by catalog family id (studio/lib/templates-catalog.js `family` field).
+// Template registry metadata — schema v2 (validated by template-registry.js).
+// KEYED BY template_id — the unique registry key and THE identity string of
+// the D1/D19 invariant (one string, four homes: assignment id == registry key
+// == brain-gate id == review-gate meta id — every consumer indexes THIS object
+// by that one string).
+//
+// Schema v2 fields (Phase 5, spec D1):
+// - `template_id` — the unique registry key; REQUIRED on new entries. The
+//   legacy 7 entries carry it explicitly = their family id (backward
+//   compatible: key == template_id == family id, so existing assignments,
+//   pinned majors, and DB rows keep their identity with zero data migration —
+//   the `family_id` columns in Neon keep dual meaning because for every
+//   pre-Phase-5 row template_id == family_id; see template-registry-db.js).
+// - `family` — the VISUAL family id in studio/lib/templates-catalog.js; the
+//   gallery/aspect-ratio join. Optional on the legacy 7 (their family IS the
+//   key); required together with template_id on new entries, which lets many
+//   templates share one visual family (e.g. myth-vs-money on stats-counters).
 //
 // Brain thresholds (#105 Phase 3, spec D8 / review R-1): `variation_threshold`
 // and `cross_channel_threshold` are per-template DATA consumed by the
@@ -11,8 +26,9 @@
 //
 // Seed notes (issue #102 Task 10):
 // - niches are VERBATIM channel-registry strings (validateAssignment does exact
-//   matching — never paraphrase):
-//     'History stories'                          — studio/lib/niches.js:57 (wizard niche catalog)
+//   matching AND enforces the closed D17 vocabulary — never paraphrase; the
+//   canonical strings live in studio/lib/niches.js CANONICAL_NICHES):
+//     'History stories'                          — niches.js + lib/brands.json (legacy-4 history lane)
 //     'Investing psychology & market wisdom'     — studio/lib/brands.json:51 (investors-compass)
 //     'Personal finance rules & money habits'    — studio/lib/brands.json:99 (money-rulebook)
 //     'Old money habits & quiet wealth'          — studio/lib/brands.json:147 (debt-free-doctrine)
@@ -29,6 +45,7 @@ export const REGISTRY_META = {
   // ---- history lane ----
   'documentary-frames': {
     version: '1.0.0',
+    template_id: 'documentary-frames',
     niches: ['History stories'],
     formats: ['long', 'short'],
     renderer: 'remotion',
@@ -44,6 +61,7 @@ export const REGISTRY_META = {
   },
   'timeline-history': {
     version: '1.0.0',
+    template_id: 'timeline-history',
     niches: ['History stories'],
     formats: ['long'],
     renderer: 'remotion',
@@ -59,6 +77,7 @@ export const REGISTRY_META = {
   },
   'photo-stories': {
     version: '1.0.0',
+    template_id: 'photo-stories',
     niches: ['History stories'],
     formats: ['long', 'short'],
     renderer: 'remotion',
@@ -76,6 +95,7 @@ export const REGISTRY_META = {
   // ---- finance lane (YMYL: every seed requires sources + finance review) ----
   'finance-explainers': {
     version: '1.0.0',
+    template_id: 'finance-explainers',
     niches: [
       'Investing psychology & market wisdom',
       'Personal finance rules & money habits',
@@ -103,6 +123,7 @@ export const REGISTRY_META = {
   },
   'stats-counters': {
     version: '1.0.0',
+    template_id: 'stats-counters',
     niches: [
       'Investing psychology & market wisdom',
       'Personal finance rules & money habits',
@@ -124,6 +145,7 @@ export const REGISTRY_META = {
   },
   'chart-animations': {
     version: '1.0.0',
+    template_id: 'chart-animations',
     niches: [
       'Investing psychology & market wisdom',
       'Personal finance rules & money habits',
@@ -145,6 +167,7 @@ export const REGISTRY_META = {
   },
   'editorial-headlines': {
     version: '1.0.0',
+    template_id: 'editorial-headlines',
     niches: ['History stories'],
     formats: ['long', 'short'],
     renderer: 'remotion',

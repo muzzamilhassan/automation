@@ -39,6 +39,18 @@ export function makeRegistryDb(client) {
   }
 
   async function ensureSchema() {
+    // STORAGE DECISION (Phase 5 T1, spec D1/D19 — the identity split): every
+    // id column below is named `family_id` but stores the registry KEY (the
+    // template_id). The dual meaning is safe ONLY because for every
+    // pre-Phase-5 row template_id == family_id (the legacy 7 keep their
+    // identity), so those rows need ZERO migration — CREATE TABLE IF NOT
+    // EXISTS stays byte-identical and no row is rewritten. The visual family
+    // of a synced entry is readable from meta_json (`family` field), and the
+    // only NEW fact the schema must store — which template a SWAP replaced —
+    // gets the single additive column `from_family` on the audit table
+    // (idempotent ALTER below; ADD COLUMN IF NOT EXISTS never modifies or
+    // drops existing values, so no backup pass is required; existing audit
+    // rows keep NULL because no swap ever happened before Phase 5).
     await client(`CREATE TABLE IF NOT EXISTS template_registry_index (
       family_id text PRIMARY KEY,
       version text NOT NULL,
@@ -68,6 +80,7 @@ export function makeRegistryDb(client) {
       to_major integer,
       action text NOT NULL
     )`, []);
+    await client('ALTER TABLE template_assignment_audit ADD COLUMN IF NOT EXISTS from_family text', []);
   }
 
   /**
@@ -145,11 +158,25 @@ export function makeRegistryDb(client) {
   }
 
   /**
-   * Assign a channel to a family within a pinned major. Resolves the
+   * Assign a channel to a template within a pinned major — with Phase 5 SWAP
+   * semantics (D19): assigning over a DIFFERENT active assignment deactivates
+   * that row atomically (one active assignment per channel, enforced HERE so
+   * the review gate's multi-row drift-hold becomes unreachable from this
+   * path), and the audit row records the swap via `from_family`.
+   *
+   * `familyId` is the registry KEY (== template_id; for legacy rows it equals
+   * the family id — dual meaning documented at ensureSchema). Resolves the
    * current indexed version inside that major via resolveAssignment
    * (fail-closed: no version in the pinned major -> no writes). Writes the
-   * assignment (upsert, active=true) and an audit row
-   * (action 'assign', from_major null on first assignment).
+   * assignment (upsert, active=true) and an audit row (action 'assign';
+   * from_family/from_major null on a first assignment, the replaced row's
+   * id/major on a swap, the same id/prior major on a same-family re-pin).
+   *
+   * Atomicity: the deactivate + upsert run as ONE statement (a data-modifying
+   * CTE). postgres.js pools connections, so BEGIN/COMMIT via unsafe() is NOT
+   * reliably atomic (statements can land on different connections); a single
+   * statement is atomic by construction — no intermediate state (0 or 2 active
+   * rows) is ever visible to a concurrent reader.
    */
   async function assignTemplate(channelId, familyId, pinnedMajor, actor) {
     if (!isNonEmptyString(channelId) || !isNonEmptyString(familyId)
@@ -164,27 +191,47 @@ export function makeRegistryDb(client) {
     const resolved = resolveAssignment({ familyId, pinned_major: pinnedMajor }, blocks);
     if (!resolved.ok) return { ok: false, errors: resolved.errors };
 
-    // from_major = the channel's previous pinned_major for this family if a
-    // row exists at all (active or not — a re-assign after unassign still
-    // records what it moved from), null on first assignment.
+    // from_major (pre-Phase-5 semantics kept): the channel's previous
+    // pinned_major for this family if a row exists at all (active or not — a
+    // re-assign after unassign still records what it moved from), null on
+    // first assignment.
     const priorRows = await client(
       'SELECT pinned_major FROM channel_template_assignments WHERE channel_id = $1 AND family_id = $2',
       [channelId, familyId],
     );
-    const fromMajor = priorRows.length > 0 ? priorRows[0].pinned_major : null;
 
-    await client(
-      `INSERT INTO channel_template_assignments
-         (channel_id, family_id, pinned_major, pinned_version, assigned_by, assigned_at, active)
-       VALUES ($1, $2, $3, $4, $5, $6, true)
-       ON CONFLICT (channel_id, family_id) DO UPDATE SET
-         pinned_major = $3, pinned_version = $4, assigned_by = $5, assigned_at = $6, active = true`,
+    // SWAP: deactivate every OTHER active assignment of this channel and
+    // upsert the new row in one atomic statement; the deactivated rows come
+    // back so the audit can name what was replaced.
+    const swappedOut = await client(
+      `WITH swapped_out AS (
+         UPDATE channel_template_assignments SET active = false
+         WHERE channel_id = $1 AND active = true AND family_id <> $2
+         RETURNING family_id, pinned_major
+       ), upsert AS (
+         INSERT INTO channel_template_assignments
+           (channel_id, family_id, pinned_major, pinned_version, assigned_by, assigned_at, active)
+         VALUES ($1, $2, $3, $4, $5, $6, true)
+         ON CONFLICT (channel_id, family_id) DO UPDATE SET
+           pinned_major = $3, pinned_version = $4, assigned_by = $5, assigned_at = $6, active = true
+         RETURNING 1
+       )
+       SELECT family_id, pinned_major FROM swapped_out`,
       [channelId, familyId, pinnedMajor, resolved.resolvedVersion, actor, new Date()],
     );
+
+    const swapped = swappedOut.length > 0;
+    const fromMajor = swapped
+      ? swappedOut[0].pinned_major
+      : (priorRows.length > 0 ? priorRows[0].pinned_major : null);
+    const fromFamily = swapped
+      ? swappedOut[0].family_id
+      : (priorRows.length > 0 ? familyId : null);
+
     await client(
-      `INSERT INTO template_assignment_audit (actor, channel_id, family_id, from_major, to_major, action)
-       VALUES ($1, $2, $3, $4, $5, 'assign')`,
-      [actor, channelId, familyId, fromMajor, pinnedMajor],
+      `INSERT INTO template_assignment_audit (actor, channel_id, family_id, from_family, from_major, to_major, action)
+       VALUES ($1, $2, $3, $4, $5, $6, 'assign')`,
+      [actor, channelId, familyId, fromFamily, fromMajor, pinnedMajor],
     );
 
     return {
@@ -195,6 +242,8 @@ export function makeRegistryDb(client) {
       resolvedVersion: resolved.resolvedVersion,
       majorUpdateAvailable: resolved.majorUpdateAvailable,
       fromMajor,
+      fromFamily,
+      swappedFrom: swapped ? { familyId: swappedOut[0].family_id, pinnedMajor: swappedOut[0].pinned_major } : null,
     };
   }
 

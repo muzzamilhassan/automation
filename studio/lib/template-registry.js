@@ -1,6 +1,13 @@
-// Template registry metadata validator + loader (schema v1).
+// Template registry metadata validator + loader (schema v2 — Phase 5 T1).
 // Pure logic only — no DB, no UI. The metadata itself lives in
 // template-registry.data.js and is seeded by a later task.
+//
+// Schema v2 (Phase 5 D1 — the identity split): registry entries are keyed by
+// `template_id` (the unique registry key); `family` names the VISUAL catalog
+// family for the gallery/aspect-ratio join. Legacy blocks (the pre-Phase-5 7)
+// keep key == family id == template_id — no data migration.
+
+import { CANONICAL_NICHES } from './niches.js';
 
 const SEMVER_RE = /^\d+\.\d+\.\d+$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -46,8 +53,15 @@ function isSubsetOf(arr, allowlist) {
 }
 
 /**
- * Validate one registry metadata block against schema v1.
+ * Validate one registry metadata block against schema v2.
  * Collects all errors (not first-only). Pure and fail-closed.
+ *
+ * Schema v2 identity fields (Phase 5 D1): `template_id` and `family`. Both are
+ * optional ONLY for legacy blocks (the pre-Phase-5 7, where the family id IS
+ * the identity); a block that declares `family` is a schema v2 entry and MUST
+ * carry `template_id` — a declared visual family needs its own template
+ * identity. Whether template_id agrees with the registry key is checked by the
+ * loader (which sees the key; this function sees only the block).
  * @returns {{ ok: true } | { ok: false, errors: string[] }}
  */
 export function validateRegistryMeta(meta) {
@@ -61,8 +75,27 @@ export function validateRegistryMeta(meta) {
     errors.push(`version: must be semver (MAJOR.MINOR.PATCH), got ${JSON.stringify(meta.version)}`);
   }
 
+  if (meta.template_id !== undefined && !isNonEmptyString(meta.template_id)) {
+    errors.push('template_id: must be a non-empty string (the unique registry key — the identity of D1/D19)');
+  }
+  if (meta.family !== undefined && !isNonEmptyString(meta.family)) {
+    errors.push('family: must be a non-empty string (the visual family id in the template catalog)');
+  }
+  if (isNonEmptyString(meta.family) && meta.template_id === undefined) {
+    errors.push('template_id: required on schema v2 entries — a declared visual family needs its own template identity (D1 identity split)');
+  }
+
   if (!Array.isArray(meta.niches) || meta.niches.length === 0 || !meta.niches.every(isNonEmptyString)) {
     errors.push('niches: must be a non-empty array of non-empty strings');
+  } else {
+    // D17 closed vocabulary: assignment matching is exact-string, so a
+    // paraphrase would silently niche_mismatch in production — reject it at
+    // authoring/sync time with a named error instead.
+    meta.niches.forEach((n, i) => {
+      if (!CANONICAL_NICHES.includes(n)) {
+        errors.push(`niches[${i}]: "${n}" is not in the closed D17 niche vocabulary — copy channel niche strings EXACTLY (studio/lib/niches.js CANONICAL_NICHES)`);
+      }
+    });
   }
 
   if (!Array.isArray(meta.formats) || meta.formats.length === 0 || !isSubsetOf(meta.formats, ALLOWED_FORMATS)) {
@@ -129,29 +162,70 @@ export function validateRegistryMeta(meta) {
 
 /**
  * Resolve registry-assignable templates over catalog families, fail-closed.
- * - Families without registry metadata are simply absent from the result.
- * - Families whose metadata fails validation are excluded AND reported (AC-1).
- * Never throws on invalid metadata.
+ *
+ * Phase 5 T1 (D1): `metaData` is keyed by template_id — the unique registry
+ * key and THE identity string of the D19 invariant. Each block joins to the
+ * catalog by its `family` (the VISUAL family; defaults to the key for legacy
+ * blocks), so many templates may share one visual family. Result rows carry:
+ *   templateId — the identity (== the key; legacy fallback when the block
+ *                omits the field)
+ *   familyId   — the SAME string: the assignment/DB-join id. Kept as the field
+ *                name because every DB row and consumer indexes by it; it
+ *                holds the registry KEY (dual meaning documented in
+ *                template-registry-db.js — template_id == family_id for all
+ *                pre-Phase-5 rows).
+ *   family     — the visual family id (gallery/aspect-ratio join).
+ * - Metadata blocks are absent from the result only when null/undefined.
+ * - Invalid blocks (bad fields, identity drift, unknown family) are excluded
+ *   AND reported with every error named (AC-1/AC-P5-1). Never throws.
  * @param {Array<{id: string, name: string, family?: string, [k: string]: unknown}>} catalogFamilies
- * @param {Record<string, unknown>} metaData catalog family id -> metadata block
- * @returns {{ templates: Array<{familyId: string, name: string, catalog: object, registry: object}>, invalid: Array<{familyId: string, errors: string[]}> }}
+ * @param {Record<string, unknown>} metaData registry key (template_id) -> metadata block
+ * @returns {{ templates: Array<{templateId: string, familyId: string, family: string, name: string, catalog: object, registry: object}>, invalid: Array<{familyId: string, errors: string[]}> }}
  */
 export function loadRegistryTemplates(catalogFamilies, metaData) {
   const templates = [];
   const invalid = [];
+  const families = Array.isArray(catalogFamilies) ? catalogFamilies : [];
+  const entries = metaData && typeof metaData === 'object' && !Array.isArray(metaData)
+    ? Object.entries(metaData)
+    : [];
 
-  for (const entry of catalogFamilies) {
-    const familyId = entry.family || entry.id;
-    const meta = metaData[familyId];
-    if (!meta) continue; // no registry metadata -> not registry-assignable, simply absent
-
-    const result = validateRegistryMeta(meta);
-    if (!result.ok) {
-      invalid.push({ familyId, errors: result.errors });
+  for (const [key, meta] of entries) {
+    if (meta === null || meta === undefined) continue; // no metadata -> not registry-assignable, simply absent
+    if (typeof meta !== 'object' || Array.isArray(meta)) {
+      invalid.push({ familyId: key, errors: ['meta: must be an object'] });
       continue;
     }
 
-    templates.push({ familyId, name: entry.name, catalog: entry, registry: meta });
+    // The registry KEY is the identity (one string, four homes — D1/D19): a
+    // block's template_id must equal its key, so every consumer indexing the
+    // data object resolves the same string the assignment row stores.
+    const templateId = isNonEmptyString(meta.template_id) ? meta.template_id : key; // legacy fallback: family id
+    if (templateId !== key) {
+      invalid.push({
+        familyId: key,
+        errors: [`template_id: must equal the registry key "${key}" — the object key IS the identity (one string, four homes, D1/D19); got "${templateId}"`],
+      });
+      continue;
+    }
+
+    const family = isNonEmptyString(meta.family) ? meta.family : templateId;
+    const catalogEntry = families.find((e) => e !== null && typeof e === 'object' && (e.family || e.id) === family);
+    if (!catalogEntry) {
+      invalid.push({
+        familyId: key,
+        errors: [`family: "${family}" does not exist in the template catalog (TEMPLATES_DATA) — the visual binding must name a real family (D1)`],
+      });
+      continue;
+    }
+
+    const result = validateRegistryMeta(meta);
+    if (!result.ok) {
+      invalid.push({ familyId: key, errors: result.errors });
+      continue;
+    }
+
+    templates.push({ templateId, familyId: templateId, family, name: catalogEntry.name, catalog: catalogEntry, registry: meta });
   }
 
   return { templates, invalid };

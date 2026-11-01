@@ -12,6 +12,11 @@ import { makeRegistryDb, getRegistryDb, adaptPostgres } from '../studio/lib/temp
 // The stub understands exactly the SQL shapes the registry DB layer emits
 // (nothing more — so a passing test cannot be trivially green):
 //   - CREATE TABLE IF NOT EXISTS <t> (...)          -> recorded, no-op
+//   - ALTER TABLE <t> ADD COLUMN IF NOT EXISTS ...   -> recorded, no-op
+//   - WITH swapped_out AS (UPDATE ... RETURNING ...), upsert AS (INSERT ...)
+//     SELECT ... FROM swapped_out    -> the Phase 5 swap: deactivates every
+//     OTHER active row matching the WHERE (supports `= $n`, `= true`, and
+//     `<> $n`), upserts the new row, returns the deactivated rows
 //   - SELECT [DISTINCT] <cols> FROM <t> [WHERE ...] -> filters stored rows
 //     WHERE conditions supported: `<col> = $n` and `<col> = true|false`
 //   - INSERT INTO <t> (cols) VALUES ($1..$n)
@@ -41,6 +46,64 @@ function makeStubClient() {
     if (/^CREATE TABLE/i.test(sql)) {
       calls.push({ sql, params });
       return [];
+    }
+
+    if (/^ALTER TABLE/i.test(sql)) {
+      calls.push({ sql, params });
+      return [];
+    }
+
+    // Phase 5 T1 swap semantics (D19): the assign path deactivates every OTHER
+    // active assignment of the channel and upserts the new row in ONE atomic
+    // statement (a data-modifying CTE — postgres.js pools connections, so
+    // BEGIN/COMMIT via unsafe() is not reliably atomic; one statement is).
+    // The stub understands exactly this emitted shape:
+    //   WITH swapped_out AS (UPDATE <t> SET active = false WHERE ... RETURNING family_id, pinned_major),
+    //        upsert AS (INSERT INTO <t> (...) VALUES (...) [ON CONFLICT ... DO UPDATE SET ...] RETURNING 1)
+    //   SELECT family_id, pinned_major FROM swapped_out
+    const swapMatch = sql.match(
+      /^WITH swapped_out AS \( ?UPDATE (\w+) SET active = false WHERE (.+?) RETURNING ([\w, ]+?) ?\), ?upsert AS \( ?INSERT INTO (\w+) \(([^)]+)\) VALUES \(([^)]+)\)(?: ON CONFLICT \(([^)]+)\) DO UPDATE SET (.+?))? RETURNING \d+ ?\) SELECT .+ FROM swapped_out$/i,
+    );
+    if (swapMatch) {
+      calls.push({ sql, params });
+      const table = swapMatch[1];
+      const cols = swapMatch[5].split(',').map((c) => c.trim());
+      const valuesTuple = swapMatch[6].split(',').map((v) => v.trim());
+      const row = {};
+      cols.forEach((c, i) => {
+        const v = valuesTuple[i] ?? '';
+        row[c] = /^\$\d+$/.test(v) ? params[Number(v.slice(1)) - 1]
+          : v.toLowerCase() === 'true' ? true
+          : v.toLowerCase() === 'false' ? false
+          : null;
+      });
+      // 1) deactivate every OTHER active row of this channel, collect them
+      const conds = [...swapMatch[2].matchAll(/(\w+) (=|<>) (\$\d+|true|false)/gi)].map(([, col, op, val]) => {
+        const v = /^\$\d+$/.test(val) ? params[Number(val.slice(1)) - 1]
+          : val.toLowerCase() === 'true';
+        return [col, op, v];
+      });
+      const swappedOut = [];
+      const store0 = getStore(table);
+      for (const [, existing] of store0) {
+        if (conds.every(([c, op, v]) => (op === '=' ? existing[c] === v : existing[c] !== v))) {
+          existing.active = false;
+          swappedOut.push({ family_id: existing.family_id, pinned_major: existing.pinned_major });
+        }
+      }
+      // 2) upsert the new row (same merge semantics as the plain INSERT branch)
+      const conflict = swapMatch[7];
+      const store = getStore(table);
+      if (conflict) {
+        const keyCols = conflict.split(',').map((x) => x.trim());
+        const key = keyCols.map((c) => String(row[c])).join('\u0000');
+        const prev = store.get(key);
+        const merged = prev ? { ...prev, ...row } : row;
+        store.set(key, merged);
+      } else {
+        store.set(`row-${store.size}`, row);
+      }
+      return swappedOut;
     }
 
     const insertMatch = sql.match(/^INSERT INTO (\w+)/i);
@@ -133,7 +196,7 @@ function makeStubClient() {
 function makeValidMeta(version = '1.0.0') {
   return {
     version,
-    niches: ['history'],
+    niches: ['History stories'],
     formats: ['short'],
     renderer: 'remotion',
     required_capabilities: ['script-gen', 'tts', 'captions'],
@@ -146,12 +209,41 @@ function makeValidMeta(version = '1.0.0') {
 
 const FAMILY_A = 'documentary-frames';
 const FAMILY_B = 'kinetic-quotes';
+const FAMILY_C = 'photo-stories';
 
 function families() {
   return [
     { familyId: FAMILY_A, name: 'Documentary Master Frames', registry: makeValidMeta('1.2.3') },
     { familyId: FAMILY_B, name: 'Kinetic Quote Cards', registry: makeValidMeta('2.0.0') },
   ];
+}
+
+// Third family for the swap tests only (never passed to the sync-count tests).
+function swapFamilies() {
+  return [
+    ...families(),
+    { familyId: FAMILY_C, name: 'Photo Stories', registry: makeValidMeta('1.0.0') },
+  ];
+}
+
+// Column-aware audit reader: audit INSERT statements gained `from_family` in
+// Phase 5 T1, while `unassignTemplate` keeps its original column list — read
+// by column NAME, never by positional index.
+function auditRowsOf(stub) {
+  return stub.calls
+    .filter((c) => /^INSERT INTO template_assignment_audit/i.test(c.sql))
+    .map((c) => {
+      const cols = (c.sql.match(/\(([^)]+)\)\s*VALUES/i) || [])[1].split(',').map((s) => s.trim());
+      const values = (c.sql.match(/VALUES\s*\(([^)]+)\)/i) || [])[1].split(',').map((v) => v.trim());
+      const row = {};
+      cols.forEach((col, i) => {
+        const v = values[i] ?? '';
+        row[col] = /^\$\d+$/.test(v) ? c.params[Number(v.slice(1)) - 1]
+          : /^'(.*)'$/.test(v) ? v.slice(1, -1)
+          : null;
+      });
+      return row;
+    });
 }
 
 // ---- ensureSchema ----
@@ -167,6 +259,15 @@ test('ensureSchema issues CREATE TABLE IF NOT EXISTS for all three tables', asyn
     assert.ok(joined.includes(t), `schema must include table ${t}`);
     assert.ok(joined.includes(`CREATE TABLE IF NOT EXISTS ${t}`), `${t} must use IF NOT EXISTS`);
   }
+});
+
+test('Phase 5 migration: the only additive column is template_assignment_audit.from_family, idempotent', async () => {
+  const stub = makeStubClient();
+  const db = makeRegistryDb(stub);
+  await db.ensureSchema();
+  const alters = stub.calls.filter(c => /^ALTER TABLE/i.test(c.sql));
+  assert.equal(alters.length, 1, 'exactly one additive ALTER — no index/assignments schema change (family_id stores the registry key; legacy rows already satisfy template_id == family_id)');
+  assert.match(alters[0].sql, /^ALTER TABLE template_assignment_audit ADD COLUMN IF NOT EXISTS from_family text$/i, 'idempotent ADD COLUMN — safe to run on every boot, no backup pass needed');
 });
 
 // ---- syncRegistry ----
@@ -276,11 +377,11 @@ test('assignTemplate resolves version in pinned major, writes assignment + audit
   assert.equal(a.pinned_version, '1.2.3');
   assert.equal(a.assigned_by, 'tester');
 
-  const auditRows = stub.calls.filter(c => /^INSERT INTO template_assignment_audit/i.test(c.sql))
-    .map(c => ({ params: c.params, action: (c.sql.match(/'(\w+)'\s*\)$/) || [])[1] }));
+  const auditRows = auditRowsOf(stub);
   assert.equal(auditRows.length, 1);
-  assert.equal(auditRows[0].params[3], null, 'from_major null on first assignment');
-  assert.equal(auditRows[0].params[4], 1, 'to_major = 1');
+  assert.equal(auditRows[0].from_family, null, 'from_family null on first assignment (nothing replaced)');
+  assert.equal(auditRows[0].from_major, null, 'from_major null on first assignment');
+  assert.equal(auditRows[0].to_major, 1, 'to_major = 1');
   assert.equal(auditRows[0].action, 'assign');
 });
 
@@ -297,27 +398,134 @@ test('assignTemplate fails closed when pinned major has no indexed version', asy
   assert.equal(insertsAfter - insertsBefore, 0, 'failed assignment must write nothing');
 });
 
-test('re-assignment writes an audit row from previous major to new major', async () => {
+test('re-assignment over an active assignment is a SWAP: the audit chain records from_family + majors (D19)', async () => {
   const stub = makeStubClient();
   const db = makeRegistryDb(stub);
   await db.syncRegistry(families());
   await db.assignTemplate('chan-1', FAMILY_A, 1, 'tester');
-  await db.assignTemplate('chan-1', FAMILY_B, 2, 'tester'); // second family, no prior row for B
-  await db.unassignTemplate('chan-1', FAMILY_A, 'tester');
-  await db.assignTemplate('chan-1', FAMILY_A, 1, 'tester'); // re-assign after unassign
+  await db.assignTemplate('chan-1', FAMILY_B, 2, 'tester'); // SWAP: replaces A
+  await db.unassignTemplate('chan-1', FAMILY_B, 'tester'); // deactivate the active B
+  await db.assignTemplate('chan-1', FAMILY_A, 1, 'tester'); // re-assign after unassign (A has an inactive prior row)
 
-  const audits = stub.calls.filter(c => /^INSERT INTO template_assignment_audit/i.test(c.sql))
-    .map(c => ({
-      action: (c.sql.match(/'(\w+)'\s*\)$/) || [])[1],
-      from: c.params[3],
-      to: c.params[4],
-    }));
+  const audits = auditRowsOf(stub).map((r) => ({
+    action: r.action,
+    fromFamily: r.from_family ?? null,
+    from: r.from_major ?? null,
+    to: r.to_major ?? null,
+  }));
   assert.deepEqual(audits, [
-    { action: 'assign', from: null, to: 1 },
-    { action: 'assign', from: null, to: 2 },
-    { action: 'unassign', from: 1, to: null },
-    { action: 'assign', from: 1, to: 1 }, // from previous pinned_major restored
+    { action: 'assign', fromFamily: null, from: null, to: 1 }, // first assignment: nothing replaced
+    { action: 'assign', fromFamily: FAMILY_A, from: 1, to: 2 }, // the swap: replaced A @ major 1
+    { action: 'unassign', fromFamily: null, from: 2, to: null },
+    { action: 'assign', fromFamily: FAMILY_A, from: 1, to: 1 }, // from previous pinned_major restored
   ]);
+});
+
+// ---- Phase 5 T1: swap semantics — one active assignment per channel (D19) ----
+
+test('swap: assigning a different template over an active assignment deactivates the old row atomically', async () => {
+  const stub = makeStubClient();
+  const db = makeRegistryDb(stub);
+  await db.syncRegistry(swapFamilies());
+
+  const first = await db.assignTemplate('chan-1', FAMILY_A, 1, 'tester');
+  assert.equal(first.ok, true);
+  const swap = await db.assignTemplate('chan-1', FAMILY_C, 1, 'tester');
+  assert.equal(swap.ok, true);
+  assert.deepEqual(swap.swappedFrom, { familyId: FAMILY_A, pinnedMajor: 1 }, 'the result names what the swap replaced');
+  assert.equal(swap.fromFamily, FAMILY_A);
+
+  // exactly ONE active row — and it is the NEW template
+  const active = await db.listAssignments('chan-1');
+  assert.equal(active.length, 1, 'a channel can never hold two active rows (D19)');
+  assert.equal(active[0].family_id, FAMILY_C);
+  assert.equal(active[0].pinned_major, 1);
+
+  // the old row survives deactivated (history, not deletion)
+  const allRows = [...stub.tables.get('channel_template_assignments').values()];
+  assert.equal(allRows.length, 2);
+  const oldRow = allRows.find((r) => r.family_id === FAMILY_A);
+  assert.equal(oldRow.active, false, 'the replaced assignment is deactivated, never deleted');
+});
+
+test('swap: the audit row records the swap (actor, from_family, replaced major)', async () => {
+  const stub = makeStubClient();
+  const db = makeRegistryDb(stub);
+  await db.syncRegistry(swapFamilies());
+  await db.assignTemplate('chan-1', FAMILY_A, 1, 'owner@example.com');
+  await db.assignTemplate('chan-1', FAMILY_C, 1, 'owner@example.com');
+
+  const audits = auditRowsOf(stub);
+  assert.equal(audits.length, 2);
+  const swapRow = audits[1];
+  assert.equal(swapRow.action, 'assign');
+  assert.equal(swapRow.actor, 'owner@example.com');
+  assert.equal(swapRow.channel_id, 'chan-1');
+  assert.equal(swapRow.family_id, FAMILY_C, 'the assigned id is the NEW template');
+  assert.equal(swapRow.from_family, FAMILY_A, 'from_family records the replaced template');
+  assert.equal(swapRow.from_major, 1, 'from_major records the replaced pinned major');
+  assert.equal(swapRow.to_major, 1);
+});
+
+test('swap: rapid double-assign boundary probe — still exactly one active row, each swap audited', async () => {
+  const stub = makeStubClient();
+  const db = makeRegistryDb(stub);
+  await db.syncRegistry(swapFamilies());
+  await db.assignTemplate('chan-1', FAMILY_A, 1, 'tester');
+  await db.assignTemplate('chan-1', FAMILY_B, 2, 'tester');
+  const third = await db.assignTemplate('chan-1', FAMILY_C, 1, 'tester');
+
+  assert.equal(third.ok, true);
+  assert.deepEqual(third.swappedFrom, { familyId: FAMILY_B, pinnedMajor: 2 });
+  const active = await db.listAssignments('chan-1');
+  assert.equal(active.length, 1);
+  assert.equal(active[0].family_id, FAMILY_C);
+
+  const audits = auditRowsOf(stub).filter((r) => r.action === 'assign');
+  assert.deepEqual(audits.map((r) => r.from_family), [null, FAMILY_A, FAMILY_B], 'each swap names what it replaced; the first assign replaced nothing');
+});
+
+test('swap: a same-family re-assign is not a swap — from_family is the same id, from_major semantics unchanged', async () => {
+  const stub = makeStubClient();
+  const db = makeRegistryDb(stub);
+  await db.syncRegistry(families());
+  await db.assignTemplate('chan-1', FAMILY_A, 1, 'tester');
+  const repin = await db.assignTemplate('chan-1', FAMILY_A, 1, 'tester');
+
+  assert.equal(repin.ok, true);
+  assert.equal(repin.swappedFrom, null, 'no other template was replaced');
+  assert.equal(repin.fromFamily, FAMILY_A, 'from_family mirrors the audit: the prior assignment was this same template');
+  const audits = auditRowsOf(stub);
+  assert.equal(audits[1].from_family, FAMILY_A);
+  assert.equal(audits[1].from_major, 1, 'from_major keeps the pre-Phase-5 same-family semantics');
+  const active = await db.listAssignments('chan-1');
+  assert.equal(active.length, 1);
+});
+
+test('legacy pre-Phase-5 rows keep resolving (no orphaned assignments after T1)', async () => {
+  const stub = makeStubClient();
+  const db = makeRegistryDb(stub);
+  await db.syncRegistry(families());
+  // A row written before Phase 5: family_id == the family id == the registry
+  // key (the dual meaning holds because template_id == family_id for legacy).
+  const store = new Map();
+  stub.tables.set('channel_template_assignments', store);
+  const legacyKey = ['chan-legacy', FAMILY_A].join('\u0000');
+  store.set(legacyKey, {
+    channel_id: 'chan-legacy', family_id: FAMILY_A, pinned_major: 1, pinned_version: '1.2.3', assigned_by: 'owner', active: true,
+  });
+
+  const row = await db.getActiveAssignment('chan-legacy');
+  assert.ok(row, 'the pre-Phase-5 row still resolves');
+  assert.equal(row.family_id, FAMILY_A);
+  // its id IS a registry key, so the loader resolves the same string:
+  const { loadRegistryTemplates } = await import('../studio/lib/template-registry.js');
+  const view = loadRegistryTemplates(
+    [{ id: FAMILY_A, name: 'Documentary Master Frames', family: FAMILY_A }],
+    { [FAMILY_A]: { ...makeValidMeta('1.2.3'), template_id: FAMILY_A } },
+  );
+  assert.deepEqual(view.invalid, []);
+  assert.equal(view.templates[0].templateId, row.family_id, 'assignment id == registry key (identity invariant)');
 });
 
 // ---- unassignTemplate ----
@@ -339,17 +547,22 @@ test('unassignTemplate deactivates and audits; unassign with nothing active fail
 
 // ---- reads ----
 
-test('listAssignments returns active rows for a channel', async () => {
+test('listAssignments returns active rows for a channel (one per channel since D19 swaps)', async () => {
   const stub = makeStubClient();
   const db = makeRegistryDb(stub);
   await db.syncRegistry(families());
   await db.assignTemplate('chan-1', FAMILY_A, 1, 'tester');
-  await db.assignTemplate('chan-1', FAMILY_B, 2, 'tester');
+  await db.assignTemplate('chan-2', FAMILY_A, 1, 'tester');
+  await db.assignTemplate('chan-2', FAMILY_B, 2, 'tester'); // swaps chan-2's A — never two active rows
 
   const rows = await db.listAssignments('chan-1');
-  assert.equal(rows.length, 2);
-  assert.ok(rows.some(r => r.family_id === FAMILY_A && r.pinned_major === 1));
-  assert.ok(rows.some(r => r.family_id === FAMILY_B && r.pinned_major === 2));
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].family_id, FAMILY_A);
+  assert.equal(rows[0].pinned_major, 1);
+
+  const chan2 = await db.listAssignments('chan-2');
+  assert.equal(chan2.length, 1, 'D19: the swap deactivated the earlier family, never stacked');
+  assert.equal(chan2[0].family_id, FAMILY_B);
 });
 
 test('listUsage returns active channels for a family', async () => {

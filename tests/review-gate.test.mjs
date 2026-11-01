@@ -884,3 +884,49 @@ describe('#106 T5 round 1 — /api/review route path (BLOCKER 2)', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 5 T1 — the identity invariant (D19 / principal I7): the review gate's
+// meta lookup is keyed by the ASSIGNMENT id (the registry key == template_id;
+// for legacy rows it equals the family id). A template whose class DIFFERS
+// from its family's historical association must gate on ITS OWN meta — the
+// family block is never consulted. (Drill B's pairing, unit-pinned.)
+// ---------------------------------------------------------------------------
+
+describe('Phase 5 T1 identity — the gate reads the assignment id, never the family association', () => {
+  const FAMILY_ID = 'stats-counters';
+
+  test('resolveGating looks up meta by the assignment row id (exactly one lookup, that exact string)', async () => {
+    const lookedUp = [];
+    const r = await resolveGating({
+      slug: 'money-rulebook',
+      registryDb: REGISTRY_DB_WITH({ channel_id: 'money-rulebook', family_id: 'qa-drill-medical', pinned_major: 1, pinned_version: '1.0.0' }),
+      templateMeta: (id) => {
+        lookedUp.push(id);
+        return id === 'qa-drill-medical' ? { safety: { review_required: ['medical'] } } : { safety: { review_required: [] } };
+      },
+      cache: null,
+    });
+    assert.deepEqual(lookedUp, ['qa-drill-medical'], 'exactly one meta lookup, by the ASSIGNMENT id — never the family id');
+    assert.equal(r.state, 'gated', 'the template carries the class (class-differs-from-family)');
+    assert.deepEqual(r.reviewRequired, ['medical']);
+    assert.equal(r.familyId, 'qa-drill-medical', 'the gating result carries the assignment id string');
+    assert.ok(!lookedUp.includes(FAMILY_ID), 'the family association is never looked up');
+  });
+
+  test('ungated twin: the template\'s own EMPTY review_required wins — the family\'s finance class never leaks in', async () => {
+    const lookedUp = [];
+    const r = await resolveGating({
+      slug: 'money-rulebook',
+      registryDb: REGISTRY_DB_WITH({ channel_id: 'money-rulebook', family_id: 'myth-vs-money', pinned_major: 1, pinned_version: '1.0.0' }),
+      templateMeta: (id) => {
+        lookedUp.push(id);
+        return id === 'myth-vs-money' ? { safety: { review_required: [] } } : { safety: { review_required: ['finance'] } };
+      },
+      cache: null,
+    });
+    assert.deepEqual(lookedUp, ['myth-vs-money']);
+    assert.equal(r.state, 'ungated', 'ungated template stays ungated even though its visual family is finance-associated');
+    assert.ok(!lookedUp.includes(FAMILY_ID));
+  });
+});
