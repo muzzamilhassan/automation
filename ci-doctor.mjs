@@ -3,13 +3,18 @@
 // Creates a health report and GitHub issue if problems found.
 import fs from 'node:fs';
 import { google } from 'googleapis';
-import { LEGACY_SLUGS as SLUGS } from './lib/registry.mjs';
 import { asciiHeaderValue } from './lib/ntfy-alert.mjs';
 import { loadEnv } from './lib/env.mjs';
+// T4d (#106): the health check covers every channel the nightlies see —
+// CHANNELS env if set, else every mapped YT_TOKEN_<SLUG> secret (CI), else
+// yt-mcp/channels/*/token.json locally. Same discovery as analytics-nightly;
+// a channel joins the doctor by adding its secret, never by editing code.
+import { discoverChannels } from './scripts/analytics-nightly.mjs';
 
 loadEnv();
 
 
+const SLUGS = discoverChannels(process.env);
 const results = [];
 
 import { validateWorkflows } from './lib/workflow-validator.mjs';

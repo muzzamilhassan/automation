@@ -16,20 +16,24 @@ import { MUSIC_MOODS, BRAND_META } from '@/lib/site-data';
 import MUSIC_URLS from '@/lib/music-urls.json';
 import { cn } from '@/lib/utils';
 
-const CHANNELS = [
-  { slug: 'quotequarry', label: 'Quote Quarry' },
-  { slug: 'investors-compass', label: "Investor's Compass" },
-  { slug: 'money-rulebook', label: 'The Money Rulebook' },
-  { slug: 'debt-free-doctrine', label: 'Old Money Code' },
-];
-
 export default function MusicPage() {
   const [slug, setSlug] = useState('quotequarry');
+  const [chans, setChans] = useState([]); // T4d: registry-driven tabs from the overview payload
   const [playingTitle, setPlayingTitle] = useState(null);
   const [loadingTitle, setLoadingTitle] = useState(null);
   const audioRef = useRef(null);
 
   const tracks = MUSIC_URLS[slug] || [];
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const d = await fetch('/api/overview').then((r) => r.json()).catch(() => null);
+      if (!alive || !d?.channels?.length) return;
+      setChans(d.channels.map((c) => ({ slug: c.slug, label: c.label || c.slug, accent: c.accent })));
+    })();
+    return () => { alive = false; };
+  }, []);
 
   // stop audio when leaving the page
   useEffect(() => () => { if (audioRef.current) audioRef.current.pause(); }, []);
@@ -65,14 +69,14 @@ export default function MusicPage() {
       {/* channel selector */}
       <div className="mb-4 flex items-center gap-3 flex-wrap">
         <div className="inline-flex items-center gap-0.5 p-1 rounded-xl border border-line bg-surface flex-wrap">
-          {CHANNELS.map((c) => (
+          {chans.map((c) => (
             <button
               key={c.slug}
               onClick={() => switchChannel(c.slug)}
               className={cn('px-3 h-8 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5', slug === c.slug ? 'text-ink' : 'text-faint hover:text-muted')}
               style={slug === c.slug ? { background: 'var(--surface-2)', boxShadow: 'inset 0 0 0 1px var(--line-strong)' } : undefined}
             >
-              <BrandMark short={BRAND_META[c.slug]?.short} accent={BRAND_META[c.slug]?.accent} size={16} />
+              <BrandMark short={BRAND_META[c.slug]?.short} accent={c.accent} size={16} />
               {c.label}
             </button>
           ))}
@@ -84,7 +88,7 @@ export default function MusicPage() {
         {/* playable pool */}
         <Card className="lg:col-span-2 overflow-hidden">
           <CardHead
-            title={CHANNELS.find((c) => c.slug === slug)?.label + ' — approved pool'}
+            title={(chans.find((c) => c.slug === slug)?.label || slug) + ' — approved pool'}
             sub="These are the only tracks this channel's videos use · one track per video"
             icon={Lock}
           />

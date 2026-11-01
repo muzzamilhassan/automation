@@ -71,6 +71,11 @@ function rowToEntry(r) {
     docDay: r.doc_day || '',
     autopilot: r.autopilot !== false,
     kit: r.kit || {},
+    // T4d (#106): destinations have no dedicated column yet — they ride in the
+    // kit JSONB (seeded for the legacy 4) or arrive on repo-file entries.
+    // Hoisted to entry.destinations, the schema the engine's lib/registry.mjs
+    // already reads (destinations.fbPageId / .threadsHandle).
+    destinations: r.kit?.destinations || r.destinations || null,
     ytDescription: r.yt_description || '',
     ytKeywords: r.yt_keywords || '',
     tokenEnc: r.token_enc || null,

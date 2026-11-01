@@ -35,20 +35,19 @@ const PAGE_ICONS = {
   '/settings': Settings,
 };
 
-const RUN_ACTIONS = [
-  { id: 'run-qq', label: 'Run QQ Shorts now', action: 'yt-daily', slug: 'quotequarry' },
-  { id: 'run-ic', label: 'Run IC Shorts now', action: 'yt-daily', slug: 'investors-compass' },
-  { id: 'run-mr', label: 'Run MR Shorts now', action: 'yt-daily', slug: 'money-rulebook' },
-  { id: 'run-dfd', label: 'Run DFD Shorts now', action: 'yt-daily', slug: 'debt-free-doctrine' },
+// Network-level runs — no per-channel slug. The retired 'tiktok' entry is
+// gone: the workflow was deleted and /api/action answers it with a clean
+// 400 'workflow retired', so the button could only ever fail.
+const NETWORK_RUN_ACTIONS = [
   { id: 'run-fb', label: 'Run FB reels cross-post', action: 'fb-crosspost' },
   { id: 'run-ig', label: 'Run IG reels cross-post', action: 'ig-crosspost' },
   { id: 'run-posters', label: 'Run FB brand posters', action: 'fb-images' },
-  { id: 'run-tiktok', label: 'Run TikTok posts now', action: 'tiktok' },
 ];
 
 export default function CommandPalette({ open, onClose }) {
   const [q, setQ] = useState('');
   const [idx, setIdx] = useState(0);
+  const [chans, setChans] = useState(null); // null = not loaded yet
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const inputRef = useRef(null);
@@ -61,6 +60,24 @@ export default function CommandPalette({ open, onClose }) {
     }
   }, [open]);
 
+  // T4d (#106): one run entry per registry channel, labeled by the registry
+  // label — the dispatch route accepts every channel (T1a), so the palette
+  // no longer hardcodes the legacy 4.
+  useEffect(() => {
+    if (!open || chans) return;
+    fetch('/api/overview')
+      .then((r) => r.json())
+      .then((d) => setChans((d?.channels || []).map((c) => ({ slug: c.slug, label: c.label || c.slug }))))
+      .catch(() => setChans([]));
+  }, [open, chans]);
+
+  const channelRuns = (chans || []).map((c) => ({
+    id: 'run-' + c.slug,
+    label: 'Run ' + c.label + ' Shorts now',
+    action: 'yt-daily',
+    slug: c.slug,
+  }));
+
   const items = [
     ...ALL_NAV_ITEMS.map((n) => ({
       kind: 'page',
@@ -70,7 +87,7 @@ export default function CommandPalette({ open, onClose }) {
       icon: PAGE_ICONS[n.href] || LayoutDashboard,
       run: () => router.push(n.href),
     })),
-    ...RUN_ACTIONS.map((a) => ({
+    ...[...channelRuns, ...NETWORK_RUN_ACTIONS].map((a) => ({
       kind: 'run',
       id: a.id,
       label: a.label,

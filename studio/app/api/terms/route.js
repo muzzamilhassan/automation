@@ -2,6 +2,7 @@
 // the Analytics page's search card renders. Written to yt-mcp/terms-<slug>.json
 // by the CI engine (viewer-terms.mjs, verified 10-03). No dummy fallbacks.
 import { terms } from '../../../lib/data.mjs';
+import { registryChannels } from '@/lib/channels-registry';
 import { getUser } from '@/lib/route-auth';
 import { slugsForUser } from '@/lib/access';
 
@@ -17,7 +18,13 @@ export async function GET(req) {
   // channel's viewer search terms)
   const owned = user.role === 'client' ? ((await slugsForUser(user).catch(() => null)) || []) : null;
   const slug = new URL(req.url).searchParams.get('slug') || 'all';
-  const wanted = (slug === 'all' ? SLUGS : [slug]).filter((s) => !owned || owned.includes(s));
+  // T4d (#106): registry channels join the terms panel — the same append the
+  // analytics route uses; the legacy 4 stay first, duplicates collapse.
+  let wanted = slug === 'all' ? [...SLUGS] : [slug];
+  try {
+    for (const e of await registryChannels()) if (!wanted.includes(e.slug)) wanted.push(e.slug);
+  } catch { }
+  wanted = wanted.filter((s) => !owned || owned.includes(s));
   if (!wanted.length) return Response.json({ error: 'this channel is not linked to your account' }, { status: 403 });
   const merged = new Map();
   const perChannel = {};

@@ -24,6 +24,10 @@
           "22:35"
         ],
         "docDay": "Tue"
+      },
+      "destinations": {
+        "fbPageId": "114550268199751",
+        "threadsHandle": "quotequarry8"
       }
     },
     {
@@ -50,6 +54,9 @@
           "23:35"
         ],
         "docDay": "Wed"
+      },
+      "destinations": {
+        "fbPageId": "116157974886564"
       }
     },
     {
@@ -76,6 +83,9 @@
           "00:05"
         ],
         "docDay": "Thu"
+      },
+      "destinations": {
+        "fbPageId": "1077306835630491"
       }
     },
     {
@@ -101,6 +111,9 @@
           "21:20"
         ],
         "docDay": "Fri"
+      },
+      "destinations": {
+        "fbPageId": "106473735839651"
       }
     }
   ]

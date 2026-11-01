@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Tv, Music2, RefreshCw, Mic, Music, Clock, Archive, Plus, PenLine, Pause, Play, CalendarDays, Layers, KeyRound, Route } from 'lucide-react';
+import { Tv, RefreshCw, Mic, Music, Clock, Archive, Plus, PenLine, Pause, Play, CalendarDays, Layers, KeyRound, Route } from 'lucide-react';
 import { YoutubeIcon, FacebookIcon, InstagramIcon } from '@/components/BrandIcons';
 import { Card, CardHead, Chip, PageHeader, BrandMark, PageSkeleton, EmptyState } from '@/components/ui';
 import { Button } from '@/components/untitledui/base/buttons/button';
@@ -138,9 +138,6 @@ export default function Channels() {
                 ) : null}
                 {c.ig ? (
                   <PlatformRow icon={InstagramIcon} color="#ec4899" label="Instagram" handle={`@${c.ig.username}`} followers={fmt(c.ig.followers)} extra={`${c.ig.posts} posts`} />
-                ) : null}
-                {c.slug === 'investors-compass' ? (
-                  <PlatformRow icon={Music2} color="#22d3ee" label="TikTok" handle="via Zernio · @arzo22345" followers="—" extra="clips + 4 slots/day" />
                 ) : null}
                 {!c.yt && !c.fb && !c.ig ? <p className="text-[12px] text-faint px-3 py-3">No accounts linked yet.</p> : null}
               </div>

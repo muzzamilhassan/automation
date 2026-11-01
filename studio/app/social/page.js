@@ -36,6 +36,8 @@ export default function Social() {
   }, []);
   if (!data) return <PageSkeleton />;
   const active = data.channels.filter((c) => c.active);
+  // T4d (#106): the QQ Threads handle is registry data (overview payload) — no literal
+  const qqThreadsHandle = active.find((c) => c.slug === 'quotequarry')?.threadsHandle || null;
 
   const totals = {
     youtube: active.reduce((a, c) => a + (c.yt?.subs || 0), 0),
@@ -143,7 +145,7 @@ export default function Social() {
                     <AtSign size={20} />
                   </span>
                   <div className="min-w-0">
-                    <p className="text-[13.5px] font-bold text-ink">@quotequarry8</p>
+                    <p className="text-[13.5px] font-bold text-ink">{qqThreadsHandle ? '@' + qqThreadsHandle : '—'}</p>
                     <p className="text-[11.5px] text-faint">1 QQ reel per day · restored Sep 20</p>
                   </div>
                   <Chip tone="warn" dot>token expiring</Chip>

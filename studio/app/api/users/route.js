@@ -83,7 +83,11 @@ export async function GET(req) {
 
     // unbound registry channels (connected but no ownerEmail) — owner awareness
     const unbound = registry.filter((e) => !e.ownerEmail).map((e) => ({ slug: e.slug, label: e.label || e.slug }));
-    const legacy = ['quotequarry', 'investors-compass', 'money-rulebook', 'debt-free-doctrine'].map((s) => ({ slug: s }));
+    // T4d (#106): the owner's own channels come from the registry bindings
+    // (the requesting owner's bound entries), not a hardcoded legacy-4 list —
+    // the wizard binds channels to the owner email the same way it does for
+    // clients. Informational payload; the users page renders unboundChannels.
+    const legacy = bound(String(user.email).toLowerCase()).map((c) => ({ slug: c.slug }));
 
     return Response.json({
       users: list,

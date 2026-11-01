@@ -60,6 +60,30 @@ export function brands() {
   return JSON.parse(fs.readFileSync(path.join(LIB, 'brands.json'), 'utf8'));
 }
 
+// T4d (#106): the slug universe every dashboard read iterates, derived from
+// the registry — never a hardcoded list (G8, no-static-maps directive). Pure
+// so tests can pin it. Parked entries (active === false) and garbage drop out.
+export function registrySlugs(entries) {
+  const seen = new Set();
+  const out = [];
+  for (const e of entries || []) {
+    if (!e || !e.slug || e.active === false || seen.has(e.slug)) continue;
+    seen.add(e.slug);
+    out.push(e.slug);
+  }
+  return out;
+}
+
+// Registry read-through with the house 60s memo — one Neon/repo read shared by
+// state(), ytChannels() and the routes instead of one per surface per request.
+// A registry failure resolves to [] (callers just cover no extra channels).
+function registryMemo() {
+  return cached('registry', 60_000, async () => {
+    const { registryChannels } = await import('./channels-registry.js');
+    return (await registryChannels()) || [];
+  });
+}
+
 // Per-channel state files (yt-mcp/state/<slug>.json) are the source of truth
 // since 09-20 — the legacy schedule-state.json is a best-effort mirror. Merge
 // both, per-channel file wins, so episodes + QQ videos always show.
@@ -73,8 +97,11 @@ export async function state() {
   })();
   Object.assign(merged, legacy);
 
-  const slugs = ['quotequarry', 'investors-compass', 'money-rulebook', 'debt-free-doctrine'];
-  for (const slug of slugs) {
+  // T4d (#106): every registry channel's state file is readable (G8). The
+  // per-file read stays fail-soft — a channel without a state file yet is
+  // simply skipped, and the schedule-state mirror above still answers.
+  const entries = (await registryMemo()) || [];
+  for (const slug of registrySlugs(entries)) {
     try {
       const per = CLOUD
         ? await ghFile(`yt-mcp/state/${slug}.json`)
@@ -150,9 +177,9 @@ export async function ytTokenRaw(slug) {
   return raw || '';
 }
 
-// The four live channels (cloud mode fetches their token files from the repo).
-const LIVE_SLUGS = ['quotequarry', 'investors-compass', 'money-rulebook', 'debt-free-doctrine'];
-
+// T4d (#106): ONE registry-derived loop in cloud mode — every registry
+// channel (legacy 4 and wizard alike) resolves its token the same way (G8;
+// the wizard channels no longer trail in a second hardcoded-skip loop).
 export async function ytChannels() {
   return cached('yt', 5 * 60000, async () => {
     const out = [];
@@ -172,37 +199,22 @@ export async function ytChannels() {
       }
       return out;
     }
-    for (const slug of LIVE_SLUGS) {
+    const entries = (await registryMemo()) || [];
+    for (const e of entries) {
       try {
         // Cloud: per-channel tokens come from env (same YT_TOKEN_* secrets the
-        // GitHub Actions workflows use). Repo token files are local-only.
-        const raw = await ytTokenRaw(slug);
-        if (!raw) throw new Error('no token on the server');
+        // GitHub Actions workflows use) → local gitignored file (irrelevant on
+        // the server) → encrypted registry copy (wizard channels).
+        const raw = await ytTokenRaw(e.slug);
+        if (!raw) throw new Error(e.tokenEnc ? 'no token on the server' : 'no encrypted token — re-connect once in Studio to upgrade');
         const t = typeof raw === 'string' ? JSON.parse(raw) : raw;
         const at = await ytAccessToken(t.refresh_token);
         const res = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true', { headers: { Authorization: `Bearer ${at}` } });
         const d = await res.json();
         const c = d.items?.[0];
-        out.push({ slug, ytTitle: c?.snippet?.title || '?', ytCustomUrl: c?.snippet?.customUrl || '', subs: Number(c?.statistics?.subscriberCount || 0), views: Number(c?.statistics?.viewCount || 0), videos: Number(c?.statistics?.videoCount || 0) });
-      } catch (e) { out.push({ slug, error: e.message.slice(0, 60) }); }
+        out.push({ slug: e.slug, ytTitle: c?.snippet?.title || e.label || '?', ytCustomUrl: c?.snippet?.customUrl || e.handle || '', subs: Number(c?.statistics?.subscriberCount || e.subs || 0), views: Number(c?.statistics?.viewCount || 0), videos: Number(c?.statistics?.videoCount || 0) });
+      } catch (err) { out.push({ slug: e.slug, error: err.message.slice(0, 60) }); }
     }
-    // 10-08 CHANNEL FACTORY: wizard channels appended (token = encrypted registry copy)
-    try {
-      const { registryChannels, decryptJSON } = await import('./channels-registry.js');
-      for (const e of await registryChannels()) {
-        if (LIVE_SLUGS.includes(e.slug)) continue;
-        try {
-          if (!e.tokenEnc) throw new Error('no encrypted token — re-connect once in Studio to upgrade');
-          const t = decryptJSON(e.tokenEnc);
-          if (!t?.refresh_token) throw new Error('token undecryptable on this server');
-          const at = await ytAccessToken(t.refresh_token);
-          const res = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true', { headers: { Authorization: `Bearer ${at}` } });
-          const d = await res.json();
-          const c = d.items?.[0];
-          out.push({ slug: e.slug, registry: true, ytTitle: c?.snippet?.title || e.label, ytCustomUrl: c?.snippet?.customUrl || e.handle || '', subs: Number(c?.statistics?.subscriberCount || e.subs || 0), views: Number(c?.statistics?.viewCount || 0), videos: Number(c?.statistics?.videoCount || 0) });
-        } catch (err) { out.push({ slug: e.slug, registry: true, error: err.message.slice(0, 60) }); }
-      }
-    } catch { }
     return out;
   });
 }

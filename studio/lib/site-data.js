@@ -84,9 +84,13 @@ export const PIPELINES = [
     name2: 'Zernio',
     desc: 'Long-forms auto-cut into 1-min sentence-aligned parts, 1 part/day + 4 shorts slots',
     icon: 'music2',
-    engine: 'tiktok-post.yml · Zernio app',
+    // T4d (#106): the auto-post workflow was retired (T1a) — its button could
+    // only ever get the route's clean 400 'workflow retired'. Posting
+    // continues inside the Zernio app; the entry stays as placeholder copy
+    // with no dead workflow advertised and no dead button.
+    engine: 'Zernio app — the auto-post workflow was retired Oct 30 (#106)',
     schedule: '4×/day + 1 clip part/day',
-    actions: [{ action: 'tiktok', label: 'Post TikTok now' }],
+    actions: [],
     stages: ['Source video', 'Cut parts', 'Caption align', 'Post via Zernio'],
   },
 ];
