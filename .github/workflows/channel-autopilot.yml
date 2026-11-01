@@ -12,11 +12,15 @@ name: 🏭 Channel Autopilot — all channels
 
 on:
   schedule:
-    - cron: '13 2 * * *' # quotequarry (02:13)
-    - cron: '47 2 * * *' # investors-compass (02:47)
-    - cron: '21 3 * * *' # money-rulebook (03:21)
-    - cron: '53 3 * * *' # debt-free-doctrine (03:53)
-    - cron: '33 2 * * *' # wizard channels (02:33)
+    # T4a: ONE 30-minute scheduler heartbeat. Per-channel times live in the
+    # registry (yt-mcp/studio-channels.json, entry.cron — editable from the
+    # Admin Panel's scheduling card): the discover step below slot-gates every
+    # heartbeat, so a channel runs only when the current UTC time is inside
+    # the 30 minutes after its scheduled time (windows wrap past midnight).
+    # Entries without a valid daily cron keep the legacy wizard catch-all
+    # slot (02:33 UTC). Editing a channel's time is a registry edit — no
+    # workflow change, and all channels no longer pile onto one minute.
+    - cron: '*/30 * * * *'
   workflow_dispatch:
     inputs:
       channel:
@@ -55,24 +59,30 @@ jobs:
           EVENT_SCHEDULE: ${{ github.event.schedule }}
           INPUT_CHANNEL: ${{ inputs.channel }}
         run: |
-          node -e "
-            const fs = require('fs');
+          node --input-type=module -e "
+            import fs from 'node:fs';
+            import { pathToFileURL } from 'node:url';
+            let toDiscoverChannels = null;
+            let selectChannelsForSlot = null;
+            try {
+              // T4a: the discovery mapping + slot-gating pure functions live in
+              // lib/ (tested there); this eval script imports them by file path
+              // from the repo root.
+              ({ toDiscoverChannels, selectChannelsForSlot } = await import(pathToFileURL(process.cwd() + '/lib/schedule-slot.mjs')));
+            } catch (e) {
+              console.log('::error::slot-gate module unreadable: ' + (e.message || e));
+            }
             let chans = [];
             try {
               const reg = JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8'));
-              const all = (reg.channels || [])
-                .filter(c => c.autopilot !== false && c.active !== false && c.tokenSecretSaved !== false)
-                .map(c => ({
-                  slug: c.slug,
-                  envSlug: c.slug.toUpperCase().replace(/-/g, '_'),
-                  cron: c.cron || '33 2 * * *'
-                }));
+              const all = toDiscoverChannels(reg.channels);
               const target = (process.env.INPUT_CHANNEL || '').trim();
               const sched = (process.env.EVENT_SCHEDULE || '').trim();
               if (target) {
                 chans = all.filter(c => c.slug === target);
               } else if (sched) {
-                chans = all.filter(c => c.cron === sched);
+                // heartbeat fired: gate each channel on its own registry cron
+                chans = selectChannelsForSlot ? selectChannelsForSlot(all, new Date()) : [];
               } else {
                 chans = all;
               }

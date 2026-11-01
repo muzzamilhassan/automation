@@ -106,3 +106,27 @@ export async function projectWithQuotaModel({ docDays = [], shortDays = [], proj
   const model = await load(projectId, dbClient);
   return { ...projection({ docDays, shortDays, margin, model }), model };
 }
+
+// T4a (#106 Phase 4.5) — the Admin Panel's slot times drive the channel's
+// autopilot gate time: the schedule route re-derives entry.cron from the
+// channel's FIRST short slot (longSlot is the fallback) on every save, and
+// the engine's slot-gating discover step (lib/schedule-slot.mjs) reads it.
+// Strict HH:MM (UTC) parse with range checks — slot times come from the
+// wizard/profile forms and are never trusted as a cron without re-parsing.
+export function parseHHMM(v) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(v ?? '').trim());
+  if (!m) return null;
+  const hour = Number(m[1]);
+  const minute = Number(m[2]);
+  if (hour > 23 || minute > 59) return null;
+  return { hour, minute };
+}
+
+// Returns the registry cron ('M H * * *', UTC) for the channel's slot times,
+// or null when neither source parses as HH:MM (the route then leaves the
+// entry's existing cron untouched).
+export function cronFromSlots(slots, longSlot) {
+  const first = Array.isArray(slots) ? slots.find((s) => parseHHMM(s)) : undefined;
+  const t = parseHHMM(first) || parseHHMM(longSlot);
+  return t ? `${t.minute} ${t.hour} * * *` : null;
+}

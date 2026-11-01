@@ -246,6 +246,20 @@ export async function setChannelAutopilot(slug, on, message) {
   return { ok: true };
 }
 
+// T4a (#106 Phase 4.5): the engine's discovery file is the ONLY home for a
+// channel's cron gate time (the channels table has no cron column — the same
+// engine-facing split as consent/token fields, which rowToEntry carries but
+// the table does not). Studio's schedule route re-derives the cron from the
+// channel's slot times on every save and lands it here, repo-side. Returns
+// ok:false (no write) when the slug is not in the repo registry yet.
+export async function setChannelCron(slug, cron, message) {
+  const reg = await readRegistryRepo();
+  const channels = (reg.channels || []).map((c) => (c.slug === slug ? { ...c, cron } : c));
+  if (!channels.some((c) => c.slug === slug)) return { ok: false, reason: 'not-in-repo-registry' };
+  await writeRepoJSON(REG_PATH, { channels }, message || `schedule: cron ${cron} for ${slug}`);
+  return { ok: true };
+}
+
 export async function writeRegistry(registry, message) {
   const body = JSON.stringify(registry, null, 2) + '\n';
   if (!CLOUD) {

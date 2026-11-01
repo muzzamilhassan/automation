@@ -16,9 +16,9 @@
 //         (a broken DB must not block schedule saves).
 import { getUser } from '@/lib/route-auth';
 import { canAccessChannelSlug } from '@/lib/access';
-import { readRepoJSON, writeRepoJSON } from '@/lib/channels-registry';
+import { readRepoJSON, writeRepoJSON, readRegistry, setChannelCron } from '@/lib/channels-registry';
 import { appendAudit } from '@/lib/audit';
-import { validateSchedule, projection, projectWithQuotaModel } from '@/lib/schedule-projection';
+import { validateSchedule, projection, projectWithQuotaModel, cronFromSlots } from '@/lib/schedule-projection';
 import { ensureQuotaModelSchema, loadQuotaModel } from '@/lib/quota-ledger';
 import { adaptPostgres } from '@/lib/provider-routing';
 import { db, dbReady } from '@/lib/db';
@@ -156,6 +156,29 @@ export async function POST(req) {
     updatedBy: user.email,
   };
   await writeRepoJSON(FILE, file, `schedule: ${slug} cadence updated (#100)`);
+
+  // T4a: re-derive the registry cron on every save — the channel's FIRST
+  // short slot (longSlot is the fallback) becomes its daily gate time
+  // ('M H * * *', UTC), which the autopilot's slot-gating discover step
+  // (channel-autopilot.yml → lib/schedule-slot.mjs) reads. Slot times are
+  // re-parsed here (never trusted from the client); a channel with no valid
+  // slot time keeps its existing cron. Fail-soft: a cron-sync failure must
+  // not fail the cadence save (same belt as the quota store above).
+  let cronWarning = '';
+  try {
+    const reg = await readRegistry();
+    const entry = (reg.channels || []).find((c) => c.slug === slug);
+    const cron = cronFromSlots(entry?.slots, entry?.kit?.longSlot);
+    if (cron) {
+      const res = await setChannelCron(slug, cron, `schedule: cron ${cron} for ${slug} (T4a slot gating)`);
+      if (!res.ok) cronWarning = `Gate time not updated: the channel is not in the engine registry yet (yt-mcp/studio-channels.json).`;
+    } else {
+      cronWarning = 'No valid HH:MM slot time on this channel — the autopilot gate time (cron) was left unchanged.';
+    }
+  } catch (e) {
+    cronWarning = `cron sync failed (${String(e?.message || e).slice(0, 120)}) — the gate time keeps its previous value`;
+  }
+
   try { await appendAudit(user.email, 'channel schedule set', slug); } catch { }
-  return Response.json({ ok: true, slug, schedule: v.clean, projection: proj, warnings: [...(v.warnings || []), ...advisories] });
+  return Response.json({ ok: true, slug, schedule: v.clean, projection: proj, warnings: [...(v.warnings || []), ...advisories, ...(cronWarning ? [cronWarning] : [])] });
 }

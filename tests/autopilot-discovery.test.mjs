@@ -1,55 +1,65 @@
+// Workflow-side pins for the autopilot discovery: the ONE 30-minute scheduler
+// cron (T4a — the static per-channel cron list is retired; per-channel times
+// live in the registry, yt-mcp/studio-channels.json, and the discover step
+// slot-gates via lib/schedule-slot.mjs), plus the channel mapping the
+// discover step and the warning-probe matrix share.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as yaml from 'js-yaml';
+import { SCHEDULER_CRON, toDiscoverChannels } from '../lib/schedule-slot.mjs';
 
-function filterChannels(channels, { targetChannel = '', scheduleCron = '' } = {}) {
-  const all = (channels || [])
-    .filter(c => c.autopilot !== false && c.active !== false && c.tokenSecretSaved !== false)
-    .map(c => ({
-      slug: c.slug,
-      envSlug: c.slug.toUpperCase().replace(/-/g, '_'),
-      cron: c.cron || '33 2 * * *'
-    }));
-  const target = targetChannel.trim();
-  const sched = scheduleCron.trim();
-  if (target) {
-    return all.filter(c => c.slug === target);
-  } else if (sched) {
-    return all.filter(c => c.cron === sched);
-  }
-  return all;
-}
+const WF = '.github/workflows/channel-autopilot.yml';
 
-test('filterChannels: preserves scheduled cron offsets for legacy channels', () => {
+test('toDiscoverChannels: preserves the legacy channels and their envSlug mapping', () => {
   const reg = JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8'));
-  
-  const qq = filterChannels(reg.channels, { scheduleCron: '13 2 * * *' });
-  assert.equal(qq.length, 1);
-  assert.equal(qq[0].slug, 'quotequarry');
-  assert.equal(qq[0].envSlug, 'QUOTEQUARRY');
-
-  const ic = filterChannels(reg.channels, { scheduleCron: '47 2 * * *' });
-  assert.equal(ic.length, 1);
-  assert.equal(ic[0].slug, 'investors-compass');
-  assert.equal(ic[0].envSlug, 'INVESTORS_COMPASS');
-
-  const mr = filterChannels(reg.channels, { scheduleCron: '21 3 * * *' });
-  assert.equal(mr.length, 1);
-  assert.equal(mr[0].slug, 'money-rulebook');
-  assert.equal(mr[0].envSlug, 'MONEY_RULEBOOK');
-
-  const dfd = filterChannels(reg.channels, { scheduleCron: '53 3 * * *' });
-  assert.equal(dfd.length, 1);
-  assert.equal(dfd[0].slug, 'debt-free-doctrine');
-  assert.equal(dfd[0].envSlug, 'DEBT_FREE_DOCTRINE');
+  const bySlug = Object.fromEntries(toDiscoverChannels(reg.channels).map((c) => [c.slug, c]));
+  assert.equal(bySlug.quotequarry.envSlug, 'QUOTEQUARRY');
+  assert.equal(bySlug['investors-compass'].envSlug, 'INVESTORS_COMPASS');
+  assert.equal(bySlug['money-rulebook'].envSlug, 'MONEY_RULEBOOK');
+  assert.equal(bySlug['debt-free-doctrine'].envSlug, 'DEBT_FREE_DOCTRINE');
 });
 
-test('filterChannels: single slug override via workflow_dispatch input', () => {
+test('toDiscoverChannels: paused/inactive/tokenless channels are excluded; cron falls back to the catch-all', () => {
+  const chans = toDiscoverChannels([
+    { slug: 'live', autopilot: true, active: true, tokenSecretSaved: true, cron: '13 2 * * *' },
+    { slug: 'paused', autopilot: false },
+    { slug: 'inactive', active: false },
+    { slug: 'no-token', tokenSecretSaved: false },
+    { slug: 'wizard-channel' },
+  ]);
+  assert.deepEqual(chans.map((c) => c.slug), ['live', 'wizard-channel']);
+  assert.equal(chans.find((c) => c.slug === 'wizard-channel').cron, '33 2 * * *');
+});
+
+test('single slug override: the discover target filter picks exactly the requested channel', () => {
   const reg = JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8'));
-  const target = filterChannels(reg.channels, { targetChannel: 'money-rulebook' });
+  const all = toDiscoverChannels(reg.channels);
+  const target = all.filter((c) => c.slug === 'money-rulebook');
   assert.equal(target.length, 1);
   assert.equal(target[0].slug, 'money-rulebook');
+});
+
+test('channel-autopilot.yml: ONE 30-minute scheduler cron; per-channel times live in the registry (T4a)', () => {
+  const raw = fs.readFileSync(WF, 'utf8');
+  const cronLines = raw.split(/\r?\n/).filter((l) => /^\s*-\s*cron:/.test(l));
+  assert.equal(cronLines.length, 1, `the static per-channel cron list is retired; found:\n${cronLines.join('\n')}`);
+  assert.ok(cronLines[0].includes(SCHEDULER_CRON), `the single cron must be the 30-minute scheduler (${SCHEDULER_CRON}): ${cronLines[0]}`);
+  assert.match(raw, /yt-mcp\/studio-channels\.json/, 'a comment must point at the registry as the per-channel schedule home');
+  assert.match(raw, /Admin Panel/i, 'the comment must say the registry is editable from the Admin Panel');
+});
+
+test('discover step wires the slot-gating module by file path (T4a)', () => {
+  const raw = fs.readFileSync(WF, 'utf8');
+  assert.match(raw, /lib\/schedule-slot\.mjs/, 'the discover script must import lib/schedule-slot.mjs');
+  assert.match(raw, /selectChannelsForSlot\(/, 'the schedule branch must gate through selectChannelsForSlot');
+  assert.match(raw, /EVENT_SCHEDULE/, 'the schedule-event env wiring must stay');
+  assert.match(raw, /INPUT_CHANNEL/, 'the workflow_dispatch input wiring must stay');
+});
+
+test('warning-probe keeps its own nightly cron (not slot-gated, untouched by T4a)', () => {
+  const raw = fs.readFileSync('.github/workflows/warning-probe.yml', 'utf8');
+  assert.match(raw, /cron: '41 5 \* \* \*'/);
 });
 
 test('composite actions exist and parse as valid YAML', () => {
