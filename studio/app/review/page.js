@@ -88,6 +88,16 @@ export default function ReviewDeskPage() {
     if (typeof input === 'string') { try { input = JSON.parse(input); } catch { input = null; } }
     return input?.disclosure?.synthetic_media_required === true;
   })();
+  // P5 T5d (D4): the machine-appended compliance line the save recorded — the
+  // owner sees EXACTLY the disclaimer text that ships in the upload
+  // description. Absent (nothing declared) = nothing rendered.
+  const disclaimerBlock = (() => {
+    if (!detail) return '';
+    let input = detail.script.full_render_input;
+    if (typeof input === 'string') { try { input = JSON.parse(input); } catch { input = null; } }
+    const block = input?.disclaimer_block;
+    return typeof block === 'string' && block.trim() ? block : '';
+  })();
   const disclosureDone = !requiresDisclosure || DISCLOSURE_CATEGORIES.items.every((i) => typeof disclosure[i.text] === 'boolean');
   const flagged = (detail?.claims || []).filter((c) => c.verification && c.verification !== 'verified');
 
@@ -160,6 +170,14 @@ export default function ReviewDeskPage() {
               {/* script text LEFT */}
               <div>
                 <h4 className="text-[12px] font-semibold text-muted mb-2">Script</h4>
+                {disclaimerBlock ? (
+                  <div className="text-[12px] bg-black/20 rounded-lg p-3 mb-2">
+                    <div className="text-[11px] font-semibold flex items-center gap-1 mb-1" style={{ color: 'var(--ok, #34d399)' }}>
+                      <ShieldCheck size={11} /> Compliance — machine-appended to the upload description
+                    </div>
+                    <div className="whitespace-pre-wrap">{disclaimerBlock}</div>
+                  </div>
+                ) : null}
                 <pre className="text-[12px] whitespace-pre-wrap bg-black/20 rounded-lg p-3 max-h-[420px] overflow-auto">{detail.script.text}</pre>
               </div>
               {/* sources RIGHT */}

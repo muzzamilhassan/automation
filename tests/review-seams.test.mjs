@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { bySlug } from '../yt-brands/brands.mjs';
 
 // ---------------------------------------------------------------------------
 // #106 Phase 4 T5b (S4) — the LANE-side review seams: generate-only save,
@@ -1013,7 +1014,7 @@ const SPY_DOC_INTENTS_RESUME = [
   'const LOG = process.env.PIPELINE_SPY_LOG;',
   "function rec(fn, args) { try { appendFileSync(LOG, JSON.stringify({ mod: 'docintents', fn, args }) + '\\n'); } catch {} }",
   'export async function uploadWithIntent(o = {}) {',
-  '  rec("uploadWithIntent", { title: o.title, publishAt: o.publishAt, kind: o.kind });',
+  '  rec("uploadWithIntent", { title: o.title, publishAt: o.publishAt, kind: o.kind, snippet: o.resource && o.resource.snippet });',
   '  return { ok: true, videoId: "vid-doc-resumed" };',
   '}',
   'export async function getUploadIntentStore() { return {}; }',
@@ -1070,6 +1071,10 @@ function docChildLoaderSource(sandboxHref, extraBare = {}) {
     '  "googleapis": SANDBOX + "/spy-doc-google.mjs",',
     '  "youtube-clips.mjs": SANDBOX + "/spy-doc-clips.mjs",',
     '  "node:child_process": SANDBOX + "/spy-doc-cp.mjs",',
+    // T5d: extra EXACT-specifier redirects (e.g. review-seams\' dynamic
+    // '../studio/lib/template-registry.data.js' — the only importer of that
+    // exact string in the child flow)
+    ...Object.entries(extraBare).map(([spec, url]) => `  ${JSON.stringify(spec)}: ${JSON.stringify(url)},`),
     '};',
     'registerHooks({',
     '  resolve(specifier, context, nextResolve) {',
@@ -1085,7 +1090,7 @@ function docChildLoaderSource(sandboxHref, extraBare = {}) {
   ].join('\n');
 }
 
-function runYtDeepdive({ env = {}, engine, store, intents } = {}) {
+function runYtDeepdive({ env = {}, engine, store, intents, registry = null } = {}) {
   const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 't5c-deepdive-'));
   const spyLog = path.join(sandbox, 'spy.jsonl');
   try {
@@ -1113,8 +1118,11 @@ function runYtDeepdive({ env = {}, engine, store, intents } = {}) {
       }
       fs.writeFileSync(path.join(sandbox, name), out);
     }
+    if (registry) fs.writeFileSync(path.join(sandbox, 'spy-doc-registry.mjs'), registry);
     const loader = path.join(sandbox, 'loader.mjs');
-    fs.writeFileSync(loader, docChildLoaderSource(pathToFileURL(sandbox).href));
+    fs.writeFileSync(loader, docChildLoaderSource(pathToFileURL(sandbox).href, registry
+      ? { '../studio/lib/template-registry.data.js': pathToFileURL(path.join(sandbox, 'spy-doc-registry.mjs')).href }
+      : {}));
     const r = spawnSync(process.execPath, [path.join(sandbox, 'repo', 'yt-deepdive.mjs'), SLUG], {
       cwd: runDir,
       env: {
@@ -1473,5 +1481,157 @@ describe('#106 P5 T2c — the upload-site wiring (source pins, QA Row 10 boundar
         assert.ok(!/REVIEW_|process\.env/.test(line), `${file}: the append line is not flag-guarded (${line.trim().slice(0, 60)})`);
       }
     }
+  });
+
+  test('P5 T5d (the orphaned site re-owned): yt-deepdive\'s snippet assembly machine-appends the declared chain — the doc upload DESCRIPTION carries compliance too', () => {
+    const dd = fs.readFileSync(path.join(ROOT, 'yt-deepdive.mjs'), 'utf8');
+    assert.match(dd, /const docDisclaimers = await declaredDisclaimers\(docTemplateId\)/,
+      'the doc template\'s declared chain resolves through the same review-seams resolver (no private REGISTRY_META walk)');
+    assert.equal((dd.match(/appendDisclaimers\(/g) || []).length, 1,
+      'yt-deepdive wires the machine append at the ONE doc upload description site');
+    assert.match(dd, /description: appendDisclaimers\(description, docDisclaimers\)/,
+      'the doc SNIPPET carries the appended description — the resource, not a log line (QA Row 10 boundary)');
+    for (const line of dd.split('\n').filter((l) => l.includes('appendDisclaimers('))) {
+      assert.ok(!/REVIEW_|process\.env/.test(line), `yt-deepdive: the append line is not flag-guarded (${line.trim().slice(0, 60)})`);
+    }
+    // the render+ship tail is shared by the normal doc day AND the approval
+    // resume — but the resume branch exits BEFORE the module-scope docTemplateId
+    // is resolved, so the template threads in per call site: the assignment on
+    // the normal day, the APPROVED ROW's own template_id on a resume.
+    assert.match(dd, /docTemplateId: found\.script\.template_id \?\? null/, 'the resumed doc threads its row\'s template_id');
+    assert.match(dd, /renderAndShipEpisode\(script, \{ yt, auth, intents, longSeed, docTemplateId \}\)/, 'the normal doc day threads the resolved assignment');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #106 Phase 5 T5d — the ORPHANED doc-lane disclaimer work, re-owned. T2c's
+// "deferred to T2e/T2f" handoff notes pointed at tasks that landed without it;
+// these pins close the gap on the doc lane (yt-deepdive):
+//   SAVE — the generate-only save through the SHARED seam carries
+//          disclaimer_block in full_render_input when the doc template
+//          declares (true by T2c's construction — pinned here through the
+//          REAL lane spawn).
+//   SHIP — the upload DESCRIPTION gains the machine append in the snippet
+//          assembly; on a resume it threads the APPROVED ROW's own template.
+//          Ungated/absent = byte-identical description.
+// The declaring template is an in-memory REGISTRY_META fixture installed as
+// the CHILD's template-registry.data.js via the loader's exact-specifier
+// redirect (CODE tests never author the production data file — the T2c plan
+// contract). Only review-seams' declaredDisclaimers imports that exact
+// specifier in the child flow; yt-deepdive's own registry import is a
+// different string and stays real.
+// ---------------------------------------------------------------------------
+
+const T5D_TEMPLATE = 'doc-disclaimer-fixture';
+
+const SPY_DOC_REGISTRY = [
+  '// T5d fixture: the DECLARING doc template, installed as the child\'s',
+  '// template-registry.data.js (never the production data file).',
+  'export const REGISTRY_META = {',
+  `  ${JSON.stringify(T5D_TEMPLATE)}: { version: '1.0.0', template_id: ${JSON.stringify(T5D_TEMPLATE)}, safety: { disclaimers: [${JSON.stringify(T2C_DISCLAIMER)}] } },`,
+  '};',
+].join('\n');
+
+// the generate-only child must RESOLVE an assignment for the declared chain to
+// be consulted — same spy, one line changed (the registry fixture holds it)
+const SPY_DOC_ENGINE_GEN_T5D = SPY_DOC_ENGINE_GEN.replace(
+  'export async function resolveTemplateId() { return null; }',
+  `export async function resolveTemplateId() { return ${JSON.stringify(T5D_TEMPLATE)}; }`,
+);
+
+// the resumed doc threads the APPROVED ROW's own template — same resume store,
+// the row gains the template_id a real save persists
+const SPY_DOC_STORE_RESUME_T5D = SPY_DOC_STORE_RESUME.replace(
+  'kind: "doc", slot_idx: 0,',
+  `kind: "doc", template_id: ${JSON.stringify(T5D_TEMPLATE)}, slot_idx: 0,`,
+);
+
+// The exact description the stubbed render produces (probeDur reads the child
+// process stub's "5.0"): intro max(6, 5+0.8)=6s, each chapter max(14, 5+1.4)=14s,
+// end 6s; no music bed (the spy picks none). Chapter stamps accumulate the 14s
+// chapter segments from 0. Byte-exact: the ungated SHIP cell must equal THIS.
+function expectedUngatedDescription() {
+  const brand = bySlug[SLUG];
+  const chapters = STORED_DOC.points.map((p, i) => {
+    const t = i * 14;
+    return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')} ${p.title}`;
+  });
+  return [
+    `"${STORED_DOC.hook}" — a daily ${brand.kwShort} episode from ${brand.label}.`,
+    '',
+    STORED_DOC.intro,
+    '',
+    ...chapters,
+    '',
+    STORED_DOC.closing,
+    `New episodes every day. ${brand.hashtags || ''}`,
+  ].join('\n').slice(0, 4900);
+}
+
+describe('#106 P5 T5d — the doc lane\'s disclaimer chain (save through the shared seam, ship in the snippet)', () => {
+  test('SAVE pin: GENERATE-ONLY with a DECLARING doc template persists disclaimer_block in full_render_input (the shared-seam path through the real yt-deepdive)', () => {
+    const r = runYtDeepdive({
+      env: DOC_GEN_ENV, engine: SPY_DOC_ENGINE_GEN_T5D, store: SPY_DOC_STORE_GEN, intents: SPY_DOC_INTENTS_GEN,
+      registry: SPY_DOC_REGISTRY,
+    });
+    assert.equal(r.status, 0, 'the generate-only doc run exits 0\n' + r.stdout + r.stderr);
+    const saves = r.spy.filter((c) => c.mod === 'docstore' && c.fn === 'saveScript');
+    assert.equal(saves.length, 1, 'exactly one script persisted');
+    const f = saves[0].args;
+    assert.equal(f.templateId, T5D_TEMPLATE, 'the resolved doc assignment threads into the shared seam');
+    assert.equal(f.fullRenderInput.disclaimer_block, T2C_DISCLAIMER,
+      'the record carries the machine-appended description line — /review sees the disclaimer (D4)');
+    assert.ok(!f.text.includes(T2C_DISCLAIMER), 'the narration text is NOT mutated — creative freedom stays with the brain');
+    const { disclaimer_block: block, ...rest } = f.fullRenderInput;
+    assert.equal(block, T2C_DISCLAIMER);
+    assert.deepEqual(
+      { ...rest, themes: null },
+      {
+        hook: DOC_EPISODE.title,
+        intro: DOC_EPISODE.intro,
+        points: DOC_EPISODE.chapters.map((c) => ({ title: c.title, line: c.text })),
+        closing: DOC_EPISODE.outro,
+        thumbHeadline: DOC_EPISODE.title,
+        seed: 'wave-doc-seed',
+        themes: null,
+        publishAt: expectedDocPublishAt(),
+      },
+      'disclaimer_block is the ONE new key — the rest of the stored doc render input is unchanged',
+    );
+    assert.ok(String(f.fullRenderInput.themes).includes('wave-doc-seed'), 'the trend directive still rides as themes');
+    assert.equal(r.spy.filter((c) => c.mod === 'doccp' && c.fn === 'execFileSync').length, 0, 'zero render spend (generate-only still stops before TTS/render)');
+  });
+
+  test('SHIP pin: the resumed doc\'s upload snippet description ends with the machine-appended declared disclaimers, threaded from the APPROVED row\'s own template', () => {
+    const r = runYtDeepdive({
+      env: { PIPELINE_RESUME_JOB_ID: 'held-job-doc-1', PIPELINE_JOB_ID: 'spy-job-doc-5' },
+      engine: SPY_DOC_ENGINE_RESUME, store: SPY_DOC_STORE_RESUME_T5D, intents: SPY_DOC_INTENTS_RESUME,
+      registry: SPY_DOC_REGISTRY,
+    });
+    assert.equal(r.status, 0, 'the resumed doc run ships and exits 0\n' + r.stdout + r.stderr);
+    const uploads = r.spy.filter((c) => c.mod === 'docintents' && c.fn === 'uploadWithIntent');
+    assert.equal(uploads.length, 1, 'exactly one upload of the resumed episode');
+    const desc = uploads[0].args.snippet?.description;
+    assert.equal(typeof desc, 'string', 'the upload resource carries a snippet description');
+    assert.equal(
+      desc,
+      `${expectedUngatedDescription()}\n\n${T2C_DISCLAIMER}`,
+      'the shipped description is the legacy description PLUS the declared fixed text verbatim at the very end (code, never the LLM)',
+    );
+  });
+
+  test('SHIP byte-identity: a doc whose template declares NOTHING ships the EXACT pre-T5d description (ungated/absent cell)', () => {
+    const r = runYtDeepdive({
+      env: { PIPELINE_RESUME_JOB_ID: 'held-job-doc-1', PIPELINE_JOB_ID: 'spy-job-doc-6' },
+      engine: SPY_DOC_ENGINE_RESUME, store: SPY_DOC_STORE_RESUME, intents: SPY_DOC_INTENTS_RESUME,
+    });
+    assert.equal(r.status, 0, 'the resumed doc run ships and exits 0\n' + r.stdout + r.stderr);
+    const uploads = r.spy.filter((c) => c.mod === 'docintents' && c.fn === 'uploadWithIntent');
+    assert.equal(uploads.length, 1, 'exactly one upload of the resumed episode');
+    assert.equal(
+      uploads[0].args.snippet?.description,
+      expectedUngatedDescription(),
+      'no declared disclaimers = byte-for-byte the legacy description — no append, no new whitespace',
+    );
   });
 });

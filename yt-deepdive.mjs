@@ -38,7 +38,11 @@ import { applyChannelKeys } from './lib/channel-keys.mjs';
 import { getUploadIntentStore, uploadWithIntent, recoverOpenIntents, makeFindByTitle, oauthAccessToken, slotISOOnDate, nextFutureSlotISO } from './lib/upload-intents.mjs';
 // #106 T5c: the review-seam flag parser (pure module — the env travels ONLY on
 // gated/approval runs; unset = byte-identical legacy path).
-import { flagOn } from './lib/review-seams.mjs';
+// #106 P5 T5d (D4/AC-P5-4): the doc upload DESCRIPTION's machine append
+// (appendDisclaimers) and the doc template's declared chain
+// (declaredDisclaimers) — the same unconditional append the shorts lanes wire
+// at their snippets.
+import { flagOn, appendDisclaimers, declaredDisclaimers } from './lib/review-seams.mjs';
 import { loadEnv } from './lib/env.mjs';
 loadEnv();
 const FF = resolveBinary('ffmpeg');
@@ -258,7 +262,12 @@ function segment(cardPng, clipFile, audioFile, outFile, dur, drift = false) {
 // returns so a caller can tell "shipped" from "refused": the normal path
 // ignores the result and the module ends right after (identical behavior), the
 // resume maps a refusal to exit 1 with the script left approved.
-async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null, reviewScript = null } = {}) {
+async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null, reviewScript = null, docTemplateId = null } = {}) {
+  // P5 T5d: docTemplateId = the doc template whose declared disclaimers the
+  // upload description machine-appends. Threaded per call site: the resolved
+  // assignment on the normal doc day, the APPROVED ROW's own template_id on a
+  // resume (this tail runs before the module-scope docTemplateId below is
+  // resolved, so the resume can only name its row's template).
   fs.mkdirSync(`demos/deepdive-${slug}`, { recursive: true });
   const work = `demos/deepdive-${slug}`;
   const segs = [];
@@ -400,13 +409,18 @@ async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null
   // INSERT mutex), session URI persisted before the first byte, videoId on 201.
   // Minor 7: the intent fingerprints the EXACT uploaded title (sliced, as the
   // resource sends it) so recovery matches the live playlist byte-for-byte.
+  // #106 P5 T5d (D4/AC-P5-4): the doc template may declare fixed disclaimers —
+  // the upload DESCRIPTION gains them machine-appended here (code, never the
+  // LLM), the same unconditional append the shorts lanes wire at their
+  // snippets. Null = nothing declared = byte-identical description.
+  const docDisclaimers = await declaredDisclaimers(docTemplateId);
   const docTitle = `${script.title} | ${b.authority}`.slice(0, 95);
   const up = await uploadWithIntent({
     store: intents, channelId: slug, slotDate: today(), kind: 'doc', slotIdx: 0,
     title: docTitle, jobId: process.env.PIPELINE_JOB_ID || null,
     accessToken: await oauthAccessToken(auth),
     resource: {
-      snippet: { title: docTitle, description, tags: b.tags.slice(0, 12), categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
+      snippet: { title: docTitle, description: appendDisclaimers(description, docDisclaimers), tags: b.tags.slice(0, 12), categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
       status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false }
     },
     bytes: fs.readFileSync(final), publishAt,
@@ -579,7 +593,7 @@ async function resumeApprovedDoc({ slug, jobId, b }) {
     return false;
   }
   const intents = await getUploadIntentStore();
-  const ship = await renderAndShipEpisode(script, { yt, auth, intents, longSeed: null, reviewScript: { id: found.script.id, store } });
+  const ship = await renderAndShipEpisode(script, { yt, auth, intents, longSeed: null, reviewScript: { id: found.script.id, store }, docTemplateId: found.script.template_id ?? null });
   if (ship?.claimed) {
     // The slot was produced by a crashed run's video — claimed, not
     // re-uploaded. The approval row stands (a re-dispatch would re-render and
@@ -792,4 +806,4 @@ if (GENERATE_ONLY) {
   process.exit(0);
 }
 
-await renderAndShipEpisode(script, { yt, auth, intents, longSeed });
+await renderAndShipEpisode(script, { yt, auth, intents, longSeed, docTemplateId });
