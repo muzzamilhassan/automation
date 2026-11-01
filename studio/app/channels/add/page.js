@@ -32,6 +32,7 @@ export default function AddChannel() {
   const [form, setForm] = useState({
     label: '', niche: '', subNiches: '', style: 'cinematic', voice: 'am_michael', accent: '#38BDF8', slots: '22:35',
     docDay: 'Tue', eyebrow: '', tagline: '', tags: '', description: '',
+    fbPageId: '', igHandle: '', threadsHandle: '', tiktokHandle: '',
   });
 
   const loadReg = () => fetch('/api/channels/registry').then((r) => r.json()).then(setReg).catch(() => setReg({ channels: [] }));
@@ -56,6 +57,10 @@ export default function AddChannel() {
       tagline: entry.kit?.tagline || '',
       tags: entry.kit?.tags?.length ? entry.kit.tags.join(', ') : (entry.ytKeywords || ''),
       description: entry.kit?.description || entry.ytDescription || '',
+      fbPageId: entry.destinations?.fbPageId || '',
+      igHandle: entry.destinations?.igHandle || '',
+      threadsHandle: entry.destinations?.threadsHandle || '',
+      tiktokHandle: entry.destinations?.tiktokHandle || '',
     }));
   };
 
@@ -198,6 +203,12 @@ export default function AddChannel() {
             tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
             niches: subNichesList.length ? subNichesList : (form.niche ? [form.niche.toLowerCase()] : []),
             description: form.description,
+          },
+          destinations: {
+            fbPageId: form.fbPageId,
+            igHandle: form.igHandle,
+            threadsHandle: form.threadsHandle,
+            tiktokHandle: form.tiktokHandle,
           },
         }),
       });
@@ -444,6 +455,34 @@ export default function AddChannel() {
               <span className="overline block mb-1.5">Channel description</span>
               <textarea className="input w-full" rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </label>
+            {/* #106 T4c: destinations — the cross-posting lanes (FB posters, IG
+                reels, Threads daily, the report rows) read these from the
+                registry; a channel without one is skipped, never guessed. */}
+            <div className="sm:col-span-2 inset-tile p-3">
+              <span className="overline block mb-1.5">Destinations (cross-posting)</span>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="overline block mb-1.5">Facebook page ID</span>
+                  <input className="input w-full font-mono" value={form.fbPageId} onChange={(e) => setForm({ ...form, fbPageId: e.target.value })} placeholder="114550268199751" />
+                </label>
+                <label className="block">
+                  <span className="overline block mb-1.5">Instagram handle</span>
+                  <input className="input w-full font-mono" value={form.igHandle} onChange={(e) => setForm({ ...form, igHandle: e.target.value })} placeholder="@channel" />
+                </label>
+                <label className="block">
+                  <span className="overline block mb-1.5">Threads handle</span>
+                  <input className="input w-full font-mono" value={form.threadsHandle} onChange={(e) => setForm({ ...form, threadsHandle: e.target.value })} placeholder="@channel" />
+                </label>
+                <label className="block">
+                  <span className="overline block mb-1.5">TikTok handle</span>
+                  <input className="input w-full font-mono" value={form.tiktokHandle} onChange={(e) => setForm({ ...form, tiktokHandle: e.target.value })} placeholder="@channel" />
+                </label>
+              </div>
+              <p className="text-[10.5px] text-faint mt-1.5">
+                The FB page ID is the numeric page form (or the new UC… form) — the page must be linked to the FB token for posting. Handles are saved
+                without the leading @. Leave a field empty when the channel has no account there — the lanes skip it honestly.
+              </p>
+            </div>
           </div>
           {form.style && STYLE_BY_ID[form.style] ? (
             <p className="text-[11.5px] text-faint mt-3">
@@ -522,7 +561,7 @@ export default function AddChannel() {
                     setStarted(false);
                     setConnectedSlug('');
                     setKitMood('');
-                    setForm({ label: '', niche: '', style: 'cinematic', voice: 'am_michael', accent: '#38BDF8', slots: '22:35', docDay: 'Tue', eyebrow: '', tagline: '', tags: '', description: '' });
+                    setForm({ label: '', niche: '', style: 'cinematic', voice: 'am_michael', accent: '#38BDF8', slots: '22:35', docDay: 'Tue', eyebrow: '', tagline: '', tags: '', description: '', fbPageId: '', igHandle: '', threadsHandle: '', tiktokHandle: '' });
                   }}
                 >
                   <Plus size={14} /> Connect another channel

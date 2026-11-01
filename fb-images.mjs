@@ -1,6 +1,6 @@
-// Daily niche image post for each mapped FB page: cinematic poster in the
+// Daily niche image post for each FB page destination: cinematic poster in the
 // FB page's own brand style, with niche content + SEO caption.
-// Usage: node fb-images.mjs [slug] [--dry]     (no slug = all 4 mapped pages)
+// Usage: node fb-images.mjs [slug] [--dry]     (no slug = every mapped page)
 import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
@@ -8,6 +8,8 @@ import { google } from 'googleapis';
 import { renderCinematicPoster } from './cinematic-engine.mjs';
 import { loadAllStates, saveChannelState } from './lib/state.mjs';
 import { loadEnv } from './lib/env.mjs';
+import { activeRegistryChannels, loadRegistryChannels } from './lib/registry-slugs.mjs';
+import { destinationsFor, channelHashtags } from './lib/registry.mjs';
 
 loadEnv();
 
@@ -19,12 +21,19 @@ const DRY = process.argv.includes('--dry');
 const args = process.argv.slice(2);
 const ONLY = args.find(a => !a.startsWith('--'));
 
-const MAP = [
-  { slug: 'investors-compass', pageId: '116157974886564', hashtags: '#InvestingPsychology #StockMarket #WealthBuilding' },
-  { slug: 'money-rulebook', pageId: '1077306835630491', hashtags: '#MoneyRules #PersonalFinance #FinancialFreedom' },
-  { slug: 'debt-free-doctrine', pageId: '106473735839651', hashtags: '#DebtFree #MoneyTips #FinancialFreedom' },
-  { slug: 'quotequarry', pageId: '114550268199751', hashtags: '#Stoicism #DailyWisdom #Mindset' }
-];
+// #106 T4c: the literal 4-page array is retired — pages are registry data now
+// (destinations.fbPageId; lib/registry.mjs floors the legacy 4 to the same
+// canonical IDs via the FB_DESTINATIONS oracle). Channels without a page are
+// skipped LOUDLY below, never silently.
+// Caption hashtags: per-channel registry kit.hashtags wins when the owner set
+// one; these legacy defaults keep the seeded channels byte-identical (their
+// registry kits carry no custom hashtags).
+const HASHTAG_FALLBACKS = {
+  'investors-compass': '#InvestingPsychology #StockMarket #WealthBuilding',
+  'money-rulebook': '#MoneyRules #PersonalFinance #FinancialFreedom',
+  'debt-free-doctrine': '#DebtFree #MoneyTips #FinancialFreedom',
+  'quotequarry': '#Stoicism #DailyWisdom #Mindset'
+};
 
 function llmJSON(prompt) {
   // Gemini -> HF Llama, JSON only
@@ -63,8 +72,14 @@ const loadState = () => loadAllStates();
 
 const auth = new google.auth.OAuth2(process.env.YOUTUBE_CLIENT_ID || '', process.env.YOUTUBE_CLIENT_SECRET || '');
 
-for (const job of MAP) {
+for (const ch of activeRegistryChannels(loadRegistryChannels())) {
+  const job = {
+    slug: ch.slug,
+    pageId: destinationsFor(ch.slug)?.fbPageId,
+    hashtags: channelHashtags(ch.slug) || HASHTAG_FALLBACKS[ch.slug] || '',
+  };
   if (ONLY && job.slug !== ONLY) continue;
+  if (!job.pageId) { console.log(`[fb-img] ${job.slug}: ✗ no FB page linked (destinations.fbPageId) — skip`); continue; }
   const brand = b[job.slug];
   if (!brand) continue;
   // #64: one bad LLM response or network hiccup must not kill the whole

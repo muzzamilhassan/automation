@@ -1,27 +1,33 @@
-// Cross-posts produced Shorts to the mapped Instagram accounts as Reels.
+// Cross-posts produced Shorts to the channels' Instagram accounts as Reels.
 // Chain: uguu.se public hosting -> IG media container (REELS) -> publish.
 // Usage: node ig-crosspost.mjs                       # scan fb-outbox/
 //        node ig-crosspost.mjs <video.mp4> <slug>    # post one file now
 import fs from 'node:fs';
 import path from 'node:path';
 import { hostImagePublicly } from './threads-publisher.mjs';
+import { fbPageId as registryFbPageId, channelHashtags } from './lib/registry.mjs';
 
 import { loadEnv } from './lib/env.mjs';
 loadEnv();
 const FB_PAGE_TOKEN = process.env.FB_PAGE_TOKEN || '';
 
-const PAGE_MAP = {
-  'quotequarry': '114550268199751',  // Reliq North — owns IG @quotequarry8 (Strategic Silence had NO IG: QQ reels could never post)
-  'investors-compass': '116157974886564',
-  'money-rulebook': '1077306835630491',
-  'debt-free-doctrine': '106473735839651'
-};
+// #106 T4c: the literal slug→page map is retired — the IG business account
+// hangs off the channel's FB page (destinations.fbPageId in the registry;
+// lib/registry.mjs floors the legacy 4 to the same IDs the old map held).
+// destinations.igHandle is the recorded handle for display/verification —
+// the Graph API is only reachable through the page, never the handle.
+const PAGE_MAP = new Proxy({}, { get: (_t, slug) => registryFbPageId(String(slug)) });
+
+// Caption hashtags: per-channel registry kit.hashtags wins when the owner set
+// one; these legacy defaults keep the seeded channels byte-identical (their
+// registry kits carry no custom hashtags); the generic set is the last resort.
 const HASHTAGS = {
   'quotequarry': '#stoicism #dailymotivation #mindset #wisdom #selfimprovement',
   'investors-compass': '#investingpsychology #stockmarket #wealthbuilding #investing #moneymindset',
   'money-rulebook': '#moneyrules #personalfinance #financialfreedom #moneytips #wealth',
   'debt-free-doctrine': '#debtfree #moneytips #financialfreedom #debtpayoff #moneymindset'
 };
+const hashtagsFor = (slug) => channelHashtags(slug) || HASHTAGS[slug] || '#motivation #mindset #success';
 
 let tokensCache = null;
 async function getPageToken(pageId) {
@@ -35,7 +41,7 @@ async function getPageToken(pageId) {
 }
 
 function seoCaption(meta) {
-  const hash = HASHTAGS[meta.slug] || '#motivation #mindset #success';
+  const hash = hashtagsFor(meta.slug);
   return `${meta.title}\n\n${String(meta.description || '').slice(0, 800)}\n\nFollow for daily content. ${hash}`.slice(0, 2100);
 }
 

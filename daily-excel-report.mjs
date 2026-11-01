@@ -17,7 +17,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ExcelJS from 'exceljs';
 import { google } from 'googleapis';
-import { fbPageId as registryFbPageId } from './lib/registry.mjs';
+import { fbPageId as registryFbPageId, destinationsFor, normHandle } from './lib/registry.mjs';
 import { activeRegistryChannels, loadRegistryChannels } from './lib/registry-slugs.mjs';
 import { loadEnv } from './lib/env.mjs';
 
@@ -44,10 +44,16 @@ export function parseReportArgs(argv = process.argv.slice(2)) {
 // T4b: channels come from the registry (yt-mcp/studio-channels.json, active
 // only) — labels/handles ride the entry; fbPageId resolves via lib/registry.mjs
 // (canonical legacy map, then the entry's destinations). NO hardcoded list.
+// T4c: each channel also carries its resolved social destinations
+// (igHandle/threadsHandle/tiktokHandle) — the Overview sheet's Threads/TikTok
+// rows are destinations-driven.
 export function reportChannels() {
   return activeRegistryChannels(loadRegistryChannels()).map((c) => ({
     ...c,
     fbPageId: registryFbPageId(c.slug),
+    igHandle: destinationsFor(c.slug)?.igHandle,
+    threadsHandle: destinationsFor(c.slug)?.threadsHandle,
+    tiktokHandle: destinationsFor(c.slug)?.tiktokHandle,
   }));
 }
 const CHANNELS = reportChannels();
@@ -301,7 +307,7 @@ export function ntfyHeaders(mode, ytCount, fbCount) {
   };
 }
 
-async function buildExcel(ytData, fbPages, threads, { mode = 'daily', stateDir = 'state', reportsDir = 'reports' } = {}) {
+async function buildExcel(ytData, fbPages, threads, { mode = 'daily', stateDir = 'state', reportsDir = 'reports', channels = CHANNELS } = {}) {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Quarry Studio';
 
@@ -318,8 +324,18 @@ async function buildExcel(ytData, fbPages, threads, { mode = 'daily', stateDir =
   ytData.forEach(y => ws1.addRow([y.label, 'YouTube', y.handle, y.subs, y.views, y.videos]));
   fbPages.forEach(p => ws1.addRow([p.name + (p.slug ? ' (feeds: ' + p.label + ')' : ''), 'Facebook', p.username ? '@' + p.username : '', p.followers, '-', '-']));
   fbPages.filter(p => p.igUsername).forEach(p => ws1.addRow([p.name, 'Instagram', '@' + p.igUsername, p.igFollowers, '-', p.igPosts]));
-  if (threads) ws1.addRow(['Quote Quarry', 'Threads', '@' + threads.username, threads.followers ?? 'n/a', '-', '-']);
-  ws1.addRow(['All brands', 'TikTok', '@munnabhai3483', 'manual — no API approval yet', '-', '-']);
+  // #106 T4c: the destination rows are registry-driven — every channel with a
+  // threadsHandle gets a Threads row (the global token profile only adds the
+  // follower read when it IS that account), and every channel with a
+  // tiktokHandle gets its manual TikTok row. Absent destination = the row is
+  // honestly omitted (data, not display literals).
+  for (const c of channels.filter(ch => ch.threadsHandle)) {
+    const profile = threads && normHandle(threads.username) === normHandle(c.threadsHandle) ? threads : null;
+    ws1.addRow([c.label, 'Threads', '@' + c.threadsHandle, profile ? (profile.followers ?? 'n/a') : 'n/a', '-', '-']);
+  }
+  for (const c of channels.filter(ch => ch.tiktokHandle)) {
+    ws1.addRow([c.label, 'TikTok', '@' + c.tiktokHandle, 'manual — no API approval yet', '-', '-']);
+  }
 
   const ws2 = wb.addWorksheet('YouTube Details');
   ws2.columns = [

@@ -160,6 +160,37 @@ export async function POST(req) {
     entry.kit = { ...(entry.kit || {}), niches: incomingSubNiches };
   }
 
+  // #106 T4c: destinations — where this channel publishes off-YouTube (FB
+  // page, IG/Threads/TikTok handles). Saved into entry.destinations (the
+  // schema the engine's lib/registry.mjs reads) AND mirrored into
+  // kit.destinations — T4d durability: the kit JSONB survives OAuth
+  // re-connects and there is no dedicated destinations column yet.
+  // Handles normalize with the leading @ stripped on save (the importer's
+  // normHandle convention); fbPageId accepts the numeric legacy page form
+  // (e.g. 114550268199751) or the UC… page form — both stored verbatim.
+  if (body.destinations != null) {
+    const d = body.destinations && typeof body.destinations === 'object' ? body.destinations : {};
+    const handle = (v) => String(v ?? '').trim().replace(/^@+/, '').slice(0, 60);
+    const pageId = String(d.fbPageId ?? '').trim();
+    const FB_PAGE_ID_RE = /^(?:\d{6,}|UC[A-Za-z0-9_-]{10,})$/;
+    if (pageId !== '' && !FB_PAGE_ID_RE.test(pageId)) {
+      return Response.json(
+        { error: 'destinations.fbPageId: use the numeric page ID (e.g. 114550268199751) or the UC… page ID' },
+        { status: 400 },
+      );
+    }
+    const dest = Object.fromEntries(
+      Object.entries({
+        fbPageId: pageId,
+        igHandle: handle(d.igHandle),
+        threadsHandle: handle(d.threadsHandle),
+        tiktokHandle: handle(d.tiktokHandle),
+      }).filter(([, v]) => v !== ''),
+    );
+    entry.destinations = dest;
+    entry.kit = { ...(entry.kit || {}), destinations: dest };
+  }
+
   entry.profileSavedAt = new Date().toISOString();
 
   try {

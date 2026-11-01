@@ -15,7 +15,7 @@ import path from 'node:path';
 import ExcelJS from 'exceljs';
 import { reportChannels, parseReportArgs, fragmentOf, collectFragments, buildExcel, ntfyHeaders } from '../daily-excel-report.mjs';
 import { activeRegistryChannels, loadRegistryChannels } from '../lib/registry-slugs.mjs';
-import { fbPageId as registryFbPageId } from '../lib/registry.mjs';
+import { fbPageId as registryFbPageId, destinationsFor } from '../lib/registry.mjs';
 
 function tmpDir(t, name) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `t4b-${name}-`));
@@ -35,12 +35,17 @@ test('T4b reportChannels: the legacy 4 keep byte-identical labels/handles/fbPage
 });
 
 test('T4b reportChannels: derived from the live registry — a new active channel joins without a code change', () => {
+  // T4c: each channel also carries its resolved destinations
+  // (fbPageId/igHandle/threadsHandle/tiktokHandle) next to the fbPageId field.
   const expected = activeRegistryChannels(loadRegistryChannels()).map((c) => ({
     slug: c.slug,
     label: c.label,
     handle: c.handle,
     envSlug: c.envSlug,
     fbPageId: registryFbPageId(c.slug),
+    igHandle: destinationsFor(c.slug)?.igHandle,
+    threadsHandle: destinationsFor(c.slug)?.threadsHandle,
+    tiktokHandle: destinationsFor(c.slug)?.tiktokHandle,
   }));
   assert.deepEqual(reportChannels(), expected, 'reportChannels must be the registry view, not a second list');
 });
@@ -101,7 +106,13 @@ test('T4b buildExcel on fixture data: identical workbook format (sheets, headers
   delete process.env.NTFY_TOPIC;
   let file;
   try {
-    file = await buildExcel(ytData, fbPages, null, { reportsDir, stateDir });
+    // T4c: the destination rows are channels-driven — pass the fixture's
+    // channels (quotequarry is the only seeded Threads destination).
+    const channels = [
+      { slug: 'quotequarry', label: 'Quote Quarry', fbPageId: '114550268199751', threadsHandle: 'quotequarry8' },
+      { slug: 'debt-free-doctrine', label: 'Debt-Free Doctrine', fbPageId: '106473735839651' },
+    ];
+    file = await buildExcel(ytData, fbPages, null, { reportsDir, stateDir, channels });
   } finally {
     if (prevTopic !== undefined) process.env.NTFY_TOPIC = prevTopic;
   }
@@ -122,7 +133,11 @@ test('T4b buildExcel on fixture data: identical workbook format (sheets, headers
   assert.deepEqual(overview.getRow(2).values.slice(1), ['Quote Quarry', 'YouTube', '@quotequarry302', 1000, 50000, 120], 'YouTube row shape unchanged');
   assert.equal(overview.getRow(4).getCell(1).value, 'Reliq North (feeds: Quote Quarry)', 'FB row keeps the (feeds: <label>) suffix');
   assert.equal(overview.getRow(5).getCell(2).value, 'Instagram');
-  assert.ok(overview.getRow(6).getCell(1).value === 'All brands', 'the manual TikTok row stays');
+  // T4c: the manual 'All brands' TikTok row died with its display literal —
+  // rows below the IG row are destinations-driven (quotequarry's seeded
+  // threadsHandle gets the Threads row; no tiktokHandle = no TikTok row).
+  assert.deepEqual(overview.getRow(6).values.slice(1), ['Quote Quarry', 'Threads', '@quotequarry8', 'n/a', '-', '-'], 'the seeded Threads destination gets the Threads row');
+  assert.ok(!overview.getRow(7).getCell(1).value, 'no TikTok row while no channel carries a tiktokHandle');
 
   const details = wb.getWorksheet('YouTube Details');
   assert.deepEqual(details.getRow(2).values.slice(1), ['Quote Quarry', '@quotequarry302', 1000, 50000, 120]);
