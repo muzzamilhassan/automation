@@ -178,6 +178,21 @@ export function validateRegistryMeta(meta) {
       && safety.review_required.some((c) => c === 'medical' || c === 'finance')) {
       errors.push('safety.disclaimers: required when review_required includes "medical" or "finance" — author the fixed verbatim text(s) (D4, machine-appended at publish)');
     }
+    // P5-T2b authoring bar (D3/AC-P5-7): the YMYL review classes pin TIGHTER
+    // brain thresholds than the documented defaults — variation ≤ 0.80,
+    // cross-channel ≤ 0.85 (the defaults 0.85/0.90 are the LOOSEST allowed
+    // for non-YMYL classes). Both must be DECLARED: an omission would
+    // silently inherit the defaults the bar exists to tighten. Finance and
+    // the class-less lanes are untouched.
+    if (Array.isArray(safety.review_required)
+      && safety.review_required.some((c) => c === 'medical' || c === 'health')) {
+      for (const [field, cap] of [['variation_threshold', 0.80], ['cross_channel_threshold', 0.85]]) {
+        const v = meta[field];
+        if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0 || v > cap) {
+          errors.push(`${field}: required for medical/health review classes and must be a number with 0 < value ≤ ${cap} — the YMYL authoring bar pins tighter-than-default brain thresholds (D3/AC-P5-7); got ${JSON.stringify(v)}`);
+        }
+      }
+    }
   }
 
   if (typeof meta.deprecated !== 'boolean') {

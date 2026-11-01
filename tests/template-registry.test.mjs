@@ -525,6 +525,10 @@ test('validator v2 (D4): a NEW finance template without disclaimers is a named r
 test('validator v2 (D4): medical/finance WITH disclaimers validate; disclaimers are legal-but-not-required on other classes', () => {
   const medical = validateRegistryMeta(makeV2Meta({
     niches: ['Healthspan & longevity habits'],
+    // T2b (AC-P5-7): the YMYL authoring bar also requires the tighter brain
+    // thresholds on a medical block — declared here within the caps.
+    variation_threshold: 0.78,
+    cross_channel_threshold: 0.84,
     safety: { required_sources: true, review_required: ['medical'], disclaimers: ['Education, not medical advice.'] },
   }));
   assert.deepEqual(medical, { ok: true });
@@ -548,6 +552,58 @@ test('validator v2 (D4): present-but-malformed disclaimers fail on any entry, wh
   }
   const legacy = validateRegistryMeta({ ...makeValidMeta(), safety: { required_sources: true, review_required: [], disclaimers: ['ok'] } });
   assert.deepEqual(legacy, { ok: true }, 'a legacy entry may add well-formed disclaimers');
+});
+
+// ---- Phase 5 T2b: the YMYL threshold authoring bar (D3/AC-P5-7). A
+// medical/health block must pin variation_threshold ≤ 0.80 and
+// cross_channel_threshold ≤ 0.85 — the documented defaults (0.85/0.90) are
+// the LOOSEST allowed for non-YMYL classes; omission would silently inherit
+// them. Finance and the class-less lanes are untouched. ----
+
+test('validator v2 (AC-P5-7): a medical block at the DEFAULT thresholds (0.85/0.90) is a named rejection', () => {
+  const r = validateRegistryMeta(makeV2Meta({
+    niches: ['Healthspan & longevity habits'],
+    variation_threshold: 0.85,
+    cross_channel_threshold: 0.90,
+    safety: { required_sources: true, review_required: ['medical'], disclaimers: ['Education, not medical advice.'] },
+  }));
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.includes('variation_threshold')), JSON.stringify(r.errors));
+  assert.ok(r.errors.some((e) => e.includes('cross_channel_threshold')), JSON.stringify(r.errors));
+});
+
+test('validator v2 (AC-P5-7): a medical block pinned AT the caps (0.80/0.85) validates', () => {
+  const r = validateRegistryMeta(makeV2Meta({
+    niches: ['Healthspan & longevity habits'],
+    variation_threshold: 0.80,
+    cross_channel_threshold: 0.85,
+    safety: { required_sources: true, review_required: ['medical'], disclaimers: ['Education, not medical advice.'] },
+  }));
+  assert.deepEqual(r, { ok: true });
+});
+
+test('validator v2 (AC-P5-7): an omitted threshold on a medical/health block is a named rejection', () => {
+  const medical = validateRegistryMeta(makeV2Meta({
+    niches: ['Healthspan & longevity habits'],
+    safety: { required_sources: true, review_required: ['medical'], disclaimers: ['Education, not medical advice.'] },
+  }));
+  assert.equal(medical.ok, false);
+  assert.ok(medical.errors.some((e) => e.includes('variation_threshold')), JSON.stringify(medical.errors));
+  const health = validateRegistryMeta(makeV2Meta({
+    niches: ['Healthspan & longevity habits'],
+    safety: { required_sources: true, review_required: ['health'], disclaimers: ['Education, not medical advice.'] },
+  }));
+  assert.equal(health.ok, false);
+  assert.ok(health.errors.some((e) => e.includes('cross_channel_threshold')), JSON.stringify(health.errors));
+});
+
+test('validator v2 (AC-P5-7): finance is untouched — the default 0.85/0.90 stays legal there', () => {
+  const r = validateRegistryMeta(makeV2Meta({
+    variation_threshold: 0.85,
+    cross_channel_threshold: 0.90,
+    safety: { required_sources: true, review_required: ['finance'], disclaimers: ['Education, not financial advice.'] },
+  }));
+  assert.deepEqual(r, { ok: true }, 'the YMYL caps bar only medical/health; finance keeps the documented defaults');
 });
 
 // ---- Phase 5 T1: the loader joins metadata to the catalog BY family and

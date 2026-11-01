@@ -464,16 +464,17 @@ export function scriptShapeGate(fetchImpl, isUsableContent) {
 //     section; the retrieved ids are logged machine-parseably
 //     (`[brain-context] ... ids=`) so the E2E task can prove provenance.
 //   - /dedupe gates the walk between shape validation and return, with the
-//     D6 TIERING MATRIX (financeGated = the template's registry meta
-//     review_required contains 'finance'):
-//       brain UP   + BLOCK + finance   -> BLOCK consumes the walk (retry with
+//     D6 TIERING MATRIX (gatedReview = the template's registry meta
+//     review_required is non-empty — ANY review class: finance/medical/
+//     health/all; P5-T2b, D3/AC-P5-6):
+//       brain UP   + BLOCK + gated     -> BLOCK consumes the walk (retry with
 //                                         vary-guidance); exhausted -> lane terminal
-//       brain UP   + BLOCK + non-finance -> downgraded to a recorded WARN;
+//       brain UP   + BLOCK + un-gated  -> downgraded to a recorded WARN;
 //                                         proceed (fewer videos is never the
 //                                         failure mode; a flagged script is)
-//       brain DOWN + finance           -> FAIL-CLOSED: walk consumed, lane
+//       brain DOWN + gated             -> FAIL-CLOSED: walk consumed, lane
 //                                         terminal (never publish un-gated)
-//       brain DOWN + non-finance       -> fail-open (legacy behavior + one warning)
+//       brain DOWN + un-gated          -> fail-open (legacy behavior + one warning)
 //       WARN / PASS                    -> proceed always
 //     Exhausted walks land on the lane's existing terminal unchanged.
 //     Verdicts are recorded machine-parseably (`[brain-dedupe] ... verdict=`).
@@ -612,11 +613,14 @@ export async function checkDup(options) {
 }
 
 /**
- * D8 — thresholds and the finance-gating signal are registry DATA.
+ * D8 — thresholds and the review-gating signals are registry DATA.
  * finance-explainers carries explicit values in template-registry.data.js;
  * every other template (and the template-less lanes) inherits the documented
  * defaults — variation 0.85, cross-channel 0.90. `financeGated` mirrors the
- * template's safety.review_required containing 'finance' (D6 tiering input).
+ * template's safety.review_required containing 'finance' (the D6 tiering
+ * input as originally shipped); `gatedReview` mirrors ANY non-empty
+ * review_required — the P5-T2b tiering key (D3/AC-P5-6): a dedupe BLOCK on
+ * any review-gated class fails closed instead of downgrading to WARN.
  * Never a hardcoded per-channel map.
  *
  * KIND-SAFE IDENTITY (Phase 5 T1, D1/D19): `templateId` is the registry KEY —
@@ -639,6 +643,10 @@ export function registryThresholds(templateId) {
       ? meta.cross_channel_threshold : BRAIN_DEFAULT_CROSS_CHANNEL_THRESHOLD,
     reviewRequired,
     financeGated: reviewRequired.includes('finance'),
+    // P5-T2b (D3/AC-P5-6): the fail-closed tiering arms on ANY non-empty
+    // review_required — keying on finance alone downgraded a medical BLOCK
+    // to WARN-and-ship (the adversarial C2 gap).
+    gatedReview: reviewRequired.length > 0,
   };
 }
 
@@ -684,11 +692,16 @@ const SHAPE_RETRY_CLASSES = new Set(['parse_error', 'empty_response']);
  *              financeGated?, toChunks(parsed) } —
  *   the #105 checkDup hook, gated through POST /dedupe between shape
  *   validation and return, with the D6 tiering matrix (see the block
- *   comment at the top of the brain section): BLOCK+finance consumes the
- *   walk (retry with vary-guidance naming the top match); BLOCK+non-finance
- *   downgrades to a recorded WARN and proceeds; gate-down+finance fails
- *   closed (walk consumed, lane terminal on exhaustion); gate-down+
- *   non-finance and disabled proceed fail-open; WARN/PASS proceed always.
+ *   comment at the top of the brain section). Since P5-T2b (D3/AC-P5-6) the
+ *   tiering key is gatedReview — ANY non-empty review_required, derived from
+ *   the descriptor's templateId through registryThresholds (the one identity
+ *   string, D19); the financeGated descriptor flag composes (finance
+ *   templates are a subset of gated) but no longer arms the tiering alone:
+ *   BLOCK+gated consumes the walk (retry with vary-guidance naming the top
+ *   match); BLOCK+un-gated downgrades to a recorded WARN and proceeds;
+ *   gate-down+gated fails closed (walk consumed, lane terminal on
+ *   exhaustion); gate-down+un-gated and disabled proceed fail-open;
+ *   WARN/PASS proceed always.
  * }
  * @returns {Promise<{ ok: true, parsed: object, provider: string, model: string|null, attempts: object[], walk: number }
  *                   |{ ok: false, attempts: object[], error: string }>}
@@ -722,6 +735,13 @@ export async function callScriptBrain({ slug = null, jobId = null, prompt, isVal
       try { parsed = parseScriptJson(res.content); } catch { parsed = null; }
       if (parsed && isValidJson(parsed)) {
         if (dedupe) {
+          // P5-T2b (D3/AC-P5-6): the fail-closed tiering arms on ANY non-empty
+          // review_required — derived from the descriptor's own templateId
+          // through the registry (the one identity string, D19), so both the
+          // shorts threading and the doc lane's T2e financeGated derivation
+          // compose unchanged. Class-less templates keep the exact WARN
+          // downgrade.
+          const gatedReview = registryThresholds(dedupe.templateId ?? null).gatedReview;
           const gate = await dedupeCheck({
             channel: dedupe.channel,
             kind: dedupe.kind,
@@ -732,11 +752,11 @@ export async function callScriptBrain({ slug = null, jobId = null, prompt, isVal
             chunks: dedupe.toChunks ? dedupe.toChunks(parsed) : [],
             injected,
           });
-          // D6 tier 1: brain unreachable + finance template -> FAIL-CLOSED
+          // D6 tier 1: brain unreachable + review-gated template -> FAIL-CLOSED
           // (never publish un-gated). The walk is consumed; exhausted walks
           // land on the lane's existing terminal.
-          if (gate.state === 'down' && dedupe.financeGated) {
-            console.log(`[brain-dedupe] job=${jobId || 'unknown'} channel=${dedupe.channel} kind=${dedupe.kind} verdict=BLOCK score=0 top_match=null reason=gate-unreachable+finance (D6 tier 1 fail-closed) — walk consumed`);
+          if (gate.state === 'down' && gatedReview) {
+            console.log(`[brain-dedupe] job=${jobId || 'unknown'} channel=${dedupe.channel} kind=${dedupe.kind} verdict=BLOCK score=0 top_match=null reason=gate-unreachable+review-gated (D6 tier 1 fail-closed) — walk consumed`);
             continue;
           }
           if (gate.state === 'ok') {
@@ -744,12 +764,12 @@ export async function callScriptBrain({ slug = null, jobId = null, prompt, isVal
             // Guidance source for any later walk — set for WARN too (the
             // writer should know which video the script risks converging with).
             if (v.top_match_id !== null && v.top_match_id !== undefined) varyFrom = v.top_match_id;
-            const downgraded = v.verdict === 'BLOCK' && !dedupe.financeGated;
-            console.log(`[brain-dedupe] job=${jobId || 'unknown'} channel=${dedupe.channel} kind=${dedupe.kind} verdict=${downgraded ? 'WARN' : v.verdict} score=${v.score} top_match=${v.top_match_id}${downgraded ? ' (BLOCK downgraded: non-finance lane, D6 tier 4)' : ''}`);
-            // D6 tier 3: brain UP + BLOCK + finance -> fail the walk (retry
-            // with vary-guidance); exhausted walks -> lane terminal.
-            if (v.verdict === 'BLOCK' && dedupe.financeGated) continue;
-            // D6 tiers 2/4/5: gate-down+non-finance, BLOCK-downgraded, WARN
+            const downgraded = v.verdict === 'BLOCK' && !gatedReview;
+            console.log(`[brain-dedupe] job=${jobId || 'unknown'} channel=${dedupe.channel} kind=${dedupe.kind} verdict=${downgraded ? 'WARN' : v.verdict} score=${v.score} top_match=${v.top_match_id}${downgraded ? ' (BLOCK downgraded: un-gated lane, D6 tier 4)' : ''}`);
+            // D6 tier 3: brain UP + BLOCK + review-gated -> fail the walk
+            // (retry with vary-guidance); exhausted walks -> lane terminal.
+            if (v.verdict === 'BLOCK' && gatedReview) continue;
+            // D6 tiers 2/4/5: gate-down+un-gated, BLOCK-downgraded, WARN
             // and PASS all proceed with the script.
           }
         }

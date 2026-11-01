@@ -85,6 +85,7 @@ test('registryThresholds: declared values win, defaults fill the rest (truth tab
   assert.equal(fin.crossChannel, 0.90);
   assert.deepEqual(fin.reviewRequired, ['finance']);
   assert.equal(fin.financeGated, true);
+  assert.equal(fin.gatedReview, true);
 
   // a template with no declared values inherits the documented defaults
   const plain = registryThresholds('documentary-frames');
@@ -92,12 +93,15 @@ test('registryThresholds: declared values win, defaults fill the rest (truth tab
   assert.equal(plain.crossChannel, 0.90);
   assert.deepEqual(plain.reviewRequired, []);
   assert.equal(plain.financeGated, false);
+  assert.equal(plain.gatedReview, false);
 
   // unknown / template-less ids: defaults, never a throw, never gated
   assert.equal(registryThresholds('not-a-template').financeGated, false);
+  assert.equal(registryThresholds('not-a-template').gatedReview, false);
   assert.equal(registryThresholds('not-a-template').variation, 0.85);
   assert.equal(registryThresholds(null).variation, 0.85);
   assert.equal(registryThresholds(null).financeGated, false);
+  assert.equal(registryThresholds(null).gatedReview, false);
 });
 
 test('registryThresholds: a schema v2 template resolves by ITS key, never the family block (identity)', () => {
@@ -114,6 +118,7 @@ test('registryThresholds: a schema v2 template resolves by ITS key, never the fa
     assert.equal(t.crossChannel, 0.84);
     assert.deepEqual(t.reviewRequired, ['medical'], 'the template\'s own review signal, not the family\'s');
     assert.equal(t.financeGated, false);
+    assert.equal(t.gatedReview, true, 'ANY non-empty review_required arms the T2b fail-closed tiering (D3/AC-P5-6)');
   } finally {
     if (prev === undefined) delete REGISTRY_DATA[key];
     else REGISTRY_DATA[key] = prev;

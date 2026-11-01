@@ -1,15 +1,16 @@
 // #105 Phase 3 Task 7 — the generators ask the brain (RAG wiring).
 // Pins the two injected seams the generators gain, the ZERO-CONFIG GUARANTEE
 // (BRAIN_ENABLED unset = byte-identical committed behavior: no brain fetch,
-// no prompt marker, no dedupe call — even for finance-gated templates), and
-// the FULL D6 TIERING MATRIX at the /dedupe seam:
-//   brain UP   + BLOCK + finance template     -> walk consumed (retry with
-//                                               vary-guidance); exhausted -> lane terminal
-//   brain UP   + BLOCK + non-finance template -> downgraded to a recorded
-//                                               WARN; proceed
-//   brain DOWN + finance template             -> FAIL-CLOSED (lane terminal)
-//   brain DOWN + non-finance template         -> fail-open (legacy + one warning)
-//   WARN / PASS                                -> proceed always
+// no prompt marker, no dedupe call — even for gated templates), and
+// the FULL D6 TIERING MATRIX at the /dedupe seam (P5-T2b: the tiering key is
+// gatedReview = ANY non-empty review_required, not finance alone — D3/AC-P5-6):
+//   brain UP   + BLOCK + gated template     -> walk consumed (retry with
+//                                              vary-guidance); exhausted -> lane terminal
+//   brain UP   + BLOCK + un-gated template  -> downgraded to a recorded
+//                                              WARN; proceed
+//   brain DOWN + gated template             -> FAIL-CLOSED (lane terminal)
+//   brain DOWN + un-gated template          -> fail-open (legacy + one warning)
+//   WARN / PASS                              -> proceed always
 // Also pins: /context before prompt assembly (labeled section +
 // machine-parseable ids line), /health arming REQUIRES model_loaded +
 // pgvector_reachable, the BRAIN_ENABLED flag name, templateId threading
@@ -135,6 +136,24 @@ const PASS_VERDICT = { verdict: 'PASS', score: 0.42, top_match_id: null, neighbo
 // The finance template id that arms D6 tiering (real registry data).
 const FINANCE_TEMPLATE = 'finance-explainers';
 const NON_FINANCE_TEMPLATE = 'documentary-frames';
+// P5-T2b fixture (the registry.test.mjs mutation pattern): a temporary MEDICAL
+// registry entry — the class whose dedupe BLOCK used to downgrade to WARN and
+// ship (the adversarial C2 gap) and now holds fail-closed. No medical entry
+// exists in the shipped data yet (health batch authors later), so the test
+// registers one and restores it.
+const MEDICAL_TEMPLATE = 'qa-medical-gated';
+function registerMedicalTemplate() {
+  const prev = REGISTRY_META[MEDICAL_TEMPLATE];
+  REGISTRY_META[MEDICAL_TEMPLATE] = {
+    variation_threshold: 0.80,
+    cross_channel_threshold: 0.85,
+    safety: { required_sources: true, review_required: ['medical'] },
+  };
+  return () => {
+    if (prev === undefined) delete REGISTRY_META[MEDICAL_TEMPLATE];
+    else REGISTRY_META[MEDICAL_TEMPLATE] = prev;
+  };
+}
 
 // ---- config surface ----
 
@@ -365,6 +384,45 @@ test('D6 tier 3 exhausted (UP+BLOCK+finance every walk): ok:false, ceiling respe
   assert.ok(walk2.includes("('vid-dup')"), 'the final walk still carried the vary guidance');
 }));
 
+test('P5-T2b (D3/AC-P5-6): UP+BLOCK+medical — the BLOCK holds fail-closed, never the WARN downgrade', withFlag('1', async () => {
+  const restore = registerMedicalTemplate();
+  try {
+    const scriptedBrain = async (url) => {
+      if (String(url).includes('/health')) return stubResponse(HEALTH.body);
+      if (String(url).includes('/dedupe')) return stubResponse({ verdict: 'BLOCK', score: 0.95, top_match_id: 'vid-dup', neighbors: [] });
+      throw new Error('unexpected brain url ' + url);
+    };
+    const provider = scriptedProviderFetch(() => stubResponse(compatBody('{"title":"STILL A DUP"}')));
+    const { out: res, logs } = await captureLogs(() => dedupeCallScriptBrain(scriptedBrain, provider, {
+      // financeGated:false is the POINT: pre-T2b the tiering keyed ONLY on
+      // that flag, so this exact call downgraded a medical BLOCK to WARN and
+      // shipped it (the C2 gap). The tiering now derives from the template's
+      // own review_required.
+      dedupe: { templateId: MEDICAL_TEMPLATE, financeGated: false },
+    }));
+    assert.equal(res.ok, false, 'a medical BLOCK is never shipped — exhausted walks land on the lane terminal');
+    assert.equal(provider.calls.length, 2, 'maxAttempts is the ceiling; BLOCK cannot extend it');
+    assert.equal(logs.filter((l) => l.includes('D6 tier 4')).length, 0, 'no WARN-downgrade line may fire for a review-gated class');
+  } finally { restore(); }
+}));
+
+test('P5-T2b: DOWN+medical — the unreachable-gate fail-closed extends beyond finance', withFlag('1', async () => {
+  const restore = registerMedicalTemplate();
+  try {
+    const scriptedBrain = async (url) => {
+      if (String(url).includes('/health')) return stubResponse(HEALTH.body);
+      if (String(url).includes('/dedupe')) throw new Error('500');
+      throw new Error('unexpected brain url ' + url);
+    };
+    const provider = scriptedProviderFetch(() => stubResponse(compatBody('{"title":"UNGATED?"}')));
+    const { out: res, logs } = await captureLogs(() => dedupeCallScriptBrain(scriptedBrain, provider, {
+      dedupe: { templateId: MEDICAL_TEMPLATE, financeGated: false },
+    }));
+    assert.equal(res.ok, false, 'medical + gate error = the same fail-closed terminal as finance');
+    assert.ok(logs.some((l) => l.includes('D6 tier 1 fail-closed')), 'the fail-closed reason is logged');
+  } finally { restore(); }
+}));
+
 test('D6 tier 1 (DOWN+finance): unreachable gate fails closed into the lane terminal', withFlag('1', async () => {
   const scriptedBrain = async (url) => {
     if (String(url).includes('/health')) throw new Error('ECONNREFUSED');
@@ -478,21 +536,24 @@ test('threading: yt-daily resolves the channel assignment and passes it to both 
     'every generateYouTubeScript call passes the threaded templateId');
 });
 
-test('registryThresholds: returns the D8 data AND the D6 finance signal from the REAL registry', () => {
+test('registryThresholds: returns the D8 data AND the D6 finance + gated-review signals from the REAL registry', () => {
   assert.deepEqual(registryThresholds(FINANCE_TEMPLATE), {
     variation: 0.85,
     crossChannel: 0.90,
     reviewRequired: ['finance'],
     financeGated: true,
+    gatedReview: true,
   });
   assert.deepEqual(registryThresholds(null), {
     variation: 0.85,
     crossChannel: 0.90,
     reviewRequired: [],
     financeGated: false,
-  }, 'template-less lanes: documented defaults, NOT finance-gated');
+    gatedReview: false,
+  }, 'template-less lanes: documented defaults, NOT finance-gated, NOT review-gated');
   assert.deepEqual(registryThresholds(NON_FINANCE_TEMPLATE).financeGated, false);
-  assert.deepEqual(registryThresholds('not-a-template').financeGated, false);
+  assert.deepEqual(registryThresholds(NON_FINANCE_TEMPLATE).gatedReview, false);
+  assert.deepEqual(registryThresholds('not-a-template').gatedReview, false);
 });
 
 test('registry data: only finance-explainers declares the brain thresholds; defaults documented', () => {
