@@ -56,7 +56,7 @@ Pipeline touches stay flag-gated with byte-identical rollback (house pattern). N
 - Review: fresh code-reviewer subagent. **The gate every other task waits on.**
 
 ### T2a — S-B story_structure threading (needs T1)
-- `youtube-engine.mjs` prompt hunk ONLY, per the D2 line-by-line contract: `styleLine`/`themeLine`/`trendBlock`/`pacingRule` unchanged (kit-owned); kit `hookRule` stays, `hook_classes[]` APPENDS one constraints line; kit `titleRule` stays, `title_patterns[]` APPENDS; `structureLine` REPLACED by the rendered numbered beat plan only when the template declares one, else today's kit line; JSON-contract line untouched; brain `/context` appended last. Absent and empty `story_structure` treated identically (kit line).
+- `youtube-engine.mjs` prompt hunk ONLY, per the D2 line-by-line contract: `styleLine`/`themeLine`/`trendBlock`/`pacingRule` unchanged (kit-owned); kit `hookRule` stays, `hook_classes[]` APPENDS one constraints line; kit `titleRule` replaced by the template's `title_patterns[]` when declared, else stays [T2a Ruling: REPLACE]; `structureLine` REPLACED by the rendered numbered beat plan only when the template declares one, else today's kit line; JSON-contract line untouched; brain `/context` appended last. Absent and empty `story_structure` treated identically (kit line).
 - Tests: `tests/registry-lanes.test.mjs` — the line-by-line assembly cases + the **byte-identity golden** (unassigned/legacy prompt equals the pre-Phase-5 string; record the fixture hash at this task and re-run it at every later task — Row R1).
 - Spec: D2, AC-P5-3. **QA rows: 6 (auto golden + boundary), R1.** Feeds: P-3 live half, Drill A, every γ batch's shape checks.
 - Review: fresh code-reviewer subagent.
