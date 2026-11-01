@@ -20,7 +20,7 @@ import sharp from 'sharp';
 import { loadEnv } from '../lib/env.mjs';
 import { parseSrt } from '../lib/srt.mjs';
 import { candidateWindows, parseSelection, pickTitles, cuesToWords, cardSvg } from '../lib/clipper.mjs';
-import { buildAssCaptions } from '../youtube-engine.mjs';
+import { buildAssCaptions, resolveTemplateId } from '../youtube-engine.mjs';
 import { isDupTitle } from '../lib/dup-gate.mjs';
 import { sendAlert } from '../lib/ntfy-alert.mjs';
 import { loadChannelState, saveChannelState, loadAllStates } from '../lib/state.mjs';
@@ -29,6 +29,10 @@ import { nextSlotISO } from '../lib/schedule.mjs';
 import { nextUnposted } from '../lib/clipper.mjs';
 import { recentUploadTitles } from '../lib/dup-gate.mjs';
 import { nextCounter } from '../lib/quota-ledger.mjs';
+// #106 P5 T2c (D4/AC-P5-4): the deterministic-disclaimer helpers — the upload
+// DESCRIPTION's machine append + the template_id chain resolution (pure
+// module, no store/DB at import).
+import { appendDisclaimers, declaredDisclaimers } from '../lib/review-seams.mjs';
 // #106 T3 (S2): upload intents — the note before any videos.insert (D5), the
 // two-step resumable upload (D6), the run-start open-intent resolution (D7a).
 import { getUploadIntentStore, uploadWithIntent, recoverOpenIntents, makeFindByTitle, oauthAccessToken, titleFingerprint, matchUploadedIntentsToQueue, slotISOOnDate } from '../lib/upload-intents.mjs';
@@ -502,13 +506,19 @@ async function postNext() {
   }
 
   const publishAt = nextSlotISO((b.slots && b.slots[0]) || '22:35');
-  const description = [
+  // #106 P5 T2c (D4/AC-P5-4): the channel's active template may declare fixed
+  // disclaimers — the upload DESCRIPTION carries them machine-appended (code,
+  // never the LLM). Fail-open: no assignment / registry unreadable / nothing
+  // declared = the description is byte-identical.
+  let clipDisclaimers = null;
+  try { clipDisclaimers = await declaredDisclaimers(await resolveTemplateId(slug)); } catch { }
+  const description = appendDisclaimers([
     clip.title,
     '',
     `From our documentary "${st.clipQueue?.docTitle || b.label}".`,
     `Follow for daily ${b.kwShort || b.niche}.`,
     ...(b.hashtags ? [b.hashtags] : []),
-  ].join('\n').trim();
+  ].join('\n').trim(), clipDisclaimers);
 
   log(`posting "${clip.title}" (part ${clip.part}) -> public ${publishAt}`);
   // #106 T3 (D6/AC-P4-6/7): two-step resumable upload — the intent row is the

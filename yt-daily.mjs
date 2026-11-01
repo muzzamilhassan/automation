@@ -32,7 +32,10 @@ const { recentUploadTitles, findDup } = await import('./lib/dup-gate.mjs');
 const { shouldSuppressNext } = await import('./lib/schedule.mjs');
 import { nextCounter } from './lib/quota-ledger.mjs';
 // #106 T5b: the review-seam helpers (pure module — no store/DB at import).
-import { flagOn } from './lib/review-seams.mjs';
+// #106 P5 T2c (D4): the deterministic-disclaimer helpers ride the same module —
+// the upload DESCRIPTION's machine append (appendDisclaimers) and the
+// template_id chain resolution (declaredDisclaimers).
+import { flagOn, appendDisclaimers, declaredDisclaimers } from './lib/review-seams.mjs';
 // #106 T3 (S2): upload intents — the note written before any videos.insert
 // (D5); the two-step resumable upload whose session URI is ours to keep (D6);
 // the run-start open-intent resolution that kills the duplicate class (D7a).
@@ -231,12 +234,16 @@ async function resumeApprovedScript({ slug, jobId, b }) {
   const ytAuth = channelAuth(slug);
   const yt = google.youtube({ version: 'v3', auth: ytAuth });
   const intents = await getUploadIntentStore();
+  // #106 P5 T2c (D4/AC-P5-4): the approved script's template may declare fixed
+  // disclaimers — the upload DESCRIPTION gains them machine-appended (code,
+  // never the LLM). Null = nothing declared = byte-identical description.
+  const resumeDisclaimers = await declaredDisclaimers(await resolveTemplateId(slug));
   const up = await uploadWithIntent({
     store: intents, channelId: slug, slotDate, kind: 'short', slotIdx,
     title: meta.title, jobId: process.env.PIPELINE_JOB_ID || null,
     accessToken: await oauthAccessToken(ytAuth),
     resource: {
-      snippet: { title: meta.title, description: `${meta.description}\n\n${b.hashtags || ''}`.trim(), tags: meta.tags, categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
+      snippet: { title: meta.title, description: appendDisclaimers(`${meta.description}\n\n${b.hashtags || ''}`.trim(), resumeDisclaimers), tags: meta.tags, categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
       status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false }
     },
     bytes: out.buffer, publishAt,
@@ -428,6 +435,11 @@ if (RUN_SHORTS) {
   // brain's finance-gating signal + registry thresholds into the /dedupe gate.
   // Fail-open null (template-less = D8 defaults, non-finance tiers).
   const brainTemplateId = await resolveTemplateId(slug);
+  // #106 P5 T2c (D4/AC-P5-4): the same assignment's fixed disclaimers — the
+  // machine-append list for every upload DESCRIPTION this run (code, never the
+  // LLM). Null = nothing declared = byte-identical descriptions (the legacy
+  // 7 declare none).
+  const templateDisclaimers = await declaredDisclaimers(brainTemplateId);
   // #106 T3 (D7a/AC-P4-8): BEFORE any slot production (including --topup),
   // resolve ANY open upload intent for this channel — any day, not just
   // today's. A resolved intent = the video exists on YouTube: the state entry
@@ -590,12 +602,15 @@ if (RUN_SHORTS) {
     // #106 T3 (D6/AC-P4-6/7): explicit two-step resumable upload. The intent
     // row is the INSERT mutex (a conflict NEVER re-uploads); the session URI
     // is persisted BEFORE the first byte; the videoId lands on the row on 201.
+    // #106 P5 T2c (D4/AC-P5-4): the description carries the template's fixed
+    // disclaimers machine-appended — unconditional in code for declaring
+    // templates (QA Row 10's boundary probe pins the unconditionality).
     const up = await uploadWithIntent({
       store: intents, channelId: slug, slotDate: today, kind: 'short', slotIdx: i,
       title: meta.title, jobId: process.env.PIPELINE_JOB_ID || null,
       accessToken: await oauthAccessToken(ytAuth),
       resource: {
-        snippet: { title: meta.title, description: `${meta.description}\n\n${b.hashtags || ''}`.trim(), tags: meta.tags, categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
+        snippet: { title: meta.title, description: appendDisclaimers(`${meta.description}\n\n${b.hashtags || ''}`.trim(), templateDisclaimers), tags: meta.tags, categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
         status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false }
       },
       bytes: out.buffer, publishAt,

@@ -32,6 +32,8 @@ import {
   findResumableScript,
   writeBackVideoId,
   emitThumbCandidates,
+  appendDisclaimers,
+  declaredDisclaimers,
 } from '../lib/review-seams.mjs';
 
 const GENERATED = {
@@ -1282,5 +1284,194 @@ describe('#106 T5c — RESUME renders the doc from the STORED input (real yt-dee
     assert.equal(r.spy.filter((c) => c.mod === 'docstore' && c.fn === 'markConsumed').length, 0, 'no consumption');
     assert.equal(r.spy.filter((c) => c.mod === 'doccp' && c.fn === 'execFileSync').length, 0, 'no render spend');
     assert.equal(r.stateAfter?.deepdiveDate, undefined, 'the doc slot is NOT marked produced');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #106 Phase 5 T2c — DETERMINISTIC DISCLAIMERS (D4 / AC-P5-4, Ruling 5). The
+// narration keeps creative freedom; the DESCRIPTION carries compliance
+// (machine-written, zero LLM risk) and the SAVE checks it:
+//   appendDisclaimers  — the publish-time MACHINE append (verbatim, code only)
+//   declaredDisclaimers— the template_id chain (REGISTRY_META safety block)
+//   saveGeneratedScript's contains() gate — a gated record whose narration +
+//   machine-appended description lack a declared fixed text FAILS the save
+//   (fail-closed, nothing persisted — same posture as "a dup-blocked script
+//   is never saved").
+// The gate's refusal cell is constructed through an in-memory REGISTRY_META
+// fixture (CODE tasks never author the production data file — plan contract);
+// the fixture is installed/deleted inside the test process only.
+// ---------------------------------------------------------------------------
+
+const T2C_DISCLAIMER = 'Education, not financial advice.';
+
+describe('#106 P5 T2c — appendDisclaimers (the publish-time MACHINE append)', () => {
+  test('each fixed text verbatim at the very end of the description payload — never LLM-written', () => {
+    const out = appendDisclaimers('The compound interest lie.\n\nFollow for daily money rules. #money', [T2C_DISCLAIMER]);
+    assert.equal(out, 'The compound interest lie.\n\nFollow for daily money rules. #money\n\nEducation, not financial advice.',
+      'the payload ends with the fixed text verbatim (QA Row 10 step 1a)');
+    const two = appendDisclaimers('desc', [T2C_DISCLAIMER, 'Education, not medical advice.']);
+    assert.ok(two.endsWith('Education, not financial advice.\nEducation, not medical advice.'),
+      'multiple declared texts ride one per line, order preserved');
+  });
+
+  test('byte-identical cell: nothing declared (null / [] / blank) = the description returned UNCHANGED', () => {
+    const d = 'today description';
+    assert.equal(appendDisclaimers(d, null), d);
+    assert.equal(appendDisclaimers(d, undefined), d);
+    assert.equal(appendDisclaimers(d, []), d);
+    assert.equal(appendDisclaimers(d, ['   ', '']), d, 'blank entries are not texts');
+  });
+});
+
+describe('#106 P5 T2c — declaredDisclaimers (the template_id chain)', () => {
+  test('null cells: no id, unknown id — and the legacy 7 declare none (the zero-drift pin)', async () => {
+    assert.equal(await declaredDisclaimers(null), null);
+    assert.equal(await declaredDisclaimers(''), null);
+    assert.equal(await declaredDisclaimers('not-a-template'), null);
+    assert.equal(await declaredDisclaimers('finance-explainers'), null, 'finance-explainers (legacy 7) declares no disclaimers today — ungated lanes keep byte-identical behavior');
+    assert.equal(await declaredDisclaimers('documentary-frames'), null);
+  });
+
+  test('a declaring entry resolves its safety.disclaimers through the registry KEY', async () => {
+    const { REGISTRY_META } = await import('../studio/lib/template-registry.data.js');
+    const TID = 't2c-declared-fixture';
+    const prev = REGISTRY_META[TID];
+    REGISTRY_META[TID] = {
+      version: '1.0.0', template_id: TID, family: 'stats-counters',
+      safety: { required_sources: true, review_required: ['finance'], disclaimers: [T2C_DISCLAIMER] },
+    };
+    try {
+      assert.deepEqual(await declaredDisclaimers(TID), [T2C_DISCLAIMER], 'the same REGISTRY_META the brain/review gates index by template_id');
+    } finally {
+      if (prev === undefined) delete REGISTRY_META[TID]; else REGISTRY_META[TID] = prev;
+    }
+  });
+});
+
+describe('#106 P5 T2c — the contains() SAVE gate in saveGeneratedScript (D4/AC-P5-4)', () => {
+  function t2cStore() {
+    const saved = [];
+    return { saved, async saveScript(fields) { saved.push(fields); return { ok: true, id: 't2c-1' }; } };
+  }
+
+  /** Install/uninstall an in-memory declaring template (never the data file). */
+  async function withFixture(fn) {
+    const { REGISTRY_META } = await import('../studio/lib/template-registry.data.js');
+    const TID = 't2c-gate-fixture';
+    const prev = REGISTRY_META[TID];
+    REGISTRY_META[TID] = {
+      version: '1.0.0', template_id: TID,
+      safety: { required_sources: true, review_required: ['finance'], disclaimers: [T2C_DISCLAIMER] },
+    };
+    try { await fn(TID); } finally {
+      if (prev === undefined) delete REGISTRY_META[TID]; else REGISTRY_META[TID] = prev;
+    }
+  }
+
+  test('compliant gated script SAVES: the narration keeps creative freedom and the record carries the machine-appended disclaimer line', async () => {
+    await withFixture(async (TID) => {
+      const store = t2cStore();
+      const r = await saveGeneratedScript({
+        scriptStore: store, channelId: SLUG, templateId: TID, kind: 'short',
+        title: 'The Compound Interest Lie | Finance Wisdom',
+        script: GENERATED, publishAt: `${TODAY}T15:00:00Z`,
+        // no `disclaimers` argument — production resolves the chain and the
+        // append is unconditional in code for declaring templates
+      });
+      assert.equal(r.ok, true);
+      assert.equal(store.saved.length, 1, 'the save proceeded');
+      const f = store.saved[0];
+      assert.equal(f.status, 'awaiting_review');
+      assert.ok(!f.text.includes(T2C_DISCLAIMER), 'the narration text is NOT mutated — creative freedom stays with the brain');
+      assert.equal(f.fullRenderInput.disclaimer_block, T2C_DISCLAIMER,
+        'the record carries the machine-appended description line — /review sees the disclaimer (D4)');
+      const { disclaimer_block: block, ...rest } = f.fullRenderInput;
+      assert.equal(block, T2C_DISCLAIMER);
+      assert.deepEqual(
+        rest,
+        { hook: GENERATED.hook, points: GENERATED.points, closing: GENERATED.closing, thumbHeadline: GENERATED.thumbHeadline, seed: null, themes: null, publishAt: `${TODAY}T15:00:00Z` },
+        'the rest of the stored render input is unchanged',
+      );
+    });
+  });
+
+  test('a gated script missing its disclaimer is REFUSED with the named error — nothing persisted (fail-closed)', async () => {
+    await withFixture(async (TID) => {
+      const store = t2cStore();
+      // `disclaimers: []` = the injected seam asserting NO machine-append
+      // reaches the publish description (the suppressed-append side of QA
+      // Row 10's boundary probe — impossible by construction in production,
+      // where the append is unconditional in code)
+      const r = await saveGeneratedScript({
+        scriptStore: store, channelId: SLUG, templateId: TID, kind: 'short',
+        script: GENERATED, disclaimers: [],
+      });
+      assert.equal(r.ok, false, 'the save FAILS');
+      assert.match(r.error, /disclaimer_missing/, `the named error: ${r.error}`);
+      assert.ok(r.error.includes(T2C_DISCLAIMER), 'the error names the missing fixed text');
+      assert.equal(store.saved.length, 0, 'nothing persisted — never silently dropped, never half-written');
+    });
+  });
+
+  test('the narration carrying the text satisfies the gate even without the append (the claim-edit cell)', async () => {
+    await withFixture(async (TID) => {
+      const store = t2cStore();
+      const r = await saveGeneratedScript({
+        scriptStore: store, channelId: SLUG, templateId: TID, kind: 'short',
+        script: { ...GENERATED, closing: T2C_DISCLAIMER }, disclaimers: [],
+      });
+      assert.equal(r.ok, true, 'narration OR the machine-appended description — either carries compliance (D4)');
+      assert.equal(store.saved[0].fullRenderInput.disclaimer_block, undefined, 'nothing appended, nothing recorded');
+    });
+  });
+
+  test('the doc shape: the cold-open intro rides the checked payload through the shared seam', async () => {
+    await withFixture(async (TID) => {
+      const store = t2cStore();
+      const docScript = { hook: 'The doc title', intro: `${T2C_DISCLAIMER} Remember this before the chapters.`, points: [{ title: 'C1', line: 'Chapter one.' }, { title: 'C2', line: 'Chapter two.' }], closing: 'The outro.', thumbHeadline: 'THE DOC' };
+      const r = await saveGeneratedScript({
+        scriptStore: store, channelId: SLUG, templateId: TID, kind: 'doc',
+        script: docScript, disclaimers: [],
+      });
+      assert.equal(r.ok, true, 'a doc whose narration (incl. the intro the row text omits) carries the text saves');
+      const refused = await saveGeneratedScript({
+        scriptStore: t2cStore(), channelId: SLUG, templateId: TID, kind: 'doc',
+        script: { ...docScript, intro: 'Cold open without the line.' }, disclaimers: [],
+      });
+      assert.equal(refused.ok, false, 'a doc record whose payload lacks the text is refused too (yt-deepdive saves through THIS seam)');
+    });
+  });
+
+  test('ungated records are byte-identical: a finance template WITHOUT declared disclaimers never fires the gate', async () => {
+    const store = t2cStore();
+    const r = await saveGeneratedScript({
+      scriptStore: store, channelId: SLUG, templateId: 'finance-explainers', templateVersion: '1.0.0',
+      kind: 'short', title: 'The Compound Interest Lie | Finance Wisdom',
+      script: GENERATED, seed: 'wave-title', themes: 'topic directive', publishAt: `${TODAY}T15:00:00Z`,
+      slotDate: TODAY, slotIdx: 0, jobId: 'job-1',
+      disclaimers: [], // even with a suppressed append — no declared list = no gate
+    });
+    assert.equal(r.ok, true, 'review class alone never gates — the gate keys on DECLARED disclaimers');
+    assert.deepEqual(store.saved[0].fullRenderInput, {
+      hook: GENERATED.hook, points: GENERATED.points, closing: GENERATED.closing,
+      thumbHeadline: GENERATED.thumbHeadline, seed: 'wave-title', themes: 'topic directive',
+      publishAt: `${TODAY}T15:00:00Z`,
+    }, 'the stored shape is byte-identical — no disclaimer_block key (the legacy pin)');
+  });
+});
+
+describe('#106 P5 T2c — the upload-site wiring (source pins, QA Row 10 boundary probe)', () => {
+  test('the append is UNCONDITIONAL in code at every gated upload description site — no flag can suppress it', () => {
+    const daily = fs.readFileSync(path.join(ROOT, 'yt-daily.mjs'), 'utf8');
+    assert.equal((daily.match(/appendDisclaimers\(/g) || []).length, 2,
+      'yt-daily wires the machine append at BOTH upload sites (approved resume :239 pattern + main slot loop :598 pattern)');
+    const clips = fs.readFileSync(path.join(ROOT, 'longvideo', 'shorts-clips.mjs'), 'utf8');
+    assert.match(clips, /appendDisclaimers\(/, 'the clips upload block carries the append');
+    // no env/flag guard wraps the call sites: flagOn/env reads never sit on the append lines
+    for (const [file, src] of [['yt-daily.mjs', daily], ['shorts-clips.mjs', clips]]) {
+      for (const line of src.split('\n').filter((l) => l.includes('appendDisclaimers('))) {
+        assert.ok(!/REVIEW_|process\.env/.test(line), `${file}: the append line is not flag-guarded (${line.trim().slice(0, 60)})`);
+      }
+    }
   });
 });
