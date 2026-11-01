@@ -10,6 +10,7 @@ import { execFileSync } from 'node:child_process';
 import { google } from 'googleapis';
 import { applyChannelKeys, checkChannelKeys, dropChannelKeys } from './lib/channel-keys.mjs';
 import { LEGACY_SLUGS } from './lib/registry.mjs';
+import { healRouteFor, shouldDispatchHealToday } from './lib/registry-slugs.mjs';
 import { resolveBrand } from './lib/brand-resolve.mjs';
 import { loadEnv, envOf } from './lib/env.mjs';
 
@@ -40,6 +41,49 @@ try {
 
 const healed = [];
 const warnings = [];
+
+// ---- heal routing (T4b fix round 1) -----------------------------------------
+// daily-sweeper.yml is ONE job and cannot construct secret names, so its env
+// maps only the legacy 4's YT_TOKEN_* secrets. A registry channel without a
+// mapped token would silently never heal — it is healed by dispatching
+// channel-autopilot.yml (channel=<slug>, topup=1), whose per-channel matrix
+// resolves the dynamic secret. One dispatch per channel per day (the dedupe
+// state rides the committed logs).
+const LEGACY_SET = new Set(LEGACY_SLUGS);
+const HEAL_DISPATCH_FILE = path.join('yt-mcp', 'state', 'heal-dispatches.json');
+async function dispatchAutopilotHeal(slug) {
+  if (DRY) {
+    log(`(dry-run) would dispatch channel-autopilot.yml channel=${slug} topup=1 (no env token)`);
+    return true;
+  }
+  let seen = {};
+  try { seen = JSON.parse(fs.readFileSync(HEAL_DISPATCH_FILE, 'utf8')); } catch { }
+  if (!shouldDispatchHealToday(seen, slug, todayUTC)) {
+    log(`↷ [${slug}] heal already dispatched today — skip`);
+    return false;
+  }
+  const token = envOf('GITHUB_PAT') || envOf('SECRET_WRITER_PAT');
+  const repo = process.env.GITHUB_REPOSITORY || 'muzzamilhassan/automation';
+  if (!token) {
+    log(`✗ [${slug}] no local token and no GITHUB_PAT — cannot dispatch a heal`);
+    return false;
+  }
+  log(`⚠ [${slug}] no env token — dispatching channel-autopilot.yml (channel=${slug}, topup=1)...`);
+  try {
+    execFileSync('curl', ['-s', '-X', 'POST',
+      '-H', `Authorization: token ${token}`,
+      `https://api.github.com/repos/${repo}/actions/workflows/channel-autopilot.yml/dispatches`,
+      '-d', JSON.stringify({ ref: 'main', inputs: { channel: slug, topup: '1' } })], { timeout: 30000 });
+    seen[slug] = todayUTC;
+    fs.mkdirSync(path.dirname(HEAL_DISPATCH_FILE), { recursive: true });
+    fs.writeFileSync(HEAL_DISPATCH_FILE, JSON.stringify(seen, null, 2));
+    log(`✓ [${slug}] heal dispatched via channel-autopilot.yml (dynamic-secret path)`);
+    return true;
+  } catch (e) {
+    log(`✗ [${slug}] heal dispatch failed: ${String(e.message).slice(0, 80)}`);
+    return false;
+  }
+}
 
 function oauth(refreshToken) {
   const a = new google.auth.OAuth2(envOf('YOUTUBE_CLIENT_ID'), envOf('YOUTUBE_CLIENT_SECRET'));
@@ -81,6 +125,22 @@ for (const slug of CHANNEL_SLUGS) {
       continue;
     }
   } catch { }
+  // Heal routing: legacy + token-bearing channels heal here in-process; a
+  // non-legacy registry channel with no mapped token dispatches to
+  // channel-autopilot.yml instead (its matrix resolves the channel's own
+  // YT_TOKEN_<ENSSLUG> secret). Failed/already-done dispatches fall through
+  // to the in-process path, which warns exactly as before.
+  const route = healRouteFor(slug, {
+    legacySlugs: [...LEGACY_SET],
+    hasLocalToken: Boolean(
+      envOf(`YT_TOKEN_${slug.toUpperCase().replace(/-/g, '_')}`)
+      || fs.existsSync(path.join('yt-mcp', 'channels', slug, 'token.json'))),
+    registryActive: true, // every CHANNEL_SLUGS member is legacy or registry-active by construction
+  });
+  if (route === 'dispatch' && await dispatchAutopilotHeal(slug)) {
+    warnings.push(`${slug}: no env token — heal dispatched via channel-autopilot.yml (topup=1)`);
+    continue;
+  }
   try {
     const y = google.youtube({ version: 'v3', auth: channelAuth(slug) });
     const ch = await y.channels.list({ part: 'snippet,contentDetails', mine: true });

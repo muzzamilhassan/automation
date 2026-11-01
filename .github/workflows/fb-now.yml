@@ -8,7 +8,9 @@
 # yt-mcp/studio-channels.json — the channel-autopilot.yml pattern). New
 # channels join automatically; a job whose fb-outbox/<slug> cache misses is a
 # harmless no-op. The drain scripts scan fb-outbox/ and only ever see the one
-# slug dir this job restored, so per-channel behavior is unchanged.
+# slug dir this job restored, so per-channel behavior is unchanged. Scope:
+# the DRAIN only — the static FB page maps inside fb-crosspost.mjs /
+# fb-images.mjs are the social-lane's (T4c) to retire from registry data.
 name: 🎛️ Studio — FB now
 
 on:
@@ -40,12 +42,12 @@ jobs:
             try {
               const reg = JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8'));
               chans = (reg.channels || [])
-                .filter(c => c.active !== false)
+                .filter(c => c.slug && c.active !== false)
                 .map(c => ({
                   slug: c.slug,
                   envSlug: c.slug.toUpperCase().replace(/-/g, '_')
                 }));
-            } catch (e) { console.log('registry unreadable:', e.message); }
+            } catch (e) { console.log('::error::registry unreadable (no channel selected): ' + (e.message || e)); }
             console.log(JSON.stringify(chans));
             fs.writeFileSync(process.env.GITHUB_OUTPUT, 'channels=' + JSON.stringify(chans));
           "
@@ -119,4 +121,5 @@ jobs:
           git config user.email "bot@quotequarry.local"
           git add yt-mcp/schedule-state.json yt-mcp/state/ || true
           git diff --cached --quiet || git commit -m "fb-now state [skip ci]"
+          git pull --rebase --autostash origin main || true
           git push || true

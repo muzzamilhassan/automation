@@ -11,7 +11,8 @@ name: 📸 IG Reels — Slot Poster
 # whose fb-outbox/<slug> cache misses is a harmless no-op; the Threads
 # hand-off runs in every job but only the job that actually restored the
 # outbox dir it reads can find a reel, and its date-guard keeps it to one
-# post per day.
+# post per day. Scope: the DRAIN only — the static IG page map inside
+# ig-crosspost.mjs is the social-lane's (T4c) to retire from registry data.
 
 on:
   # 2026-10-23 owner: platforms paused (YouTube-only focus) — schedules off.
@@ -43,12 +44,12 @@ jobs:
             try {
               const reg = JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8'));
               chans = (reg.channels || [])
-                .filter(c => c.active !== false)
+                .filter(c => c.slug && c.active !== false)
                 .map(c => ({
                   slug: c.slug,
                   envSlug: c.slug.toUpperCase().replace(/-/g, '_')
                 }));
-            } catch (e) { console.log('registry unreadable:', e.message); }
+            } catch (e) { console.log('::error::registry unreadable (no channel selected): ' + (e.message || e)); }
             console.log(JSON.stringify(chans));
             fs.writeFileSync(process.env.GITHUB_OUTPUT, 'channels=' + JSON.stringify(chans));
           "
@@ -110,4 +111,5 @@ jobs:
           git config user.email "bot@quotequarry.local"
           git add yt-mcp/ig-state.json yt-mcp/state/ || true
           git diff --cached --quiet || git commit -m "ig slot state [skip ci]"
+          git pull --rebase --autostash origin main || true
           git push || true

@@ -42,12 +42,16 @@ jobs:
             try {
               const reg = JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8'));
               chans = (reg.channels || [])
-                .filter(c => c.active !== false)
+                .filter(c => c.slug && c.active !== false)
                 .map(c => ({
                   slug: c.slug,
                   envSlug: c.slug.toUpperCase().replace(/-/g, '_')
                 }));
-            } catch (e) { console.log('registry unreadable:', e.message); }
+            } catch (e) {
+              // a corrupted registry must turn the report RED, not silently skip it
+              console.log('::error::registry unreadable (no channel selected): ' + (e.message || e));
+              process.exit(1);
+            }
             console.log(JSON.stringify(chans));
             fs.writeFileSync(process.env.GITHUB_OUTPUT, 'channels=' + JSON.stringify(chans));
           "

@@ -39,12 +39,12 @@ jobs:
             try {
               const reg = JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8'));
               chans = (reg.channels || [])
-                .filter(c => c.active !== false)
+                .filter(c => c.slug && c.active !== false)
                 .map(c => ({
                   slug: c.slug,
                   envSlug: c.slug.toUpperCase().replace(/-/g, '_')
                 }));
-            } catch (e) { console.log('registry unreadable:', e.message); }
+            } catch (e) { console.log('::error::registry unreadable (no channel selected): ' + (e.message || e)); }
             console.log(JSON.stringify(chans));
             fs.writeFileSync(process.env.GITHUB_OUTPUT, 'channels=' + JSON.stringify(chans));
           "
@@ -90,6 +90,12 @@ jobs:
           curl -sL --retry 3 -o pixabay-pool/voices-v1.0.bin "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin" || true
 
       - name: 🛠️ Sweep & heal
+        # Heal split (T4b fix round 1): the YT_TOKEN_* env lines below are the
+        # LEGACY fleet's in-process heal tokens — a single job cannot construct
+        # secret names (secrets[format(...)] needs a matrix). A registry
+        # channel without a mapped token is healed by sweeper.mjs dispatching
+        # channel-autopilot.yml (channel=<slug>, topup=1 — its matrix resolves
+        # the channel's own secret), deduped to one dispatch per channel/day.
         env:
           GITHUB_PAT: ${{ secrets.GITHUB_PAT || secrets.SECRET_WRITER_PAT }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}

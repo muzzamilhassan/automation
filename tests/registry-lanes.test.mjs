@@ -45,10 +45,20 @@ for (const [file] of Object.entries(LANES)) {
     const src = payload(file);
     assert.ok(src.includes('yt-mcp/studio-channels.json'), 'discover must read the studio registry');
     assert.ok(/active !== false/.test(src), 'discover must keep every active registry channel (active !== false)');
+    assert.ok(/filter\(c => c\.slug && c\.active !== false\)/.test(src), 'the filter must drop malformed entries (c.slug && — parity with lib/registry-slugs.mjs)');
     const d = doc(file);
     assert.ok(d.jobs.discover, 'a discover job must exist');
     assert.ok(d.jobs.discover.outputs && d.jobs.discover.outputs.channels, 'discover must expose channels');
     assert.ok(d.jobs.discover.steps.some((s) => s.run && s.run.includes('GITHUB_OUTPUT')), 'discover writes via GITHUB_OUTPUT');
+  });
+
+  test(`T4b ${file}: an unreadable registry fails LOUDLY (::error annotation — never a silent green zero-job run)`, () => {
+    const src = payload(file);
+    assert.match(
+      src,
+      /::error::registry unreadable \(no channel selected\): /,
+      'a corrupted registry sync must be indistinguishable from a failure, not from a quiet day',
+    );
   });
 
   test(`T4b ${file}: the lane job matrices over fromJSON(needs.discover.outputs.channels)`, () => {
@@ -103,6 +113,43 @@ test('T4b fb-now.yml + ig-slot-poster.yml: same-slug drain jobs still serialize 
     assert.equal(job.concurrency.group, 'crosspost-${{ matrix.slug.slug }}', `${file} drain group must be per-slug and workflow-agnostic`);
     assert.equal(job.concurrency['cancel-in-progress'], false);
   }
+});
+
+test('T4b fb-now.yml + ig-slot-poster.yml: matrix legs rebase before pushing state (2+ legs with changes = all-but-first lose the push)', () => {
+  // The commit steps kept single-job-era bodies while the jobs became a
+  // matrix: parallel legs committing yt-mcp/state race and every leg but the
+  // first loses its push (poster date-guards defeated, IG marks lost). The
+  // house pattern is channel-autopilot.yml's pull --rebase --autostash.
+  for (const file of ['fb-now.yml', 'ig-slot-poster.yml']) {
+    const d = doc(file);
+    const commitStep = d.jobs[LANES[file].job].steps.find((s) => (s.name || '').startsWith('💾 Commit'));
+    assert.ok(commitStep, `${file} must keep its state-commit step`);
+    assert.match(
+      commitStep.run,
+      /git pull --rebase --autostash origin main \|\| true/,
+      `${file} commit step must rebase onto origin before pushing (matrix-safe state commits)`,
+    );
+    assert.match(commitStep.run, /git push \|\| true/, 'the push must stay fail-soft');
+  }
+});
+
+test('T4b reporting-daily.yml: discover exits 1 on an unreadable registry (the report lane goes RED, never silently skips)', () => {
+  const d = doc('reporting-daily.yml');
+  const discoverRun = d.jobs.discover.steps.find((s) => s.id === 'disc' || (s.run || '').includes('GITHUB_OUTPUT'));
+  assert.ok(discoverRun, 'discover run step must exist');
+  assert.match(discoverRun.run, /process\.exit\(1\)/, 'reporting-daily must fail the discover job — a red run beats an empty report');
+});
+
+test('T4b sweeper.mjs: non-legacy channels without a token heal via a channel-autopilot dispatch (deduped per day)', () => {
+  // sweeper.mjs self-executes at import (unguarded main), so this is a
+  // source-scan pin — the house pattern for scripts the runner owns.
+  const src = fs.readFileSync('sweeper.mjs', 'utf8');
+  assert.match(src, /healRouteFor/, 'the routing policy must come from lib/registry-slugs.mjs, not an inline slug check');
+  assert.match(src, /channel-autopilot\.yml\/dispatches/, 'the heal dispatch must target channel-autopilot.yml (dynamic-secret matrix)');
+  assert.match(src, /topup/, 'the dispatch carries a topup input');
+  assert.match(src, /heal-dispatches\.json/, 'the per-slug per-day dedupe state must persist (committed with the logs)');
+  assert.match(src, /shouldDispatchHealToday/, 'the dedupe decision must be the tested helper');
+  assert.match(src, /GITHUB_PAT/, 'the dispatch rides the existing PAT env like the compilation re-dispatch');
 });
 
 test('T4b daily-sweeper.yml: the sweep still runs ONCE (node sweeper.mjs) — healing must not multiply by matrix', () => {

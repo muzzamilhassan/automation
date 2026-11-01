@@ -60,8 +60,14 @@ function rowToEntry(r) {
   return {
     slug: r.slug,
     ownerEmail: r.owner_email || '',
-    label: r.label || r.slug,
-    handle: r.handle || '',
+    // T4b fix round 1 (#106): the identity mirror in the kit JSONB wins over
+    // the columns. syncRegistryRepo rewrites the engine's feed from these
+    // projections, so a drifted label/handle COLUMN would revert the repo
+    // file's repaired identity (money-rulebook) on the very next
+    // connect/profile-save/import. upsertChannel keeps the mirror fresh on
+    // every write (same durability shape as T4a's kit.gateCron).
+    label: r.kit?.label || r.label || r.slug,
+    handle: r.kit?.handle || r.handle || '',
     channelId: r.channel_id || '',
     niche: r.niche || '',
     style: r.style || '',
@@ -184,11 +190,20 @@ export async function registryChannels() {
 }
 
 export async function upsertChannel(entry, message) {
+  // T4b fix round 1 (#106): every write mirrors the incoming identity into the
+  // kit JSONB (rowToEntry projects kit.label/kit.handle first), so the label/
+  // handle columns can drift or be wiped without the engine feed reverting.
+  // Callers that send neither (OAuth re-connect) keep the existing mirror.
+  const kit = {
+    ...(entry.kit || {}),
+    label: entry.label ?? entry.kit?.label,
+    handle: entry.handle ?? entry.kit?.handle,
+  };
   if (dbReady) {
     try {
       await db`
         INSERT INTO channels (slug, owner_email, label, handle, channel_id, niche, style, voice, accent, slots, doc_day, autopilot, kit, yt_description, yt_keywords, token_enc, token_secret, subs, connected_at, status, consented_at, consent, autopilot_started_at)
-        VALUES (${entry.slug}, ${entry.ownerEmail || ''}, ${entry.label || entry.slug}, ${entry.handle || ''}, ${entry.channelId || ''}, ${entry.niche || ''}, ${entry.style || ''}, ${entry.voice || ''}, ${entry.accent || '#38BDF8'}, ${entry.slots || []}, ${entry.docDay || ''}, ${entry.autopilot !== false}, ${db.json(entry.kit || {})}, ${entry.ytDescription || ''}, ${entry.ytKeywords || ''}, ${entry.tokenEnc || null}, ${entry.tokenSecret || ''}, ${Number(entry.subs || 0)}, ${entry.connectedAt ? new Date(entry.connectedAt) : new Date()}, ${entry.status || ''}, ${entry.consentedAt ? new Date(entry.consentedAt) : null}, ${entry.consent ? db.json(entry.consent) : null}, ${entry.autopilotStartedAt ? new Date(entry.autopilotStartedAt) : null})
+        VALUES (${entry.slug}, ${entry.ownerEmail || ''}, ${entry.label || entry.slug}, ${entry.handle || ''}, ${entry.channelId || ''}, ${entry.niche || ''}, ${entry.style || ''}, ${entry.voice || ''}, ${entry.accent || '#38BDF8'}, ${entry.slots || []}, ${entry.docDay || ''}, ${entry.autopilot !== false}, ${db.json(kit)}, ${entry.ytDescription || ''}, ${entry.ytKeywords || ''}, ${entry.tokenEnc || null}, ${entry.tokenSecret || ''}, ${Number(entry.subs || 0)}, ${entry.connectedAt ? new Date(entry.connectedAt) : new Date()}, ${entry.status || ''}, ${entry.consentedAt ? new Date(entry.consentedAt) : null}, ${entry.consent ? db.json(entry.consent) : null}, ${entry.autopilotStartedAt ? new Date(entry.autopilotStartedAt) : null})
         ON CONFLICT (slug) DO UPDATE SET
           owner_email = EXCLUDED.owner_email, label = EXCLUDED.label, handle = EXCLUDED.handle,
           channel_id = EXCLUDED.channel_id, niche = EXCLUDED.niche, style = EXCLUDED.style,
@@ -217,7 +232,7 @@ export async function upsertChannel(entry, message) {
   // repo fallback (original logic)
   const reg = await readRegistryRepo();
   const channels = (reg.channels || []).filter((c) => c.slug !== entry.slug);
-  channels.push(entry);
+  channels.push({ ...entry, kit });
   channels.sort((a, b) => a.slug.localeCompare(b.slug));
   return writeRegistry({ channels }, message || `studio: connect channel ${entry.slug}`);
 }
