@@ -33,6 +33,48 @@ function majorOf(version) {
   return parseInt(version.split('.')[0], 10);
 }
 
+// The swap+assign+audit statement (Phase 5 T1, D19) — ONE atomic statement:
+//   swapped_out: deactivate every OTHER active assignment of the channel,
+//                returning what was replaced (comma-joined into from_family
+//                when a legacy multi-active channel heals in one assign);
+//   upsert:      land the new assignment row (active=true);
+//   audit:       write the 'assign' audit row — from_family/from_major are
+//                computed against the statement snapshot (string_agg of the
+//                swapped rows, else the same-family prior row's pre-upsert
+//                values, else null on a first assignment);
+//   projection:  the audit row's from_* plus the swapped summary for the
+//                caller's result.
+// $1 channelId, $2 familyId, $3 pinnedMajor, $4 pinnedVersion, $5 actor,
+// $6 assignedAt. Data-modifying CTEs read the SAME snapshot, so the audit's
+// EXISTS/prior-major lookups see the pre-upsert state.
+const SWAP_ASSIGN_SQL = `WITH swapped_out AS (
+  UPDATE channel_template_assignments SET active = false
+  WHERE channel_id = $1 AND active = true AND family_id <> $2
+  RETURNING family_id, pinned_major
+), upsert AS (
+  INSERT INTO channel_template_assignments
+    (channel_id, family_id, pinned_major, pinned_version, assigned_by, assigned_at, active)
+  VALUES ($1, $2, $3, $4, $5, $6, true)
+  ON CONFLICT (channel_id, family_id) DO UPDATE SET
+    pinned_major = $3, pinned_version = $4, assigned_by = $5, assigned_at = $6, active = true
+  RETURNING 1
+), audit AS (
+  INSERT INTO template_assignment_audit (actor, channel_id, family_id, from_family, from_major, to_major, action)
+  SELECT $5, $1, $2,
+    COALESCE((SELECT string_agg(family_id, ',' ORDER BY family_id) FROM swapped_out),
+             CASE WHEN EXISTS (SELECT 1 FROM channel_template_assignments c
+                               WHERE c.channel_id = $1 AND c.family_id = $2) THEN $2 END),
+    COALESCE((SELECT w.pinned_major FROM swapped_out w ORDER BY w.family_id LIMIT 1),
+             (SELECT c.pinned_major FROM channel_template_assignments c
+              WHERE c.channel_id = $1 AND c.family_id = $2)),
+    $3, 'assign')
+  RETURNING from_family, from_major
+)
+SELECT from_family, from_major,
+  (SELECT string_agg(family_id, ',' ORDER BY family_id) FROM swapped_out) AS swapped_families,
+  (SELECT w.pinned_major FROM swapped_out w ORDER BY w.family_id LIMIT 1) AS swapped_major
+FROM audit`;
+
 export function makeRegistryDb(client) {
   if (typeof client !== 'function') {
     throw new TypeError('makeRegistryDb: client must be a function (sqlText, params) -> Promise<rows>');
@@ -43,14 +85,18 @@ export function makeRegistryDb(client) {
     // id column below is named `family_id` but stores the registry KEY (the
     // template_id). The dual meaning is safe ONLY because for every
     // pre-Phase-5 row template_id == family_id (the legacy 7 keep their
-    // identity), so those rows need ZERO migration — CREATE TABLE IF NOT
-    // EXISTS stays byte-identical and no row is rewritten. The visual family
-    // of a synced entry is readable from meta_json (`family` field), and the
-    // only NEW fact the schema must store — which template a SWAP replaced —
-    // gets the single additive column `from_family` on the audit table
-    // (idempotent ALTER below; ADD COLUMN IF NOT EXISTS never modifies or
-    // drops existing values, so no backup pass is required; existing audit
-    // rows keep NULL because no swap ever happened before Phase 5).
+    // identity), so those rows need ZERO migration — no column is added,
+    // dropped, or rewritten, and CREATE TABLE IF NOT EXISTS stays
+    // byte-identical. (Expected once-only writes, not migrations: on the
+    // FIRST post-T1 sync the 7 index rows get their hash-driven ON CONFLICT
+    // update because the blocks gained template_id — same PK, harmless.)
+    // The visual family of a synced entry is readable from meta_json
+    // (`family` field), and the only NEW fact the schema must store — which
+    // template a SWAP replaced — gets the single additive column `from_family`
+    // on the audit table (idempotent ALTER below; ADD COLUMN IF NOT EXISTS
+    // never modifies or drops existing values, so no backup pass is required;
+    // existing audit rows keep NULL because no swap ever happened before
+    // Phase 5).
     await client(`CREATE TABLE IF NOT EXISTS template_registry_index (
       family_id text PRIMARY KEY,
       version text NOT NULL,
@@ -170,13 +216,18 @@ export function makeRegistryDb(client) {
    * (fail-closed: no version in the pinned major -> no writes). Writes the
    * assignment (upsert, active=true) and an audit row (action 'assign';
    * from_family/from_major null on a first assignment, the replaced row's
-   * id/major on a swap, the same id/prior major on a same-family re-pin).
+   * id/major on a swap — ALL replaced ids comma-joined when a legacy
+   * multi-active channel heals in one assign — and the same id/prior major on
+   * a same-family re-pin).
    *
-   * Atomicity: the deactivate + upsert run as ONE statement (a data-modifying
-   * CTE). postgres.js pools connections, so BEGIN/COMMIT via unsafe() is NOT
-   * reliably atomic (statements can land on different connections); a single
-   * statement is atomic by construction — no intermediate state (0 or 2 active
-   * rows) is ever visible to a concurrent reader.
+   * Atomicity: deactivate + upsert + audit run as ONE statement (three
+   * data-modifying CTEs). postgres.js pools connections, so BEGIN/COMMIT via
+   * unsafe() is NOT reliably atomic (statements can land on different
+   * connections); a single statement is atomic by construction — no
+   * intermediate state (0 or 2 active rows, or an assignment without its
+   * audit row) is ever visible to a concurrent reader. The audit CTE computes
+   * from_family/from_major against the statement's snapshot (pre-upsert
+   * state), so the same-family prior major is read before the upsert lands.
    */
   async function assignTemplate(channelId, familyId, pinnedMajor, actor) {
     if (!isNonEmptyString(channelId) || !isNonEmptyString(familyId)
@@ -191,48 +242,9 @@ export function makeRegistryDb(client) {
     const resolved = resolveAssignment({ familyId, pinned_major: pinnedMajor }, blocks);
     if (!resolved.ok) return { ok: false, errors: resolved.errors };
 
-    // from_major (pre-Phase-5 semantics kept): the channel's previous
-    // pinned_major for this family if a row exists at all (active or not — a
-    // re-assign after unassign still records what it moved from), null on
-    // first assignment.
-    const priorRows = await client(
-      'SELECT pinned_major FROM channel_template_assignments WHERE channel_id = $1 AND family_id = $2',
-      [channelId, familyId],
-    );
-
-    // SWAP: deactivate every OTHER active assignment of this channel and
-    // upsert the new row in one atomic statement; the deactivated rows come
-    // back so the audit can name what was replaced.
-    const swappedOut = await client(
-      `WITH swapped_out AS (
-         UPDATE channel_template_assignments SET active = false
-         WHERE channel_id = $1 AND active = true AND family_id <> $2
-         RETURNING family_id, pinned_major
-       ), upsert AS (
-         INSERT INTO channel_template_assignments
-           (channel_id, family_id, pinned_major, pinned_version, assigned_by, assigned_at, active)
-         VALUES ($1, $2, $3, $4, $5, $6, true)
-         ON CONFLICT (channel_id, family_id) DO UPDATE SET
-           pinned_major = $3, pinned_version = $4, assigned_by = $5, assigned_at = $6, active = true
-         RETURNING 1
-       )
-       SELECT family_id, pinned_major FROM swapped_out`,
-      [channelId, familyId, pinnedMajor, resolved.resolvedVersion, actor, new Date()],
-    );
-
-    const swapped = swappedOut.length > 0;
-    const fromMajor = swapped
-      ? swappedOut[0].pinned_major
-      : (priorRows.length > 0 ? priorRows[0].pinned_major : null);
-    const fromFamily = swapped
-      ? swappedOut[0].family_id
-      : (priorRows.length > 0 ? familyId : null);
-
-    await client(
-      `INSERT INTO template_assignment_audit (actor, channel_id, family_id, from_family, from_major, to_major, action)
-       VALUES ($1, $2, $3, $4, $5, $6, 'assign')`,
-      [actor, channelId, familyId, fromFamily, fromMajor, pinnedMajor],
-    );
+    const out = (await client(SWAP_ASSIGN_SQL, [channelId, familyId, pinnedMajor, resolved.resolvedVersion, actor, new Date()]))[0] || null;
+    const swappedFamilies = out ? out.swapped_families : null;
+    const swapped = swappedFamilies !== null && swappedFamilies !== undefined;
 
     return {
       ok: true,
@@ -241,9 +253,9 @@ export function makeRegistryDb(client) {
       pinnedMajor,
       resolvedVersion: resolved.resolvedVersion,
       majorUpdateAvailable: resolved.majorUpdateAvailable,
-      fromMajor,
-      fromFamily,
-      swappedFrom: swapped ? { familyId: swappedOut[0].family_id, pinnedMajor: swappedOut[0].pinned_major } : null,
+      fromMajor: out ? out.from_major : null,
+      fromFamily: out ? out.from_family : null,
+      swappedFrom: swapped ? { familyId: swappedFamilies, pinnedMajor: out.swapped_major } : null,
     };
   }
 

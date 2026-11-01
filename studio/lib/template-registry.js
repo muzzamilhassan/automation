@@ -52,6 +52,17 @@ function isSubsetOf(arr, allowlist) {
   return Array.isArray(arr) && arr.every(v => allowlist.includes(v));
 }
 
+// Catalog aspect-ratio -> production format (the house mapping: 16:9 lanes
+// produce the weekly long, 9:16 lanes the daily short). Shared by the loader's
+// formats ⊆ family gate and the catalog pins.
+const ASPECT_TO_FORMAT = { '16:9': 'long', '9:16': 'short' };
+
+export function formatsForAspectRatios(aspectRatios) {
+  return Array.isArray(aspectRatios)
+    ? aspectRatios.map((a) => ASPECT_TO_FORMAT[a]).filter(isNonEmptyString)
+    : [];
+}
+
 /**
  * Validate one registry metadata block against schema v2.
  * Collects all errors (not first-only). Pure and fail-closed.
@@ -62,6 +73,16 @@ function isSubsetOf(arr, allowlist) {
  * carry `template_id` — a declared visual family needs its own template
  * identity. Whether template_id agrees with the registry key is checked by the
  * loader (which sees the key; this function sees only the block).
+ *
+ * Authoring rules for schema v2 entries (`family` declared — the legacy 7 are
+ * exempt from all three and stay byte-identical):
+ * - D2: `story_structure` REQUIRED — point-slot constraints over the immutable
+ *   shorts skeleton: `beats[]` (1-5 non-empty strings; the skeleton's point
+ *   count is kit-owned, beats only name slots), `hook_classes[]`,
+ *   `title_patterns[]`, `payoff_rule`.
+ * - D4: `safety.disclaimers` REQUIRED when review_required includes 'medical'
+ *   or 'finance' (fixed verbatim texts machine-appended at publish); legal but
+ *   not required for other classes.
  * @returns {{ ok: true } | { ok: false, errors: string[] }}
  */
 export function validateRegistryMeta(meta) {
@@ -75,13 +96,14 @@ export function validateRegistryMeta(meta) {
     errors.push(`version: must be semver (MAJOR.MINOR.PATCH), got ${JSON.stringify(meta.version)}`);
   }
 
+  const isSchemaV2 = isNonEmptyString(meta.family);
   if (meta.template_id !== undefined && !isNonEmptyString(meta.template_id)) {
     errors.push('template_id: must be a non-empty string (the unique registry key — the identity of D1/D19)');
   }
-  if (meta.family !== undefined && !isNonEmptyString(meta.family)) {
+  if (meta.family !== undefined && !isSchemaV2) {
     errors.push('family: must be a non-empty string (the visual family id in the template catalog)');
   }
-  if (isNonEmptyString(meta.family) && meta.template_id === undefined) {
+  if (isSchemaV2 && meta.template_id === undefined) {
     errors.push('template_id: required on schema v2 entries — a declared visual family needs its own template identity (D1 identity split)');
   }
 
@@ -96,6 +118,26 @@ export function validateRegistryMeta(meta) {
         errors.push(`niches[${i}]: "${n}" is not in the closed D17 niche vocabulary — copy channel niche strings EXACTLY (studio/lib/niches.js CANONICAL_NICHES)`);
       }
     });
+  }
+
+  // D2 authoring rule (schema v2 entries): the story plan is required — beats
+  // are POINT-SLOT constraints; they never change the shorts JSON shape.
+  const story = meta.story_structure;
+  if (isSchemaV2 && (story === null || typeof story !== 'object' || Array.isArray(story))) {
+    errors.push('story_structure: required on schema v2 entries (family declared) — author the point-slot plan (beats, hook_classes, title_patterns, payoff_rule — D2)');
+  } else if (isSchemaV2) {
+    if (!Array.isArray(story.beats) || story.beats.length < 1 || story.beats.length > 5 || !story.beats.every(isNonEmptyString)) {
+      errors.push('story_structure.beats: must be an array of 1-5 non-empty strings — point-slot constraints over the immutable shorts skeleton (D2)');
+    }
+    if (!isStringArray(story.hook_classes) || story.hook_classes.length === 0) {
+      errors.push('story_structure.hook_classes: must be a non-empty array of non-empty strings (allowed hook types — D2)');
+    }
+    if (!isStringArray(story.title_patterns) || story.title_patterns.length === 0) {
+      errors.push('story_structure.title_patterns: must be a non-empty array of non-empty strings (D2)');
+    }
+    if (!isNonEmptyString(story.payoff_rule)) {
+      errors.push('story_structure.payoff_rule: must be a non-empty string (D2)');
+    }
   }
 
   if (!Array.isArray(meta.formats) || meta.formats.length === 0 || !isSubsetOf(meta.formats, ALLOWED_FORMATS)) {
@@ -123,6 +165,18 @@ export function validateRegistryMeta(meta) {
     }
     if (!Array.isArray(safety.review_required) || !isSubsetOf(safety.review_required, ALLOWED_REVIEW_REQUIRED)) {
       errors.push(`safety.review_required: must be an array drawn from {${ALLOWED_REVIEW_REQUIRED.join(', ')}}`);
+    }
+    // D4: disclaimers[] carries the fixed verbatim texts appended to the
+    // upload DESCRIPTION at publish time. Required for every NEW medical /
+    // finance template; legal-but-not-required for other classes; malformed
+    // values fail on ANY entry.
+    if (safety.disclaimers !== undefined) {
+      if (!isStringArray(safety.disclaimers) || safety.disclaimers.length === 0) {
+        errors.push('safety.disclaimers: must be a non-empty array of non-empty strings (the fixed verbatim texts machine-appended at publish — D4)');
+      }
+    } else if (isSchemaV2 && Array.isArray(safety.review_required)
+      && safety.review_required.some((c) => c === 'medical' || c === 'finance')) {
+      errors.push('safety.disclaimers: required when review_required includes "medical" or "finance" — author the fixed verbatim text(s) (D4, machine-appended at publish)');
     }
   }
 
@@ -219,9 +273,19 @@ export function loadRegistryTemplates(catalogFamilies, metaData) {
       continue;
     }
 
+    // formats ⊆ family (D1's only hard family rule): declared formats are
+    // derived from the visual family's catalog aspectRatios — never declared
+    // beyond what the family ships. Collected together with the validator
+    // errors so one broken block reports everything at once.
+    const supported = formatsForAspectRatios(catalogEntry.aspectRatios);
+    const unsupportedFormats = (Array.isArray(meta.formats) ? meta.formats : [])
+      .filter((f) => !supported.includes(f))
+      .map((f) => `formats: "${f}" is not shipped by the visual family "${family}" (aspectRatios [${(catalogEntry.aspectRatios || []).join(', ')}]) — formats are derived from the family, never declared beyond it (D1)`);
+
     const result = validateRegistryMeta(meta);
-    if (!result.ok) {
-      invalid.push({ familyId: key, errors: result.errors });
+    const errors = [...(result.ok ? [] : result.errors), ...unsupportedFormats];
+    if (errors.length > 0) {
+      invalid.push({ familyId: key, errors });
       continue;
     }
 

@@ -166,10 +166,16 @@ export const REGISTRY_META = {
     changelog: [{ version: '1.0.0', date: '2026-10-26', note: 'initial registry entry' }],
   },
   'editorial-headlines': {
-    version: '1.0.0',
+    // T1 formats gate (D1: the family is the format-truth source): this family
+    // ships aspectRatios ['16:9'] only, so 'short' was declared beyond what it
+    // ships — entry #7 was added before the loader enforced the rule. Corrected
+    // to ['long'] (the entry is unassigned, zero live drift). If the lane is
+    // meant to run shorts (D7 marks it S+L), the catalog family must gain a
+    // 9:16 variant FIRST; then this declaration may add 'short' again.
+    version: '1.0.1',
     template_id: 'editorial-headlines',
     niches: ['History stories'],
-    formats: ['long', 'short'],
+    formats: ['long'],
     renderer: 'remotion',
     required_capabilities: ['script-gen', 'tts', 'captions'],
     variation_rules: [
@@ -178,6 +184,9 @@ export const REGISTRY_META = {
     ],
     safety: { required_sources: true, review_required: [] },
     deprecated: false,
-    changelog: [{ version: '1.0.0', date: '2026-10-27', note: 'registry entry #7 — exit-gate proof: data-only addition' }],
+    changelog: [
+      { version: '1.0.0', date: '2026-10-27', note: 'registry entry #7 — exit-gate proof: data-only addition' },
+      { version: '1.0.1', date: '2026-11-01', note: 'formats corrected to [long]: the family ships only 16:9 — short was declared beyond what the family ships (T1 formats gate)' },
+    ],
   },
 };

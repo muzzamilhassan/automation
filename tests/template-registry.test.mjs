@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateRegistryMeta, loadRegistryTemplates, resolveAssignment, validateAssignment, channelConfigFromRegistryEntry } from '../studio/lib/template-registry.js';
+import { validateRegistryMeta, loadRegistryTemplates, resolveAssignment, validateAssignment, channelConfigFromRegistryEntry, formatsForAspectRatios } from '../studio/lib/template-registry.js';
 import { REGISTRY_META } from '../studio/lib/template-registry.data.js';
 import { TEMPLATES_DATA } from '../studio/lib/templates-catalog.js';
 import { CANONICAL_NICHES, NICHE_MAP, NICHE_CATALOG } from '../studio/lib/niches.js';
@@ -277,11 +277,8 @@ const SEED_IDS = [
 const FINANCE_SEED_IDS = ['finance-explainers', 'stats-counters', 'chart-animations'];
 const HISTORY_SEED_IDS = ['documentary-frames', 'timeline-history', 'photo-stories'];
 
-// Aspect-ratio -> format mapping the seeds must honor.
-const ASPECT_TO_FORMAT = { '16:9': 'long', '9:16': 'short' };
-function formatsForAspectRatios(aspectRatios) {
-  return aspectRatios.map((a) => ASPECT_TO_FORMAT[a]);
-}
+// Aspect-ratio -> format mapping is the lib's (formatsForAspectRatios, imported
+// above) — one source of truth shared with the loader's formats ⊆ family gate.
 
 test('seeds: REGISTRY_META contains at least the six seeded families', () => {
   // The registry grows as data (exit gate added editorial-headlines as #7) —
@@ -304,13 +301,17 @@ test('seeds: every seeded family exists in the catalog', () => {
   }
 });
 
-test('seeds: formats declared are a subset of the catalog aspectRatios', () => {
-  for (const id of SEED_IDS) {
-    const family = TEMPLATES_DATA.find((t) => (t.family || t.id) === id);
-    const declared = REGISTRY_META[id].formats;
-    const supported = formatsForAspectRatios(family.aspectRatios);
-    for (const f of declared) {
-      assert.ok(supported.includes(f), `seed ${id} declares format "${f}" not supported by catalog aspectRatios [${family.aspectRatios.join(', ')}]`);
+test('seeds: formats declared are a subset of the family aspectRatios (loader-enforced, EVERY entry incl. v2 keys)', () => {
+  // Re-pointed at the loader output in T1 round 1: the loader owns the
+  // formats ⊆ family gate (it holds the joined catalogEntry), so the pin
+  // covers every registry entry — family-keyed legacy AND template_id-keyed
+  // v2 blocks alike — and stays green when the catalog grows.
+  const { templates, invalid } = loadRegistryTemplates(TEMPLATES_DATA, REGISTRY_META);
+  assert.deepEqual(invalid, [], 'every entry must pass the formats ⊆ family gate');
+  for (const t of templates) {
+    const supported = formatsForAspectRatios(t.catalog.aspectRatios);
+    for (const f of t.registry.formats) {
+      assert.ok(supported.includes(f), `${t.templateId} declares format "${f}" not supported by family ${t.family} aspectRatios [${(t.catalog.aspectRatios || []).join(', ')}]`);
     }
   }
 });
@@ -381,12 +382,27 @@ test('validator: collects >=2 errors on a single multi-broken block (not first-o
 const V2_TEMPLATE_ID = 'myth-vs-money';
 const V2_FAMILY_ID = 'stats-counters';
 
+// A schema-valid story_structure per D2 (point-slot constraints over the
+// immutable shorts skeleton: hook + points + closing never changes).
+const STORY_STRUCTURE = {
+  beats: [
+    'slot 1 is the popular money belief',
+    'slot 2 reverses it with evidence',
+    'slot 3 doubles the reversal with a second proof',
+    'slot 4 is the what-to-do payoff',
+  ],
+  hook_classes: ['myth-buster', 'question-hook'],
+  title_patterns: ['$-figure numbered money listicle'],
+  payoff_rule: 'the last point hands the viewer one rule to apply today',
+};
+
 function makeV2Meta(over = {}) {
   return {
     ...makeValidMeta(),
     template_id: V2_TEMPLATE_ID,
     family: V2_FAMILY_ID,
     niches: ['Personal finance rules & money habits'],
+    story_structure: { ...STORY_STRUCTURE, beats: [...STORY_STRUCTURE.beats] },
     ...over,
   };
 }
@@ -430,6 +446,108 @@ test('validator v2 (D17): every canonical vocabulary string passes the niches ch
     const r = validateRegistryMeta({ ...makeValidMeta(), niches: [n] });
     assert.deepEqual(r, { ok: true }, `canonical string "${n}" must validate`);
   }
+});
+
+// ---- Phase 5 T1 round 1: the D2/D4 authoring rules (QA Row 2's named
+// rejections). New entries must carry the story plan and the gated classes
+// must carry their fixed disclaimers; the legacy 7 are exempt. ----
+
+test('validator v2 (D2): omitting story_structure on a NEW entry is a named rejection (QA Row 2 case 1)', () => {
+  const { story_structure, ...noStory } = makeV2Meta();
+  assert.equal(noStory.family, V2_FAMILY_ID, 'fixture sanity: family declared, story_structure absent');
+  const r = validateRegistryMeta(noStory);
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.includes('story_structure')), JSON.stringify(r.errors));
+});
+
+test('validator v2 (D2): a complete story_structure validates', () => {
+  assert.deepEqual(validateRegistryMeta(makeV2Meta()), { ok: true });
+});
+
+test('validator v2 (D2): beats must be 1-5 non-empty strings (the immutable shorts skeleton)', () => {
+  const empty = validateRegistryMeta(makeV2Meta({ story_structure: { ...STORY_STRUCTURE, beats: [] } }));
+  assert.equal(empty.ok, false);
+  assert.ok(empty.errors.some((e) => e.includes('beats')), JSON.stringify(empty.errors));
+  const six = validateRegistryMeta(makeV2Meta({ story_structure: { ...STORY_STRUCTURE, beats: ['1', '2', '3', '4', '5', '6'] } }));
+  assert.equal(six.ok, false);
+  assert.ok(six.errors.some((e) => e.includes('beats')), JSON.stringify(six.errors));
+  const notString = validateRegistryMeta(makeV2Meta({ story_structure: { ...STORY_STRUCTURE, beats: ['slot 1', 42] } }));
+  assert.equal(notString.ok, false);
+  assert.ok(notString.errors.some((e) => e.includes('beats')), JSON.stringify(notString.errors));
+  for (const n of [1, 5]) {
+    const okN = validateRegistryMeta(makeV2Meta({ story_structure: { ...STORY_STRUCTURE, beats: Array.from({ length: n }, (_, i) => `slot ${i + 1}`) } }));
+    assert.deepEqual(okN, { ok: true }, `${n} beats must validate`);
+  }
+});
+
+test('validator v2 (D2): hook_classes, title_patterns, payoff_rule are required with named errors', () => {
+  for (const [field, patch] of [
+    ['hook_classes', { hook_classes: [] }],
+    ['hook_classes', { hook_classes: ['ok', ''] }],
+    ['title_patterns', { title_patterns: [] }],
+    ['title_patterns', { title_patterns: ['$ rule', 7] }],
+    ['payoff_rule', { payoff_rule: '' }],
+    ['payoff_rule', { payoff_rule: 42 }],
+  ]) {
+    const r = validateRegistryMeta(makeV2Meta({ story_structure: { ...STORY_STRUCTURE, ...patch } }));
+    assert.equal(r.ok, false, `${field} case ${JSON.stringify(patch)} must fail`);
+    assert.ok(r.errors.some((e) => e.includes(`story_structure.${field}`)), `${field}: ${JSON.stringify(r.errors)}`);
+  }
+});
+
+test('validator v2 (D2): story_structure must be an object when present on a v2 entry', () => {
+  const r = validateRegistryMeta(makeV2Meta({ story_structure: 'beats go here' }));
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.includes('story_structure')), JSON.stringify(r.errors));
+});
+
+test('validator v2 (QA Row 2 step 3 probe): a legacy entry that GAINS template_id only keeps validating', () => {
+  // Identity explicit, no family binding, no story_structure — still legacy-shaped.
+  const r = validateRegistryMeta({ ...makeValidMeta(), template_id: 'documentary-frames' });
+  assert.deepEqual(r, { ok: true }, 'the key is template_id when present; the legacy entry is exempt from the new-block rules');
+});
+
+test('validator v2 (D4): a NEW medical template without disclaimers is a named rejection (QA Row 2 case 2)', () => {
+  const r = validateRegistryMeta(makeV2Meta({
+    niches: ['Healthspan & longevity habits'],
+    safety: { required_sources: true, review_required: ['medical'] },
+  }));
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.includes('disclaimers') && e.includes('medical')), JSON.stringify(r.errors));
+});
+
+test('validator v2 (D4): a NEW finance template without disclaimers is a named rejection (QA Row 2 case 3)', () => {
+  const r = validateRegistryMeta(makeV2Meta({ safety: { required_sources: true, review_required: ['finance'] } }));
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.includes('disclaimers') && e.includes('finance')), JSON.stringify(r.errors));
+});
+
+test('validator v2 (D4): medical/finance WITH disclaimers validate; disclaimers are legal-but-not-required on other classes', () => {
+  const medical = validateRegistryMeta(makeV2Meta({
+    niches: ['Healthspan & longevity habits'],
+    safety: { required_sources: true, review_required: ['medical'], disclaimers: ['Education, not medical advice.'] },
+  }));
+  assert.deepEqual(medical, { ok: true });
+  const finance = validateRegistryMeta(makeV2Meta({
+    safety: { required_sources: true, review_required: ['finance'], disclaimers: ['Education, not financial advice.'] },
+  }));
+  assert.deepEqual(finance, { ok: true });
+  const allClass = validateRegistryMeta(makeV2Meta({
+    safety: { required_sources: true, review_required: ['all'] },
+  }));
+  assert.deepEqual(allClass, { ok: true }, 'an all-class template with no disclaimers is legal (the requirement is medical/finance only)');
+});
+
+test('validator v2 (D4): present-but-malformed disclaimers fail on any entry, whatever the class', () => {
+  for (const bad of [[], [''], [42], 'Education, not advice.']) {
+    const r = validateRegistryMeta(makeV2Meta({
+      safety: { required_sources: true, review_required: [], disclaimers: bad },
+    }));
+    assert.equal(r.ok, false, `disclaimers ${JSON.stringify(bad)} must fail`);
+    assert.ok(r.errors.some((e) => e.includes('disclaimers')), `${JSON.stringify(bad)}: ${JSON.stringify(r.errors)}`);
+  }
+  const legacy = validateRegistryMeta({ ...makeValidMeta(), safety: { required_sources: true, review_required: [], disclaimers: ['ok'] } });
+  assert.deepEqual(legacy, { ok: true }, 'a legacy entry may add well-formed disclaimers');
 });
 
 // ---- Phase 5 T1: the loader joins metadata to the catalog BY family and
@@ -477,6 +595,22 @@ test('loader: a family that does not exist in the catalog is a named invalid (D1
   assert.equal(templates.length, 0);
   assert.equal(invalid.length, 1);
   assert.ok(invalid[0].errors.some((e) => e.includes('family') && e.includes('no-such-family')), JSON.stringify(invalid[0].errors));
+});
+
+test('loader: formats declared beyond what the family ships are a named invalid (the only hard family rule)', () => {
+  // a family with only 9:16 cannot carry a long-format template
+  const verticalOnlyCatalog = [{ id: 'vertical-only', name: 'Vertical Only', family: 'vertical-only', aspectRatios: ['9:16'] }];
+  const { templates, invalid } = loadRegistryTemplates(verticalOnlyCatalog, {
+    'vertical-only': makeV2Meta({
+      template_id: 'vertical-only',
+      family: 'vertical-only',
+      formats: ['long', 'short'],
+    }),
+  });
+  assert.equal(templates.length, 0);
+  assert.equal(invalid.length, 1);
+  assert.equal(invalid[0].familyId, 'vertical-only');
+  assert.ok(invalid[0].errors.some((e) => e.includes('formats') && e.includes('long') && e.includes('9:16')), JSON.stringify(invalid[0].errors));
 });
 
 test('loader: two templates may share one visual family (the split is the point)', () => {

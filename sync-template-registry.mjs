@@ -31,8 +31,11 @@ log('── Template registry sync (issue #102) ' + (DRY ? '[DRY] ' : '') + '─
 if (invalid.length > 0) {
   failed = true;
   log(`skipped-invalid: ${invalid.length} family(ies)`);
+  // EVERY error, one line each (QA Row 1 step 3: the output names the template
+  // AND every error — the validator collects all, the CLI must show all).
   for (const inv of invalid) {
-    log(`  [${inv.familyId}] ${inv.errors[0]}${inv.errors.length > 1 ? ` (+${inv.errors.length - 1} more)` : ''}`);
+    log(`  [${inv.familyId}]`);
+    for (const err of inv.errors) log(`    - ${err}`);
   }
 } else {
   log('skipped-invalid: 0');

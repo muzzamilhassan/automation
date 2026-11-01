@@ -233,7 +233,13 @@ const V2_TEMPLATE_META = {
   renderer: 'remotion',
   required_capabilities: ['script-gen', 'tts'],
   variation_rules: ['slot 1 is the popular belief', 'slots 2-3 reverse it with evidence'],
-  safety: { required_sources: true, review_required: ['finance'] },
+  story_structure: {
+    beats: ['slot 1 is the popular belief', 'slot 2 reverses it', 'slot 3 doubles the reversal', 'slot 4 is the payoff'],
+    hook_classes: ['myth-buster'],
+    title_patterns: ['$-figure numbered money listicle'],
+    payoff_rule: 'one rule to apply today',
+  },
+  safety: { required_sources: true, review_required: ['finance'], disclaimers: ['Education, not financial advice.'] },
   deprecated: false,
   changelog: [{ version: '1.0.0', date: '2026-11-01', note: 'identity fixture' }],
 };
