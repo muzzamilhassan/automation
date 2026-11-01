@@ -81,7 +81,7 @@ for (const ch of activeRegistryChannels(loadRegistryChannels())) {
   if (ONLY && job.slug !== ONLY) continue;
   if (!job.pageId) { console.log(`[fb-img] ${job.slug}: ✗ no FB page linked (destinations.fbPageId) — skip`); continue; }
   const brand = b[job.slug];
-  if (!brand) continue;
+  if (!brand) { console.log(`[fb-img] ${job.slug}: ✗ no brand kit — skip`); continue; }
   // #64: one bad LLM response or network hiccup must not kill the whole
   // 4-page poster pass — every per-job failure skips only this page.
   try {

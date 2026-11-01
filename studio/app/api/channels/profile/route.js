@@ -168,23 +168,42 @@ export async function POST(req) {
   // Handles normalize with the leading @ stripped on save (the importer's
   // normHandle convention); fbPageId accepts the numeric legacy page form
   // (e.g. 114550268199751) or the UC… page form — both stored verbatim.
+  // Round 1: a non-object envelope and off-charset handles are rejected
+  // (400) — silently coercing them to {} would wipe saved destinations.
   if (body.destinations != null) {
-    const d = body.destinations && typeof body.destinations === 'object' ? body.destinations : {};
-    const handle = (v) => String(v ?? '').trim().replace(/^@+/, '').slice(0, 60);
+    if (typeof body.destinations !== 'object' || Array.isArray(body.destinations)) {
+      return Response.json({ error: 'destinations must be an object' }, { status: 400 });
+    }
+    const d = body.destinations;
     const pageId = String(d.fbPageId ?? '').trim();
     const FB_PAGE_ID_RE = /^(?:\d{6,}|UC[A-Za-z0-9_-]{10,})$/;
+    const HANDLE_RE = /^[\w.-]{1,60}$/;
     if (pageId !== '' && !FB_PAGE_ID_RE.test(pageId)) {
       return Response.json(
         { error: 'destinations.fbPageId: use the numeric page ID (e.g. 114550268199751) or the UC… page ID' },
         { status: 400 },
       );
     }
+    const handle = (v) => {
+      const h = String(v ?? '').trim().replace(/^@+/, '');
+      if (h !== '' && !HANDLE_RE.test(h)) return null;
+      return h;
+    };
+    const igHandle = handle(d.igHandle);
+    const threadsHandle = handle(d.threadsHandle);
+    const tiktokHandle = handle(d.tiktokHandle);
+    if (igHandle === null || threadsHandle === null || tiktokHandle === null) {
+      return Response.json(
+        { error: 'destination handles: letters, digits, dots, dashes and underscores only (leading @ is stripped)' },
+        { status: 400 },
+      );
+    }
     const dest = Object.fromEntries(
       Object.entries({
         fbPageId: pageId,
-        igHandle: handle(d.igHandle),
-        threadsHandle: handle(d.threadsHandle),
-        tiktokHandle: handle(d.tiktokHandle),
+        igHandle,
+        threadsHandle,
+        tiktokHandle,
       }).filter(([, v]) => v !== ''),
     );
     entry.destinations = dest;

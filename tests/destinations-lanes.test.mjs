@@ -24,6 +24,7 @@ import {
   pickThreadReel,
   threadsChannelState,
   nextThreadsState,
+  runThreadsDaily,
 } from '../threads-daily.mjs';
 import { reportChannels, buildExcel } from '../daily-excel-report.mjs';
 
@@ -111,6 +112,11 @@ test('T4c fb-images: destination-less channels skip LOUDLY — never a silent no
     /✗ no FB page linked/,
     'a channel without destinations.fbPageId must log a visible skip (mirrors ig-crosspost)',
   );
+  assert.match(
+    fbImagesSrc,
+    /✗ no brand kit/,
+    'a registry channel without a brand kit must log a visible skip too (reachable now that the universe is the registry)',
+  );
 });
 
 test('T4c fb-images: hashtags keep the legacy defaults as a documented fallback, registry kit.hashtags wins', () => {
@@ -159,7 +165,7 @@ test('T4c ig-crosspost: destination-less channels keep the clean skip (no crash)
 
 test('T4c threads-daily: the fb-outbox/quotequarry hardcode is gone — the outbox dir comes from the target slug', () => {
   assert.equal(threadsDailySrc.includes("fb-outbox/quotequarry"), false, 'the literal slug dir must be parameterized');
-  assert.ok(/fb-outbox\/\$\{/.test(threadsDailySrc), 'the outbox dir must be built from the target slug');
+  assert.ok(/path\.join\(outboxRoot, t\.slug\)/.test(threadsDailySrc), 'the outbox dir must be built from the target slug');
   assert.ok(/threadsTargets/.test(threadsDailySrc), 'the daily flow must iterate the registry Threads targets');
   assert.ok(/--slug/.test(threadsDailySrc), 'a --slug mode must exist for single-channel runs');
   assert.match(threadsDailySrc, /IS_MAIN/, 'main must be guarded so tests can import the helpers');
@@ -221,12 +227,69 @@ test('T4c date-guard: per-channel state nests under the slug — the legacy sing
 });
 
 test('T4c date-guard: the first per-channel write drops the legacy top-level keys', () => {
-  const next = nextThreadsState({ lastPostDate: '2026-10-31', postedFiles: ['old.mp4'] }, 'quotequarry', {
+  const next = nextThreadsState({ lastPostDate: '2026-11-01', postedFiles: ['old.mp4'] }, 'quotequarry', {
     lastPostDate: '2026-11-01',
     postedFiles: ['old.mp4', 'new.mp4'],
   });
   assert.deepEqual(next, { quotequarry: { lastPostDate: '2026-11-01', postedFiles: ['old.mp4', 'new.mp4'] } });
   assert.equal(next.lastPostDate, undefined, 'the legacy top-level guard must not linger');
+});
+
+test('T4c round 1: the daily LOOP accumulates state across targets — B never erases A, the legacy shape never leaks to B', async (t) => {
+  // reviewer-reproduced bug shape: main() snapshotting tstate once made every
+  // successful post write from the STALE snapshot — the second target's write
+  // erased the first channel's nested state (guard + postedFiles), so the
+  // same reel re-picked and double-posted daily; worse, threadsChannelState
+  // handed the legacy top-level shape to any un-nested slug.
+  const outbox = fs.mkdtempSync(path.join(os.tmpdir(), 't4c-loop-'));
+  t.after(() => fs.rmSync(outbox, { recursive: true, force: true }));
+  for (const [slug, stamp, title] of [['aaa', '111', 'Reel A'], ['bbb', '222', 'Reel B']]) {
+    fs.mkdirSync(path.join(outbox, slug), { recursive: true });
+    fs.writeFileSync(path.join(outbox, slug, `${stamp}.mp4`), 'x');
+    fs.writeFileSync(path.join(outbox, slug, `${stamp}.json`), JSON.stringify({ title, description: 'd' }));
+  }
+  const saved = [];
+  const targets = [
+    { slug: 'aaa', label: 'A', threadsHandle: 'aaa' },
+    { slug: 'bbb', label: 'B', threadsHandle: 'bbb' },
+  ];
+  const first = await runThreadsDaily({
+    targets,
+    today: '2026-11-01',
+    outboxRoot: outbox,
+    tstate: { lastPostDate: '2026-10-31', postedFiles: ['old.mp4'] }, // legacy single-account shape
+    saveState: (s) => saved.push(JSON.parse(JSON.stringify(s))),
+    publish: async () => ({ id: 'x' }),
+  });
+  assert.equal(first.failed, false, 'both targets post clean');
+  assert.equal(first.state.bbb.postedFiles.includes('111.mp4'), false, "A's postedFiles never leak into B");
+  assert.equal(saved.length, 2, 'one persisted write per successful post');
+  assert.deepEqual(
+    saved[0],
+    { aaa: { lastPostDate: '2026-11-01', postedFiles: ['old.mp4', '111.mp4'] } },
+    "A (the legacy owner) carries the legacy postedFiles over and drops the legacy top-level keys",
+  );
+  assert.deepEqual(
+    saved[1],
+    { aaa: { lastPostDate: '2026-11-01', postedFiles: ['old.mp4', '111.mp4'] }, bbb: { lastPostDate: '2026-11-01', postedFiles: ['222.mp4'] } },
+    "B's write keeps A's nested state on disk — the guard and postedFiles survive",
+  );
+
+  // the persisted shape re-read as the next run's tstate: both guards hold, nothing re-posts
+  let republished = 0;
+  const second = await runThreadsDaily({
+    targets,
+    today: '2026-11-01',
+    outboxRoot: outbox,
+    tstate: saved[1],
+    saveState: () => assert.fail('a same-day re-run must never write state'),
+    publish: async () => {
+      republished++;
+      return { id: 'x' };
+    },
+  });
+  assert.equal(republished, 0, 'same-day re-run posts nothing — per-channel date-guard holds through the loop');
+  assert.deepEqual(second.state, saved[1], 'state is untouched by an all-skip pass');
 });
 
 // ---------------------------------------------------------------------------
@@ -304,6 +367,15 @@ test('T4c profile route: destinations are saved via the profile save path, norma
   assert.ok(/FB_PAGE_ID_RE/.test(profileRouteSrc), 'fbPageId must pass a named format check');
   assert.ok(profileRouteSrc.includes('UC[A-Za-z0-9_-]'), 'fbPageId validation must accept the UC… page form');
   assert.ok(/\\d\{6,\}/.test(profileRouteSrc), 'fbPageId validation must accept the numeric legacy page form');
+  // round 1: a non-object (or array) envelope must 400, not silently wipe saved destinations
+  assert.match(
+    profileRouteSrc,
+    /typeof body\.destinations !== 'object'\s*\|\|\s*Array\.isArray\(body\.destinations\)/,
+    'a non-object destinations envelope must be rejected (parity with the fbPageId 400)',
+  );
+  // round 1: handles carry a charset check beside the fbPageId check
+  assert.ok(/HANDLE_RE/.test(profileRouteSrc), 'handles must pass a named charset check');
+  assert.ok(profileRouteSrc.includes('[\\w.-]'), 'the handle charset must be letters/digits/dots/dashes/underscores');
   assert.match(
     profileRouteSrc,
     /\.kit\s*=\s*\{\s*\.\.\.\(entry\.kit \|\| \{\}\),\s*destinations/,
