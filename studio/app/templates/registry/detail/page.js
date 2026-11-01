@@ -4,7 +4,8 @@
 // explicit per-channel re-pin action (POST /api/templates/assign with the new
 // pinnedMajor), deprecation notice, and the variation/safety summary the
 // pipeline records travel with. Opened from the registry browser via
-// ?family=<id>; house pattern reads the query string directly (channels/add).
+// ?template=<id> (the registry key — Phase 5 T2f rename of ?family=); house
+// pattern reads the query string directly (channels/add).
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
@@ -20,7 +21,7 @@ function majorOf(version) {
 }
 
 export default function TemplateDetailPage() {
-  const [family, setFamily] = useState(null);
+  const [template, setTemplate] = useState(null);   // the registry key from ?template=
   const [data, setData] = useState(null);
   const [loadErr, setLoadErr] = useState(null);
   const [labels, setLabels] = useState({});     // channel slug -> display label
@@ -29,13 +30,13 @@ export default function TemplateDetailPage() {
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
-    setFamily(q.get('family') || '');
+    setTemplate(q.get('template') || '');
   }, []);
 
   const load = () => {
-    if (family === null) return;
+    if (template === null) return;
     setLoadErr(null);
-    fetch(`/api/templates?family=${encodeURIComponent(family || '')}`)
+    fetch(`/api/templates?template=${encodeURIComponent(template || '')}`)
       .then(async (r) => {
         const d = await r.json();
         if (!r.ok) throw new Error(d.error || `request failed (${r.status})`);
@@ -43,7 +44,7 @@ export default function TemplateDetailPage() {
       })
       .catch((e) => setLoadErr(String(e.message || e)));
   };
-  useEffect(() => { load(); }, [family]);
+  useEffect(() => { load(); }, [template]);
 
   // channel display labels for the usage list (graceful fallback to raw ids)
   useEffect(() => {
@@ -64,7 +65,7 @@ export default function TemplateDetailPage() {
       const r = await fetch('/api/templates/assign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channelId, familyId: family, pinnedMajor: newMajor }),
+        body: JSON.stringify({ channelId, templateId: template, pinnedMajor: newMajor }),
       });
       const d = await r.json();
       if (!r.ok) setMsg({ ok: false, text: d.error === 'incompatible' ? 'Re-pin blocked — the new major fails this channel\'s compatibility check.' : (d.error || `re-pin failed (${r.status})`) });
@@ -76,17 +77,20 @@ export default function TemplateDetailPage() {
     }
   };
 
-  const t = useMemo(() => (data?.templates || []).find((x) => x.familyId === family) || null, [data, family]);
-  const invalidEntry = useMemo(() => (data?.invalid || []).find((x) => x.familyId === family) || null, [data, family]);
+  const t = useMemo(() => (data?.templates || []).find((x) => x.templateId === template) || null, [data, template]);
+  // invalid rows are loader-shaped ({ familyId: key, errors }) — the loader
+  // keeps the legacy field name for its engine consumers (T1 dual meaning);
+  // the value is the registry key.
+  const invalidEntry = useMemo(() => (data?.invalid || []).find((x) => x.familyId === template) || null, [data, template]);
   const usage = data?.usage || [];
   const isOwner = data?.role === 'owner';
 
-  if (family === null || (!data && !loadErr)) return <PageSkeleton />;
+  if (template === null || (!data && !loadErr)) return <PageSkeleton />;
 
   if (loadErr) {
     return (
       <div>
-        <PageHeader icon={Layers} title="Template detail" sub={family ? `family ${family}` : 'no ?family= in the URL'} />
+        <PageHeader icon={Layers} title="Template detail" sub={template ? `template ${template}` : 'no ?template= in the URL'} />
         <Card className="p-6 flex items-center gap-2.5" style={{ color: 'var(--bad)' }}>
           <Ban size={15} /> Registry unavailable: {loadErr}
         </Card>
@@ -94,13 +98,13 @@ export default function TemplateDetailPage() {
     );
   }
 
-  // Unknown or invalid family — invalid shows the exact loader errors (owner).
+  // Unknown or invalid template — invalid shows the exact loader errors (owner).
   if (!t) {
     return (
       <div>
-        <PageHeader icon={Layers} title="Template detail" sub={`family ${family || '(none)'}`} />
+        <PageHeader icon={Layers} title="Template detail" sub={`template ${template || '(none)'}`} />
         <Card>
-          <CardHead title="Not a registry template" sub="This family has no valid registry metadata, so it is not assignable." icon={AlertTriangle} />
+          <CardHead title="Not a registry template" sub="This id has no valid registry metadata, so it is not assignable." icon={AlertTriangle} />
           <div className="px-5 pb-5">
             {invalidEntry ? (
               isOwner ? (
@@ -120,7 +124,7 @@ export default function TemplateDetailPage() {
                 </div>
               )
             ) : (
-              <EmptyState icon={Layers} title={`"${family}" has no registry metadata`} sub="Families without a registry block stay out of browse and assignment by design." />
+              <EmptyState icon={Layers} title={`"${template}" has no registry metadata`} sub="Ids without a registry block stay out of browse and assignment by design." />
             )}
             <Link href="/templates/registry" className="inline-flex items-center gap-1 text-[12px] text-muted hover:text-ink mt-4">
               <ArrowLeft size={13} /> Back to the registry catalog
@@ -144,7 +148,7 @@ export default function TemplateDetailPage() {
         <PageHeader
           icon={Layers}
           title={t.name}
-          sub={`${t.familyId} · renderer ${reg.renderer}`}
+          sub={`${t.templateId} · renderer ${reg.renderer}`}
         >
           <Chip tone="accent" className="font-mono">v{reg.version}</Chip>
           {!isOwner && data?.role ? <Chip tone="info">read-only — owner only</Chip> : null}
@@ -230,6 +234,14 @@ export default function TemplateDetailPage() {
           <CardHead title="Registry block" sub="Schema v1 — travels with every generation record" icon={ShieldCheck} />
           <div className="px-5 pb-5 space-y-3">
             <div className="inset-tile p-3 space-y-1.5">
+              <div className="flex items-center gap-2 text-[11.5px] text-muted">
+                <span className="overline w-24 shrink-0">Template id</span>
+                <span className="font-mono truncate">{t.templateId}</span>
+              </div>
+              <div className="flex items-center gap-2 text-[11.5px] text-muted">
+                <span className="overline w-24 shrink-0">Family</span>
+                <span className="font-mono truncate">{t.family}</span>
+              </div>
               <div className="flex items-center gap-2 text-[11.5px] text-muted">
                 <span className="overline w-24 shrink-0">Niches</span>
                 <span className="flex flex-wrap gap-1">{(reg.niches || []).map((n) => <Chip key={n} tone="plain">{n}</Chip>)}</span>

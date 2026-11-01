@@ -8,6 +8,10 @@
 // returns — the exact niches the compatibility validator compares, so
 // ordering can never drift from validation. Blocking reasons (422) render
 // as friendly fix-naming messages (AC-3).
+// Phase 5 T2f (D1/D19 identity split): everything this panel sends and shows
+// for a template keys on templateId — the registry key. Assignment rows are
+// DB rows whose family_id column stores that same key (dual meaning
+// documented in template-registry-db.js).
 import { useEffect, useMemo, useState } from 'react';
 import { Layers, AlertTriangle, CheckCircle2, XCircle, Loader2, Trash2, ArrowUpCircle, Info } from 'lucide-react';
 import { Button } from '@/components/untitledui/base/buttons/button';
@@ -73,9 +77,9 @@ export default function TemplateAssignPanel({ slug }) {
   const [data, setData] = useState(null);       // GET /api/templates?channel=
   const [loadErr, setLoadErr] = useState(null);
   const [assignOpen, setAssignOpen] = useState(false);
-  const [familyId, setFamilyId] = useState('');
+  const [templateId, setTemplateId] = useState('');
   const [pinnedMajor, setPinnedMajor] = useState('');
-  const [busy, setBusy] = useState('');         // familyId currently writing
+  const [busy, setBusy] = useState('');         // templateId currently writing
   const [msg, setMsg] = useState(null);         // { ok, text, reasons? }
 
   const load = () => {
@@ -95,7 +99,7 @@ export default function TemplateAssignPanel({ slug }) {
   const channelNiches = data?.channelConfig?.niches || [];
   const channelFormats = data?.channelConfig?.formats || [];
   const isOwner = data?.role === 'owner';
-  const byFamily = useMemo(() => new Map(templates.map((t) => [t.familyId, t])), [templates]);
+  const byTemplate = useMemo(() => new Map(templates.map((t) => [t.templateId, t])), [templates]);
 
   // AC-10: templates whose niches overlap the channel's niches first.
   const orderedTemplates = useMemo(() => {
@@ -104,22 +108,22 @@ export default function TemplateAssignPanel({ slug }) {
   }, [templates, channelNiches]);
 
   const pickTemplate = (id) => {
-    setFamilyId(id);
+    setTemplateId(id);
     setPinnedMajor('');
     setMsg(null);
-    const t = byFamily.get(id);
+    const t = byTemplate.get(id);
     if (t) setPinnedMajor(String(majorOf(t.registry.version)));
   };
 
   const assign = async () => {
-    if (!familyId || pinnedMajor === '') return;
-    setBusy(familyId);
+    if (!templateId || pinnedMajor === '') return;
+    setBusy(templateId);
     setMsg(null);
     try {
       const r = await fetch('/api/templates/assign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channelId: slug, familyId, pinnedMajor: Number(pinnedMajor) }),
+        body: JSON.stringify({ channelId: slug, templateId, pinnedMajor: Number(pinnedMajor) }),
       });
       const d = await r.json();
       if (r.status === 422 && Array.isArray(d.reasons)) {
@@ -129,7 +133,7 @@ export default function TemplateAssignPanel({ slug }) {
       } else {
         setMsg({ ok: true, text: `Assigned — pinned major ${d.pinnedMajor}, resolving v${d.resolvedVersion}.` });
         setAssignOpen(false);
-        setFamilyId('');
+        setTemplateId('');
         setPinnedMajor('');
         load();
       }
@@ -140,14 +144,14 @@ export default function TemplateAssignPanel({ slug }) {
     }
   };
 
-  const unassign = async (fid) => {
-    setBusy(fid);
+  const unassign = async (tid) => {
+    setBusy(tid);
     setMsg(null);
     try {
       const r = await fetch('/api/templates/assign', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channelId: slug, familyId: fid }),
+        body: JSON.stringify({ channelId: slug, templateId: tid }),
       });
       const d = await r.json();
       if (!r.ok) setMsg({ ok: false, text: d.error === 'no_active_assignment' ? 'No active assignment for that template.' : (d.error || `unassign failed (${r.status})`) });
@@ -160,14 +164,14 @@ export default function TemplateAssignPanel({ slug }) {
   };
 
   // AC-5: explicit consent per channel — re-pin to the new major.
-  const repin = async (fid, newMajor) => {
-    setBusy(fid);
+  const repin = async (tid, newMajor) => {
+    setBusy(tid);
     setMsg(null);
     try {
       const r = await fetch('/api/templates/assign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channelId: slug, familyId: fid, pinnedMajor: newMajor }),
+        body: JSON.stringify({ channelId: slug, templateId: tid, pinnedMajor: newMajor }),
       });
       const d = await r.json();
       if (!r.ok) setMsg({ ok: false, text: d.error === 'incompatible' ? 'Re-pin blocked — see compatibility reasons below.' : (d.error || `re-pin failed (${r.status})`), reasons: d.reasons });
@@ -209,7 +213,9 @@ export default function TemplateAssignPanel({ slug }) {
       ) : (
         <div className="space-y-2 mb-3">
           {assignments.map((a) => {
-            const t = byFamily.get(a.family_id);
+            // DB row shape: the family_id column stores the registry key (T1
+            // dual meaning) — a.family_id IS the template's templateId.
+            const t = byTemplate.get(a.family_id);
             const curMajor = t ? majorOf(t.registry.version) : null;
             const majorUpdate = curMajor !== null && curMajor > a.pinned_major;
             const autoVersion = t ? highestInMajor(t, a.pinned_major) : null;
@@ -286,7 +292,7 @@ export default function TemplateAssignPanel({ slug }) {
               {channelNiches.length ? <Chip tone="plain">channel niches: {channelNiches.join(', ')}</Chip> : null}
             </div>
             <select
-              value={familyId}
+              value={templateId}
               onChange={(e) => pickTemplate(e.target.value)}
               className="w-full text-[13px] px-3 py-2 rounded-lg border border-line bg-surface"
             >
@@ -295,13 +301,13 @@ export default function TemplateAssignPanel({ slug }) {
                 const nicheHit = (t.registry?.niches || []).some((n) => channelNiches.includes(n));
                 const fmtMiss = !(t.registry?.formats || []).some((f) => channelFormats.includes(f));
                 return (
-                  <option key={t.familyId} value={t.familyId}>
+                  <option key={t.templateId} value={t.templateId}>
                     {nicheHit ? '★ ' : ''}{t.name} · v{t.registry.version}{t.registry.deprecated ? ' (deprecated)' : ''}{fmtMiss ? ' — format mismatch' : ''}
                   </option>
                 );
               })}
             </select>
-            {familyId && byFamily.get(familyId) ? (
+            {templateId && byTemplate.get(templateId) ? (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="overline">Pinned major</span>
                 <select
@@ -309,11 +315,11 @@ export default function TemplateAssignPanel({ slug }) {
                   onChange={(e) => setPinnedMajor(e.target.value)}
                   className="text-[13px] px-3 py-2 rounded-lg border border-line bg-surface"
                 >
-                  {availableMajors(byFamily.get(familyId)).map((m) => (
-                    <option key={m} value={m}>{m} {m === majorOf(byFamily.get(familyId).registry.version) ? '(current)' : ''}</option>
+                  {availableMajors(byTemplate.get(templateId)).map((m) => (
+                    <option key={m} value={m}>{m} {m === majorOf(byTemplate.get(templateId).registry.version) ? '(current)' : ''}</option>
                   ))}
                 </select>
-                {byFamily.get(familyId).registry.deprecated ? (
+                {byTemplate.get(templateId).registry.deprecated ? (
                   <span className="text-[11.5px] flex items-center gap-1" style={{ color: 'var(--warn, #d97706)' }}>
                     <AlertTriangle size={12} /> deprecated — the validator blocks new assignments
                   </span>
@@ -321,11 +327,11 @@ export default function TemplateAssignPanel({ slug }) {
               </div>
             ) : null}
             <div className="flex items-center gap-2">
-              <Button color="primary" onClick={assign} disabled={!familyId || pinnedMajor === '' || busy === familyId}>
-                {busy === familyId ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Assign &amp; pin
+              <Button color="primary" onClick={assign} disabled={!templateId || pinnedMajor === '' || busy === templateId}>
+                {busy === templateId ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Assign &amp; pin
               </Button>
               <button
-                onClick={() => { setAssignOpen(false); setFamilyId(''); setPinnedMajor(''); setMsg(null); }}
+                onClick={() => { setAssignOpen(false); setTemplateId(''); setPinnedMajor(''); setMsg(null); }}
                 className="text-[12.5px] px-3 py-2 rounded-lg border border-line text-muted hover:text-ink hover:bg-surface-2"
               >
                 Cancel

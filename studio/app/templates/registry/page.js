@@ -4,7 +4,9 @@
 // loader already excludes invalid blocks — they arrive only in `invalid`,
 // rendered as an owner warning strip). Filterable by niche and format.
 // Read-only for staff (AC-9); assignment happens per channel on the
-// Channels page (TemplateAssignPanel), detail lives at ?family=….
+// Channels page (TemplateAssignPanel), detail lives at ?template=….
+// Phase 5 T2f (D1/D9 identity split): the card id field is the registry key
+// (templateId); the VISUAL family is the separate "Family" field it binds to.
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Layers, RefreshCw, AlertTriangle, Search, ArrowRight, ShieldCheck, Ban } from 'lucide-react';
@@ -43,7 +45,7 @@ export default function TemplateRegistryPage() {
     const matchNiche = niche === 'all' || (t.registry?.niches || []).includes(niche);
     const matchFormat = format === 'all' || (t.registry?.formats || []).includes(format);
     const q = query.trim().toLowerCase();
-    const matchQuery = !q || t.name.toLowerCase().includes(q) || t.familyId.toLowerCase().includes(q);
+    const matchQuery = !q || t.name.toLowerCase().includes(q) || t.templateId.toLowerCase().includes(q);
     return matchNiche && matchFormat && matchQuery;
   }), [templates, niche, format, query]);
 
@@ -79,6 +81,9 @@ export default function TemplateRegistryPage() {
             <div className="min-w-0">
               <p className="text-[12.5px] font-semibold text-ink">{invalid.length} template block{invalid.length === 1 ? '' : 's'} failed registry validation — excluded from browse and assignment.</p>
               <ul className="mt-1.5 space-y-1">
+                {/* invalid rows are loader-shaped ({ familyId: key, errors }) —
+                    the loader keeps the legacy field name for its engine
+                    consumers (T1 dual meaning); the value is the registry key. */}
                 {invalid.map((v) => (
                   <li key={v.familyId} className="text-[11.5px] text-muted">
                     <span className="font-mono text-[10.5px] text-amber-300">{v.familyId}</span> — {v.errors.join(' · ')}
@@ -143,11 +148,11 @@ export default function TemplateRegistryPage() {
           {filtered.map((t) => {
             const reg = t.registry || {};
             return (
-              <Card key={t.familyId} hover className="p-4 flex flex-col gap-3">
+              <Card key={t.templateId} hover className="p-4 flex flex-col gap-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <h3 className="font-display text-[15px] font-bold tracking-tight text-ink truncate">{t.name}</h3>
-                    <p className="text-[10.5px] text-faint font-mono truncate">{t.familyId}</p>
+                    <p className="text-[10.5px] text-faint font-mono truncate">{t.templateId}</p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <Chip tone="accent" className="font-mono">v{reg.version}</Chip>
@@ -160,6 +165,10 @@ export default function TemplateRegistryPage() {
                 </div>
 
                 <div className="inset-tile p-3 space-y-1.5">
+                  <div className="flex items-center gap-2 text-[11.5px] text-muted">
+                    <span className="overline w-20 shrink-0">Family</span>
+                    <span className="font-mono truncate">{t.family}</span>
+                  </div>
                   <div className="flex items-center gap-2 text-[11.5px] text-muted">
                     <span className="overline w-20 shrink-0">Formats</span>
                     <span className="font-mono">{(reg.formats || []).join(' · ')}</span>
@@ -191,7 +200,7 @@ export default function TemplateRegistryPage() {
                     <ShieldCheck size={11} /> {reg.variation_rules?.length || 0} variation rule{(reg.variation_rules?.length || 0) === 1 ? '' : 's'}
                   </span>
                   <Link
-                    href={`/templates/registry/detail?family=${encodeURIComponent(t.familyId)}`}
+                    href={`/templates/registry/detail?template=${encodeURIComponent(t.templateId)}`}
                     className="text-[11.5px] font-semibold flex items-center gap-1 text-sky-400 hover:underline"
                   >
                     Detail <ArrowRight size={12} />

@@ -71,18 +71,25 @@ export async function POST(req) {
   if (!user) return Response.json({ error: 'owner only' }, { status: 403 });
 
   const body = await req.json().catch(() => ({}));
-  const { channelId, familyId } = body || {};
+  // templateId = the registry key (the assignment identity — Phase 5 D1/D19
+  // surface rename; the panel and this route are the two ends, renamed
+  // together in T2f).
+  const { channelId, templateId } = body || {};
   const pinnedMajor = Number(body?.pinnedMajor);
-  if (!channelId || !familyId) return Response.json({ error: 'channelId and familyId are required' }, { status: 400 });
+  if (!channelId || !templateId) return Response.json({ error: 'channelId and templateId are required' }, { status: 400 });
   if (!Number.isInteger(pinnedMajor) || pinnedMajor < 0) return Response.json({ error: 'pinnedMajor must be a non-negative integer' }, { status: 400 });
 
-  // Resolve the template's validated registry meta from the loader. Families
+  // Resolve the template's validated registry meta from the loader. Templates
   // without (valid) metadata are not assignable — 404, never a silent pass.
   const view = loadRegistryTemplates(TEMPLATES_DATA, REGISTRY_META);
-  const template = view.templates.find((t) => t.familyId === familyId);
+  const template = view.templates.find((t) => t.templateId === templateId);
   if (!template) {
-    const invalid = view.invalid.find((v) => v.familyId === familyId);
-    return Response.json({ error: invalid ? `template "${familyId}" has invalid registry metadata and is not assignable` : `unknown template family "${familyId}"`, invalid: invalid?.errors || [] }, { status: 404 });
+    // view.invalid rows are loader-shaped ({ familyId: key, errors }) — the
+    // loader keeps the legacy field name for its engine consumers (the T1
+    // dual meaning documented in template-registry.js); the VALUE is the
+    // registry key.
+    const invalid = view.invalid.find((v) => v.familyId === templateId);
+    return Response.json({ error: invalid ? `template "${templateId}" has invalid registry metadata and is not assignable` : `unknown template "${templateId}"`, invalid: invalid?.errors || [] }, { status: 404 });
   }
 
   const entry = await findChannelEntry(channelId);
@@ -102,7 +109,7 @@ export async function POST(req) {
   try {
     const db = await getRegistryDb();
     await db.ensureSchema();
-    const result = await db.assignTemplate(channelId, familyId, pinnedMajor, user.email);
+    const result = await db.assignTemplate(channelId, templateId, pinnedMajor, user.email);
     if (!result.ok) return Response.json({ error: 'assign failed', errors: result.errors || [result.error] }, { status: 422 });
     return Response.json(result);
   } catch (e) {
@@ -114,21 +121,22 @@ export async function DELETE(req) {
   const user = await denyOwner(req);
   if (!user) return Response.json({ error: 'owner only' }, { status: 403 });
 
-  // Body first, query params as fallback.
-  let { channelId, familyId } = (await req.json().catch(() => ({}))) || {};
+  // Body first, query params as fallback. templateId = the registry key
+  // (Phase 5 T2f surface rename — same string the DB layer calls familyId).
+  let { channelId, templateId } = (await req.json().catch(() => ({}))) || {};
   const q = new URL(req.url).searchParams;
   channelId = channelId || q.get('channelId') || q.get('channel');
-  familyId = familyId || q.get('familyId');
-  if (!channelId || !familyId) return Response.json({ error: 'channelId and familyId are required' }, { status: 400 });
+  templateId = templateId || q.get('templateId');
+  if (!channelId || !templateId) return Response.json({ error: 'channelId and templateId are required' }, { status: 400 });
 
   try {
     const db = await getRegistryDb();
-    const result = await db.unassignTemplate(channelId, familyId, user.email);
+    const result = await db.unassignTemplate(channelId, templateId, user.email);
     if (!result.ok) {
       const status = result.error === 'no_active_assignment' ? 404 : 400;
       return Response.json({ error: result.error }, { status });
     }
-    return Response.json({ ok: true, channelId, familyId });
+    return Response.json({ ok: true, channelId, templateId });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 502 });
   }

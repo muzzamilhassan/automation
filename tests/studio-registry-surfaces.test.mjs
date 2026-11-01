@@ -18,6 +18,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { registrySlugs } from '../studio/lib/data.mjs';
 import { fbPageId, LEGACY_SLUGS } from '../lib/registry.mjs';
+import { loadRegistryTemplates } from '../studio/lib/template-registry.js';
 
 const read = (p) => fs.readFileSync(p, 'utf8');
 const dataSrc = read('studio/lib/data.mjs');
@@ -234,4 +235,110 @@ test('T4d round 1: state-file reads memoize negative results — no cloud 404 st
 test('T4d round 1: ci-doctor gates passive discovery on the active registry+brands set — CHANNELS env overrides', () => {
   assert.match(doctorSrc, /import\s*\{\s*listChannels\s*\}\s*from\s*'\.\/lib\/registry\.mjs'/, 'the active set comes from the registry+brands merge');
   assert.match(doctorSrc, /process\.env\.CHANNELS \? discovered : discovered\.filter/, 'an explicit CHANNELS list overrides the parked-channel gate');
+});
+
+// ---------------------------------------------------------------------------
+// P5 T2f — panel surfaces speak the template identity (D9 + the T1 reviewer
+// note): after T1's identity split the assignment string IS the template_id
+// (the registry key), so the user-facing surface renames familyId ->
+// templateId (the assignment body param, the card fields) while the VISUAL
+// family stays a separate displayed field. SOURCE-SCAN pins on the routes,
+// gallery, detail page and panel (house pattern — '@/lib' aliases are not
+// node --test importable), plus one behavioral pin through the importable
+// loader for the two distinct fields the gallery renders. The loader itself
+// and the DB columns keep their legacy names (T1 dual meaning, engine
+// consumers) — the ONLY familyId these surfaces may still reference is the
+// loader's invalid-row field (`v.familyId` / `x.familyId`).
+// ---------------------------------------------------------------------------
+
+const templatesApiSrc = read('studio/app/api/templates/route.js');
+const assignRouteSrc = read('studio/app/api/templates/assign/route.js');
+const galleryPageSrc = read('studio/app/templates/registry/page.js');
+const detailPageSrc = read('studio/app/templates/registry/detail/page.js');
+const assignPanelSrc = read('studio/components/TemplateAssignPanel.js');
+
+const onlyLoaderInvalidLookup = (src, label) => {
+  for (const line of src.split('\n').filter((l) => l.includes('familyId'))) {
+    const t = line.trim();
+    if (t.startsWith('//') || t.startsWith('{/*') || t.startsWith('*')) continue; // comment/doc lines may name the legacy field
+    assert.match(line, /[vx]\.familyId/, `${label}: the only familyId left is the loader invalid-row lookup (got: ${t})`);
+  }
+};
+
+test('T2f: the assign route takes templateId — the body param IS the registry key, no familyId surface remains', () => {
+  assert.match(assignRouteSrc, /const \{ channelId, templateId \} = body/, 'POST parses templateId from the body');
+  assert.match(assignRouteSrc, /channelId and templateId are required/, 'the 400 names templateId');
+  assert.match(assignRouteSrc, /t\.templateId === templateId/, 'the template lookup keys on the identity');
+  assert.match(assignRouteSrc, /db\.assignTemplate\(channelId, templateId/, 'the DB assign call carries templateId');
+  assert.match(assignRouteSrc, /db\.unassignTemplate\(channelId, templateId/, 'the DB unassign call carries templateId');
+  assert.match(assignRouteSrc, /q\.get\('templateId'\)/, 'the DELETE query fallback reads ?templateId=');
+  assert.match(assignRouteSrc, /\{ ok: true, channelId, templateId \}/, 'the unassign response names templateId');
+  onlyLoaderInvalidLookup(assignRouteSrc, 'assign route');
+});
+
+test('T2f: the GET templates route reads ?template= and answers templateId for the usage branch', () => {
+  assert.match(templatesApiSrc, /params\.get\('template'\)/, 'the usage query param is ?template= (the registry key)');
+  assert.match(templatesApiSrc, /\{ role, templateId, templates: view\.templates, invalid: view\.invalid, usage/, 'the family-branch response names templateId');
+  assert.equal(templatesApiSrc.includes('familyId'), false, 'no familyId may remain in the GET route');
+  assert.equal(templatesApiSrc.includes("params.get('family')"), false, 'the old ?family= param must be gone');
+});
+
+test('T2f: the gallery cards show templateId and family as distinct fields — the identity split on the card', () => {
+  assert.match(galleryPageSrc, /\{t\.templateId\}/, 'the card id line renders the registry key');
+  assert.match(galleryPageSrc, /Family</, 'the card has a labeled Family row (the VISUAL family, its own field)');
+  assert.match(galleryPageSrc, /\{t\.family\}/, 'the Family row renders the visual family id');
+  assert.equal(galleryPageSrc.includes('t.familyId'), false, 'the gallery must not present the identity under the family name');
+  assert.match(galleryPageSrc, /detail\?template=/, 'the detail link carries the identity as ?template=');
+  assert.match(galleryPageSrc, /t\.templateId\.toLowerCase\(\)/, 'registry search matches the templateId');
+  onlyLoaderInvalidLookup(galleryPageSrc, 'gallery page');
+});
+
+test('T2f: the detail page speaks templateId — ?template= URL, templateId fetch + re-pin body, family shown separately', () => {
+  assert.match(detailPageSrc, /q\.get\('template'\)/, 'the URL param is ?template=');
+  assert.match(detailPageSrc, /api\/templates\?template=/, 'the view fetch queries the renamed GET param');
+  assert.match(detailPageSrc, /templateId: template/, 'the re-pin body sends templateId');
+  assert.match(detailPageSrc, /x\.templateId === template/, 'the template lookup keys on the identity');
+  assert.match(detailPageSrc, /\{t\.templateId\}/, 'the header sub line renders the registry key');
+  assert.match(detailPageSrc, /\{t\.family\}/, 'the visual family is displayed as its own field');
+  onlyLoaderInvalidLookup(detailPageSrc, 'detail page');
+});
+
+test('T2f: the assignment panel speaks templateId — picker state and POST/DELETE bodies carry the registry key', () => {
+  assert.match(assignPanelSrc, /const \[templateId, setTemplateId\]/, 'the picker state is templateId');
+  assert.match(assignPanelSrc, /byTemplate = useMemo/, 'the lookup map is named byTemplate');
+  assert.match(assignPanelSrc, /new Map\(templates\.map\(\(t\) => \[t\.templateId, t\]\)\)/, 'the map keys on the identity');
+  assert.match(assignPanelSrc, /body: JSON\.stringify\(\{ channelId: slug, templateId, pinnedMajor: Number\(pinnedMajor\) \}\)/, 'the assign body sends templateId');
+  assert.match(assignPanelSrc, /body: JSON\.stringify\(\{ channelId: slug, templateId: tid \}\)/, 'the unassign body sends templateId');
+  assert.match(assignPanelSrc, /body: JSON\.stringify\(\{ channelId: slug, templateId: tid, pinnedMajor: newMajor \}\)/, 'the re-pin body sends templateId');
+  assert.equal(assignPanelSrc.includes('familyId'), false, 'the panel must not carry the old surface name anywhere');
+});
+
+test('T2f: the loader view the gallery renders carries templateId and family as DISTINCT fields (v2 block)', () => {
+  const catalog = [{ family: 'stats-counters', name: 'Stats Counters', aspectRatios: ['9:16'] }];
+  const meta = {
+    'myth-vs-money': {
+      template_id: 'myth-vs-money',
+      family: 'stats-counters', // visual family ≠ template_id — the split T2f renders
+      version: '1.0.0',
+      niches: ['Personal finance rules & money habits'],
+      formats: ['short'],
+      renderer: 'remotion',
+      required_capabilities: [],
+      variation_rules: ['vary the reversal evidence'],
+      safety: { required_sources: false, review_required: ['finance'], disclaimers: ['Education, not financial advice.'] },
+      story_structure: {
+        beats: ['the popular belief', 'reversal evidence', 'what-to-do payoff'],
+        hook_classes: ['challenge'],
+        title_patterns: ['3 money myths'],
+        payoff_rule: 'the fix lands in the last beat',
+      },
+      deprecated: false,
+      changelog: [{ version: '1.0.0', date: '2026-11-01', note: 'pilot' }],
+    },
+  };
+  const { templates, invalid } = loadRegistryTemplates(catalog, meta);
+  assert.equal(invalid.length, 0, JSON.stringify(invalid));
+  assert.equal(templates[0].templateId, 'myth-vs-money', 'templateId is the registry key (the card id field)');
+  assert.equal(templates[0].family, 'stats-counters', 'family is the visual family (the separate card field)');
+  assert.notEqual(templates[0].templateId, templates[0].family, 'identity and visual family must stay distinct concepts on the gallery');
 });

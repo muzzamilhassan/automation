@@ -1,11 +1,13 @@
 // Template registry view (issue #102 Phase 1, Task 7; view extensions Task 8).
 // GET: the registry-assignable templates (git catalog + metadata, loaded
 // fail-closed by template-registry.js) plus:
-//   ?channel=<id> -> that channel's active assignments from Neon and its
-//                    validator-shaped channelConfig (niches/formats) so the
-//                    assignment picker can order niche-first (AC-10) on the
-//                    exact strings the validator compares.
-//   ?family=<id>  -> that family's active usage across channels (AC-4 detail).
+//   ?channel=<id>  -> that channel's active assignments from Neon and its
+//                     validator-shaped channelConfig (niches/formats) so the
+//                     assignment picker can order niche-first (AC-10) on the
+//                     exact strings the validator compares.
+//   ?template=<id> -> that template's (the registry key — Phase 5 T2f surface
+//                     rename of ?family=) active usage across channels
+//                     (AC-4 detail).
 // Every response carries `role` (owner|staff) so the UI renders read-only for
 // staff (AC-9); the API layer still enforces all writes itself.
 // Read-only surface: owner AND staff. Writes live in ./assign.
@@ -34,22 +36,23 @@ export async function GET(req) {
   const view = loadRegistryTemplates(TEMPLATES_DATA, REGISTRY_META);
 
   const params = new URL(req.url).searchParams;
-  const familyId = params.get('family');
+  const templateId = params.get('template');
   const channelId = params.get('channel');
 
-  // Family branch — usage list for the template detail page (AC-4). DB
-  // failure degrades to an empty usage list with `error` set; the catalog
-  // metadata still renders.
-  if (familyId) {
+  // Template branch — usage list for the template detail page (AC-4); the id
+  // is the registry KEY (the DB's family_id column stores it — T1 dual
+  // meaning). DB failure degrades to an empty usage list with `error` set;
+  // the catalog metadata still renders.
+  if (templateId) {
     let usage = [];
     let error = null;
     try {
       const db = await getRegistryDb();
-      usage = await db.listUsage(familyId);
+      usage = await db.listUsage(templateId);
     } catch (e) {
       error = e.message;
     }
-    return Response.json({ role, familyId, templates: view.templates, invalid: view.invalid, usage, ...(error ? { error } : {}) });
+    return Response.json({ role, templateId, templates: view.templates, invalid: view.invalid, usage, ...(error ? { error } : {}) });
   }
 
   if (channelId) {
