@@ -151,6 +151,7 @@ Slices:
 **Exit gate:** a script cites retrieved context (visible in the script record's provenance); a near-duplicate script is BLOCKed by the gate with an evidence row; requirements.txt pinned, zero `pip install || true` in workflows.
 
 ### Phase 4 — Pipeline hardening + admin completeness
+> **STATUS: ✅ COMPLETE** — issue #106 closed 2026-10-31; all three exit-gate drills passed live (kill-a-worker/resume, revoked-token park/probe/unpark, medical-claim hold); QA 38 PASS / 0 FAIL; + the owner-directed Phase 4.5 fully-dynamic initiative shipped in the same window (registry-driven MCP server, scheduling heartbeat, lanes, destinations, dashboards).
 > **STATUS: SPEC v3 READY** — docs/superpowers/specs/2026-10-30-phase4-review-queue-analytics-spec.md (owner answers folded, both review passes folded, awaiting owner go).
 Slices:
 1. State machine + artifact store: `jobs`/`job_steps`/`job_events` tables; content-addressed artifacts per step; retry-resumes-at-failed-step (acceptance test: kill mid-render, restart, re-enter at render)
