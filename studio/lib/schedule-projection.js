@@ -109,10 +109,10 @@ export async function projectWithQuotaModel({ docDays = [], shortDays = [], proj
 
 // T4a (#106 Phase 4.5) — the Admin Panel's slot times drive the channel's
 // autopilot gate time: the schedule route re-derives entry.cron from the
-// channel's FIRST short slot (longSlot is the fallback) on every save, and
-// the engine's slot-gating discover step (lib/schedule-slot.mjs) reads it.
-// Strict HH:MM (UTC) parse with range checks — slot times come from the
-// wizard/profile forms and are never trusted as a cron without re-parsing.
+// channel's FIRST short slot on every save, and the engine's slot-gating
+// discover step (lib/schedule-slot.mjs) reads it. Strict HH:MM (UTC) parse
+// with range checks — slot times come from the wizard/profile forms and are
+// never trusted as a cron without re-parsing.
 export function parseHHMM(v) {
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(v ?? '').trim());
   if (!m) return null;
@@ -122,11 +122,13 @@ export function parseHHMM(v) {
   return { hour, minute };
 }
 
-// Returns the registry cron ('M H * * *', UTC) for the channel's slot times,
-// or null when neither source parses as HH:MM (the route then leaves the
-// entry's existing cron untouched).
-export function cronFromSlots(slots, longSlot) {
-  const first = Array.isArray(slots) ? slots.find((s) => parseHHMM(s)) : undefined;
-  const t = parseHHMM(first) || parseHHMM(longSlot);
+// Returns the registry cron ('M H * * *', UTC) for the channel's SHORT slots,
+// or null when there are no valid slots (the route then LEAVES the entry's
+// existing cron untouched). Round 1: no longSlot fallback — the legacy 4 have
+// no slots, only kit.longSlot, and falling back would silently re-time their
+// hand-tuned 02:13-03:53 gate times to longSlot's afternoon peak.
+export function cronFromSlots(slots) {
+  if (!Array.isArray(slots)) return null;
+  const t = parseHHMM(slots.find((s) => parseHHMM(s)));
   return t ? `${t.minute} ${t.hour} * * *` : null;
 }

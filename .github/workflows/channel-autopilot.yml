@@ -12,15 +12,17 @@ name: 🏭 Channel Autopilot — all channels
 
 on:
   schedule:
-    # T4a: ONE 30-minute scheduler heartbeat. Per-channel times live in the
-    # registry (yt-mcp/studio-channels.json, entry.cron — editable from the
-    # Admin Panel's scheduling card): the discover step below slot-gates every
-    # heartbeat, so a channel runs only when the current UTC time is inside
-    # the 30 minutes after its scheduled time (windows wrap past midnight).
-    # Entries without a valid daily cron keep the legacy wizard catch-all
-    # slot (02:33 UTC). Editing a channel's time is a registry edit — no
-    # workflow change, and all channels no longer pile onto one minute.
-    - cron: '*/30 * * * *'
+    # T4a: ONE 30-minute scheduler heartbeat (:05/:35 — off the top-of-hour
+    # minute GitHub's delay spike piles onto). Per-channel times live in the
+    # registry (yt-mcp/studio-channels.json, entry.cron mirrored in
+    # kit.gateCron — editable from the Admin Panel's scheduling card): the
+    # discover step below slot-gates every heartbeat, so a channel runs only
+    # when the current UTC time is inside the 30 minutes after its scheduled
+    # time (windows wrap past midnight). Entries without a valid daily cron
+    # keep the legacy wizard catch-all slot (02:33 UTC). Editing a channel's
+    # time is a registry edit — no workflow change, and all channels no
+    # longer pile onto one minute.
+    - cron: '5,35 * * * *'
   workflow_dispatch:
     inputs:
       channel:
@@ -86,7 +88,7 @@ jobs:
               } else {
                 chans = all;
               }
-            } catch (e) { console.log('registry unreadable:', e.message); }
+            } catch (e) { console.log('::error::registry unreadable (no channel selected): ' + (e.message || e)); }
             console.log(JSON.stringify(chans));
             fs.writeFileSync(process.env.GITHUB_OUTPUT, 'channels=' + JSON.stringify(chans));
           "

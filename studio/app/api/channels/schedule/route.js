@@ -157,28 +157,38 @@ export async function POST(req) {
   };
   await writeRepoJSON(FILE, file, `schedule: ${slug} cadence updated (#100)`);
 
-  // T4a: re-derive the registry cron on every save — the channel's FIRST
-  // short slot (longSlot is the fallback) becomes its daily gate time
-  // ('M H * * *', UTC), which the autopilot's slot-gating discover step
-  // (channel-autopilot.yml → lib/schedule-slot.mjs) reads. Slot times are
-  // re-parsed here (never trusted from the client); a channel with no valid
-  // slot time keeps its existing cron. Fail-soft: a cron-sync failure must
-  // not fail the cadence save (same belt as the quota store above).
-  let cronWarning = '';
+  // T4a (round 1): re-derive the registry gate cron on every save from the
+  // channel's SHORT slots only — no slots (the legacy 4's shape) = KEEP the
+  // existing cron, never a kit.longSlot fallback (that would silently re-time
+  // the hand-tuned 02:13-03:53 gates to longSlot's afternoon peak). The cron
+  // ('M H * * *', UTC) is what the autopilot's slot-gating discover step
+  // (channel-autopilot.yml → lib/schedule-slot.mjs) reads; slot times are
+  // re-parsed here, never trusted from the client. Fail-soft: a cron-sync
+  // failure must not fail the cadence save (same belt as the quota store
+  // above).
+  let gateNote = '';
   try {
     const reg = await readRegistry();
     const entry = (reg.channels || []).find((c) => c.slug === slug);
-    const cron = cronFromSlots(entry?.slots, entry?.kit?.longSlot);
+    const oldCron = entry?.cron || entry?.kit?.gateCron || '';
+    const cron = entry?.slots?.length ? cronFromSlots(entry.slots) : null;
     if (cron) {
-      const res = await setChannelCron(slug, cron, `schedule: cron ${cron} for ${slug} (T4a slot gating)`);
-      if (!res.ok) cronWarning = `Gate time not updated: the channel is not in the engine registry yet (yt-mcp/studio-channels.json).`;
-    } else {
-      cronWarning = 'No valid HH:MM slot time on this channel — the autopilot gate time (cron) was left unchanged.';
+      const res = await setChannelCron(slug, cron, `schedule: gate cron ${cron} for ${slug} (T4a slot gating)`);
+      if (!res.ok) {
+        gateNote = `Gate time not updated: the channel is not in the engine registry yet (yt-mcp/studio-channels.json).`;
+      } else {
+        const [cronMinute, cronHour] = cron.split(' ');
+        const hhmm = `${cronHour}:${String(cronMinute).padStart(2, '0')}`;
+        gateNote = `Gate time set to ${hhmm} UTC${oldCron && oldCron !== cron ? ` (was ${oldCron})` : ''}`;
+      }
+    } else if (entry?.slots?.length) {
+      gateNote = 'No valid HH:MM short slot on this channel — the autopilot gate time (cron) was left unchanged.';
     }
+    // no slots at all: the existing cron stays, silently (the legacy channels' shape)
   } catch (e) {
-    cronWarning = `cron sync failed (${String(e?.message || e).slice(0, 120)}) — the gate time keeps its previous value`;
+    gateNote = `cron sync failed (${String(e?.message || e).slice(0, 120)}) — the gate time keeps its previous value`;
   }
 
   try { await appendAudit(user.email, 'channel schedule set', slug); } catch { }
-  return Response.json({ ok: true, slug, schedule: v.clean, projection: proj, warnings: [...(v.warnings || []), ...advisories, ...(cronWarning ? [cronWarning] : [])] });
+  return Response.json({ ok: true, slug, schedule: v.clean, projection: proj, warnings: [...(v.warnings || []), ...advisories, ...(gateNote ? [gateNote] : [])] });
 }

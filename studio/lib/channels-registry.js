@@ -251,17 +251,50 @@ export async function setChannelAutopilot(slug, on, message) {
   return { ok: true };
 }
 
-// T4a (#106 Phase 4.5): the engine's discovery file is the ONLY home for a
-// channel's cron gate time (the channels table has no cron column — the same
-// engine-facing split as consent/token fields, which rowToEntry carries but
-// the table does not). Studio's schedule route re-derives the cron from the
-// channel's slot times on every save and lands it here, repo-side. Returns
-// ok:false (no write) when the slug is not in the repo registry yet.
+// T4a round 1 (#106 Phase 4.5): pure repo-feed mapper for the gate cron. The
+// TARGET slug gets both the engine-facing top-level `cron` and the durable
+// kit.gateCron mirror; every OTHER entry that already carries a plain daily
+// `cron` but no kit.gateCron yet gets backfilled — a later DB->repo sync
+// (connect / profile save / importer: upsertChannel -> syncRegistryRepo)
+// rewrites the feed from rowToEntry projections that carry kit but NOT cron,
+// so without the mirror every channel would silently fall back to 02:33.
+const DAILY_CRON_RE = /^\d{1,2} \d{1,2} \* \* \*$/;
+export function applyGateCronToChannels(channels, slug, cron) {
+  let found = false;
+  const next = (channels || []).map((c) => {
+    if (c.slug === slug) {
+      found = true;
+      return { ...c, cron, kit: { ...(c.kit || {}), gateCron: cron } };
+    }
+    if (c.cron && DAILY_CRON_RE.test(String(c.cron).trim()) && !c.kit?.gateCron) {
+      return { ...c, kit: { ...(c.kit || {}), gateCron: c.cron } };
+    }
+    return c;
+  });
+  return { channels: next, found };
+}
+
+// T4a (#106 Phase 4.5): write a channel's cron gate time. Round 1: the gate
+// cron is DURABLE in kit.gateCron — the Neon row's kit JSONB (rowToEntry
+// projects kit, never cron) AND the repo feed (the engine's discovery file,
+// where the top-level `cron` mirror also stays). Studio's schedule route
+// re-derives the cron from the channel's slot times on every save and lands
+// it here. Returns ok:false (no write) when the slug is not in the repo
+// registry yet.
 export async function setChannelCron(slug, cron, message) {
+  if (dbReady) {
+    try {
+      const rows = await db`SELECT kit FROM channels WHERE slug = ${slug}`;
+      const kit = { ...(rows?.[0]?.kit || {}), gateCron: cron };
+      await db`UPDATE channels SET kit = ${db.json(kit)} WHERE slug = ${slug}`;
+    } catch (e) {
+      console.error('[registry] db gateCron update failed:', String(e.message).slice(0, 100));
+    }
+  }
   const reg = await readRegistryRepo();
-  const channels = (reg.channels || []).map((c) => (c.slug === slug ? { ...c, cron } : c));
-  if (!channels.some((c) => c.slug === slug)) return { ok: false, reason: 'not-in-repo-registry' };
-  await writeRepoJSON(REG_PATH, { channels }, message || `schedule: cron ${cron} for ${slug}`);
+  const { channels, found } = applyGateCronToChannels(reg.channels, slug, cron);
+  if (!found) return { ok: false, reason: 'not-in-repo-registry' };
+  await writeRepoJSON(REG_PATH, { channels }, message || `schedule: gate cron ${cron} for ${slug}`);
   return { ok: true };
 }
 
