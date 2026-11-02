@@ -82,7 +82,7 @@ Five slices. S1–S4 build/author; S5 is a documented decision point with no bui
   | 5 | finance-explainers | finance cluster — 6 strings (D17) | L | finance-explainers | concept model | finance | EXISTS |
   | 6 | stats-counters | finance cluster — 6 strings | S+L | stats-counters | milestone tick | finance | EXISTS |
   | 7 | chart-animations | finance cluster — 6 strings | L | chart-animations | dataset chart | finance | EXISTS |
-  | 8 | myth-vs-money | finance cluster — 6 strings | S | stats-counters | belief → reversal → what-to-do (PILOT — MR) | finance | NEW first |
+  | 8 | myth-vs-money | finance cluster — 6 strings | S | beat-synced-type [P-1 dispatch: the Phase 4 MR drill family] | belief → reversal → what-to-do (PILOT — MR) | finance | NEW first |
   | 9 | habit-protocol | Healthspan & longevity habits / Sleep & recovery science / Gym & training motivation | S+L | photo-stories | habit → mechanism (evidence tier) → routine → risks | medical | NEW |
   | 10 | myth-vs-science | (same 3 health strings) | S | stats-counters | health myth → what studies show → safe takeaway | medical | NEW |
   | 11 | sleep-ritual | Sleep & recovery science | S+L | photo-stories | evening timeline → 3 interventions → tomorrow's payoff | medical | NEW |
