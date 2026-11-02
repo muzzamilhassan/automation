@@ -7,9 +7,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "BZanckvOvT8",
-      "publishAt": "2026-10-31T22:35:00Z",
-      "title": "The 60% Rule That Built a $13,500 Cash Buffer"
+      "videoId": "gGpAnUHjZ0s",
+      "publishAt": "2026-10-25T22:35:00Z",
+      "title": "The Automated Trick to Build Wealth Fast"
     }
   ],
   "imageDate": "2026-10-18",
@@ -22,7 +22,7 @@
       "title": "Pay Yourself First | Personal Finance"
     }
   ],
-  "deepdiveDate": "2026-10-30",
+  "deepdiveDate": null,
   "healedDate": "2026-09-19",
   "healedCount": 3,
   "usedTrendSeeds": [
@@ -72,22 +72,6 @@
     {
       "t": "The Automated Trick to Build Wealth Fast",
       "at": "2026-10-25T22:35:00Z"
-    },
-    {
-      "t": "Why Minimum Payments Are a Trap",
-      "at": "2026-10-28T22:35:00Z"
-    },
-    {
-      "t": "The Psychological Trap of Budget Fatigue",
-      "at": "2026-10-29T22:35:00Z"
-    },
-    {
-      "t": "Stop Budgeting With Spreadsheets (Do This Instead)",
-      "at": "2026-10-30T22:35:00Z"
-    },
-    {
-      "t": "The 60% Rule That Built a $13,500 Cash Buffer",
-      "at": "2026-10-31T22:35:00Z"
     }
   ],
   "cooldownSeeds": [
@@ -95,80 +79,43 @@
     "11 Kitchen Rules Americans Break That No 1950s Housewife Would Have Allowed"
   ],
   "clipQueue": {
-    "lastRunId": "local-1793381586642",
+    "lastRunId": "40632589104",
     "doneRuns": [
       "39750079904",
-      "local-1793162115032",
-      "local-1793269112131",
-      "local-1793381586642"
+      "40632589104"
     ],
-    "docTitle": "The Silent $100K Blueprint: 6 Hidden Steps to Real Wealth | Personal finance rules & money habits Wisdom",
-    "createdAt": "2026-10-30T17:34:03.397Z",
-    "local": true,
+    "docTitle": "The Hidden Cost of Credit: How One Debt Slip Cost $12,000 | Personal finance rules & money habits Wisdom",
+    "createdAt": "2026-10-28T04:37:41.033Z",
     "clips": [
       {
         "part": 1,
-        "title": "Stop Budgeting With Spreadsheets (Do This Instead)",
+        "title": "Missed Payment Cost $54,000 Over Mortgage Life",
         "asset": "clip-01.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/692884687",
-        "startSec": 12.5,
-        "durSec": 22.9,
-        "file": "tt-lf/clipfeed-money-rulebook/clips/clip-01.mp4",
-        "postedAt": "2026-10-30T17:34:06.928Z"
+        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/683832516",
+        "startSec": 98.3,
+        "durSec": 23
       },
       {
         "part": 2,
-        "title": "The 60% Rule That Built a $13,500 Cash Buffer",
+        "title": "Debt Cleared, Credit Score Jumps to 720",
         "asset": "clip-02.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/692884733",
-        "startSec": 72.3,
-        "durSec": 22.1,
-        "file": "tt-lf/clipfeed-money-rulebook/clips/clip-02.mp4",
-        "postedAt": "2026-10-31T09:50:09.110Z"
+        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/683832591",
+        "startSec": 297.1,
+        "durSec": 23.8
       },
       {
         "part": 3,
-        "title": "The Compound-Only Account Trick for Wealth Growth",
+        "title": "Saved $350 in Interest by Cutting $2,000 Debt Fast",
         "asset": "clip-03.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/692884790",
-        "startSec": 157,
-        "durSec": 23.3,
-        "file": "tt-lf/clipfeed-money-rulebook/clips/clip-03.mp4"
-      },
-      {
-        "part": 4,
-        "title": "How to Save $2,200 a Year By Asking Simple Questions",
-        "asset": "clip-04.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/692884837",
-        "startSec": 196.2,
-        "durSec": 21.4,
-        "file": "tt-lf/clipfeed-money-rulebook/clips/clip-04.mp4"
+        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/683832633",
+        "startSec": 235.3,
+        "durSec": 21.2
       }
     ]
   },
-  "clipLastPostDate": "2026-10-31",
+  "clipLastPostDate": "2026-10-25",
   "uploadsToday": {
-    "date": "2026-10-31",
+    "date": "2026-10-25",
     "count": 1
-  },
-  "usedLongSeeds": [
-    "Mini Monday// Debt story🌻",
-    "You're Not Stupid  You're on a Budget #philosophy #psychology #ignoranceisbliss #knowledge",
-    "How To Save Your First $100K (The 6-Step Blueprint) 💸 #wealthbuilding #mindset"
-  ],
-  "todayTopic": {
-    "at": "2026-10-30",
-    "topic": "How To Save Your First $100K (The 6-Step Blueprint) 💸 #wealthbuilding #mindset"
-  },
-  "deepdiveVideo": {
-    "videoId": "sY0XKv2fie4",
-    "publishAt": "2026-10-30T22:30:00Z",
-    "title": "The Silent $100K Blueprint: 6 Hidden Steps to Real Wealth | Personal finance rules & money habits Wisdom",
-    "text": "What if you could lock away your first six‑figure nest egg without sacrificing every paycheck? In the next hour we expose the exact, under‑the‑radar habits that turn ordinary earners into quiet millionaires.\n\nMost people think budgeting starts with a spreadsheet, but the real breakthrough is a forensic audit of every cash outflow. Meet Jenna, a 28‑year‑old graphic designer who discovered $1,200 a year vanished into auto‑renewals and forgotten gym memberships. By cancelling just five services and renegotiating her phone plan, she reclaimed 15% of her net income. The habit? A quarterly “leak scan” where you pull every statement, highlight any recurring charge over $10, and ask yourself: \"Do I truly need this?\" The result is an immediate cash surge that can be funneled straight into a high‑yield savings account, accelerating the path to $100K.\n\nTraditional budgeting divides money into needs, wants, and savings, but it often leaves the savings bucket too thin. The 90‑Day Salary Split flips the script: allocate your first three months of earnings into three equal pots—Living, Growth, and Reserve. Alex, a junior software engineer, applied this method and forced himself to live on 60% of his income, while 20% went directly into a Roth IRA and another 20% into a liquid emergency fund. Within a year his retirement balance grew by $7,500, and his emergency stash hit $6,000 without any lifestyle downgrade. The tension lies in the discipline to live on less; the payoff is a self‑reinforcing cycle of compounding growth.\n\nMost first‑time investors chase flashy properties, but the silent wealth builders focus on “shadow rentals” — undervalued duplexes where one unit lives in, the other rents. Sara and Mike bought a $150,000 duplex in Cleveland with a 5% down payment, living in one half while renting the other for $1,200. Their mortgage was $800, leaving a $400 positive cash flow each month that automatically fed their savings. Over five years, they amassed $30,000 in equity and $12,000 in net rental income, all while paying down principal faster than a traditional mortgage. The key habit: treat the rental side as a forced savings account, never dipping into that cash for personal expenses.\n\nCompounding is the engine of wealth, yet most people dilute its power by dipping into interest‑earning accounts for everyday costs. The Compound‑Only Account is a separate high‑yield savings or money‑market fund that you pledge never to touch except to reinvest earnings. When Laura hit a $5,000 balance, she set an automatic transfer of all accrued interest back into the principal each month. In three years, the account grew from $5,000 to $7,800 solely through interest reinvestment, a 56% boost versus a standard savings habit. The tension is the temptation to use that easy cash; the payoff is a snowball effect that accelerates the journey to six figures.\n\nNegotiation isn’t just for salaries; it’s a daily habit that can shave thousands off big expenses. When Tom renegotiated his health insurance during open enrollment, he saved $350 annually by switching to a high‑deductible plan and pairing it with an HSA. He applied the same script to his car lease, cutting his monthly payment by $75. Over two years, these small wins added $2,200 to his savings bucket. The habit involves a quarterly “price‑check” where you call providers, ask for discounts, and leverage competitor offers. The tension is confronting the fear of asking; the payoff is a steady stream of reclaimed cash.\n\nSide gigs can become visible status symbols, but the most effective ones stay under the radar. Maya turned her hobby of vintage sneaker flipping into a silent side‑hustle, using a private Instagram account and cash‑only transactions. She allocated 30% of each profit directly into a “Growth Fund” that she never touched for personal spending. Within 18 months, she accumulated $12,000, which she used to purchase a small multifamily property. The habit is strict compartmentalization: earnings go straight to investment, not lifestyle. The tension is resisting the urge to splurge on new shoes; the payoff is a leveraged asset that compounds her wealth.\n\nAutomation removes human error and emotional decision‑making. Jamie set up a three‑tiered automation: 1% of each paycheck to a Roth IRA, 2% to a taxable brokerage, and 3% to a high‑yield savings account. Each transfer occurred the day after payday, before any spending could occur. Over four years, Jamie’s Roth hit $18,000, the brokerage $24,000, and the savings account $9,000, all without a single manual transaction. The habit is to treat each tier as a non‑negotiable bill. The tension lies in trusting algorithms over personal control; the payoff is a diversified portfolio that grows while you sleep.\n\nThe final step is protecting what you’ve built. Instead of flashy wills, silent wealth builders use irrevocable trusts and beneficiary designations that lock assets away from creditors and impulsive heirs. When Carlos set up an irrevocable trust for his $100K savings, he ensured the money could only be accessed after he turned 65, preserving it for retirement. The trust also allowed him to avoid a 25% estate tax on future growth. The habit is an annual review of legal structures, ensuring they align with long‑term goals. The tension is confronting mortality; the payoff is a shield that guarantees your hard‑earned six figures stays intact for the future.\n\nThose silent habits are the real engine behind a $100K milestone—no hype, just disciplined action. Subscribe for more deep‑dive money rules and keep building your quiet empire."
-  },
-  "reviewGate": {
-    "assigned": true,
-    "gated": true,
-    "checkedAt": "2026-11-02T16:13:03.560Z"
   }
 }

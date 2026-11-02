@@ -8,17 +8,17 @@
     ],
     "lastVideos": [
       {
-        "videoId": "7tMm_-uCyJs",
-        "publishAt": "2026-10-28T22:35:00Z",
-        "title": "How $10k Became $4 Million With Compounding"
+        "videoId": "R_04s0cJIzo",
+        "publishAt": "2026-10-24T22:35:00Z",
+        "title": "The Wealth Rule Nobody Talks About | everyday wisdom Wisdom"
       }
     ],
     "imageDate": "2026-10-17",
-    "deepdiveDate": "2026-10-28",
+    "deepdiveDate": "2026-09-07",
     "deepdiveVideo": {
-      "videoId": "yD40Gm3865c",
-      "publishAt": "2026-10-28T21:30:00Z",
-      "title": "The Hidden Mechanics Behind Real Wealth | Investing psychology & market wisdom Wisdom"
+      "videoId": "dOJgBHpJgwQ",
+      "publishAt": "2026-09-07T21:30:00Z",
+      "title": "The Patient Investor's Edge: 8 Unconventional Habits | Investing Psychology"
     },
     "healedDate": "2026-10-17",
     "healedCount": 1,
@@ -89,10 +89,6 @@
       {
         "t": "The Wealth Rule Nobody Talks About | everyday wisdom Wisdom",
         "at": "2026-10-24T22:35:00Z"
-      },
-      {
-        "t": "How $10k Became $4 Million With Compounding",
-        "at": "2026-10-28T22:35:00Z"
       }
     ],
     "cooldownSeeds": [
@@ -100,57 +96,9 @@
       "Still Waiting For the Market Crash? Watch This Right Now | Weekend Investing | Alok Jain"
     ],
     "uploadsToday": {
-      "date": "2026-10-28",
-      "count": 2
-    },
-    "usedLongSeeds": [
-      "The 3 Secrets to Building Wealth"
-    ],
-    "todayTopic": {
-      "at": "2026-10-28",
-      "topic": "The 3 Secrets to Building Wealth"
-    },
-    "clipQueue": {
-      "lastRunId": "local-1793178354288",
-      "doneRuns": [
-        "local-1793178354288"
-      ],
-      "docTitle": "The Hidden Mechanics Behind Real Wealth | Investing psychology & market wisdom Wisdom",
-      "createdAt": "2026-10-28T09:07:07.726Z",
-      "local": true,
-      "clips": [
-        {
-          "part": 1,
-          "title": "How $10k Became $4 Million With Compounding",
-          "startSec": 11.2,
-          "durSec": 23.8,
-          "file": "tt-lf/clipfeed-investors-compass/clips/clip-01.mp4",
-          "postedAt": "2026-10-28T09:07:10.484Z"
-        },
-        {
-          "part": 2,
-          "title": "Buffett’s $1 Billion Coca-Cola Secret",
-          "startSec": 62.1,
-          "durSec": 22.2,
-          "file": "tt-lf/clipfeed-investors-compass/clips/clip-02.mp4"
-        },
-        {
-          "part": 3,
-          "title": "Warren Buffett’s $100 Million Mistake",
-          "startSec": 342.5,
-          "durSec": 24.1,
-          "file": "tt-lf/clipfeed-investors-compass/clips/clip-03.mp4"
-        },
-        {
-          "part": 4,
-          "title": "Why Active Traders Lose Money",
-          "startSec": 216.2,
-          "durSec": 21.5,
-          "file": "tt-lf/clipfeed-investors-compass/clips/clip-04.mp4"
-        }
-      ]
-    },
-    "clipLastPostDate": "2026-10-28"
+      "date": "2026-10-24",
+      "count": 1
+    }
   },
   "money-rulebook": {
     "lastRunDate": "2026-10-20",
@@ -161,9 +109,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "BZanckvOvT8",
-        "publishAt": "2026-10-31T22:35:00Z",
-        "title": "The 60% Rule That Built a $13,500 Cash Buffer"
+        "videoId": "gGpAnUHjZ0s",
+        "publishAt": "2026-10-25T22:35:00Z",
+        "title": "The Automated Trick to Build Wealth Fast"
       }
     ],
     "imageDate": "2026-10-18",
@@ -176,7 +124,7 @@
         "title": "Pay Yourself First | Personal Finance"
       }
     ],
-    "deepdiveDate": "2026-10-30",
+    "deepdiveDate": null,
     "healedDate": "2026-09-19",
     "healedCount": 3,
     "usedTrendSeeds": [
@@ -226,22 +174,6 @@
       {
         "t": "The Automated Trick to Build Wealth Fast",
         "at": "2026-10-25T22:35:00Z"
-      },
-      {
-        "t": "Why Minimum Payments Are a Trap",
-        "at": "2026-10-28T22:35:00Z"
-      },
-      {
-        "t": "The Psychological Trap of Budget Fatigue",
-        "at": "2026-10-29T22:35:00Z"
-      },
-      {
-        "t": "Stop Budgeting With Spreadsheets (Do This Instead)",
-        "at": "2026-10-30T22:35:00Z"
-      },
-      {
-        "t": "The 60% Rule That Built a $13,500 Cash Buffer",
-        "at": "2026-10-31T22:35:00Z"
       }
     ],
     "cooldownSeeds": [
@@ -249,81 +181,44 @@
       "11 Kitchen Rules Americans Break That No 1950s Housewife Would Have Allowed"
     ],
     "clipQueue": {
-      "lastRunId": "local-1793381586642",
+      "lastRunId": "40632589104",
       "doneRuns": [
         "39750079904",
-        "local-1793162115032",
-        "local-1793269112131",
-        "local-1793381586642"
+        "40632589104"
       ],
-      "docTitle": "The Silent $100K Blueprint: 6 Hidden Steps to Real Wealth | Personal finance rules & money habits Wisdom",
-      "createdAt": "2026-10-30T17:34:03.397Z",
-      "local": true,
+      "docTitle": "The Hidden Cost of Credit: How One Debt Slip Cost $12,000 | Personal finance rules & money habits Wisdom",
+      "createdAt": "2026-10-28T04:37:41.033Z",
       "clips": [
         {
           "part": 1,
-          "title": "Stop Budgeting With Spreadsheets (Do This Instead)",
+          "title": "Missed Payment Cost $54,000 Over Mortgage Life",
           "asset": "clip-01.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/692884687",
-          "startSec": 12.5,
-          "durSec": 22.9,
-          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-01.mp4",
-          "postedAt": "2026-10-30T17:34:06.928Z"
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/683832516",
+          "startSec": 98.3,
+          "durSec": 23
         },
         {
           "part": 2,
-          "title": "The 60% Rule That Built a $13,500 Cash Buffer",
+          "title": "Debt Cleared, Credit Score Jumps to 720",
           "asset": "clip-02.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/692884733",
-          "startSec": 72.3,
-          "durSec": 22.1,
-          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-02.mp4",
-          "postedAt": "2026-10-31T09:50:09.110Z"
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/683832591",
+          "startSec": 297.1,
+          "durSec": 23.8
         },
         {
           "part": 3,
-          "title": "The Compound-Only Account Trick for Wealth Growth",
+          "title": "Saved $350 in Interest by Cutting $2,000 Debt Fast",
           "asset": "clip-03.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/692884790",
-          "startSec": 157,
-          "durSec": 23.3,
-          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-03.mp4"
-        },
-        {
-          "part": 4,
-          "title": "How to Save $2,200 a Year By Asking Simple Questions",
-          "asset": "clip-04.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/692884837",
-          "startSec": 196.2,
-          "durSec": 21.4,
-          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-04.mp4"
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/683832633",
+          "startSec": 235.3,
+          "durSec": 21.2
         }
       ]
     },
-    "clipLastPostDate": "2026-10-31",
+    "clipLastPostDate": "2026-10-25",
     "uploadsToday": {
-      "date": "2026-10-31",
+      "date": "2026-10-25",
       "count": 1
-    },
-    "usedLongSeeds": [
-      "Mini Monday// Debt story🌻",
-      "You're Not Stupid  You're on a Budget #philosophy #psychology #ignoranceisbliss #knowledge",
-      "How To Save Your First $100K (The 6-Step Blueprint) 💸 #wealthbuilding #mindset"
-    ],
-    "todayTopic": {
-      "at": "2026-10-30",
-      "topic": "How To Save Your First $100K (The 6-Step Blueprint) 💸 #wealthbuilding #mindset"
-    },
-    "deepdiveVideo": {
-      "videoId": "sY0XKv2fie4",
-      "publishAt": "2026-10-30T22:30:00Z",
-      "title": "The Silent $100K Blueprint: 6 Hidden Steps to Real Wealth | Personal finance rules & money habits Wisdom",
-      "text": "What if you could lock away your first six‑figure nest egg without sacrificing every paycheck? In the next hour we expose the exact, under‑the‑radar habits that turn ordinary earners into quiet millionaires.\n\nMost people think budgeting starts with a spreadsheet, but the real breakthrough is a forensic audit of every cash outflow. Meet Jenna, a 28‑year‑old graphic designer who discovered $1,200 a year vanished into auto‑renewals and forgotten gym memberships. By cancelling just five services and renegotiating her phone plan, she reclaimed 15% of her net income. The habit? A quarterly “leak scan” where you pull every statement, highlight any recurring charge over $10, and ask yourself: \"Do I truly need this?\" The result is an immediate cash surge that can be funneled straight into a high‑yield savings account, accelerating the path to $100K.\n\nTraditional budgeting divides money into needs, wants, and savings, but it often leaves the savings bucket too thin. The 90‑Day Salary Split flips the script: allocate your first three months of earnings into three equal pots—Living, Growth, and Reserve. Alex, a junior software engineer, applied this method and forced himself to live on 60% of his income, while 20% went directly into a Roth IRA and another 20% into a liquid emergency fund. Within a year his retirement balance grew by $7,500, and his emergency stash hit $6,000 without any lifestyle downgrade. The tension lies in the discipline to live on less; the payoff is a self‑reinforcing cycle of compounding growth.\n\nMost first‑time investors chase flashy properties, but the silent wealth builders focus on “shadow rentals” — undervalued duplexes where one unit lives in, the other rents. Sara and Mike bought a $150,000 duplex in Cleveland with a 5% down payment, living in one half while renting the other for $1,200. Their mortgage was $800, leaving a $400 positive cash flow each month that automatically fed their savings. Over five years, they amassed $30,000 in equity and $12,000 in net rental income, all while paying down principal faster than a traditional mortgage. The key habit: treat the rental side as a forced savings account, never dipping into that cash for personal expenses.\n\nCompounding is the engine of wealth, yet most people dilute its power by dipping into interest‑earning accounts for everyday costs. The Compound‑Only Account is a separate high‑yield savings or money‑market fund that you pledge never to touch except to reinvest earnings. When Laura hit a $5,000 balance, she set an automatic transfer of all accrued interest back into the principal each month. In three years, the account grew from $5,000 to $7,800 solely through interest reinvestment, a 56% boost versus a standard savings habit. The tension is the temptation to use that easy cash; the payoff is a snowball effect that accelerates the journey to six figures.\n\nNegotiation isn’t just for salaries; it’s a daily habit that can shave thousands off big expenses. When Tom renegotiated his health insurance during open enrollment, he saved $350 annually by switching to a high‑deductible plan and pairing it with an HSA. He applied the same script to his car lease, cutting his monthly payment by $75. Over two years, these small wins added $2,200 to his savings bucket. The habit involves a quarterly “price‑check” where you call providers, ask for discounts, and leverage competitor offers. The tension is confronting the fear of asking; the payoff is a steady stream of reclaimed cash.\n\nSide gigs can become visible status symbols, but the most effective ones stay under the radar. Maya turned her hobby of vintage sneaker flipping into a silent side‑hustle, using a private Instagram account and cash‑only transactions. She allocated 30% of each profit directly into a “Growth Fund” that she never touched for personal spending. Within 18 months, she accumulated $12,000, which she used to purchase a small multifamily property. The habit is strict compartmentalization: earnings go straight to investment, not lifestyle. The tension is resisting the urge to splurge on new shoes; the payoff is a leveraged asset that compounds her wealth.\n\nAutomation removes human error and emotional decision‑making. Jamie set up a three‑tiered automation: 1% of each paycheck to a Roth IRA, 2% to a taxable brokerage, and 3% to a high‑yield savings account. Each transfer occurred the day after payday, before any spending could occur. Over four years, Jamie’s Roth hit $18,000, the brokerage $24,000, and the savings account $9,000, all without a single manual transaction. The habit is to treat each tier as a non‑negotiable bill. The tension lies in trusting algorithms over personal control; the payoff is a diversified portfolio that grows while you sleep.\n\nThe final step is protecting what you’ve built. Instead of flashy wills, silent wealth builders use irrevocable trusts and beneficiary designations that lock assets away from creditors and impulsive heirs. When Carlos set up an irrevocable trust for his $100K savings, he ensured the money could only be accessed after he turned 65, preserving it for retirement. The trust also allowed him to avoid a 25% estate tax on future growth. The habit is an annual review of legal structures, ensuring they align with long‑term goals. The tension is confronting mortality; the payoff is a shield that guarantees your hard‑earned six figures stays intact for the future.\n\nThose silent habits are the real engine behind a $100K milestone—no hype, just disciplined action. Subscribe for more deep‑dive money rules and keep building your quiet empire."
-    },
-    "reviewGate": {
-      "assigned": true,
-      "gated": true,
-      "checkedAt": "2026-11-02T16:13:03.560Z"
     }
   },
   "debt-free-doctrine": {
@@ -335,18 +230,17 @@
     ],
     "lastVideos": [
       {
-        "videoId": "Y5qqfprd4QI",
-        "publishAt": "2026-10-31T22:35:00Z",
-        "title": "The Old Money Rule for Passing Down Wealth"
+        "videoId": "xXZ6UgyTifc",
+        "publishAt": "2026-10-25T22:35:00Z",
+        "title": "Why Budgeting Apps Keep You Broke"
       }
     ],
     "imageDate": "2026-10-20",
-    "deepdiveDate": "2026-10-31",
+    "deepdiveDate": "2026-10-09",
     "deepdiveVideo": {
-      "videoId": "MsOccg0kQiI",
-      "publishAt": "2026-10-31T20:20:00Z",
-      "title": "Silent Riches: The Hidden Rules That Turn Pennies Into Dynasties | Old money habits & quiet wealth Wisdom",
-      "text": "What if the secret to lasting wealth isn’t a massive windfall, but a handful of everyday contracts you never sign? Today we crack open the quiet playbook that turns modest habits into generational fortunes.\n\nEvery affluent family keeps a private ledger that never sees a spreadsheet app. In the Patel household, each child receives a “cash‑capped” envelope at age twelve, funded only by small, recurring chores. The tension? A teenage rebellion to spend on gadgets. The payoff arrives when the envelope matures into a $5,000 college fund by eighteen, because the family caps contributions at a fixed percentage of allowance, never allowing the balance to dip. This disciplined cap creates a habit of living below one’s means, while the compounded growth of the untouched sum silently fuels future investments. The rule: lock a non‑negotiable % of any cash inflow into a sealed account, and never touch it until a pre‑agreed milestone.\n\nQuiet wealth thrives on the art of the polite push‑back. The Reddy brothers, owners of a modest textile shop, schedule a quarterly “rate audit” where they call every supplier, reference a competitor’s lower price, and negotiate a 3‑5% discount. The tension is the fear of damaging relationships; the payoff is a steady stream of reclaimed cash—averaging $12,000 annually for a $300,000 revenue business. They record each win in a shared notebook, turning negotiation into a family ritual. The mechanism is simple: allocate 30 minutes each quarter, prepare a comparison chart, and ask for the discount. Over a decade, the habit compounds, adding the equivalent of a small real‑estate down‑payment without ever increasing sales.\n\nInstead of public brokerage accounts, the Singh cousins formed a low‑key “Family Trust Circle.” Each member contributes 2% of their net monthly income into a joint LLC, which then purchases dividend‑paying REITs and municipal bonds. The tension lies in the secrecy—no flashy statements, just quarterly emails summarizing returns. After five years, the circle amassed $250,000, yielding a 4.2% dividend that funds annual family vacations without touching the principal. The key standard: contributions are automatic, fixed‑percentage, and the entity is insulated from individual tax brackets. This structure shields wealth from market volatility and public scrutiny, while the silent dividend creates a cash flow that feels like a gift rather than earned income.\n\nOld‑money families master the paradox of spending big on small things. The Mehta family allocates 1% of their annual budget to “heritage upgrades”—a $1,200 allowance to replace a worn leather sofa with a timeless piece. The tension is the temptation to splurge on fleeting trends; the payoff is a home that ages gracefully, preserving resale value and reinforcing a culture of quality over quantity. They track each purchase against a durability index, ensuring the item will outlast at least three years of use. This rule turns discretionary spending into an investment in lasting assets, and the modest percentage keeps the habit sustainable across generations.\n\nThe Gupta matriarch instituted a “Zero‑Balance Buffer” before any loan is considered. The family must first save an amount equal to 150% of the prospective loan’s principal in a high‑yield savings account. The tension appears when an attractive business opportunity arises with a low‑interest loan. The payoff is clear: when the Gupta’s boutique café secured a $80,000 expansion loan, they already held $120,000 liquid, allowing them to pay off the loan in 18 months while still preserving a $40,000 emergency cushion. This buffer eliminates reliance on credit, reduces interest exposure, and forces only the most strategic investments to move forward.\n\nWealth fades when knowledge isn’t codified. The Chawla family created a “Financial Playbook” binder, updated yearly with real numbers: rent‑to‑income ratios, portfolio allocations, and tax strategies. The tension emerges each generation as teenagers view the binder as boring paperwork. The payoff occurs when the youngest sibling, at 21, uses the playbook to avoid a $15,000 tax penalty by correctly timing a capital‑gain sale. The mechanism includes quarterly family meetings where each member presents a financial decision and logs the outcome. By treating money as a shared language rather than an individual secret, the family builds a living archive that protects and propagates silent wealth.\n\nInstead of leaving lump‑sum inheritances, the Patel elders embed a “Growth‑Only Gift” clause in their wills: heirs receive the principal amount but must reinvest 80% of any appreciation for ten years before accessing the rest. The tension is the initial disappointment of restricted access. The payoff is a compounded growth that turned a $200,000 bequest into $450,000 over a decade, thanks to mandatory reinvestment in diversified index funds. The clause is enforced through a trust that releases funds only upon meeting the reinvestment threshold. This standard transforms inheritance from a one‑time windfall into a perpetual engine of wealth for future generations.\n\nTrue silent wealth includes giving without applause. The Rao family allocates 0.5% of their net worth annually to a “Stealth Fund” that supports local schools and health clinics, but they never publicize the donations. The tension is the modern urge for social media recognition; the payoff is a community that indirectly safeguards the family’s business environment while keeping the family’s profile low. They track impact through private reports, measuring outcomes like graduation rates and clinic visits. By embedding philanthropy into the financial plan, they ensure that wealth serves a purpose beyond personal gain, reinforcing the family’s long‑term stability without attracting unwanted attention.\n\nThose eight silent‑wealth standards prove that modest, repeatable actions outpace flashy schemes. Subscribe for more hidden‑wealth blueprints and keep building your quiet empire."
+      "videoId": "s4tuh0MyVKw",
+      "publishAt": "2026-10-10T01:30:00Z",
+      "title": "The Invisible Code: Habits That Quietly Build Millions | Old Money Philosophy"
     },
     "recyclePending": [
       {
@@ -443,85 +337,48 @@
       {
         "t": "Why Budgeting Apps Keep You Broke",
         "at": "2026-10-25T22:35:00Z"
-      },
-      {
-        "t": "Texas Oil Heir’s 70/20/10 Strategy Beats the S&P",
-        "at": "2026-10-30T22:35:00Z"
-      },
-      {
-        "t": "The Old Money Rule for Passing Down Wealth",
-        "at": "2026-10-31T22:35:00Z"
       }
     ],
     "usedLongSeeds": [
-      "POV: You adopted old money habits — And everything changed",
-      "The Stealth Wealth Mindset | 7 Rules That Make You Rich in Silence",
-      "The Baniya Family: How Small Money Habits Become Generational Wealth"
+      "POV: You adopted old money habits — And everything changed"
     ],
     "todayTopic": {
-      "at": "2026-10-31",
-      "topic": "The Baniya Family: How Small Money Habits Become Generational Wealth"
+      "at": "2026-10-09",
+      "topic": "POV: You adopted old money habits — And everything changed"
     },
     "cooldownSeeds": [],
     "clipQueue": {
-      "lastRunId": "local-1793466980351",
+      "lastRunId": "39921986638",
       "doneRuns": [
-        "39921986638",
-        "local-1793356970446",
-        "local-1793466980351"
+        "39921986638"
       ],
-      "docTitle": "Silent Riches: The Hidden Rules That Turn Pennies Into Dynasties | Old money habits & quiet wealth Wisdom",
-      "createdAt": "2026-10-31T17:17:50.666Z",
-      "local": true,
+      "docTitle": "OLD MONEY CODE documentary",
+      "createdAt": "2026-10-23T10:10:16.751Z",
       "clips": [
         {
           "part": 1,
-          "title": "The Old Money Rule for Passing Down Wealth",
+          "title": "Stop Losing $15,000 to Silent Subscriptions",
           "asset": "clip-01.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/695985887",
-          "startSec": 288.7,
-          "durSec": 22.6,
-          "file": "tt-lf/clipfeed-debt-free-doctrine/clips/clip-01.mp4",
-          "postedAt": "2026-10-31T17:17:54.300Z"
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/668733568",
+          "startSec": 89.2,
+          "durSec": 20.5,
+          "postedAt": "2026-10-24T09:34:31.528Z"
         },
         {
           "part": 2,
-          "title": "The Old Money Playbook That Saved $15,000",
+          "title": "Why Budgeting Apps Keep You Broke",
           "asset": "clip-02.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/695985908",
-          "startSec": 247.4,
-          "durSec": 21.9,
-          "file": "tt-lf/clipfeed-debt-free-doctrine/clips/clip-02.mp4"
-        },
-        {
-          "part": 3,
-          "title": "The 30-Minute Habit That Buys Real Estate",
-          "asset": "clip-03.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/695985923",
-          "startSec": 86.8,
-          "durSec": 20.2,
-          "file": "tt-lf/clipfeed-debt-free-doctrine/clips/clip-03.mp4"
-        },
-        {
-          "part": 4,
-          "title": "The $5,000 Envelope Rule for Kids",
-          "asset": "clip-04.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/695985933",
-          "startSec": 20.9,
-          "durSec": 22.4,
-          "file": "tt-lf/clipfeed-debt-free-doctrine/clips/clip-04.mp4"
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/668733631",
+          "startSec": 55.7,
+          "durSec": 20.6,
+          "postedAt": "2026-10-25T08:48:47.057Z"
         }
       ]
     },
-    "clipLastPostDate": "2026-10-31",
+    "clipLastPostDate": "2026-10-25",
     "uploadsToday": {
-      "date": "2026-10-31",
-      "count": 2
-    },
-    "reviewGate": {
-      "assigned": false,
-      "gated": false,
-      "checkedAt": "2026-10-31T17:06:02.994Z"
+      "date": "2026-10-25",
+      "count": 1
     }
   },
   "quotequarry": {
@@ -534,12 +391,12 @@
     ],
     "lastVideos": [
       {
-        "videoId": "9zw2mlUUlDo",
-        "publishAt": "2026-10-31T22:35:00Z",
-        "title": "How Reframing Failure Built a $15M Business"
+        "videoId": "NYuZFYiSTuA",
+        "publishAt": "2026-10-26T22:35:00Z",
+        "title": "The Power of a Single Daily Mantra"
       }
     ],
-    "deepdiveDate": "2026-10-31",
+    "deepdiveDate": null,
     "usedTrendSeeds": [
       "Stoic Philosophy | 7 Cold Behaviors That Make People Respect You Instantly #stoicism",
       "10 Stoic Lessons to Become Emotionally Untouchable |Stoicism Philosophy",
@@ -601,92 +458,55 @@
       {
         "t": "The Power of a Single Daily Mantra",
         "at": "2026-10-26T22:35:00Z"
-      },
-      {
-        "t": "The Psychological Trap of Reacting",
-        "at": "2026-10-28T22:35:00Z"
-      },
-      {
-        "t": "How Reframing Failure Built a $15M Business",
-        "at": "2026-10-31T22:35:00Z"
       }
     ],
     "cooldownSeeds": [
       "THE POWER OF SOLITUDE WILL CHANGE YOUR LIFE | Jim Rohn Motivation"
     ],
     "uploadsToday": {
-      "date": "2026-10-31",
-      "count": 2
+      "date": "2026-10-26",
+      "count": 1
     },
     "clipQueue": {
-      "lastRunId": "local-1793435644901",
+      "lastRunId": "40081466325",
       "doneRuns": [
-        "40081466325",
-        "local-1793176384066",
-        "local-1793435644901"
+        "40081466325"
       ],
-      "docTitle": "The Stoic Playbook: 8 Hidden Rules that Forge Unstoppable Success | Timeless wisdom, self-mastery & human psychology Wisdom",
-      "createdAt": "2026-10-31T08:35:02.023Z",
-      "local": true,
+      "docTitle": "Quote Quarry documentary",
+      "createdAt": "2026-10-24T09:33:47.573Z",
       "clips": [
         {
           "part": 1,
-          "title": "How Reframing Failure Built a $15M Business",
+          "title": "Rewriting Your Story Changes Your Brain",
           "asset": "clip-01.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/694839524",
-          "startSec": 104.9,
-          "durSec": 20.6,
-          "file": "tt-lf/clipfeed-quotequarry/clips/clip-01.mp4",
-          "postedAt": "2026-10-31T08:35:05.116Z"
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/671850882",
+          "startSec": 300.5,
+          "durSec": 20.9,
+          "postedAt": "2026-10-24T09:33:50.835Z"
         },
         {
           "part": 2,
-          "title": "The 10-Minute Nightly Habit That Saved $200K",
+          "title": "How to Break the Comparison Trap",
           "asset": "clip-02.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/694839545",
-          "startSec": 148,
-          "durSec": 22.7,
-          "file": "tt-lf/clipfeed-quotequarry/clips/clip-02.mp4"
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/671850914",
+          "startSec": 94.2,
+          "durSec": 20.2,
+          "postedAt": "2026-10-25T07:34:00.075Z"
         },
         {
           "part": 3,
-          "title": "How Locus of Control Boosted a Win Rate to 62%",
+          "title": "The Power of a Single Daily Mantra",
           "asset": "clip-03.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/694839557",
-          "startSec": 65.6,
-          "durSec": 22.3,
-          "file": "tt-lf/clipfeed-quotequarry/clips/clip-03.mp4"
-        },
-        {
-          "part": 4,
-          "title": "Why Stoics Practiced Voluntary Discomfort",
-          "asset": "clip-04.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/694839592",
-          "startSec": 299.9,
-          "durSec": 22.5,
-          "file": "tt-lf/clipfeed-quotequarry/clips/clip-04.mp4"
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/671850935",
+          "startSec": 253.4,
+          "durSec": 23.5,
+          "postedAt": "2026-10-26T07:45:34.897Z"
         }
       ]
     },
-    "clipLastPostDate": "2026-10-31",
-    "usedLongSeeds": [
-      "3 Psychological Tricks to Win Any Fight 🥶🥊 | Dark Psychology #Shorts #psychology #fighting #viral",
-      "⭐ 10 RÈGLES STOÏCIENNES POUR ATTEINDRE TES OBJECTIFS ET CRÉER LA VIE QUE TU VEUX | STOÏCISME"
-    ],
-    "todayTopic": {
-      "at": "2026-10-31",
-      "topic": "⭐ 10 RÈGLES STOÏCIENNES POUR ATTEINDRE TES OBJECTIFS ET CRÉER LA VIE QUE TU VEUX | STOÏCISME"
-    },
-    "deepdiveVideo": {
-      "videoId": "-I5Y7OjIoWg",
-      "publishAt": "2026-10-31T14:30:00Z",
-      "title": "The Stoic Playbook: 8 Hidden Rules that Forge Unstoppable Success | Timeless wisdom, self-mastery & human psychology Wisdom",
-      "text": "What if the ancient sages held the exact blueprint modern high‑achievers use to outwit anxiety and crush goals? In the next ten minutes we’ll crack that code and give you tools you can apply today.\n\nImagine waking up and picturing the worst‑case scenario of your biggest project. This ancient Stoic exercise, called premeditatio malorum, forces your brain to map out failure pathways before they appear. Neuroscience shows that mentally rehearsing obstacles lights up the prefrontal cortex, sharpening problem‑solving circuits. When a Silicon Valley founder visualized a product launch flop, he built redundant safety nets that later saved $3.2 million in lost revenue. The payoff? Reduced panic, clearer contingency plans, and a confidence boost that comes from knowing you’ve already survived the worst. Skip this step and you’ll be blindsided by the first curveball.\n\nEvery day we waste hours worrying about the weather, the market, or other people’s moods—variables that are fundamentally out of our reach. Stoic philosopher Epictetus taught that true freedom lies in mastering our responses. Modern psychology confirms this with the concept of locus of control: people who focus on internal factors are 27 % more resilient after setbacks. A professional athlete who stopped obsessing over the referee’s calls and instead fine‑tuned his own technique saw his win‑rate jump from 48 % to 62 % in a single season. Ignoring this rule keeps you hostage to external chaos; embracing it turns every obstacle into a personal lever.\n\nMost of us treat life’s twists as betrayals, but the Stoics flipped the script: love your fate, and you’ll extract meaning from any outcome. Cognitive‑behavioral studies reveal that reframing events as purposeful reduces cortisol spikes by up to 33 %. When a startup CEO’s funding round evaporated overnight, she re‑branded the loss as a market‑validation test, pivoting to a product that later generated $15 million in ARR. The mental shift created a feedback loop of optimism and action, not resignation. Rejecting Amor Fati leaves you stuck in victimhood; embracing it fuels relentless forward motion.\n\nStoics kept journals to track thoughts, actions, and moral lapses. Modern research shows expressive writing improves executive function by 12 % and lowers anxiety levels. A lawyer who spent ten minutes each night reviewing his decisions identified a recurring bias toward people‑pleasing, which cost him $200 k in missed billable hours. By correcting this pattern, his quarterly revenue rose 18 %. The habit creates a mirror for self‑audit, exposing blind spots before they become costly habits. Skipping the journal means you’re flying blind, repeating the same mistakes on autopilot.\n\nRemembering mortality isn’t morbid; it’s a productivity catalyst. Studies on the “deadline effect” show that when people perceive limited time, output quality jumps 21 %. The Roman Stoic Seneca reminded his friends that life is a flash of lightning—use it wisely. A freelance designer set a personal “end‑of‑year” deadline for a portfolio revamp, completing it in six weeks instead of three months, landing three high‑ticket clients worth $250 k. The awareness of finite time sharpens focus, filters distractions, and forces decisive action. Without this reminder, you’ll drift in perpetual procrastination.\n\nOur brains crave validation; the herd instinct can derail personal goals. Stoicism teaches self‑reliance, urging us to test ideas against inner standards, not crowd applause. Behavioral economists found that people who deliberately limit social media exposure improve goal‑achievement rates by 34 %. A tech entrepreneur who turned off LinkedIn notifications for a month stopped comparing his growth curve to rivals and instead doubled his R&D output, filing five patents in 90 days. The payoff is clear: independence shields you from envy‑driven paralysis and keeps your energy aimed at authentic progress.\n\nDesire fuels ambition, yet attachment breeds anxiety. Stoics advocated wanting outcomes while remaining detached from their exact form. Psychological research on “self‑determination theory” shows that when goals are pursued for intrinsic reasons rather than external rewards, persistence rises 28 %. A musician who wanted to create art for its own sake, not fame, released an album that unexpectedly topped indie charts, earning $120 k in royalties while maintaining creative freedom. The tension between desire and detachment creates a sweet spot where motivation is high but fear of loss stays low. Ignoring this balance leads to burnout or half‑hearted effort.\n\nStoics regularly embraced mild hardship—cold showers, fasting—to harden the mind against future shocks. Modern stress‑inoculation training shows that controlled exposure to discomfort raises emotional resilience scores by 19 %. A corporate leader who instituted a weekly “digital detox” for himself reported a 15 % boost in strategic clarity and a 22 % drop in decision fatigue. The habit builds a psychological buffer, making real crises feel manageable rather than catastrophic. Skipping voluntary discomfort leaves you fragile, vulnerable to the inevitable pressures of high‑stakes environments.\n\nThese eight hidden rules aren’t just philosophy—they’re proven psychological weapons. Subscribe now and turn timeless wisdom into unstoppable momentum."
-    },
-    "reviewGate": {
-      "assigned": false,
-      "gated": false,
-      "checkedAt": "2026-10-31T16:55:06.975Z"
-    }
+    "clipLastPostDate": "2026-10-26"
+  },
+  "fajrofquran": {
+    "pausedUntil": "2099-12-31"
   }
 }
