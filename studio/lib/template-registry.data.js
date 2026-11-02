@@ -214,13 +214,17 @@ export const REGISTRY_META = {
     template_id: 'myth-vs-money',
     family: 'beat-synced-type',
     niches: ['Personal finance rules & money habits'],
-    formats: ['short'],
+    formats: ['short', 'long'],
     renderer: 'remotion',
     required_capabilities: ['script-gen', 'tts', 'captions'],
     // D2: point-slot constraints over the IMMUTABLE shorts skeleton — beats[4]
     // == the MR kit's 4-point numbered money listicle (points: 4, lineWords
     // '9-12', kit-owned). Each beat names what numbered point i must BE.
+    // P-3 (D2 long/doc form): sections[] drive the DOC lane — 6 chapters,
+    // min 90 words (the shorts beats drive the SHORTS lane).
     story_structure: {
+      sections: ['cold_open', 'chapters:6', 'exhibits', 'outro'],
+      chapter_min_words: 90,
       beats: [
         'slot 1 states the popular money myth and the $ figure that belief promises or costs — the listicle\'s opening point',
         'slot 2 reverses the myth with the counter-$ evidence — what the real number is, per the cited source',
