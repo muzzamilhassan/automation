@@ -13,12 +13,14 @@ import { makeRegistryDb, getRegistryDb, adaptPostgres } from '../studio/lib/temp
 // (nothing more — so a passing test cannot be trivially green):
 //   - CREATE TABLE IF NOT EXISTS <t> (...)          -> recorded, no-op
 //   - ALTER TABLE <t> ADD COLUMN IF NOT EXISTS ...   -> recorded, no-op
-//   - WITH swapped_out AS (UPDATE ...), upsert AS (INSERT ...), audit AS
-//     (INSERT INTO template_assignment_audit ... SELECT ...) SELECT ... FROM audit
+//   - WITH swapped_out AS (UPDATE ...), upsert AS (INSERT ... RETURNING 1)
+//     SELECT family_id, pinned_major FROM swapped_out
 //     -> the Phase 5 swap: deactivates every OTHER active row matching the
 //     WHERE (supports `= $n`, `= true`, and `<> $n`), upserts the new row,
-//     writes the audit row (from_family = the replaced families joined with
-//     ',' when several were replaced), returns the projected audit row
+//     returns the deactivated rows (the audit row is a SECOND, plain INSERT
+//     handled by the branch below — from_family/from_major are computed in
+//     JS by the lib; round 2: the single-statement audit variant chokes
+//     postgres.js client-side on live Neon, never reaching Postgres)
 //   - SELECT [DISTINCT] <cols> FROM <t> [WHERE ...] -> filters stored rows
 //     WHERE conditions supported: `<col> = $n` and `<col> = true|false`
 //   - INSERT INTO <t> (cols) VALUES ($1..$n)
@@ -55,18 +57,19 @@ function makeStubClient() {
       return [];
     }
 
-    // Phase 5 T1 (round 1) swap semantics (D19): the assign path deactivates
-    // every OTHER active assignment of the channel, upserts the new row, AND
-    // writes the audit row in ONE atomic statement (three data-modifying CTEs
-    // — postgres.js pools connections, so BEGIN/COMMIT via unsafe() is not
-    // reliably atomic; one statement is). The stub mirrors the statement's
-    // semantics (the SQL text computes from_family/from_major itself):
+    // Phase 5 T1 swap semantics (D19), round 2 shape: the assign path
+    // deactivates every OTHER active assignment of the channel and upserts
+    // the new row in ONE atomic statement (data-modifying CTEs — postgres.js
+    // pools connections, so BEGIN/COMMIT via unsafe() is not reliably atomic;
+    // one statement is). The audit row is a SECOND plain INSERT (round 2:
+    // the single-statement audit variant chokes postgres.js client-side on
+    // live Neon — the audit values are computed in JS by the lib). The stub
+    // understands exactly this emitted shape:
     //   WITH swapped_out AS (UPDATE <t> SET active = false WHERE ... RETURNING family_id, pinned_major),
-    //        upsert AS (INSERT INTO <t> (...) VALUES (...) ON CONFLICT ... RETURNING 1),
-    //        audit AS (INSERT INTO template_assignment_audit (...) SELECT ... RETURNING from_family, from_major)
-    //   SELECT from_family, from_major, ... AS swapped_families, ... AS swapped_major FROM audit
+    //        upsert AS (INSERT INTO <t> (...) VALUES (...) ON CONFLICT ... RETURNING 1)
+    //   SELECT family_id, pinned_major FROM swapped_out
     const swapMatch = sql.match(
-      /^WITH swapped_out AS \( ?UPDATE (\w+) SET active = false WHERE (.+?) RETURNING ([\w, ]+?) ?\), ?upsert AS \( ?INSERT INTO (\w+) \(([^)]+)\) VALUES \(([^)]+)\)(?: ON CONFLICT \(([^)]+)\) DO UPDATE SET (.+?))? RETURNING 1 ?\), ?audit AS \( ?INSERT INTO template_assignment_audit \(actor, channel_id, family_id, from_family, from_major, to_major, action\) SELECT .+? RETURNING from_family, from_major ?\) SELECT .+?FROM audit$/i,
+      /^WITH swapped_out AS \( ?UPDATE (\w+) SET active = false WHERE (.+?) RETURNING ([\w, ]+?) ?\), ?upsert AS \( ?INSERT INTO (\w+) \(([^)]+)\) VALUES \(([^)]+)\)(?: ON CONFLICT \(([^)]+)\) DO UPDATE SET (.+?))? RETURNING 1 ?\) SELECT ([\w, ]+?) FROM swapped_out$/i,
     );
     if (swapMatch) {
       calls.push({ sql, params });
@@ -82,7 +85,7 @@ function makeStubClient() {
           : null;
       });
       // 1) deactivate every OTHER active row of this channel, collect them
-      //    (the audit CTE's string_agg sorts by family_id — mirror that)
+      //    (the returned rows feed the lib's JS from_family/from_major math)
       const conds = [...swapMatch[2].matchAll(/(\w+) (=|<>) (\$\d+|true|false)/gi)].map(([, col, op, val]) => {
         const v = /^\$\d+$/.test(val) ? params[Number(val.slice(1)) - 1]
           : val.toLowerCase() === 'true';
@@ -96,18 +99,7 @@ function makeStubClient() {
           swappedOut.push({ family_id: existing.family_id, pinned_major: existing.pinned_major });
         }
       }
-      // 2) from_family/from_major — the SQL computes these against the
-      //    statement snapshot: string_agg of the swapped rows, else the
-      //    same-family PRIOR row (pre-upsert state), else null.
-      const preStatePrior = [...store0.values()].find(
-        (r) => r.channel_id === params[0] && r.family_id === params[1],
-      );
-      const sortedSwapped = [...swappedOut].sort((a, b) => String(a.family_id).localeCompare(String(b.family_id)));
-      const swappedFamilies = sortedSwapped.length > 0 ? sortedSwapped.map((r) => r.family_id).join(',') : null;
-      const swappedMajor = sortedSwapped.length > 0 ? sortedSwapped[0].pinned_major : null;
-      const fromFamily = swappedFamilies !== null ? swappedFamilies : (preStatePrior ? params[1] : null);
-      const fromMajor = swappedMajor !== null ? swappedMajor : (preStatePrior ? preStatePrior.pinned_major : null);
-      // 3) upsert the new row (same merge semantics as the plain INSERT branch)
+      // 2) upsert the new row (same merge semantics as the plain INSERT branch)
       const conflict = swapMatch[7];
       const store = getStore(table);
       if (conflict) {
@@ -119,19 +111,7 @@ function makeStubClient() {
       } else {
         store.set(`row-${store.size}`, row);
       }
-      // 4) the audit write rides inside the statement — record it in the same
-      //    shape the plain audit INSERT branch produces, so auditRowsOf() sees it
-      auditRows.push({
-        id: ++auditSeq, at: new Date(),
-        actor: params[4], channel_id: params[0], family_id: params[1],
-        from_family: fromFamily, from_major: fromMajor, to_major: params[2], action: 'assign',
-      });
-      calls.push({
-        sql: `INSERT INTO template_assignment_audit (actor, channel_id, family_id, from_family, from_major, to_major, action) VALUES ($1, $2, $3, $4, $5, $6, 'assign')`,
-        params: [params[4], params[0], params[1], fromFamily, fromMajor, params[2]],
-      });
-      // 5) project the audit CTE's RETURNING + the swapped summary
-      return [{ from_family: fromFamily, from_major: fromMajor, swapped_families: swappedFamilies, swapped_major: swappedMajor }];
+      return swappedOut;
     }
 
     const insertMatch = sql.match(/^INSERT INTO (\w+)/i);

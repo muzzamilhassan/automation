@@ -33,20 +33,20 @@ function majorOf(version) {
   return parseInt(version.split('.')[0], 10);
 }
 
-// The swap+assign+audit statement (Phase 5 T1, D19) — ONE atomic statement:
+// The swap statement (Phase 5 T1, D19) — ONE atomic statement:
 //   swapped_out: deactivate every OTHER active assignment of the channel,
-//                returning what was replaced (comma-joined into from_family
-//                when a legacy multi-active channel heals in one assign);
-//   upsert:      land the new assignment row (active=true);
-//   audit:       write the 'assign' audit row — from_family/from_major are
-//                computed against the statement snapshot (string_agg of the
-//                swapped rows, else the same-family prior row's pre-upsert
-//                values, else null on a first assignment);
-//   projection:  the audit row's from_* plus the swapped summary for the
-//                caller's result.
+//                returning what was replaced;
+//   upsert:      land the new assignment row (active=true).
+// The audit row is NOT part of this statement (round 2, live-Neon finding):
+// the round-1 variant computed the audit values in SQL (string_agg subqueries
+// over the CTE) and postgres.js choked CLIENT-SIDE before ever reaching
+// Postgres — an args-serialization quirk (`q.args.forEach is not a function`)
+// the in-memory stub cannot see (it does not parse SQL). The audit values are
+// therefore computed in JS and inserted by a SECOND, plain statement (see
+// assignTemplate). Shapes verified green against live Neon: the bare CTE
+// (P1), +the upsert CTE (P2), this exact 2-CTE + plain final SELECT.
 // $1 channelId, $2 familyId, $3 pinnedMajor, $4 pinnedVersion, $5 actor,
-// $6 assignedAt. Data-modifying CTEs read the SAME snapshot, so the audit's
-// EXISTS/prior-major lookups see the pre-upsert state.
+// $6 assignedAt.
 const SWAP_ASSIGN_SQL = `WITH swapped_out AS (
   UPDATE channel_template_assignments SET active = false
   WHERE channel_id = $1 AND active = true AND family_id <> $2
@@ -58,22 +58,8 @@ const SWAP_ASSIGN_SQL = `WITH swapped_out AS (
   ON CONFLICT (channel_id, family_id) DO UPDATE SET
     pinned_major = $3, pinned_version = $4, assigned_by = $5, assigned_at = $6, active = true
   RETURNING 1
-), audit AS (
-  INSERT INTO template_assignment_audit (actor, channel_id, family_id, from_family, from_major, to_major, action)
-  SELECT $5, $1, $2,
-    COALESCE((SELECT string_agg(family_id, ',' ORDER BY family_id) FROM swapped_out),
-             CASE WHEN EXISTS (SELECT 1 FROM channel_template_assignments c
-                               WHERE c.channel_id = $1 AND c.family_id = $2) THEN $2 END),
-    COALESCE((SELECT w.pinned_major FROM swapped_out w ORDER BY w.family_id LIMIT 1),
-             (SELECT c.pinned_major FROM channel_template_assignments c
-              WHERE c.channel_id = $1 AND c.family_id = $2)),
-    $3, 'assign')
-  RETURNING from_family, from_major
 )
-SELECT from_family, from_major,
-  (SELECT string_agg(family_id, ',' ORDER BY family_id) FROM swapped_out) AS swapped_families,
-  (SELECT w.pinned_major FROM swapped_out w ORDER BY w.family_id LIMIT 1) AS swapped_major
-FROM audit`;
+SELECT family_id, pinned_major FROM swapped_out`;
 
 export function makeRegistryDb(client) {
   if (typeof client !== 'function') {
@@ -216,18 +202,20 @@ export function makeRegistryDb(client) {
    * (fail-closed: no version in the pinned major -> no writes). Writes the
    * assignment (upsert, active=true) and an audit row (action 'assign';
    * from_family/from_major null on a first assignment, the replaced row's
-   * id/major on a swap — ALL replaced ids comma-joined when a legacy
+   * id/major on a swap — ALL replaced ids comma-joined (sorted) when a legacy
    * multi-active channel heals in one assign — and the same id/prior major on
    * a same-family re-pin).
    *
-   * Atomicity: deactivate + upsert + audit run as ONE statement (three
-   * data-modifying CTEs). postgres.js pools connections, so BEGIN/COMMIT via
-   * unsafe() is NOT reliably atomic (statements can land on different
-   * connections); a single statement is atomic by construction — no
-   * intermediate state (0 or 2 active rows, or an assignment without its
-   * audit row) is ever visible to a concurrent reader. The audit CTE computes
-   * from_family/from_major against the statement's snapshot (pre-upsert
-   * state), so the same-family prior major is read before the upsert lands.
+   * Atomicity / statement layout (round 2, live-Neon finding): the swap
+   * (deactivate + upsert) is ONE statement — data-modifying CTEs; postgres.js
+   * pools connections, so BEGIN-via-unsafe is not reliably atomic and the
+   * transactional API (sql.begin) is not part of this layer's positional
+   * client contract. The audit row is a SECOND, plain statement: postgres.js
+   * chokes client-side on the round-1 single-statement variant (SQL-computed
+   * audit values over a CTE — an args-serialization quirk, never reaching
+   * Postgres), so the audit values are computed HERE in JS. A crash between
+   * the two statements = a swap without its audit row — exactly the posture
+   * pre-Phase-5 shipped (insert then audit), accepted as not-a-regression.
    */
   async function assignTemplate(channelId, familyId, pinnedMajor, actor) {
     if (!isNonEmptyString(channelId) || !isNonEmptyString(familyId)
@@ -242,9 +230,41 @@ export function makeRegistryDb(client) {
     const resolved = resolveAssignment({ familyId, pinned_major: pinnedMajor }, blocks);
     if (!resolved.ok) return { ok: false, errors: resolved.errors };
 
-    const out = (await client(SWAP_ASSIGN_SQL, [channelId, familyId, pinnedMajor, resolved.resolvedVersion, actor, new Date()]))[0] || null;
-    const swappedFamilies = out ? out.swapped_families : null;
-    const swapped = swappedFamilies !== null && swappedFamilies !== undefined;
+    // from_major (pre-Phase-5 semantics kept): the channel's previous
+    // pinned_major for this family if a row exists at all (active or not — a
+    // re-assign after unassign still records what it moved from), null on
+    // first assignment. Read BEFORE the swap (snapshot-consistent for the
+    // same-family row, which the swap's UPDATE excludes anyway).
+    const priorRows = await client(
+      'SELECT pinned_major FROM channel_template_assignments WHERE channel_id = $1 AND family_id = $2',
+      [channelId, familyId],
+    );
+
+    // SWAP (atomic single statement): deactivate every OTHER active
+    // assignment of this channel and upsert the new row; the deactivated rows
+    // come back so the audit can name what was replaced.
+    const swappedOut = await client(
+      SWAP_ASSIGN_SQL,
+      [channelId, familyId, pinnedMajor, resolved.resolvedVersion, actor, new Date()],
+    );
+
+    // from_family/from_major computed in JS (see the round-2 note above):
+    // the replaced assignment(s) — comma-joined sorted ids when several were
+    // replaced, else the same-family prior row's id/major, else null.
+    const sortedSwapped = [...swappedOut].sort((a, b) => String(a.family_id).localeCompare(String(b.family_id)));
+    const swapped = sortedSwapped.length > 0;
+    const fromMajor = swapped
+      ? sortedSwapped[0].pinned_major
+      : (priorRows.length > 0 ? priorRows[0].pinned_major : null);
+    const fromFamily = swapped
+      ? sortedSwapped.map((r) => r.family_id).join(',')
+      : (priorRows.length > 0 ? familyId : null);
+
+    await client(
+      `INSERT INTO template_assignment_audit (actor, channel_id, family_id, from_family, from_major, to_major, action)
+       VALUES ($1, $2, $3, $4, $5, $6, 'assign')`,
+      [actor, channelId, familyId, fromFamily, fromMajor, pinnedMajor],
+    );
 
     return {
       ok: true,
@@ -253,9 +273,9 @@ export function makeRegistryDb(client) {
       pinnedMajor,
       resolvedVersion: resolved.resolvedVersion,
       majorUpdateAvailable: resolved.majorUpdateAvailable,
-      fromMajor: out ? out.from_major : null,
-      fromFamily: out ? out.from_family : null,
-      swappedFrom: swapped ? { familyId: swappedFamilies, pinnedMajor: out.swapped_major } : null,
+      fromMajor,
+      fromFamily,
+      swappedFrom: swapped ? { familyId: fromFamily, pinnedMajor: sortedSwapped[0].pinned_major } : null,
     };
   }
 
