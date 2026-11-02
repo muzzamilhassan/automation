@@ -11,6 +11,14 @@
 // slab-quote, serif-frame, gold-standard, terminal, bungee-sign, redact,
 // ledger, screen, plinth, coinflip, marquee, pillar.
 //
+// T4 coverage note (2026-11-02): NO niche has <2 designs in this pool — the
+// v1 has no coverage gaps; every canonical string clears the 2-design bar.
+// The floor-2 niches (exactly at minimum — no spare if a design ever drops):
+// 'AI & future tech' (terminal, screen), 'Human psychology & social dynamics'
+// (redact, coinflip), 'Healthspan & longevity habits' and 'Gym & training
+// motivation' (both on blackout + focal-cut), 'Sleep & recovery science'
+// (whitespace, slab-quote).
+//
 // Entry schema:
 //   id          — the catalog design id (must exist AND be needsPhoto:false —
 //                 the loader rejects anything else, fail-closed)

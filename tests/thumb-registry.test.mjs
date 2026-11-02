@@ -250,6 +250,73 @@ describe('T2d round 1 — the assigned thumb set (kit.thumbTemplates, D13)', () 
 });
 
 // ---------------------------------------------------------------------------
+// P5-T4 — the LAUNCH ASSIGNMENT DATA: the four active channels' kits carry
+// 2-3 niche-matched launch-set ids in yt-mcp/studio-channels.json's kit JSONB
+// (D13's assignment storage; the engine reads brand.thumbTemplates through the
+// T2d round-1 carry and intersects with the eligible pool). The file is
+// checked-in repo data with NO secrets (registry kits never hold tokens), so
+// the pins stay CI-portable. The panel's per-niche browser keeps future
+// assignments inside the same bars; an unassigned channel stays legal (the
+// frames cell) — only the four launch channels are pinned to HAVE sets.
+// ---------------------------------------------------------------------------
+
+describe('P5-T4 — the launch thumb-set assignments (kit JSONB, D13)', () => {
+  const CHANNELS = JSON.parse(
+    fs.readFileSync(path.join(ROOT, 'yt-mcp/studio-channels.json'), 'utf8'),
+  ).channels;
+  const LAUNCH_SLUGS = ['money-rulebook', 'investors-compass', 'debt-free-doctrine', 'quotequarry'];
+  const catalogOrder = (ids) => [...ids].sort((a, b) => QA_POOL.indexOf(a) - QA_POOL.indexOf(b));
+
+  test('each of the four launch channels declares kit.thumbTemplates with 2-3 ids (D13 storage)', () => {
+    for (const slug of LAUNCH_SLUGS) {
+      const ch = CHANNELS.find((c) => c.slug === slug);
+      assert.ok(ch, `${slug} is a launch channel in yt-mcp/studio-channels.json`);
+      const set = ch.kit?.thumbTemplates;
+      assert.ok(Array.isArray(set), `${slug}.kit.thumbTemplates is declared (the D13 JSONB key)`);
+      assert.ok(set.length >= 2 && set.length <= 3, `${slug} carries 2-3 designs, got ${set?.length}`);
+    }
+  });
+
+  test('the pilot money-rulebook carries >= 2 designs — Drill C needs N>1 candidate rotation room', () => {
+    const mr = CHANNELS.find((c) => c.slug === 'money-rulebook');
+    assert.ok(
+      mr.kit.thumbTemplates.length >= 2,
+      `the pilot needs rotation room (>= 2), got ${mr.kit.thumbTemplates.length}`,
+    );
+  });
+
+  test('every assigned id on every active channel is an eligible launch design, niche-matched to the channel\'s EXACT niche string', () => {
+    const { designs } = loadThumbRegistry();
+    const byId = new Map(designs.map((d) => [d.id, d]));
+    for (const ch of CHANNELS.filter((c) => c.active)) {
+      const set = ch.kit?.thumbTemplates;
+      if (!Array.isArray(set) || set.length === 0) continue; // unassigned = the frames cell — legal
+      assert.ok(CANONICAL_NICHES.includes(ch.niche), `${ch.slug} niche string is in the closed D17 vocabulary`);
+      for (const id of set) {
+        const d = byId.get(id);
+        assert.ok(d, `${ch.slug} assigned "${id}" — a needsPhoto:false launch design (unknown/photo ids would silently drop at the seam)`);
+        assert.ok(
+          d.niches.includes(ch.niche),
+          `${ch.slug} (${ch.niche}): assigned "${id}" binds that exact niche string — got [${d.niches.join(', ')}]`,
+        );
+      }
+    }
+  });
+
+  test('the T2d loader resolves each launch channel\'s FULL assigned set (assigned ∩ eligible, catalog order)', () => {
+    for (const slug of LAUNCH_SLUGS) {
+      const ch = CHANNELS.find((c) => c.slug === slug);
+      const picks = pickCandidates(ch.niche, 3, { assignedIds: ch.kit.thumbTemplates });
+      assert.deepEqual(
+        idsOf(picks),
+        catalogOrder(ch.kit.thumbTemplates),
+        `${slug}: nothing dropped from the assignment and catalog order wins`,
+      );
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // The D12 eligibility math (QA Row 12: 0/1/>=2 eligible -> the candidate counts)
 // ---------------------------------------------------------------------------
 

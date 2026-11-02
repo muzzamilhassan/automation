@@ -23,7 +23,8 @@
         "slots": [
           "22:35"
         ],
-        "docDay": "Tue"
+        "docDay": "Tue",
+        "thumbTemplates": ["slab-quote", "serif-frame", "plinth"]
       },
       "destinations": {
         "fbPageId": "114550268199751",
@@ -53,7 +54,8 @@
         "slots": [
           "23:35"
         ],
-        "docDay": "Wed"
+        "docDay": "Wed",
+        "thumbTemplates": ["gold-standard", "ledger", "coinflip"]
       },
       "destinations": {
         "fbPageId": "116157974886564"
@@ -82,7 +84,8 @@
         "slots": [
           "00:05"
         ],
-        "docDay": "Thu"
+        "docDay": "Thu",
+        "thumbTemplates": ["price-fight", "gold-standard", "coinflip"]
       },
       "destinations": {
         "fbPageId": "1077306835630491"
@@ -110,7 +113,8 @@
         "slots": [
           "21:20"
         ],
-        "docDay": "Fri"
+        "docDay": "Fri",
+        "thumbTemplates": ["gold-standard", "pillar"]
       },
       "destinations": {
         "fbPageId": "106473735839651"
