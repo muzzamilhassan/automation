@@ -879,14 +879,30 @@ const SPY_DOC_ENGINE_RESUME = [
   'export default renderYouTubeThumbnail;',
 ].join('\n');
 
+// P5 round 1 (live MR pilot): the GEN store wraps the REAL makeScriptStore
+// over a minimal in-memory db — run 41482343689's exact crash surface (the
+// real saveScript's sources normalization), not a fake that always succeeds.
+// __REAL_STORE_HREF__ is substituted by the harness at write time.
 const SPY_DOC_STORE_GEN = [
   "import { appendFileSync } from 'node:fs';",
   'const LOG = process.env.PIPELINE_SPY_LOG;',
   "function rec(fn, args) { try { appendFileSync(LOG, JSON.stringify({ mod: 'docstore', fn, args }) + '\\n'); } catch {} }",
+  "import { makeScriptStore } from __REAL_STORE_HREF__;",
+  'const rows = { scripts: [], sources: [], claims: [] };',
+  'const client = async (sql, params) => {',
+  '  const s = String(sql).replace(/\\s+/g, " ").trim();',
+  '  if (s.startsWith("CREATE ") || s.startsWith("ALTER ")) return [];',
+  '  if (s.startsWith("INSERT INTO scripts ")) { const row = { id: params[0], status: params[8], created_at: new Date().toISOString() }; rows.scripts.push(row); return [{ id: row.id }]; }',
+  '  if (s.startsWith("INSERT INTO script_sources ")) { rows.sources.push({ id: rows.sources.length + 1 }); return [{ id: rows.sources.length }]; }',
+  '  if (s.startsWith("INSERT INTO script_claims ")) { rows.claims.push({}); return []; }',
+  '  if (s.startsWith("SELECT status FROM scripts")) { const r = rows.scripts[rows.scripts.length - 1]; return r ? [{ status: r.status }] : []; }',
+  '  throw new Error("fake db: unexpected sql " + s.slice(0, 60));',
+  '};',
+  'const real = makeScriptStore({ dbClient: client });',
   'const store = {',
-  '  async saveScript(fields) { rec("saveScript", fields); return { ok: true, id: "doc-script-1" }; },',
-  '  async latestApprovedForJob() { return { ok: true, script: null }; },',
-  '  async latestApproved() { return { ok: true, script: null }; },',
+  '  async saveScript(fields) { rec("saveScript", fields); const r = await real.saveScript(fields); rec("saveResult", { ok: r.ok, error: r.error || null, sources: rows.sources.length, claims: rows.claims.length }); return r; },',
+  '  async latestApprovedForJob() { rec("latestApprovedForJob", {}); return { ok: true, script: null }; },',
+  '  async latestApproved() { rec("latestApproved", {}); return { ok: true, script: null }; },',
   '  async markConsumed() { rec("markConsumed", {}); return { ok: true, id: "x" }; },',
   '};',
   "export async function getScriptStore() { rec('getScriptStore', {}); return store; }",
@@ -1111,6 +1127,10 @@ function runYtDeepdive({ env = {}, engine, store, intents, registry = null } = {
       ['spy-doc-intents.mjs', intents], ['spy-doc-google.mjs', SPY_GOOGLE], ['spy-doc-cp.mjs', SPY_DOC_CP], ['spy-doc-clips.mjs', SPY_DOC_CLIPS],
     ]) {
       let out = src;
+      // P5 round 1: the GEN store spy embeds the REAL store over a fake db —
+      // substitute the repo href (the live-pilot crash surface must run the
+      // real saveScript, not a fake that always succeeds)
+      out = out.replace(/__REAL_STORE_HREF__/g, JSON.stringify(pathToFileURL(path.join(ROOT, 'studio', 'lib', 'script-store.mjs')).href));
       if (name === 'spy-doc-intents.mjs') {
         // the D8 publishAt recompute is PURE slot math the tests assert on —
         // forward the real implementation (only the NETWORK seams are stubbed)
@@ -1189,6 +1209,14 @@ describe('#106 T5c — GENERATE-ONLY saves the doc awaiting_review, zero render 
     );
     assert.ok(String(f.fullRenderInput.themes).includes('wave-doc-seed'), 'the trend directive rides along as themes');
     assert.ok(f.text.includes(DOC_EPISODE.title) && f.text.includes(DOC_EPISODE.outro), 'text carries the narration for the /review desk');
+    // P5 round 1 (live MR pilot, run 41482343689): the gen store wraps the REAL
+    // saveScript over a fake db — the sources-less doc record must PERSIST
+    // (sources: []) instead of throwing 'fields.sources is not iterable'.
+    const savedForReal = r.spy.find((c) => c.mod === 'docstore' && c.fn === 'saveResult');
+    assert.ok(savedForReal, 'the REAL saveScript ran (the gen store wraps makeScriptStore — the live-pilot crash surface)');
+    assert.equal(savedForReal.args.ok, true, `the sources-less doc record PERSISTED: ${savedForReal?.args?.error}`);
+    assert.equal(savedForReal.args.sources, 0, 'zero source rows — the doc lane records its sources honestly empty');
+    assert.equal(savedForReal.args.claims, 0, 'zero claim rows');
     const tts = r.spy.filter((c) => c.mod === 'doccp' && c.fn === 'execFileSync');
     assert.deepEqual(tts, [], 'ZERO TTS/ffmpeg calls — the generate-only run stops before any render spend');
     assert.equal(r.spy.filter((c) => c.mod === 'docmusic' && c.fn === 'pickApprovedTrack').length, 0, 'ZERO music picks');

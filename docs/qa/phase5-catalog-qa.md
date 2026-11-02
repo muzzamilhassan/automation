@@ -451,6 +451,16 @@ Proves AC-P5-12/13/14 live. On an enabled gated channel with an assigned needsPh
 
 ---
 
+### Row P5-fix-1 — the doc generate-only save tolerates sources-less records (live MR pilot, run 41482343689) · `automated`
+
+- Steps: `node --test tests/script-store.test.mjs tests/review-seams.test.mjs` — the store pins (a sources-less record and a malformed non-array sources field both SAVE with zero source/claim rows, never a throw; a real sources/claims record still lands all its rows) and the doc generate-only spawn whose store wraps the REAL makeScriptStore over a fake db (the pilot's exact crash surface: the real saveScript persists the sources-less doc record, ok:true, 0 sources, 0 claims).
+- Expected: the desk is never empty because a doc lane's honest sources-less record crashed the save after validation had already tolerated the shape; the write is as tolerant as the validation, and the /review desk's flagged-claims panel surfaces required-sources docs as unsourced until the owner attaches sources.
+- Actual:
+- Evidence (quoted log/output):
+- Status:
+
+---
+
 ## Regression — pinned invariants
 
 These hold across the whole phase. Any FAIL here blocks sign-off even if every feature row passes.

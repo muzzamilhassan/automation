@@ -458,3 +458,40 @@ describe('#106 T5 script store — never-throw degradation (AC-P4-5 posture)', (
     assert.deepEqual([...CLAIM_VERIFICATIONS].sort(), ['flagged', 'unverified', 'verified']);
   });
 });
+
+// ---------------------------------------------------------------------------
+// #106 P5 round 1 — found by the LIVE MR PILOT: the doc generate-only record
+// arrives WITHOUT sources/claims (the doc generation path does not track
+// per-claim sources), and saveScript's write loops iterated the RAW fields —
+// `for...of undefined` threw 'fields.sources is not iterable' after the
+// validation had already tolerated the shape. The write must be as tolerant
+// as the validation: normalize to [] and save honestly.
+// ---------------------------------------------------------------------------
+
+describe('#106 P5 round 1 script store — sources-less records save (live-pilot regression)', () => {
+  test('a sources-less record SAVES with zero source/claim rows — the doc generate-only shape never throws on shape', async () => {
+    const { store, tables } = makeStore();
+    const r = await store.saveScript({ ...BASE, sources: undefined, claims: undefined });
+    assert.equal(r.ok, true, `no throw: ${r.error}`);
+    assert.equal(tables.script_sources.length, 0, 'zero source rows for a sources-less record');
+    assert.equal(tables.script_claims.length, 0, 'zero claim rows');
+    assert.equal(tables.scripts.length, 1, 'the script row itself persisted');
+    assert.equal(tables.scripts[0].status, 'awaiting_review');
+  });
+
+  test('a MALFORMED (non-array) sources/claims field defaults gracefully — saved, never a throw', async () => {
+    const { store, tables } = makeStore();
+    const r = await store.saveScript({ ...BASE, sources: 'not-an-array', claims: 42 });
+    assert.equal(r.ok, true, `no throw: ${r.error}`);
+    assert.equal(tables.script_sources.length, 0, 'the malformed field is treated as empty, not iterated');
+    assert.equal(tables.scripts.length, 1);
+  });
+
+  test('a REAL sources/claims record still lands its rows (the normalization is additive, not a wipe)', async () => {
+    const { store, tables } = makeStore();
+    const r = await store.saveScript(BASE);
+    assert.equal(r.ok, true);
+    assert.equal(tables.script_sources.length, BASE.sources.length);
+    assert.equal(tables.script_claims.length, BASE.claims.length);
+  });
+});

@@ -808,6 +808,13 @@ if (GENERATE_ONLY) {
       closing: script.outro,
       thumbHeadline: script.title,
     },
+    // P5 round 1 (live MR pilot): the doc generation path does not track
+    // per-claim sources — record that HONESTLY as empty arrays (the schema
+    // allows it; sources added at review time) instead of letting an undefined
+    // field crash the save. The /review desk's flagged-claims panel surfaces
+    // required-sources docs as unsourced until the owner attaches sources.
+    sources: [],
+    claims: [],
     seed: longSeed?.title || null,
     themes: theme || null,
     publishAt: nextFutureSlotISO([b.longSlot], { now: new Date() }),

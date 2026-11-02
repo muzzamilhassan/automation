@@ -203,6 +203,14 @@ export function makeScriptStore(deps) {
 
     const id = randomUUID();
     const status = fields.status ?? 'awaiting_review';
+    // P5 round 1 (found by the live MR pilot): the validation above TOLERATES a
+    // sources-less record (sources: [] is legal — sources can be added at
+    // review time), so the write must tolerate the same shape. Normalize here —
+    // never iterate the raw fields (a doc generate-only record arrives without
+    // them, and `for...of undefined` threw 'fields.sources is not iterable'
+    // AFTER the script row staged, killing the whole save).
+    const sources = Array.isArray(fields.sources) ? fields.sources : [];
+    const claims = Array.isArray(fields.claims) ? fields.claims : [];
     try {
       await transact(async (tx) => {
         await tx(
@@ -214,14 +222,14 @@ export function makeScriptStore(deps) {
             Number.isInteger(fields.slotIdx) ? fields.slotIdx : null, fields.publishAt ?? null],
         );
         const sourceIds = [];
-        for (const s of fields.sources) {
+        for (const s of sources) {
           const rows = await tx(
             `INSERT INTO script_sources (script_id, url, title, snippet) VALUES ($1,$2,$3,$4) RETURNING id`,
             [id, s.url, s.title ?? null, s.snippet ?? null],
           );
           sourceIds.push(rows?.[0]?.id ?? null);
         }
-        for (const c of fields.claims) {
+        for (const c of claims) {
           const sourceId = c.sourceIdx === undefined || c.sourceIdx === null ? null : sourceIds[c.sourceIdx];
           await tx(
             `INSERT INTO script_claims (script_id, claim, source_id, verification) VALUES ($1,$2,$3,$4)`,
