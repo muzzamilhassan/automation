@@ -262,12 +262,14 @@ function segment(cardPng, clipFile, audioFile, outFile, dur, drift = false) {
 // returns so a caller can tell "shipped" from "refused": the normal path
 // ignores the result and the module ends right after (identical behavior), the
 // resume maps a refusal to exit 1 with the script left approved.
-async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null, reviewScript = null, docTemplateId = null } = {}) {
+async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null, reviewScript = null, docTemplateId = null, docDisclaimerBlock = null } = {}) {
   // P5 T5d: docTemplateId = the doc template whose declared disclaimers the
-  // upload description machine-appends. Threaded per call site: the resolved
-  // assignment on the normal doc day, the APPROVED ROW's own template_id on a
-  // resume (this tail runs before the module-scope docTemplateId below is
-  // resolved, so the resume can only name its row's template).
+  // upload description machine-appends; docDisclaimerBlock = the APPROVED
+  // row's stored block, which wins VERBATIM on a resume (round 1 FIX 1).
+  // Threaded per call site: the resolved assignment on the normal doc day, the
+  // APPROVED ROW's own template_id + stored block on a resume (this tail runs
+  // before the module-scope docTemplateId below is resolved, so the resume can
+  // only name its row's template).
   fs.mkdirSync(`demos/deepdive-${slug}`, { recursive: true });
   const work = `demos/deepdive-${slug}`;
   const segs = [];
@@ -389,12 +391,28 @@ async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null
   if (pub <= new Date(now.getTime() + 35 * 60 * 1000)) pub.setUTCDate(pub.getUTCDate() + 1);
   const publishAt = pub.toISOString().replace(/\.\d+Z$/, 'Z');
 
+  // #106 P5 T5d (D4/AC-P5-4): the doc template may declare fixed disclaimers —
+  // the upload DESCRIPTION gains them machine-appended (code, never the LLM),
+  // the same unconditional append the shorts lanes wire at their snippets.
+  // Round 1 FIX 1: a RESUMED doc ships the APPROVED row's stored block
+  // VERBATIM — a registry edit (or an unreadable data file failing open to
+  // null) between approval and this resume can never silently change the
+  // compliance text /review showed the owner; rows predating the block fall
+  // back to the live chain. Null = nothing declared = byte-identical.
+  const docDisclaimers = docDisclaimerBlock
+    ? docDisclaimerBlock.split('\n')
+    : await declaredDisclaimers(docTemplateId);
+  // Round 1 FIX 2: the append's length is resolved BEFORE the base slice so
+  // the description RESERVES its headroom — the final payload stays within
+  // YouTube's 5000-char cap and the verbatim text is never truncated (never
+  // slice after the append).
+  const disclaimerAppend = Array.isArray(docDisclaimers) ? docDisclaimers.filter(Boolean).join('\n') : '';
   let cum = 0;
   const chapters = script.chapters.map((c, i) => {
     const t = cum; cum += segs[i + 1]?.dur || 0;
     return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')} ${c.title}`;
   });
-  const description = [`"${script.title}" — a daily ${b.kwShort} episode from ${b.label}.`, '', script.intro, '', ...chapters, '', script.outro, `New episodes every day. ${b.hashtags || ''}`, ...(music ? [`🎵 ${music.credit}`] : [])].join('\n').slice(0, 4900);
+  const description = [`"${script.title}" — a daily ${b.kwShort} episode from ${b.label}.`, '', script.intro, '', ...chapters, '', script.outro, `New episodes every day. ${b.hashtags || ''}`, ...(music ? [`🎵 ${music.credit}`] : [])].join('\n').slice(0, Math.max(0, 4900 - (disclaimerAppend ? disclaimerAppend.length + 2 : 0)));
 
   // 10-05 DUPLICATE TITLE GATE — the "Musonius Rufus" doc went out twice in two
   // days; a near-dup episode must never upload. Skip WITHOUT marking
@@ -409,11 +427,6 @@ async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null
   // INSERT mutex), session URI persisted before the first byte, videoId on 201.
   // Minor 7: the intent fingerprints the EXACT uploaded title (sliced, as the
   // resource sends it) so recovery matches the live playlist byte-for-byte.
-  // #106 P5 T5d (D4/AC-P5-4): the doc template may declare fixed disclaimers —
-  // the upload DESCRIPTION gains them machine-appended here (code, never the
-  // LLM), the same unconditional append the shorts lanes wire at their
-  // snippets. Null = nothing declared = byte-identical description.
-  const docDisclaimers = await declaredDisclaimers(docTemplateId);
   const docTitle = `${script.title} | ${b.authority}`.slice(0, 95);
   const up = await uploadWithIntent({
     store: intents, channelId: slug, slotDate: today(), kind: 'doc', slotIdx: 0,
@@ -593,7 +606,14 @@ async function resumeApprovedDoc({ slug, jobId, b }) {
     return false;
   }
   const intents = await getUploadIntentStore();
-  const ship = await renderAndShipEpisode(script, { yt, auth, intents, longSeed: null, reviewScript: { id: found.script.id, store }, docTemplateId: found.script.template_id ?? null });
+  const ship = await renderAndShipEpisode(script, {
+    yt, auth, intents, longSeed: null,
+    reviewScript: { id: found.script.id, store },
+    docTemplateId: found.script.template_id ?? null,
+    // P5 T5d round 1 (FIX 1): the compliance text the owner approved ships
+    // VERBATIM — the live chain only covers rows that predate the block.
+    docDisclaimerBlock: typeof stored.disclaimer_block === 'string' && stored.disclaimer_block.trim() ? stored.disclaimer_block : null,
+  });
   if (ship?.claimed) {
     // The slot was produced by a crashed run's video — claimed, not
     // re-uploaded. The approval row stands (a re-dispatch would re-render and

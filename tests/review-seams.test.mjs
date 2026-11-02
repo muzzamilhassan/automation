@@ -1485,8 +1485,8 @@ describe('#106 P5 T2c — the upload-site wiring (source pins, QA Row 10 boundar
 
   test('P5 T5d (the orphaned site re-owned): yt-deepdive\'s snippet assembly machine-appends the declared chain — the doc upload DESCRIPTION carries compliance too', () => {
     const dd = fs.readFileSync(path.join(ROOT, 'yt-deepdive.mjs'), 'utf8');
-    assert.match(dd, /const docDisclaimers = await declaredDisclaimers\(docTemplateId\)/,
-      'the doc template\'s declared chain resolves through the same review-seams resolver (no private REGISTRY_META walk)');
+    assert.match(dd, /docDisclaimerBlock\s*\?\s*docDisclaimerBlock\.split\('\\n'\)\s*:\s*await declaredDisclaimers\(docTemplateId\)/,
+      'the doc template\'s declared chain resolves through the same review-seams resolver (no private REGISTRY_META walk); the approved row\'s stored block wins when present');
     assert.equal((dd.match(/appendDisclaimers\(/g) || []).length, 1,
       'yt-deepdive wires the machine append at the ONE doc upload description site');
     assert.match(dd, /description: appendDisclaimers\(description, docDisclaimers\)/,
@@ -1499,6 +1499,8 @@ describe('#106 P5 T2c — the upload-site wiring (source pins, QA Row 10 boundar
     // is resolved, so the template threads in per call site: the assignment on
     // the normal day, the APPROVED ROW's own template_id on a resume.
     assert.match(dd, /docTemplateId: found\.script\.template_id \?\? null/, 'the resumed doc threads its row\'s template_id');
+    assert.match(dd, /docDisclaimerBlock: typeof stored\.disclaimer_block === 'string' && stored\.disclaimer_block\.trim\(\) \? stored\.disclaimer_block : null/,
+      'the resumed doc threads its row\'s APPROVED disclaimer block (verbatim; blank = predates the block)');
     assert.match(dd, /renderAndShipEpisode\(script, \{ yt, auth, intents, longSeed, docTemplateId \}\)/, 'the normal doc day threads the resolved assignment');
   });
 });
@@ -1524,13 +1526,16 @@ describe('#106 P5 T2c — the upload-site wiring (source pins, QA Row 10 boundar
 
 const T5D_TEMPLATE = 'doc-disclaimer-fixture';
 
-const SPY_DOC_REGISTRY = [
+/** The declaring registry fixture — parameterized (round 1 varies the text). */
+const docRegistryFixture = (disclaimers) => [
   '// T5d fixture: the DECLARING doc template, installed as the child\'s',
   '// template-registry.data.js (never the production data file).',
   'export const REGISTRY_META = {',
-  `  ${JSON.stringify(T5D_TEMPLATE)}: { version: '1.0.0', template_id: ${JSON.stringify(T5D_TEMPLATE)}, safety: { disclaimers: [${JSON.stringify(T2C_DISCLAIMER)}] } },`,
+  `  ${JSON.stringify(T5D_TEMPLATE)}: { version: '1.0.0', template_id: ${JSON.stringify(T5D_TEMPLATE)}, safety: { disclaimers: ${JSON.stringify(disclaimers)} } },`,
   '};',
 ].join('\n');
+
+const SPY_DOC_REGISTRY = docRegistryFixture([T2C_DISCLAIMER]);
 
 // the generate-only child must RESOLVE an assignment for the declared chain to
 // be consulted — same spy, one line changed (the registry fixture holds it)
@@ -1550,20 +1555,22 @@ const SPY_DOC_STORE_RESUME_T5D = SPY_DOC_STORE_RESUME.replace(
 // process stub's "5.0"): intro max(6, 5+0.8)=6s, each chapter max(14, 5+1.4)=14s,
 // end 6s; no music bed (the spy picks none). Chapter stamps accumulate the 14s
 // chapter segments from 0. Byte-exact: the ungated SHIP cell must equal THIS.
-function expectedUngatedDescription() {
+// (Takes the stored doc so round 1's headroom cell can build the expectation
+// for an oversized episode too.)
+function expectedUngatedDescription(doc = STORED_DOC) {
   const brand = bySlug[SLUG];
-  const chapters = STORED_DOC.points.map((p, i) => {
+  const chapters = doc.points.map((p, i) => {
     const t = i * 14;
     return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')} ${p.title}`;
   });
   return [
-    `"${STORED_DOC.hook}" — a daily ${brand.kwShort} episode from ${brand.label}.`,
+    `"${doc.hook}" — a daily ${brand.kwShort} episode from ${brand.label}.`,
     '',
-    STORED_DOC.intro,
+    doc.intro,
     '',
     ...chapters,
     '',
-    STORED_DOC.closing,
+    doc.closing,
     `New episodes every day. ${brand.hashtags || ''}`,
   ].join('\n').slice(0, 4900);
 }
@@ -1633,5 +1640,72 @@ describe('#106 P5 T5d — the doc lane\'s disclaimer chain (save through the sha
       expectedUngatedDescription(),
       'no declared disclaimers = byte-for-byte the legacy description — no append, no new whitespace',
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #106 P5 T5d round 1 — the re-review minors, both owner-trust refinements on
+// the same assembly:
+//   FIX 1 — a RESUMED doc ships the APPROVED row's stored disclaimer_block
+//           VERBATIM: a registry edit (or an unreadable data file fail-open)
+//           between approval and a days-later resume can never silently ship
+//           different-or-missing compliance text — /review's comment promises
+//           "EXACTLY the disclaimer text that ships". Rows predating the block
+//           fall back to the live declaredDisclaimers chain (the round-0 SHIP
+//           pin above IS that fallback cell).
+//   FIX 2 — headroom: the base description reserves the append's length BEFORE
+//           the slice, so the final payload stays within YouTube's 5000-char
+//           cap and the verbatim text is never truncated (never slice after
+//           the append).
+// ---------------------------------------------------------------------------
+
+describe('#106 P5 T5d round 1 — the approved compliance text ships verbatim; the description never outgrows the cap', () => {
+  test('FIX 1: the resume ships the row\'s STORED disclaimer_block verbatim when the registry has since changed', () => {
+    const EDITED = 'Registry text edited after approval — this must NOT ship.';
+    const r = runYtDeepdive({
+      env: {
+        PIPELINE_RESUME_JOB_ID: 'held-job-doc-1', PIPELINE_JOB_ID: 'spy-job-doc-7',
+        // the approved row's stored input carries the block the owner saw
+        T5C_STORED_DOC_JSON: JSON.stringify({ ...STORED_DOC, disclaimer_block: T2C_DISCLAIMER }),
+      },
+      engine: SPY_DOC_ENGINE_RESUME, store: SPY_DOC_STORE_RESUME_T5D, intents: SPY_DOC_INTENTS_RESUME,
+      registry: docRegistryFixture([EDITED]),
+    });
+    assert.equal(r.status, 0, 'the resumed doc run ships and exits 0\n' + r.stdout + r.stderr);
+    const uploads = r.spy.filter((c) => c.mod === 'docintents' && c.fn === 'uploadWithIntent');
+    assert.equal(uploads.length, 1, 'exactly one upload of the resumed episode');
+    const desc = uploads[0].args.snippet?.description;
+    assert.equal(
+      desc,
+      `${expectedUngatedDescription()}\n\n${T2C_DISCLAIMER}`,
+      'the description ends with the APPROVED block verbatim — the /review promise holds',
+    );
+    assert.ok(!String(desc).includes(EDITED), 'the registry edit (and any fail-open) never reaches the payload');
+  });
+
+  test('FIX 2: headroom — a near-max base description plus a long append stays within the cap, verbatim to the last character', () => {
+    const LONG = 'Compliance line with real declared length. '.repeat(12).trim(); // ~470 chars
+    const huge = { ...STORED_DOC, intro: 'A'.repeat(5000) }; // the unsliced base alone exceeds 4900
+    const r = runYtDeepdive({
+      env: {
+        PIPELINE_RESUME_JOB_ID: 'held-job-doc-1', PIPELINE_JOB_ID: 'spy-job-doc-8',
+        // no stored block (a pre-block row) — the live declared chain supplies the long append
+        T5C_STORED_DOC_JSON: JSON.stringify(huge),
+      },
+      engine: SPY_DOC_ENGINE_RESUME, store: SPY_DOC_STORE_RESUME_T5D, intents: SPY_DOC_INTENTS_RESUME,
+      registry: docRegistryFixture([LONG]),
+    });
+    assert.equal(r.status, 0, 'the resumed doc run ships and exits 0\n' + r.stdout + r.stderr);
+    const uploads = r.spy.filter((c) => c.mod === 'docintents' && c.fn === 'uploadWithIntent');
+    assert.equal(uploads.length, 1, 'exactly one upload of the resumed episode');
+    const desc = uploads[0].args.snippet?.description;
+    const expectedBase = expectedUngatedDescription(huge).slice(0, Math.max(0, 4900 - (LONG.length + 2)));
+    assert.equal(
+      desc,
+      `${expectedBase}\n\n${LONG}`,
+      'the base was sliced to the reserved budget FIRST, then the append landed verbatim (never sliced after)',
+    );
+    assert.ok(desc.length <= 4900, `the final description fits the cap (${desc.length} <= 4900)`);
+    assert.ok(desc.endsWith(LONG), 'the verbatim text is never truncated by the budget');
   });
 });
