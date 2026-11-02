@@ -31,7 +31,10 @@ const verdictTone = (v) => (v === 'pass' || v === 'unique' ? 'ok' : v ? 'warn' :
 // altered footage, Yes realistic scene + the fourth category. Defaults are
 // SEEDS, not answers — the owner can change any per script before approving,
 // and a future unmapped category stays unanswered (the gate still holds it).
-const DISCLOSURE_DEFAULTS = { real_person: false, alters_footage: false, realistic_scene: true, music_focus: true };
+// Defaults match the owner's documentary production: AI voice narration (NOT music-as-main-focus) +
+// AI-illustrated scenes. Background music is NOT category 4 — flip music_focus per script if a video
+// is genuinely centered on music.
+const DISCLOSURE_DEFAULTS = { real_person: false, alters_footage: false, realistic_scene: true, music_focus: false };
 const disclosureDefaults = (d) => {
   let input = d?.script?.full_render_input;
   if (typeof input === 'string') { try { input = JSON.parse(input); } catch { input = null; } }
