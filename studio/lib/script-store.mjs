@@ -24,16 +24,28 @@
 // (rejected_by/at/note) — owner decisions are never silent (D16).
 //
 // THE ONE-TRANSACTION SAVE (D14): saveScript writes the script row, every
-// source, and every claim inside ONE BEGIN..COMMIT emitted through the
-// injected client (services/ai/brain/store.py transaction precedent) — a
+// source, and every claim inside ONE transaction run by the injected
+// `transact(fn)` (services/ai/brain/store.py transaction precedent) — a
 // failure mid-save ROLLBACKs the whole record, never a script without its
-// sources.
+// sources. T5f (found by the live MR pilot, run 41478922660): the store
+// NEVER issues BEGIN/COMMIT/ROLLBACK through the positional client itself —
+// the prod client (db.mjs) is a postgres.js POOL (max: 5), and postgres.js
+// refuses manual transaction commands there (UNSAFE_TRANSACTION: "Only use
+// sql.begin, sql.reserved or max: 1"), so every live save used to fail and
+// nothing ever persisted. `transact`'s production adapter is
+// adaptPostgresTransact (bottom of this file) — postgres.js `sql.begin`
+// reserves a connection and owns the transaction control. The default here
+// (plain pass-through on dbClient) exists only for injected-fake tests and
+// single-client call sites that never save (the /api/review route reads and
+// single-writes only).
 //
 // House patterns: lib/job-store.mjs makeJobStore / lib/ai-adapter.mjs
 // makeUsageWriter — ensure-schema-on-write, injected deps
-// ({ dbClient, warn, now }), writers that NEVER throw ({ ok } results,
-// memoized warn per error class). Client contract: `dbClient(sqlText,
-// params)` -> Promise<rowObject[]>; $1..$n placeholders; snake_case rows.
+// ({ dbClient, transact, warn, now }), writers that NEVER throw ({ ok }
+// results, memoized warn per error class). Client contract:
+// `dbClient(sqlText, params)` -> Promise<rowObject[]>; $1..$n placeholders;
+// snake_case rows; `transact(fn)` runs fn(txClient) on one real transaction
+// where txClient has the same positional contract.
 import { randomUUID } from 'node:crypto';
 
 export const SCRIPT_STATUSES = ['draft', 'awaiting_review', 'approved', 'rejected', 'consumed'];
@@ -109,6 +121,11 @@ export function makeScriptStore(deps) {
   if (typeof dbClient !== 'function') {
     throw new TypeError('makeScriptStore: deps.dbClient must be a function (sqlText, params) -> Promise<rows>');
   }
+  // T5f: the transaction transport. Production builders inject the sql.begin
+  // adapter (adaptPostgresTransact); the pass-through default keeps the
+  // single-client contract for injected-fake tests (atomicity is then the
+  // injected fn's own business — the save path itself never sends BEGIN).
+  const transact = typeof deps?.transact === 'function' ? deps.transact : (fn) => fn(dbClient);
   const warn = typeof deps.warn === 'function' ? deps.warn : console.warn;
   const now = typeof deps.now === 'function' ? deps.now : (() => new Date());
 
@@ -172,7 +189,11 @@ export function makeScriptStore(deps) {
    * THE save (AC-P4-17): script + sources[] + claims[] in ONE transaction.
    * Claim→source links resolve by sourceIdx into the sources array; a null
    * sourceIdx is an unsourced claim (source_id NULL — legal, the review panel
-   * flags it). Returns { ok, id } or { ok:false, error }.
+   * flags it). The statements ride the injected `transact(fn)` transport
+   * (T5f: sql.begin's RESERVED connection — manual BEGIN/COMMIT through the
+   * positional client is UNSAFE_TRANSACTION on the pooled prod client); a
+   * rejection from fn is the rollback signal, handled by the transport.
+   * Returns { ok, id } or { ok:false, error }.
    */
   async function saveScript(fields = {}) {
     const invalid = validateSave(fields);
@@ -182,39 +203,34 @@ export function makeScriptStore(deps) {
 
     const id = randomUUID();
     const status = fields.status ?? 'awaiting_review';
-    let txStarted = false;
     try {
-      await dbClient('BEGIN', []);
-      txStarted = true;
-      await dbClient(
-        `INSERT INTO scripts (id, channel_id, template_id, template_version, kind, title, text, full_render_input, status, job_id, dedupe_verdict_id, slot_date, slot_idx, publish_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
-        [id, fields.channelId, fields.templateId ?? null, fields.templateVersion ?? null, fields.kind ?? null,
-          fields.title ?? null, fields.text, JSON.stringify(fields.fullRenderInput), status,
-          fields.jobId ?? null, fields.dedupeVerdictId ?? null, fields.slotDate ?? null,
-          Number.isInteger(fields.slotIdx) ? fields.slotIdx : null, fields.publishAt ?? null],
-      );
-      const sourceIds = [];
-      for (const s of fields.sources) {
-        const rows = await dbClient(
-          `INSERT INTO script_sources (script_id, url, title, snippet) VALUES ($1,$2,$3,$4) RETURNING id`,
-          [id, s.url, s.title ?? null, s.snippet ?? null],
+      await transact(async (tx) => {
+        await tx(
+          `INSERT INTO scripts (id, channel_id, template_id, template_version, kind, title, text, full_render_input, status, job_id, dedupe_verdict_id, slot_date, slot_idx, publish_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
+          [id, fields.channelId, fields.templateId ?? null, fields.templateVersion ?? null, fields.kind ?? null,
+            fields.title ?? null, fields.text, JSON.stringify(fields.fullRenderInput), status,
+            fields.jobId ?? null, fields.dedupeVerdictId ?? null, fields.slotDate ?? null,
+            Number.isInteger(fields.slotIdx) ? fields.slotIdx : null, fields.publishAt ?? null],
         );
-        sourceIds.push(rows?.[0]?.id ?? null);
-      }
-      for (const c of fields.claims) {
-        const sourceId = c.sourceIdx === undefined || c.sourceIdx === null ? null : sourceIds[c.sourceIdx];
-        await dbClient(
-          `INSERT INTO script_claims (script_id, claim, source_id, verification) VALUES ($1,$2,$3,$4)`,
-          [id, c.claim, sourceId, c.verification],
-        );
-      }
-      await dbClient('COMMIT', []);
+        const sourceIds = [];
+        for (const s of fields.sources) {
+          const rows = await tx(
+            `INSERT INTO script_sources (script_id, url, title, snippet) VALUES ($1,$2,$3,$4) RETURNING id`,
+            [id, s.url, s.title ?? null, s.snippet ?? null],
+          );
+          sourceIds.push(rows?.[0]?.id ?? null);
+        }
+        for (const c of fields.claims) {
+          const sourceId = c.sourceIdx === undefined || c.sourceIdx === null ? null : sourceIds[c.sourceIdx];
+          await tx(
+            `INSERT INTO script_claims (script_id, claim, source_id, verification) VALUES ($1,$2,$3,$4)`,
+            [id, c.claim, sourceId, c.verification],
+          );
+        }
+      });
       return { ok: true, id };
     } catch (e) {
-      if (txStarted) {
-        try { await dbClient('ROLLBACK', []); } catch { /* the connection is already gone */ }
-      }
       return degrade(e);
     }
   }
@@ -476,18 +492,40 @@ export function makeScriptStore(deps) {
 }
 
 /**
+ * T5f — the production transaction adapter: maps `transact(fn)` onto
+ * postgres.js `sql.begin`, which RESERVES one pooled connection for the
+ * whole fn (BEGIN..COMMIT, fn throwing = ROLLBACK — the driver owns the
+ * transaction control) and hands fn a scoped tx handle. The tx handle keeps
+ * the positional client contract (`tx.unsafe(sqlText, params)` ->
+ * Promise<rows>), so the save's SQL is identical to the single-client form —
+ * only the transport changes. Never issue transaction commands through the
+ * top-level sql: on a pool that is UNSAFE_TRANSACTION (the live-pilot bug
+ * this adapter eliminates). Wire-level proof:
+ * tests/script-store-transaction.test.mjs.
+ */
+export function adaptPostgresTransact(sql) {
+  return (fn) => sql.begin((tx) => fn((text, params) => tx.unsafe(text, params)));
+}
+
+/**
  * Production entry point — lazy-imports the Neon client so importing this
  * module never touches the DB layer (unit tests and non-Neon machines stay
  * safe). NULL-degrading (upload-intents seam): the pipeline gate treats null
  * as "review state unavailable" and logs — a missing DATABASE_URL never
- * halts production setup (AC-P4-5).
+ * halts production setup (AC-P4-5). T5f: the returned store's saveScript
+ * transacts through sql.begin (adaptPostgresTransact) — every production
+ * save path (the lanes' saveGeneratedScript, the gate) gets its store from
+ * here, so the reserved-connection transport is wired in exactly one place.
  */
 export async function getScriptStore() {
   try {
     const { db, dbReady } = await import('./db.mjs');
     if (!dbReady || !db) return null;
     const { adaptPostgres } = await import('./provider-routing.js');
-    return makeScriptStore({ dbClient: adaptPostgres(db) });
+    return makeScriptStore({
+      dbClient: adaptPostgres(db),
+      transact: adaptPostgresTransact(db),
+    });
   } catch {
     return null;
   }

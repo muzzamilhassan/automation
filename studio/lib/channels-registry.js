@@ -190,6 +190,13 @@ export async function registryChannels() {
 }
 
 export async function upsertChannel(entry, message) {
+  // T5f audit: this write is ONE INSERT..ON CONFLICT statement — atomic by
+  // itself, so unlike the script store's multi-row save (T5f) it needs NO
+  // transaction. Do NOT wrap registry writes in manual BEGIN/COMMIT: db.mjs's
+  // client is a pooled postgres.js (max: 5), which refuses transaction
+  // commands through the positional path with UNSAFE_TRANSACTION. A
+  // multi-statement registry save would need sql.begin first (see
+  // script-store.mjs adaptPostgresTransact).
   // T4b fix round 1 (#106): every write mirrors the incoming identity into the
   // kit JSONB (rowToEntry projects kit.label/kit.handle first), so the label/
   // handle columns can drift or be wiped without the engine feed reverting.

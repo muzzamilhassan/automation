@@ -9,49 +9,45 @@ import { makeScriptStore, SCRIPT_STATUSES, CLAIM_VERIFICATIONS } from '../lib/sc
 // AC-P4-17 (persisted BEFORE render, full structured render input).
 //
 // House pattern: tests/warnings-store.test.mjs — every seam injected (SQL
-// client), no live Neon in unit CI. The fake is TRANSACTIONAL: writes issued
-// between BEGIN and COMMIT are staged and applied only on COMMIT — a
-// ROLLBACK (or a mid-transaction failure) discards them, so the tests can
-// prove the ONE-TRANSACTION save (D14: "with sources+claims in ONE
-// transaction").
+// client), no live Neon in unit CI.
+//
+// T5f (the live MR pilot's UNSAFE_TRANSACTION, run 41478922660): the fake has
+// TWO surfaces, mirroring the real transport. `db` is the POOL-side
+// positional client (single statements only: DDL, reads, single-row writes);
+// `transact(fn)` is the sql.begin-shaped transaction transport whose tx
+// handle carries the save's INSERTs — staged and applied only when fn
+// resolves (the COMMIT), discarded on a throw (the ROLLBACK). BOTH surfaces
+// refuse transaction-control SQL the same way the real pooled driver does
+// (UNSAFE_TRANSACTION, postgres max > 1): BEGIN/COMMIT/ROLLBACK are the
+// transport's job, never positional SQL. The driver-level twin of this suite
+// (tests/script-store-transaction.test.mjs) pins the transport against the
+// REAL postgres.js client over a wire-level fixture server.
 // ---------------------------------------------------------------------------
 
-function makeScriptDb({ fail = false, failOn = null } = {}) {
+function makeScriptDb({ fail = false, failOn = null, txFailOn = null } = {}) {
   const calls = [];
+  const txCalls = [];
+  let beginCount = 0;
   let seq = 1;
   const tables = { scripts: [], script_sources: [], script_claims: [] };
-  let inTx = false;
-  let staged = [];
-  const applied = { scripts: [], script_sources: [], script_claims: [] };
-
-  const client = async (sql, params) => {
-    calls.push({ sql: sql.replace(/\s+/g, ' ').trim(), params });
-    if (fail) throw new Error('db down');
-    const s = sql.replace(/\s+/g, ' ').trim();
-    if (failOn && s.includes(failOn)) throw new Error(`forced failure at: ${failOn}`);
-    if (s === 'BEGIN') { inTx = true; staged = []; return []; }
-    if (s === 'COMMIT') {
-      for (const { t, row } of staged) applied[t].push(row);
-      tables.scripts = [...applied.scripts];
-      tables.script_sources = [...applied.script_sources];
-      tables.script_claims = [...applied.script_claims];
-      inTx = false; staged = [];
-      return [];
+  const norm = (sql) => sql.replace(/\s+/g, ' ').trim();
+  const guard = (s) => {
+    if (/^(BEGIN|COMMIT|ROLLBACK)\b/i.test(s)) {
+      throw new Error('UNSAFE_TRANSACTION: transaction commands never ride a positional client (T5f)');
     }
-    if (s === 'ROLLBACK') { inTx = false; staged = []; return []; }
+  };
+
+  // the POOL-side client — single statements only.
+  const client = async (sql, params) => {
+    const s = norm(sql);
+    calls.push({ sql: s, params });
+    guard(s);
+    if (fail) throw new Error('db down');
+    if (failOn && s.includes(failOn)) throw new Error(`forced failure at: ${failOn}`);
     if (s.startsWith('CREATE ') || s.startsWith('DO ') || s.startsWith('ALTER ')) return [];
 
     let m = s.match(/^INSERT INTO (scripts|script_sources|script_claims) \(([^)]*)\)/);
-    if (m) {
-      const cols = m[2].split(',').map((c) => c.trim());
-      const row = { id: seq++, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
-      cols.forEach((c, i) => { if (!['created_at', 'updated_at'].includes(c)) row[c] = params[i]; });
-      if (inTx) staged.push({ t: m[1], row });
-      else applied[m[1]].push(row);
-      const view = inTx ? staged : [];
-      if (!inTx) tables[m[1]] = applied[m[1]];
-      return [{ id: row.id }];
-    }
+    if (m) throw new Error('fake db: INSERT is a multi-row save — it must ride the transact tx handle (T5f)');
     if (s.startsWith('SELECT') && s.includes('FROM scripts s LEFT JOIN dedupe_verdicts')) {
       let rows = tables.scripts.filter((r) => r.status === 'awaiting_review');
       if (s.includes('AND s.channel_id = $1')) rows = rows.filter((r) => r.channel_id === params[0]);
@@ -92,8 +88,7 @@ function makeScriptDb({ fail = false, failOn = null } = {}) {
     }
     if (s.startsWith('UPDATE scripts SET status')) {
       const id = params[0];
-      const pool = inTx ? staged.map((x) => x.row) : tables.scripts;
-      const r = pool.find((x) => x.id === id);
+      const r = tables.scripts.find((x) => x.id === id);
       if (!r) return [];
       // Branch on the SET clause (the first status literal in the statement) —
       // the WHERE guard of a later transition can mention an earlier status.
@@ -119,7 +114,40 @@ function makeScriptDb({ fail = false, failOn = null } = {}) {
   };
   client.calls = calls;
   client.tables = tables;
-  return client;
+
+  // the TRANSACTION transport — sql.begin-shaped: one reserved connection for
+  // the whole fn, INSERTs staged and applied only when fn resolves (COMMIT),
+  // discarded when fn throws (ROLLBACK).
+  const transact = async (fn) => {
+    beginCount++;
+    const staged = [];
+    const tx = async (sql, params) => {
+      const s = norm(sql);
+      txCalls.push({ sql: s, params, table: (s.match(/^INSERT INTO (scripts|script_sources|script_claims) /) || [])[1] ?? null });
+      guard(s);
+      if (txFailOn && s.includes(txFailOn)) throw new Error(`forced failure at: ${txFailOn}`);
+      const m = s.match(/^INSERT INTO (scripts|script_sources|script_claims) \(([^)]*)\)/);
+      if (m) {
+        const cols = m[2].split(',').map((c) => c.trim());
+        const row = { id: seq++, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+        cols.forEach((c, i) => { if (!['created_at', 'updated_at'].includes(c)) row[c] = params[i]; });
+        staged.push({ t: m[1], row });
+        return [{ id: row.id }];
+      }
+      throw new Error(`fake tx: unexpected sql: ${s.slice(0, 90)}`);
+    };
+    const out = await fn(tx);
+    for (const { t, row } of staged) tables[t].push(row);
+    return out;
+  };
+  transact.txCalls = txCalls;
+  transact.beginCount = () => beginCount;
+  return { client, transact, tables };
+}
+
+function makeStore(opts = {}) {
+  const { client, transact, tables } = makeScriptDb(opts);
+  return { store: makeScriptStore({ dbClient: client, transact }), db: client, transact, tables };
 }
 
 const BASE = {
@@ -160,8 +188,7 @@ const BASE = {
 
 describe('#106 T5 script store — schema-on-write (D14)', () => {
   test('the first write ensures all three D14 tables exactly once, with the pinned vocabularies', async () => {
-    const db = makeScriptDb();
-    const store = makeScriptStore({ dbClient: db });
+    const { store, db } = makeStore();
     await store.saveScript(BASE);
     await store.saveScript(BASE);
     const creates = db.calls.filter((c) => c.sql.startsWith('CREATE TABLE IF NOT EXISTS scripts'));
@@ -181,42 +208,46 @@ describe('#106 T5 script store — schema-on-write (D14)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// transactional save (D14: sources + claims in ONE transaction)
+// transactional save (D14: sources + claims in ONE transaction; T5f: the
+// transaction is the INJECTED TRANSPORT's — never positional SQL)
 // ---------------------------------------------------------------------------
 
-describe('#106 T5 script store — transactional saveScript (AC-P4-17)', () => {
-  test('saveScript writes script + sources + claims in ONE transaction and lands awaiting_review', async () => {
-    const db = makeScriptDb();
-    const store = makeScriptStore({ dbClient: db });
+describe('#106 T5 script store — transactional saveScript (AC-P4-17 + T5f transport)', () => {
+  test('saveScript writes script + sources + claims through ONE reserved-connection transaction and lands awaiting_review', async () => {
+    const { store, db, transact, tables } = makeStore();
     const r = await store.saveScript(BASE);
     assert.equal(r.ok, true);
-    const sqls = db.calls.map((c) => c.sql);
-    assert.equal(sqls.filter((s) => s === 'BEGIN').length, 1, 'exactly one transaction');
-    assert.equal(sqls.filter((s) => s === 'COMMIT').length, 1);
-    assert.ok(sqls.indexOf('BEGIN') < sqls.findIndex((s) => s.startsWith('INSERT INTO scripts')), 'BEGIN precedes the writes');
-    assert.ok(sqls.lastIndexOf('INSERT INTO script_claims') < sqls.indexOf('COMMIT'), 'all writes precede COMMIT');
-    assert.equal(db.tables.scripts.length, 1);
-    assert.equal(db.tables.scripts[0].status, 'awaiting_review', 'a saved gated script starts awaiting_review');
-    assert.equal(db.tables.script_sources.length, 2);
-    assert.equal(db.tables.script_claims.length, 3);
+    assert.equal(transact.beginCount(), 1, 'exactly one transaction per save');
+    assert.deepEqual(
+      transact.txCalls.filter((c) => c.sql.startsWith('INSERT INTO')).map((c) => c.table),
+      ['scripts', 'script_sources', 'script_sources', 'script_claims', 'script_claims', 'script_claims'],
+      'script + 2 sources + 3 claims ride the tx handle, in order',
+    );
+    assert.equal(db.calls.some((c) => c.sql.startsWith('INSERT')), false, 'the save never writes through the pool client');
+    for (const call of [...db.calls, ...transact.txCalls]) {
+      assert.doesNotMatch(call.sql, /^(BEGIN|COMMIT|ROLLBACK)\b/i, 'transaction control is the transport\'s job — never positional SQL (T5f UNSAFE_TRANSACTION)');
+    }
+    assert.equal(tables.scripts.length, 1);
+    assert.equal(tables.scripts[0].status, 'awaiting_review', 'a saved gated script starts awaiting_review');
+    assert.equal(tables.script_sources.length, 2);
+    assert.equal(tables.script_claims.length, 3);
     // full render input persisted COMPLETE (resume must never re-generate — D4/D14)
-    const stored = JSON.parse(db.tables.scripts[0].full_render_input);
+    const stored = JSON.parse(tables.scripts[0].full_render_input);
     assert.equal(stored.hook, BASE.fullRenderInput.hook);
     assert.deepEqual(stored.points, BASE.fullRenderInput.points);
     assert.equal(stored.thumbHeadline, BASE.fullRenderInput.thumbHeadline);
     assert.equal(stored.seed, BASE.fullRenderInput.seed);
     assert.deepEqual(stored.themes, BASE.fullRenderInput.themes);
     assert.equal(stored.publishAt, BASE.fullRenderInput.publishAt);
-    assert.equal(db.tables.scripts[0].job_id, 'job-1', 'linked to the job (D14)');
-    assert.equal(db.tables.scripts[0].dedupe_verdict_id, 41, 'linked to the Phase 3 dedupe verdict (D14)');
+    assert.equal(tables.scripts[0].job_id, 'job-1', 'linked to the job (D14)');
+    assert.equal(tables.scripts[0].dedupe_verdict_id, 41, 'linked to the Phase 3 dedupe verdict (D14)');
   });
 
   test('claim→source links resolve by index; an unsourced claim carries source_id NULL', async () => {
-    const db = makeScriptDb();
-    const store = makeScriptStore({ dbClient: db });
+    const { store, tables } = makeStore();
     await store.saveScript(BASE);
-    const src = db.tables.script_sources;
-    const claims = db.tables.script_claims;
+    const src = tables.script_sources;
+    const claims = tables.script_claims;
     assert.equal(claims[0].source_id, src[0].id, 'claim 0 -> source A');
     assert.equal(claims[1].source_id, src[1].id, 'claim 1 -> source B');
     assert.equal(claims[2].source_id, null, 'claim 2 has no source');
@@ -225,26 +256,27 @@ describe('#106 T5 script store — transactional saveScript (AC-P4-17)', () => {
     assert.equal(src[0].snippet, 'rates compound...');
   });
 
-  test('a mid-transaction failure ROLLBACKs the whole save — no partial script row', async () => {
-    const db = makeScriptDb({ failOn: 'INSERT INTO script_sources' });
-    const store = makeScriptStore({ dbClient: db });
+  test('a mid-transaction failure discards the whole save — the transport rolls back, never a partial script row', async () => {
+    const { store, db, transact, tables } = makeStore({ txFailOn: 'INSERT INTO script_sources' });
     const r = await store.saveScript(BASE);
     assert.equal(r.ok, false);
-    assert.ok(r.error);
-    assert.equal(db.calls.some((c) => c.sql === 'ROLLBACK'), true, 'ROLLBACK emitted through the client');
-    assert.equal(db.tables.scripts.length, 0, 'the script row never committed');
-    assert.equal(db.tables.script_sources.length, 0);
-    assert.equal(db.tables.script_claims.length, 0);
+    assert.match(r.error, /forced failure/);
+    assert.equal(tables.scripts.length, 0, 'the script row never committed');
+    assert.equal(tables.script_sources.length, 0);
+    assert.equal(tables.script_claims.length, 0);
+    for (const call of [...db.calls, ...transact.txCalls]) {
+      assert.doesNotMatch(call.sql, /^(BEGIN|COMMIT|ROLLBACK)\b/i, 'the ROLLBACK is the transport\'s job — never positional SQL (T5f)');
+    }
   });
 
   test('validation rejects before any SQL: channel required, claim verification in vocabulary, source urls required', async () => {
-    const db = makeScriptDb();
-    const store = makeScriptStore({ dbClient: db });
+    const { store, db, transact } = makeStore();
     assert.match((await store.saveScript({ ...BASE, channelId: '' })).error, /channel/);
     assert.match((await store.saveScript({ ...BASE, claims: [{ claim: 'x', verification: 'true' }] })).error, /verification/);
     assert.match((await store.saveScript({ ...BASE, sources: [{ url: '', title: 'no url' }] })).error, /url/);
     assert.match((await store.saveScript({ ...BASE, claims: [{ claim: 'x', sourceIdx: 9, verification: 'verified' }] })).error, /source/);
     assert.equal(db.calls.some((c) => c.sql.startsWith('INSERT')), false, 'rejected saves never touch SQL');
+    assert.equal(transact.beginCount(), 0, 'rejected saves never open a transaction');
     assert.match((await store.saveScript({ ...BASE, status: 'bogus' })).error, /status/);
   });
 });
@@ -254,16 +286,15 @@ describe('#106 T5 script store — transactional saveScript (AC-P4-17)', () => {
 // ---------------------------------------------------------------------------
 
 describe('#106 T5 script store — approval lifecycle (D16) + video_id write-back (D14)', () => {
-  async function saved(db) {
-    const store = makeScriptStore({ dbClient: db });
+  async function saved() {
+    const { store, db } = makeStore();
     const r = await store.saveScript(BASE);
     assert.equal(r.ok, true);
-    return { store, id: r.id };
+    return { store, db, id: r.id };
   }
 
   test('approve records approval_by/at/note; a second approve is not_open; unknown id is not_found', async () => {
-    const db = makeScriptDb();
-    const { store, id } = await saved(db);
+    const { store, db, id } = await saved();
     const r = await store.approve(id, { by: 'owner', note: 'sources check out' });
     assert.equal(r.ok, true);
     const row = db.tables.scripts.find((x) => x.id === id);
@@ -278,8 +309,7 @@ describe('#106 T5 script store — approval lifecycle (D16) + video_id write-bac
   });
 
   test('reject records rejected_by/at/note and the script can never be approved afterwards', async () => {
-    const db = makeScriptDb();
-    const { store, id } = await saved(db);
+    const { store, db, id } = await saved();
     const r = await store.reject(id, { by: 'owner', note: 'claim 3 is fabricated' });
     assert.equal(r.ok, true);
     const row = db.tables.scripts.find((x) => x.id === id);
@@ -290,8 +320,7 @@ describe('#106 T5 script store — approval lifecycle (D16) + video_id write-bac
   });
 
   test('pendingFor lists awaiting_review scripts with the dedupe verdict joined; approve removes it from pending', async () => {
-    const db = makeScriptDb();
-    const { store, id } = await saved(db);
+    const { store, id } = await saved();
     const list = await store.pendingFor(null);
     assert.equal(list.ok, true);
     assert.equal(list.scripts.length, 1);
@@ -304,8 +333,7 @@ describe('#106 T5 script store — approval lifecycle (D16) + video_id write-bac
   });
 
   test('getScript returns the record with its sources and claims (the side-by-side review payload)', async () => {
-    const db = makeScriptDb();
-    const { store, id } = await saved(db);
+    const { store, id } = await saved();
     const g = await store.getScript(id);
     assert.equal(g.ok, true);
     assert.equal(g.script.id, id);
@@ -315,8 +343,7 @@ describe('#106 T5 script store — approval lifecycle (D16) + video_id write-bac
   });
 
   test('markConsumed writes the video_id back (D14: the upload sites own the write — this is the seam) and retires the row', async () => {
-    const db = makeScriptDb();
-    const { store, id } = await saved(db);
+    const { store, db, id } = await saved();
     await store.approve(id, { by: 'owner' });
     const latest = await store.latestApproved('quotequarry');
     assert.equal(latest.ok, true);
@@ -331,8 +358,7 @@ describe('#106 T5 script store — approval lifecycle (D16) + video_id write-bac
   });
 
   test('recordThumbPick merges the pick into meta (D18) but ONLY for an uploaded (approved/consumed) script — round-1 minor 11', async () => {
-    const db = makeScriptDb();
-    const { store, id } = await saved(db);
+    const { store, db, id } = await saved();
     const early = await store.recordThumbPick(id, { candidate: 2, at: '2026-10-31T10:00:00Z', by: 'owner', applied: true });
     assert.equal(early.ok, false, 'an awaiting script has no video to swap — the pick is refused');
     assert.equal(early.reason, 'not_open');
@@ -343,8 +369,7 @@ describe('#106 T5 script store — approval lifecycle (D16) + video_id write-bac
   });
 
   test('scriptsForSlot returns the newest record for channel+slot (the gate slot lookup)', async () => {
-    const db = makeScriptDb();
-    const store = makeScriptStore({ dbClient: db });
+    const { store } = makeStore();
     await store.saveScript(BASE);
     const r = await store.scriptsForSlot('quotequarry', '2026-10-31');
     assert.equal(r.ok, true);
@@ -359,16 +384,15 @@ describe('#106 T5 script store — approval lifecycle (D16) + video_id write-bac
 
 describe('#106 T5b script store — latestApprovedForJob + recordThumbCandidates', () => {
   // local save helper (the T5 suites keep theirs suite-scoped)
-  async function savedLocal(db, over = {}) {
-    const store = makeScriptStore({ dbClient: db });
+  async function savedLocal(over = {}) {
+    const { store, db } = makeStore();
     const r = await store.saveScript({ ...BASE, ...over });
     assert.equal(r.ok, true);
-    return { store, id: r.id };
+    return { store, db, id: r.id };
   }
 
   test('latestApprovedForJob returns the job\'s newest APPROVED row only — a generate-only job with several slot rows resumes THE APPROVED one', async () => {
-    const db = makeScriptDb();
-    const store = makeScriptStore({ dbClient: db });
+    const { store } = makeStore();
     await store.saveScript({ ...BASE, jobId: 'job-A', title: 'slot 0' });
     await store.saveScript({ ...BASE, jobId: 'job-A', title: 'slot 1' });
     const noneYet = await store.latestApprovedForJob('job-A');
@@ -386,8 +410,7 @@ describe('#106 T5b script store — latestApprovedForJob + recordThumbCandidates
   });
 
   test('recordThumbCandidates writes meta.thumb_candidates [{idx,url}] (the /review page shape) for an uploaded script only', async () => {
-    const db = makeScriptDb();
-    const { store, id } = await savedLocal(db);
+    const { store, db, id } = await savedLocal();
     const early = await store.recordThumbCandidates(id, [{ idx: 1, url: 'u1' }]);
     assert.equal(early.ok, false, 'candidates exist only where a render happened — awaiting scripts take none');
     assert.equal(early.reason, 'not_open');
@@ -405,7 +428,7 @@ describe('#106 T5b script store — latestApprovedForJob + recordThumbCandidates
   });
 
   test('the dead-DB posture covers the new methods ({ ok:false }, never a throw)', async () => {
-    const store = makeScriptStore({ dbClient: makeScriptDb({ fail: true }) });
+    const { store } = makeStore({ fail: true });
     assert.equal((await store.latestApprovedForJob('j')).ok, false);
     assert.equal((await store.recordThumbCandidates('x', [{ idx: 1, url: 'u' }])).ok, false);
   });
@@ -417,7 +440,7 @@ describe('#106 T5b script store — latestApprovedForJob + recordThumbCandidates
 
 describe('#106 T5 script store — never-throw degradation (AC-P4-5 posture)', () => {
   test('a dead DB returns { ok:false } on every path and never throws', async () => {
-    const store = makeScriptStore({ dbClient: makeScriptDb({ fail: true }) });
+    const { store } = makeStore({ fail: true });
     assert.equal((await store.saveScript(BASE)).ok, false);
     assert.equal((await store.approve('x', { by: 'o' })).ok, false);
     assert.equal((await store.reject('x', { by: 'o' })).ok, false);
