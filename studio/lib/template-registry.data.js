@@ -189,4 +189,74 @@ export const REGISTRY_META = {
       { version: '1.0.1', date: '2026-11-01', note: 'formats corrected to [long]: the family ships only 16:9 — short was declared beyond what the family ships (T1 formats gate)' },
     ],
   },
+
+  // ---- Phase 5 PILOT (QA Row P-1 · spec D7 row 8 · review A-H6): myth-vs-money —
+  // the STRUCTURE-FAITHFUL money-rulebook retrofit. Zero content risk: the beat
+  // slots mirror MR's proven 4-point × 9–12-word numbered money listicle (the
+  // kit's script block, yt-brands/brands.mjs), so the P-2 swap changes the
+  // GOVERNANCE (review class, disclaimers, beat-plan prompt, thumb picking),
+  // never the story the brain writes. Pilot-scope decisions (controller
+  // dispatch a9a9f454, ledgered 2026-11-02):
+  // - niches carry MR's EXACT kit niche string (money-rulebook, brands.mjs:71)
+  //   — the pilot is assignable only where the MR-pilot directive allows; D7
+  //   row 8's full 6-string finance cluster widens at γ integration (DATA
+  //   edit, zero code).
+  // - family binds beat-synced-type (the Phase 4 MR drill's proven 9:16
+  //   family) per the dispatch; the spec/QA/plan text says stats-counters —
+  //   either binding validates (both ship 9:16); controller reconciles the
+  //   docs.
+  // - NO explicit variation_threshold/cross_channel_threshold: MR's proven
+  //   0.85/0.90 ARE the documented defaults, and the brain-wiring pin holds
+  //   "only finance-explainers declares the fields" — declare only to deviate
+  //   (header note above). Resolves identically to a declared 0.85/0.90.
+  'myth-vs-money': {
+    version: '1.0.0',
+    template_id: 'myth-vs-money',
+    family: 'beat-synced-type',
+    niches: ['Personal finance rules & money habits'],
+    formats: ['short'],
+    renderer: 'remotion',
+    required_capabilities: ['script-gen', 'tts', 'captions'],
+    // D2: point-slot constraints over the IMMUTABLE shorts skeleton — beats[4]
+    // == the MR kit's 4-point numbered money listicle (points: 4, lineWords
+    // '9-12', kit-owned). Each beat names what numbered point i must BE.
+    story_structure: {
+      beats: [
+        'slot 1 states the popular money myth and the $ figure that belief promises or costs — the listicle\'s opening point',
+        'slot 2 reverses the myth with the counter-$ evidence — what the real number is, per the cited source',
+        'slot 3 explains the mechanism — why the myth fails and the money rule the real number obeys (the reversal\'s second proof)',
+        'slot 4 is the what-to-do payoff — one actionable money rule with its actionable $ step',
+      ],
+      // MR's proven hook shapes: the kit hookRule's trio (question / shocking
+      // number / you-stake) spoken in money, plus the myth call-out the story
+      // turns on.
+      hook_classes: ['shocking $ number', 'money myth call-out', 'you-stake money question'],
+      // REPLACE the kit title line (T2a Ruling): the $-figure numbered money
+      // listicle — MR's proven titleStyle + its literal titleExamples.
+      title_patterns: [
+        'numbered money-habit listicle ("7 Money Habits That Quietly Make You Rich")',
+        'numbered rules-to-a-$-milestone listicle ("6 Rules for Your First $10,000")',
+        'numbered myth-buster listicle with the $-cost figure ("5 Money Myths That Cost You $10,000")',
+      ],
+      payoff_rule: 'the closing lands the what-to-do payoff — ONE money rule with its $ step, a mic-drop challenge never a summary',
+    },
+    // D3 bar: every rule names the no-repeat OBJECT, the lookback window, and
+    // the enforcement site. Rule 4 is the story-shape prose — labeled
+    // unenforceable per the spec's Honest Limits convention.
+    variation_rules: [
+      'distinct money myth per video — the belief reversed in slot 1 differs from every myth used in the channel\'s last 5 videos (enforced: the variation gate similarity + seed rotation)',
+      'no recycled dollar figures — every $ amount in the script and title is new against the channel\'s last 5 videos (enforced: the variation gate similarity + the review desk\'s source check)',
+      'no repeated hook across the channel\'s last 5 videos (enforced: the variation gate similarity)',
+      'the story is always myth-vs-money — slot 1 states a belief the video then reverses (prose for the author and the review desk, NOT machine-enforced — spec Honest Limits)',
+    ],
+    // #106 T5b (D18/OQ-4): review-gated template — picking ON from launch so
+    // Drill C runs on MR (the QA's binding note: the pilot MUST carry it).
+    review_thumb_pick: true,
+    // D4: the fixed finance text machine-appended to the upload DESCRIPTION at
+    // publish (the tax-shield kit's "Education, not advice" pattern); the
+    // contains() save gate refuses a finance record without it.
+    safety: { required_sources: true, review_required: ['finance'], disclaimers: ['Education, not financial advice.'] },
+    deprecated: false,
+    changelog: [{ version: '1.0.0', date: '2026-11-02', note: 'Phase 5 pilot — structure-faithful to the money-rulebook kit format' }],
+  },
 };
