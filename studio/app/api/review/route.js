@@ -27,7 +27,7 @@
 import { getUser, requireRole } from '@/lib/route-auth';
 import { db, dbReady } from '@/lib/db.mjs';
 import { adaptPostgres } from '@/lib/provider-routing';
-import { makeScriptStore } from '@/lib/script-store.mjs';
+import { makeScriptStore, adaptPostgresTransact } from '@/lib/script-store.mjs';
 import { makeArtifactStore } from '@/lib/artifact-store.mjs';
 import { makeWarningsStore, emitWarning } from '@/lib/warnings-store.mjs';
 import { ENV } from '@/lib/data.mjs';
@@ -47,7 +47,11 @@ const REPO = ENV.GITHUB_REPO || 'muzzamilhassan/automation';
 const TOKEN = ENV.GITHUB_TOKEN || ENV.GITHUB_PAT || '';
 
 function store() {
-  return makeScriptStore({ dbClient: adaptPostgres(db) }); // makeScriptStore takes the DEPS object (makeJobStore pattern) — not the bare client
+  // T5f round 1: the transact rides here too — this desk only reads and
+  // single-writes today, but a future saveScript through a dbClient-only
+  // store would silently partial-persist (the pass-through default runs
+  // non-atomic, autocommit). Same construction as getScriptStore.
+  return makeScriptStore({ dbClient: adaptPostgres(db), transact: adaptPostgresTransact(db) }); // makeScriptStore takes the DEPS object (makeJobStore pattern) — not the bare client
 }
 
 // The durable-warning seam (round-1 BLOCKER 2): the approve AND redispatch

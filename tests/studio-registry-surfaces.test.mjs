@@ -33,6 +33,7 @@ const siteDataSrc = read('studio/lib/site-data.js');
 const doctorSrc = read('ci-doctor.mjs');
 const studioRegistrySrc = read('studio/lib/channels-registry.js');
 const oauthCallbackSrc = read('studio/app/api/oauth/callback/route.js');
+const reviewApiSrc = read('studio/app/api/review/route.js');
 const registryFeed = JSON.parse(read('yt-mcp/studio-channels.json'));
 
 // ---------------------------------------------------------------------------
@@ -341,4 +342,26 @@ test('T2f: the loader view the gallery renders carries templateId and family as 
   assert.equal(templates[0].templateId, 'myth-vs-money', 'templateId is the registry key (the card id field)');
   assert.equal(templates[0].family, 'stats-counters', 'family is the visual family (the separate card field)');
   assert.notEqual(templates[0].templateId, templates[0].family, 'identity and visual family must stay distinct concepts on the gallery');
+});
+
+// ---------------------------------------------------------------------------
+// #106 T5f round 1 — the review desk's store() is a SECOND production
+// makeScriptStore construction site (besides getScriptStore): the desk reads
+// and single-writes today, but a dbClient-only store there would run any
+// future saveScript non-atomically (the pass-through default, autocommit —
+// silent partial persist). SOURCE-SCAN pin (the '@/lib' alias is not
+// node --test importable — the house pattern this file is built on).
+// ---------------------------------------------------------------------------
+
+test('T5f round 1: /api/review store() constructs with dbClient AND transact — no dbClient-only store site remains in production', () => {
+  assert.match(
+    reviewApiSrc,
+    /import\s*\{\s*makeScriptStore,\s*adaptPostgresTransact\s*\}\s*from\s*'@\/lib\/script-store\.mjs'/,
+    'the route imports the transact adapter from the same module as the factory',
+  );
+  assert.match(
+    reviewApiSrc,
+    /makeScriptStore\(\{\s*dbClient:\s*adaptPostgres\(db\),\s*transact:\s*adaptPostgresTransact\(db\)\s*\}\)/,
+    'the store construction carries BOTH deps — the sql.begin transport is wired at every production construction site',
+  );
 });
