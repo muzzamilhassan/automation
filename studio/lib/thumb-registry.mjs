@@ -142,9 +142,20 @@ export function thumbSetFor(niche, designs = loadThumbRegistry().designs) {
  * thumbnail); exactly 1 eligible -> that design, possibly repeating (a
  * single-design set has nothing to rotate to — uniqueDesigns collapses the
  * repeat at the seam). Never throws.
- * @param {string|null} niche
+ *
+ * The pool, in order of precedence (T2d round 1, D13):
+ * - `assignedIds` present -> ASSIGNED ∩ ELIGIBLE: the entries whose id is in
+ *   the assigned list (the channel kit's `thumbTemplates` — the panel's
+ *   assignment storage), in catalog order. No niche matching, no full-pool
+ *   fallback: an assigned id outside the eligible set (unknown, or a
+ *   needsPhoto:true design) drops out of the intersection, and an empty
+ *   intersection is 0 eligible ([] -> the caller keeps today's staggered
+ *   frames). Clamp + rotation apply to the subset unchanged. A present-but
+ *   -malformed assignedIds is an EMPTY intersection, never a widened pool.
+ * - otherwise -> the niche's designs (thumbSetFor, full-pool fallback).
+ * @param {string|null} niche (used only when assignedIds is absent)
  * @param {number} n how many registry slots to fill
- * @param {{ lastPickedId?: string|null, entries?: Array<object> }} [opts]
+ * @param {{ lastPickedId?: string|null, entries?: Array<object>, assignedIds?: string[] }} [opts]
  * @returns {Array<object>}
  */
 export function pickCandidates(niche, n, opts = {}) {
@@ -152,7 +163,15 @@ export function pickCandidates(niche, n, opts = {}) {
     const slots = Math.max(0, Math.trunc(Number(n) || 0));
     if (slots === 0) return [];
     const override = opts && Object.prototype.hasOwnProperty.call(opts, 'entries') ? opts.entries : undefined;
-    const pool = thumbSetFor(niche, override === undefined ? loadThumbRegistry().designs : override);
+    const base = override === undefined ? loadThumbRegistry().designs : override;
+    let pool;
+    if (opts && Object.prototype.hasOwnProperty.call(opts, 'assignedIds')) {
+      // D13: the panel-assigned set is the pool — assigned ∩ eligible.
+      const assigned = Array.isArray(opts.assignedIds) ? opts.assignedIds : [];
+      pool = base.filter((d) => d && assigned.includes(d.id));
+    } else {
+      pool = thumbSetFor(niche, base);
+    }
     if (pool.length === 0) return []; // 0-eligible — the legacy single frame thumb stands
     if (pool.length === 1) return Array.from({ length: slots }, () => pool[0]);
     // Rotation (AC-P5-13): lead with the design AFTER the last-used one so a

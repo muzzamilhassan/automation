@@ -206,6 +206,50 @@ describe('T2d — pickCandidates (deterministic rotation selection)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// T2d round 1 — kit.thumbTemplates drives selection (D13: assigned ∩ eligible)
+// ---------------------------------------------------------------------------
+
+describe('T2d round 1 — the assigned thumb set (kit.thumbTemplates, D13)', () => {
+  const FIXTURE = [
+    { id: 'ledger', niches: ['History stories'], label: 'Ledger', category: 'doc-style' },
+    { id: 'plinth', niches: ['History stories'], label: 'Plinth', category: 'bold-impact' },
+    { id: 'coinflip', niches: ['History stories'], label: 'Coin Flip', category: 'listicle' },
+  ];
+
+  test('an assigned set restricts the pool to assigned ∩ eligible, in CATALOG order (not assigned order)', () => {
+    const picks = pickCandidates('History stories', 3, { entries: FIXTURE, assignedIds: ['coinflip', 'ledger'] });
+    assert.deepEqual(idsOf(picks), ['ledger', 'coinflip'], 'catalog order wins; unassigned designs are excluded');
+  });
+
+  test('rotation + clamping apply to the assigned subset unchanged', () => {
+    const full = pickCandidates('History stories', 9, { entries: FIXTURE, assignedIds: ['ledger', 'plinth', 'coinflip'] });
+    assert.equal(full.length, 3, 'clamped to the assigned subset');
+    const next = pickCandidates('History stories', 1, { entries: FIXTURE, assignedIds: ['ledger', 'plinth', 'coinflip'], lastPickedId: 'ledger' });
+    assert.notEqual(next[0].id, 'ledger', 'rotation never repeats the last-used layout');
+    assert.deepEqual(
+      idsOf(pickCandidates('History stories', 2, { entries: FIXTURE, assignedIds: ['plinth'], lastPickedId: 'plinth' })),
+      ['plinth', 'plinth'],
+      'a single-design assigned set still repeats (the only choice)',
+    );
+  });
+
+  test('assigned ids outside the eligible pool shrink the intersection honestly; 0 after → [] (the frames cell)', () => {
+    assert.deepEqual(
+      idsOf(uniqueDesigns(pickCandidates('History stories', 3, { entries: FIXTURE, assignedIds: ['ledger', 'ketchup', 'not-a-design'] }))),
+      ['ledger'],
+      'a needsPhoto:true / unknown assigned id drops from the intersection (the 1-design remainder repeats — the 1-eligible fallback)',
+    );
+    assert.deepEqual(pickCandidates('History stories', 3, { entries: FIXTURE, assignedIds: ['ketchup'] }), [], '0 after the intersection = the staggered-frames cell at the seam');
+    assert.deepEqual(pickCandidates('History stories', 3, { assignedIds: [] }), [], 'an empty assigned key = no registry slots');
+    assert.deepEqual(pickCandidates('History stories', 3, { assignedIds: 'garbage' }), [], 'a malformed assigned key is an empty intersection, never a crash or a widened pool');
+  });
+
+  test('without assignedIds the niche path is untouched (the documented API keeps its fallback)', () => {
+    assert.deepEqual(idsOf(pickCandidates('History stories', 2, { entries: FIXTURE })), ['ledger', 'plinth']);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // The D12 eligibility math (QA Row 12: 0/1/>=2 eligible -> the candidate counts)
 // ---------------------------------------------------------------------------
 
@@ -275,10 +319,13 @@ describe('T2d — the candidate-1 regression pin + the engine source switch', ()
     assert.equal(thumbFrameOffset(0), 3, 'candidate 1 = the exact pre-T5b offset');
   });
 
-  test('source pin: the engine\'s registry source is gated on picking (variants > 1) and cannot touch the frame path', () => {
+  test('source pin: the engine\'s registry source is gated on picking (variants > 1) AND on the assigned thumb set (D13)', () => {
     const src = fs.readFileSync(path.join(ROOT, 'youtube-engine.mjs'), 'utf8');
-    assert.match(src, /if \(variants > 1\)[\s\S]{0,120}await registryThumbCandidates\(/, 'the registry is consulted ONLY when the template data enabled picking');
+    assert.match(src, /if \(variants > 1\)[\s\S]{0,120}await registryThumbCandidates\(brand, page, /, 'the registry is consulted ONLY when the template data enabled picking (and the helper no longer takes the dead script param)');
     assert.match(src, /registryThumbCandidates[\s\S]{0,4000}pickCandidates\(/, 'the engine selection goes through pickCandidates (one selection truth)');
+    assert.match(src, /brand\?\.thumbTemplates/, 'the kit-assigned thumb set (D13) is the selection gate');
+    assert.match(src, /if \(!assigned \|\| !assigned\.length\) return null;/, 'an absent/empty kit key = today\'s staggered frames, byte-identically (checked BEFORE any registry import)');
+    assert.match(src, /assignedIds: assigned/, 'the assigned ids ride into pickCandidates — assigned ∩ eligible');
     assert.match(src, /frameVariants = reg \? 1 : variants/, 'with registry designs candidate 1 is the ONLY frame; without them today\'s staggered frames run');
     assert.match(src, /catch[^{]*\{\s*thumbReg = null;/, 'a registry failure degrades to null — the frame path is untouchable');
   });
@@ -297,6 +344,12 @@ describe('T2d — the candidate-1 regression pin + the engine source switch', ()
     assert.match(src, /thumbDesigns: thumbReg \? thumbReg\.pickedIds : null/, 'the engine returns the picked ids for the lane\'s own state write');
     const daily = fs.readFileSync(path.join(ROOT, 'yt-daily.mjs'), 'utf8');
     assert.match(daily, /state\[slug\]\.thumb_last_design = out\.thumbDesigns\[out\.thumbDesigns\.length - 1\]/, 'the lane re-carries the mark in ITS state copy — the end-of-run save must not clobber rotation');
+  });
+
+  test('source pin: the kit thumb set reaches the engine through the resolved brand (brand-resolve passes D13 through)', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'lib/brand-resolve.mjs'), 'utf8');
+    assert.match(src, /thumbTemplates:\s*kit\.thumbTemplates/, 'registryToKit carries the kit-assigned set — data, never a hardcoded map');
+    assert.match(src, /Array\.isArray\(kit\.thumbTemplates\)/, 'guarded so an absent kit key never clobbers a legacy kit value in the merge (#101 undefined-spread lesson)');
   });
 
   test('source pin: the studio registry route serves the launch set read-only, auth-gated', () => {

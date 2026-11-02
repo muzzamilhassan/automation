@@ -1006,27 +1006,38 @@ export function thumbFrameOffset(v) {
   return v === 0 ? 3 : 2 + v * 1.5;
 }
 
-// #106 Phase 5 T2d (D12/D14, AC-P5-12..14) — the candidate SOURCE switch: WHERE
-// picking is enabled (thumbVariants > 1, threaded from the template DATA by the
-// T5 gate) and the channel's niche resolves thumbnail-registry designs,
-// candidates 2..N are REGISTRY renders instead of staggered frames. Candidate 1
-// stays today's frame thumbnail (thumbFrameOffset(0) === 3 above — the
-// regression pin). Fail-soft by contract: null whenever the registry cannot
-// contribute (import failure, unreadable state, 0 eligible) so the caller keeps
-// today's staggered frames byte-identically — the count still comes from the
-// template data; the SOURCE is the only change (QA Row R6's source-switch cell).
+// #106 Phase 5 T2d (D12/D13/D14, AC-P5-12..14) — the candidate SOURCE switch:
+// WHERE picking is enabled (thumbVariants > 1, threaded from the template DATA
+// by the T5 gate) AND the channel kit assigns a thumb set (kit.thumbTemplates —
+// D13's assignment storage: the panel's 2–3 launch-design ids), candidates
+// 2..N are REGISTRY renders instead of staggered frames. The selection pool is
+// ASSIGNED ∩ ELIGIBLE: an assigned id that is not in the eligible launch set
+// (unknown id, or a needsPhoto:true design) drops out of the intersection, and
+// an intersection that shrinks to 0 is the 0-eligible cell — production-
+// reachable now that the kit key gates the seam. Candidate 1 stays today's
+// frame thumbnail (thumbFrameOffset(0) === 3 above — the regression pin).
+// Fail-soft by contract: null whenever the registry cannot contribute (kit key
+// absent or empty, import failure, unreadable state, 0 eligible) so the caller
+// keeps today's staggered frames byte-identically — the count still comes from
+// the template data; the SOURCE is the only change (QA Row R6's source-switch
+// cell).
 // Rotation (AC-P5-13): the last-used design id persists in the channel state
-// file (`thumb_last_design`); a missing/unreadable state degrades to
-// first-eligible, never a block.
-async function registryThumbCandidates(brand, page, script, slots) {
+// file (`thumb_last_design`). The mark ADVANCES AT PICK TIME — a design whose
+// render later degrades is not re-picked until rotation wraps back around to
+// it; a missing/unreadable state degrades to first-eligible, never a block.
+async function registryThumbCandidates(brand, page, slots) {
   try {
     const slug = page?.ytSlug || page?.slug || page?.id;
     if (!brand || !slug) return null;
+    const assigned = Array.isArray(brand?.thumbTemplates)
+      ? brand.thumbTemplates.filter((x) => typeof x === 'string' && x.length > 0)
+      : null;
+    if (!assigned || !assigned.length) return null; // D13: no assigned thumb set — today's staggered frames, byte-identically
     const reg = await import('./studio/lib/thumb-registry.mjs');
     let lastPickedId = null;
     try { lastPickedId = loadChannelState(slug)?.thumb_last_design ?? null; } catch { }
-    const picks = reg.uniqueDesigns(reg.pickCandidates(brand?.niche, slots, { lastPickedId }));
-    if (!picks.length) return null; // 0 eligible — today's staggered frames stand
+    const picks = reg.uniqueDesigns(reg.pickCandidates(brand?.niche, slots, { lastPickedId, assignedIds: assigned }));
+    if (!picks.length) return null; // 0 eligible (the assigned set shrank to nothing) — the frames cell
     const lastId = picks[picks.length - 1].id;
     if (lastId !== lastPickedId) {
       try {
@@ -1035,7 +1046,7 @@ async function registryThumbCandidates(brand, page, script, slots) {
         saveChannelState(slug, state);
       } catch { }
     }
-    console.log(`      [YT Script] thumb registry candidates: ${picks.map((d) => d.id).join(', ')} (last used: ${lastPickedId || 'none'})`);
+    console.log(`      [YT Script] thumb registry candidates: ${picks.map((d) => d.id).join(', ')} (assigned: ${assigned.join(', ')}; last used: ${lastPickedId || 'none'})`);
     return { designs: picks, pickedIds: picks.map((d) => d.id) };
   } catch (e) {
     console.log(`      [YT Script] thumb registry unavailable (non-fatal): ${String(e?.message || e).slice(0, 80)}`);
@@ -1160,7 +1171,7 @@ export async function renderYouTubeScriptShort(page, script, musicOverride = nul
     // staggered frames, byte-identical (the COUNT still comes from the template
     // data; the SOURCE is the only change).
     if (variants > 1) {
-      try { thumbReg = await registryThumbCandidates(brand, page, script, variants - 1); } catch (e) { thumbReg = null; }
+      try { thumbReg = await registryThumbCandidates(brand, page, variants - 1); } catch (e) { thumbReg = null; }
     }
     const reg = thumbReg;
     const frameVariants = reg ? 1 : variants;
