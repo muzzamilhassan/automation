@@ -1301,10 +1301,14 @@ describe('#106 T5c — RESUME renders the doc from the STORED input (real yt-dee
 // (machine-written, zero LLM risk) and the SAVE checks it:
 //   appendDisclaimers  — the publish-time MACHINE append (verbatim, code only)
 //   declaredDisclaimers— the template_id chain (REGISTRY_META safety block)
-//   saveGeneratedScript's contains() gate — a gated record whose narration +
-//   machine-appended description lack a declared fixed text FAILS the save
-//   (fail-closed, nothing persisted — same posture as "a dup-blocked script
-//   is never saved").
+//   saveGeneratedScript's gate — the save verifies the RECORD CARRIES the
+//   machine-appended disclaimer_block (built here from the declared list);
+//   a gated record whose block is missing or does not cover the declared
+//   texts FAILS the save (fail-closed, nothing persisted — same posture as
+//   "a dup-blocked script is never saved").
+//   T5e fix (live MR pilot, run 41482343689): the narration is NEVER
+//   searched — a fresh generation naturally lacks the fixed text, and the
+//   gate keys on the deterministic machine-built block instead.
 // The gate's refusal cell is constructed through an in-memory REGISTRY_META
 // fixture (CODE tasks never author the production data file — plan contract);
 // the fixture is installed/deleted inside the test process only.
@@ -1403,50 +1407,53 @@ describe('#106 P5 T2c — the contains() SAVE gate in saveGeneratedScript (D4/AC
     });
   });
 
-  test('a gated script missing its disclaimer is REFUSED with the named error — nothing persisted (fail-closed)', async () => {
+  test('a gated script whose disclaimer_block does not cover the declared list is REFUSED with the named error — nothing persisted (fail-closed)', async () => {
     await withFixture(async (TID) => {
       const store = t2cStore();
       // `disclaimers: []` = the injected seam asserting NO machine-append
-      // reaches the publish description (the suppressed-append side of QA
-      // Row 10's boundary probe — impossible by construction in production,
-      // where the append is unconditional in code)
+      // reaches the record (the suppressed-append side of QA Row 10's boundary
+      // probe — impossible by construction in production, where the block is
+      // built unconditionally in code)
       const r = await saveGeneratedScript({
         scriptStore: store, channelId: SLUG, templateId: TID, kind: 'short',
         script: GENERATED, disclaimers: [],
       });
       assert.equal(r.ok, false, 'the save FAILS');
       assert.match(r.error, /disclaimer_missing/, `the named error: ${r.error}`);
-      assert.ok(r.error.includes(T2C_DISCLAIMER), 'the error names the missing fixed text');
+      assert.ok(r.error.includes(T2C_DISCLAIMER), 'the error names the uncovered fixed text');
       assert.equal(store.saved.length, 0, 'nothing persisted — never silently dropped, never half-written');
     });
   });
 
-  test('the narration carrying the text satisfies the gate even without the append (the claim-edit cell)', async () => {
+  test('T5e: the narration is NEVER searched — prose containing the text does not satisfy a record whose block is missing', async () => {
     await withFixture(async (TID) => {
       const store = t2cStore();
       const r = await saveGeneratedScript({
         scriptStore: store, channelId: SLUG, templateId: TID, kind: 'short',
         script: { ...GENERATED, closing: T2C_DISCLAIMER }, disclaimers: [],
       });
-      assert.equal(r.ok, true, 'narration OR the machine-appended description — either carries compliance (D4)');
-      assert.equal(store.saved[0].fullRenderInput.disclaimer_block, undefined, 'nothing appended, nothing recorded');
+      assert.equal(r.ok, false, 'compliance is the machine-appended BLOCK, never the LLM prose (D4 creative freedom)');
+      assert.match(r.error, /disclaimer_block does not cover/, `the structural refusal names the block contract: ${r.error}`);
+      assert.equal(store.saved.length, 0, 'nothing persisted');
     });
   });
 
-  test('the doc shape: the cold-open intro rides the checked payload through the shared seam', async () => {
+  test('T5e doc shape (the live pilot scenario): a fresh doc narration lacking the text SAVES through the shared seam — the block is the contract', async () => {
     await withFixture(async (TID) => {
       const store = t2cStore();
-      const docScript = { hook: 'The doc title', intro: `${T2C_DISCLAIMER} Remember this before the chapters.`, points: [{ title: 'C1', line: 'Chapter one.' }, { title: 'C2', line: 'Chapter two.' }], closing: 'The outro.', thumbHeadline: 'THE DOC' };
+      const docScript = { hook: 'The doc title', intro: 'Cold open without the line.', points: [{ title: 'C1', line: 'Chapter one.' }, { title: 'C2', line: 'Chapter two.' }], closing: 'The outro.', thumbHeadline: 'THE DOC' };
       const r = await saveGeneratedScript({
         scriptStore: store, channelId: SLUG, templateId: TID, kind: 'doc',
-        script: docScript, disclaimers: [],
+        script: docScript, // production: no `disclaimers` argument — the chain resolves, the block is built here
       });
-      assert.equal(r.ok, true, 'a doc whose narration (incl. the intro the row text omits) carries the text saves');
+      assert.equal(r.ok, true, 'a freshly generated gated doc SAVES (run 41482343689 refused a run exactly like this — the narration-search bug)');
+      assert.equal(store.saved[0].status, 'awaiting_review');
+      assert.equal(store.saved[0].fullRenderInput.disclaimer_block, T2C_DISCLAIMER, 'the record carries the machine-appended block (T5d\'s resume ships it verbatim)');
       const refused = await saveGeneratedScript({
         scriptStore: t2cStore(), channelId: SLUG, templateId: TID, kind: 'doc',
-        script: { ...docScript, intro: 'Cold open without the line.' }, disclaimers: [],
+        script: docScript, disclaimers: [],
       });
-      assert.equal(refused.ok, false, 'a doc record whose payload lacks the text is refused too (yt-deepdive saves through THIS seam)');
+      assert.equal(refused.ok, false, 'a doc record without the block is refused too (yt-deepdive saves through THIS seam)');
     });
   });
 
@@ -1576,19 +1583,21 @@ function expectedUngatedDescription(doc = STORED_DOC) {
 }
 
 describe('#106 P5 T5d — the doc lane\'s disclaimer chain (save through the shared seam, ship in the snippet)', () => {
-  test('SAVE pin: GENERATE-ONLY with a DECLARING doc template persists disclaimer_block in full_render_input (the shared-seam path through the real yt-deepdive)', () => {
+  test('SAVE pin (the run-41482343689 regression): GENERATE-ONLY with a DECLARING doc template persists the script awaiting_review with disclaimer_block — the fresh narration lacks the text and that is BY DESIGN', () => {
     const r = runYtDeepdive({
       env: DOC_GEN_ENV, engine: SPY_DOC_ENGINE_GEN_T5D, store: SPY_DOC_STORE_GEN, intents: SPY_DOC_INTENTS_GEN,
       registry: SPY_DOC_REGISTRY,
     });
     assert.equal(r.status, 0, 'the generate-only doc run exits 0\n' + r.stdout + r.stderr);
+    assert.ok(!r.stdout.includes('WARN doc script not saved'), 'the save was NOT refused — the gate keys on the machine-appended block, never the fresh narration (T5e)');
     const saves = r.spy.filter((c) => c.mod === 'docstore' && c.fn === 'saveScript');
     assert.equal(saves.length, 1, 'exactly one script persisted');
     const f = saves[0].args;
+    assert.equal(f.status, 'awaiting_review', 'the gated script lands in the /review queue — never a nightly generate-and-hold loop');
     assert.equal(f.templateId, T5D_TEMPLATE, 'the resolved doc assignment threads into the shared seam');
     assert.equal(f.fullRenderInput.disclaimer_block, T2C_DISCLAIMER,
       'the record carries the machine-appended description line — /review sees the disclaimer (D4)');
-    assert.ok(!f.text.includes(T2C_DISCLAIMER), 'the narration text is NOT mutated — creative freedom stays with the brain');
+    assert.ok(!f.text.includes(T2C_DISCLAIMER), 'the narration text is NOT mutated and NEED NOT carry the text — creative freedom stays with the brain');
     const { disclaimer_block: block, ...rest } = f.fullRenderInput;
     assert.equal(block, T2C_DISCLAIMER);
     assert.deepEqual(
