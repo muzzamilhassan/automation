@@ -4,8 +4,10 @@
 // the Phase 3 dedupe verdict, and — WHERE disclosure is required — the four
 // official synthetic-media categories VERBATIM (support.google.com/youtube/
 // answer/14328491 via research §5.7); every item must be answered before
-// Approve enables (the route re-checks server-side). Approve dispatches the
-// resume run; a dispatch failure is surfaced + warned, never silent. The
+// Approve enables (the route re-checks server-side) — pre-seeded per script
+// with the owner's production-style answers (adjustable before approving).
+// Approve dispatches the resume run; a dispatch failure is surfaced +
+// warned, never silent. The
 // thumbnail candidates render with pick buttons (D18: swap before publishAt,
 // recorded-only after; unpicked = candidate 1).
 import { useEffect, useState } from 'react';
@@ -23,6 +25,23 @@ const ageOf = (iso) => {
   return h < 1 ? `${Math.round(h * 60)}m` : h < 48 ? `${Math.round(h)}h` : `${Math.floor(h / 24)}d`;
 };
 const verdictTone = (v) => (v === 'pass' || v === 'unique' ? 'ok' : v ? 'warn' : 'plain');
+
+// The owner's production style (AI voice narration + AI-generated scene
+// images) pre-selects the honest synthetic-media answers: No real person /
+// altered footage, Yes realistic scene + the fourth category. Defaults are
+// SEEDS, not answers — the owner can change any per script before approving,
+// and a future unmapped category stays unanswered (the gate still holds it).
+const DISCLOSURE_DEFAULTS = { real_person: false, alters_footage: false, realistic_scene: true, music_focus: true };
+const disclosureDefaults = (d) => {
+  let input = d?.script?.full_render_input;
+  if (typeof input === 'string') { try { input = JSON.parse(input); } catch { input = null; } }
+  if (input?.disclosure?.synthetic_media_required !== true) return {}; // no checklist = no phantom answers
+  return Object.fromEntries(
+    DISCLOSURE_CATEGORIES.items
+      .filter((i) => i.id in DISCLOSURE_DEFAULTS)
+      .map((i) => [i.text, DISCLOSURE_DEFAULTS[i.id]]),
+  );
+};
 
 export default function ReviewDeskPage() {
   const [pending, setPending] = useState(null);
@@ -53,6 +72,7 @@ export default function ReviewDeskPage() {
       const r = await apiFetch(`/api/review?id=${encodeURIComponent(id)}`);
       const d = await r.json();
       if (!r.ok || d.error) throw new Error(d.error || 'failed');
+      setDisclosure(disclosureDefaults(d)); // production-style defaults pre-selected (adjust per script)
       setDetail(d);
     } catch (e) {
       setErr(e.message);
@@ -257,6 +277,7 @@ export default function ReviewDeskPage() {
                     ))}
                   </div>
                 ))}
+                <p className="text-[11px] text-muted">Defaults match your standard AI-voice + AI-illustrated production — adjust per script if needed.</p>
                 <p className="text-[11px] text-muted">Disclosure itself won&rsquo;t limit reach or earnings — non-disclosure risks the label being applied manually or penalties. Answer every item; the route re-checks.</p>
               </div>
             </Card>
