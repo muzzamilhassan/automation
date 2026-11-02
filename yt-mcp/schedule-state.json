@@ -109,9 +109,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "gGpAnUHjZ0s",
-        "publishAt": "2026-10-25T22:35:00Z",
-        "title": "The Automated Trick to Build Wealth Fast"
+        "videoId": "HlVjthal5iM",
+        "publishAt": "2026-11-02T22:35:00Z",
+        "title": "Missed Payment Cost $54,000 Over Mortgage Life"
       }
     ],
     "imageDate": "2026-10-18",
@@ -124,7 +124,7 @@
         "title": "Pay Yourself First | Personal Finance"
       }
     ],
-    "deepdiveDate": null,
+    "deepdiveDate": "2026-11-02",
     "healedDate": "2026-09-19",
     "healedCount": 3,
     "usedTrendSeeds": [
@@ -174,6 +174,10 @@
       {
         "t": "The Automated Trick to Build Wealth Fast",
         "at": "2026-10-25T22:35:00Z"
+      },
+      {
+        "t": "Missed Payment Cost $54,000 Over Mortgage Life",
+        "at": "2026-11-02T22:35:00Z"
       }
     ],
     "cooldownSeeds": [
@@ -181,55 +185,75 @@
       "11 Kitchen Rules Americans Break That No 1950s Housewife Would Have Allowed"
     ],
     "clipQueue": {
-      "lastRunId": "40632589104",
+      "lastRunId": "local-1793646363618",
       "doneRuns": [
         "39750079904",
-        "40632589104"
+        "40632589104",
+        "local-1793646363618"
       ],
-      "docTitle": "The Hidden Cost of Credit: How One Debt Slip Cost $12,000 | Personal finance rules & money habits Wisdom",
-      "createdAt": "2026-10-28T04:37:41.033Z",
+      "docTitle": "The Hidden Habits That Make Money Work While You Sleep | Personal finance rules & money habits Wisdom",
+      "createdAt": "2026-11-02T19:06:57.935Z",
+      "local": true,
       "clips": [
         {
           "part": 1,
-          "title": "Missed Payment Cost $54,000 Over Mortgage Life",
+          "title": "5‑Minute Night Timer Turns $1,200 Spend into $3,600 Savings",
           "asset": "clip-01.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/683832516",
-          "startSec": 98.3,
-          "durSec": 23
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/702852628",
+          "startSec": 21.4,
+          "durSec": 23.7,
+          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-01.mp4"
         },
         {
           "part": 2,
-          "title": "Debt Cleared, Credit Score Jumps to 720",
+          "title": "Glass Jar in Corner Grew $45 to $215 in One Year",
           "asset": "clip-02.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/683832591",
-          "startSec": 297.1,
-          "durSec": 23.8
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/702852670",
+          "startSec": 54.9,
+          "durSec": 22.4,
+          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-02.mp4"
         },
         {
           "part": 3,
-          "title": "Saved $350 in Interest by Cutting $2,000 Debt Fast",
+          "title": "Magnetic Wall Saved $2,400 and Fueled an Index Fund",
           "asset": "clip-03.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/683832633",
-          "startSec": 235.3,
-          "durSec": 21.2
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/702852700",
+          "startSec": 106,
+          "durSec": 21.8,
+          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-03.mp4"
+        },
+        {
+          "part": 4,
+          "title": "Loot Box Debt Hack: $1,850 Saved, $150 Interest Cut",
+          "asset": "clip-04.mp4",
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/702852735",
+          "startSec": 173.5,
+          "durSec": 21.4,
+          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-04.mp4"
         }
       ]
     },
-    "clipLastPostDate": "2026-10-25",
+    "clipLastPostDate": "2026-11-02",
     "uploadsToday": {
-      "date": "2026-10-25",
-      "count": 1
+      "date": "2026-11-02",
+      "count": 2
     },
     "reviewGate": {
       "assigned": true,
       "gated": true,
-      "checkedAt": "2026-11-02T18:04:58.600Z"
+      "checkedAt": "2026-11-02T18:57:58.394Z"
     },
     "usedLongSeeds": [
       "Stop Wasting Vegetables! 8 Freezer Tricks That Save You Money | Annie Tips",
       "2 Tips For Success In 30's🔥👆 @TheNewsPinch #drvelumani #podcast #motivation #success #money",
       "సింపుల్‌గా బ్రతుకు, హ్యాపీగా ఉండు!#telugushorts #motivation #moneytips #lifelessons#RamaSaai"
-    ]
+    ],
+    "deepdiveVideo": {
+      "videoId": "C3eg6S4itwQ",
+      "publishAt": "2026-11-02T22:30:00Z",
+      "title": "The Hidden Habits That Make Money Work While You Sleep | Personal finance rules & money habits Wisdom",
+      "text": "What if the secret to financial freedom isn’t a flashy side‑hustle, but a series of silent actions you already perform every day? In the next ten minutes we’ll expose the invisible levers that turn ordinary routines into unstoppable wealth engines.\n\nEvery night at 10 p.m., Maya sets a kitchen timer for five minutes and writes down the exact amount she spent that day, down to the last coffee. Then she transfers that figure into a high‑yield savings account before the timer dings. This tiny ritual creates a feedback loop: awareness curbs waste, and the automatic transfer makes saving feel inevitable. In just six months, Maya turned a chaotic $1,200 of daily spend into a $3,600 “rainy‑day” buffer, proving that syncing money moves to a clock can lock in discipline without any willpower battle.\n\nWhen the Patel family renovated their living room, they placed a modest glass jar of loose change in the northeast corner—the traditional wealth‑attracting direction in Vastu. They also cleared clutter from the southeast, the commerce zone, and added a single healthy plant. Within a year, the jar grew from $45 to $215 purely from daily deposits, while the family reported fewer impulse buys. The subtle shift of energy, combined with a visual cue, turned an unused corner into a constant reminder to collect, not spend, reinforcing a silent accumulation habit.\n\nInstead of a spreadsheet, Carlos taped a large whiteboard to his garage wall and divided it into three strips: Needs, Wants, and Investments. Each stripe had a different colored magnet. Every time cash changed hands, he slapped a magnet onto the appropriate strip. Over a year, the visual spread revealed that 62% of his outflow was “Wants,” prompting a 15% cut in discretionary spending. The magnetic wall forced a real‑time audit, and the saved $2,400 was redirected into a low‑cost index fund, illustrating how a simple visual budget can convert hidden waste into silent growth.\n\nLina swapped half of her grocery budget for a backyard garden of tomatoes, beans, and herbs. She tracked the market price of each harvest and logged the saved amount as “garden profit.” By the end of the season, her garden generated $350 in savings, which she automatically rolled into a tax‑advantaged health‑savings account. The habit of treating home‑grown produce as a cash‑flow source not only lowered food costs but also taught her to view every resource as a potential income stream, turning a hobby into a silent financial lever.\n\nWhen Sam discovered he owed $8,200 across three credit cards, he created a “loot box” system: a sealed envelope labeled “Debt Buster.” Each payday, he placed the exact amount of his smallest credit‑card payment into the envelope, then added any extra cash from side gigs. After six months, the box held $1,850, which he used for a lump‑sum payment, instantly shaving $150 off his monthly interest. The physical act of loading a box turned abstract debt into a tangible target, accelerating repayment without sacrificing his regular budget.\n\nEvery Friday, Priya receives a single push notification from her bank: “Did you spend more than $30 on dining this week?” If she answers “yes,” she must log the receipt and justify the expense in a shared family note. Over three months, her dining spend fell from $260 to $180, saving $480. The weekly spot‑check forces a brief pause before the next purchase, converting a subconscious habit into a conscious decision point, and the saved cash automatically funnels into a vacation fund.\n\nThese silent habits prove that wealth doesn’t need a megaphone—just a few quiet tweaks. Subscribe for more under‑the‑radar money rules that let your bank account grow while you go about your day."
+    }
   },
   "debt-free-doctrine": {
     "lastRunDate": "2026-10-20",
