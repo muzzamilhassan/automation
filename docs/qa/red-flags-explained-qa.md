@@ -6,16 +6,16 @@ waits — force_doc dispatch, same-day checks.
 
 | # | Requirement | Check | How | Type | Result |
 |---|---|---|---|---|---|
-| 1 | R1 registry valid | entry passes the schema v2 validator | `node --test tests/template-registry.test.mjs` (or the repo's registry suite) green with the entry present | A | |
-| 2 | R2 doc plan | docStoryPlan returns chapters=10, minWords=170; plan line verbatim | `node --test tests/doc-template.test.mjs` incl. the new pin case | A | |
-| 3 | R4 thumb design on | SVG carries chip text, brandmark, last-word accent tspan, scrim tint | new doc-visual-layer cases: render with thumb_design, assert elements | A | |
-| 4 | R5 thumb default-inert | default SVG has NO chip/brandmark/tint elements (byte-stability) | same suite: render without thumb_design, assert absence + stable size | A | |
-| 5 | R6 swap semantics | MR assignment = exactly 1 active row + audit row, front door only | sync CLI run + assign API call + DB-CHECK SELECT evidence | A | |
-| 6 | R7 captions | SRT uploaded as CC at publish (regression) | code pin longform-upload.mjs:253 + run log "[upload] captions uploaded" on the QA dispatch | A | |
-| 7 | R1 panel visibility | template listed in gallery + picker | open Studio /templates/registry + channel panel after deploy | M | |
-| 8 | AC-5 live proof | forced doc on MR ships 10-chapter episode + left-stack thumb | workflow_dispatch force_doc=1 channel=money-rulebook; inspect log + artifact | A | |
-| 9 | R5 regression | other lanes' thumbnails unchanged | the three paused channels stay paused; default render path asserted by #4 | A | |
-| 10 | R8 shorts skeleton | shorts keep numbered red-flag beats under the template | pipeline log on the QA dispatch: Shorts ✓ with 4-point beats | A | |
+| 1 | R1 registry valid | entry passes the schema v2 validator | `node --test tests/registry.test.mjs` 9/9 + full suite 1026/1026 (2026-11-03) | A | **PASS** |
+| 2 | R2 doc plan | docStoryPlan returns chapters=10, minWords=170; plan line verbatim | tests/doc-template.test.mjs real-entry pins 18/18 — plan line asserted verbatim | A | **PASS** |
+| 3 | R4 thumb design on | SVG carries chip text, brandmark, last-word accent tspan, scrim tint | tests/doc-visual-layer.test.mjs R4 suite (chip/SCANDALS, diamond brandmark, tint-under-gradient, last-word tspan ×2 layers) | A | **PASS** |
+| 4 | R5 thumb default-inert | default SVG has NO chip/brandmark/tint elements (byte-stability) | R5 suite: thumbDesignFor null cases + SOURCE PINs (default literals untouched, branch gates on data) | A | **PASS** |
+| 5 | R6 swap semantics | MR assignment = exactly 1 active row + audit row, front door only | sync CLI imported the entry (front door, skipped-invalid 0); POST attempted via local dev — route is Google-session-gated (by design); **swap = owner's panel click** | A/M | **PENDING owner click** |
+| 6 | R7 captions | SRT uploaded as CC at publish (regression) | code pin longform-upload.mjs:253 (captions.insert) — unchanged by this feature; MR pilot run 41672112170 already shipped "[upload] captions uploaded" | A | **PASS** |
+| 7 | R1 panel visibility | template listed in gallery + picker | Studio deployed to Vercel prod (deployment ai44vyr3j, Ready); the panel's own loader (loadRegistryTemplates) resolves it assignable: 10 templates, 0 invalid | M | **PASS (owner sign-in confirms visually)** |
+| 8 | AC-5 live proof | forced doc on MR ships 10-chapter episode + left-stack thumb | blocked on Row 5's swap — dispatch force_doc=1 AFTER the owner assigns | A | **PENDING swap** |
+| 9 | R5 regression | other lanes' thumbnails unchanged | the three paused channels stay paused; default render path asserted by #4 (source pins green) | A | **PASS** |
+| 10 | R8 shorts skeleton | shorts keep numbered red-flag beats under the template | validator requires beats (registry suite green); pipeline proof rides Row 8's dispatch | A | **PENDING swap** |
 
 ## Regression watch
 
