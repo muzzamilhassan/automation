@@ -973,7 +973,10 @@ const SPY_DOC_CLIPS = [
   "import { appendFileSync } from 'node:fs';",
   'const LOG = process.env.PIPELINE_SPY_LOG;',
   "function rec(fn, args) { try { appendFileSync(LOG, JSON.stringify({ mod: 'docclips', fn, args }) + '\\n'); } catch {} }",
-  'export async function getTopicClip(page, opts = {}) { rec("getTopicClip", { pageTruthy: !!page, id: page && page.id, headline: opts.headline }); return null; }',
+  '// 0d29737: the doc visual layer is FAIL-CLOSED — a zero-clip run refuses',
+  '// before any upload. The stub ships a truthy clip per chapter so the resume',
+  '// renders proceed (the null-clip fixture simulated the black-doc class).',
+  'export async function getTopicClip(page, opts = {}) { rec("getTopicClip", { pageTruthy: !!page, id: page && page.id, headline: opts.headline }); return { file: "stub-clip.mp4", start: 0, maxDur: 12, id: 424242 }; }',
   'export default getTopicClip;',
 ].join('\n');
 
