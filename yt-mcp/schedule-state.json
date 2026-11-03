@@ -109,9 +109,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "HlVjthal5iM",
-        "publishAt": "2026-11-02T22:35:00Z",
-        "title": "Missed Payment Cost $54,000 Over Mortgage Life"
+        "videoId": "ESxKCJaOrvw",
+        "publishAt": "2026-11-03T22:35:00Z",
+        "title": "5‑Minute Night Timer Turns $1,200 Spend into $3,600 Savings"
       }
     ],
     "imageDate": "2026-10-18",
@@ -178,6 +178,10 @@
       {
         "t": "Missed Payment Cost $54,000 Over Mortgage Life",
         "at": "2026-11-02T22:35:00Z"
+      },
+      {
+        "t": "5‑Minute Night Timer Turns $1,200 Spend into $3,600 Savings",
+        "at": "2026-11-03T22:35:00Z"
       }
     ],
     "cooldownSeeds": [
@@ -202,7 +206,8 @@
           "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/702852628",
           "startSec": 21.4,
           "durSec": 23.7,
-          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-01.mp4"
+          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-01.mp4",
+          "postedAt": "2026-11-03T15:37:25.666Z"
         },
         {
           "part": 2,
@@ -233,15 +238,15 @@
         }
       ]
     },
-    "clipLastPostDate": "2026-11-02",
+    "clipLastPostDate": "2026-11-03",
     "uploadsToday": {
-      "date": "2026-11-02",
-      "count": 2
+      "date": "2026-11-03",
+      "count": 1
     },
     "reviewGate": {
       "assigned": true,
       "gated": true,
-      "checkedAt": "2026-11-03T12:21:24.988Z"
+      "checkedAt": "2026-11-03T15:37:18.750Z"
     },
     "usedLongSeeds": [
       "Stop Wasting Vegetables! 8 Freezer Tricks That Save You Money | Annie Tips",
