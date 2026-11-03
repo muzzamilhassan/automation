@@ -263,4 +263,81 @@ export const REGISTRY_META = {
     deprecated: false,
     changelog: [{ version: '1.0.0', date: '2026-11-02', note: 'Phase 5 pilot — structure-faithful to the money-rulebook kit format' }],
   },
+
+  // ---- Phase 5 γ0 (spec D7 row 19's family · 2026-11-03 dispatch): quote-cards-premium —
+  // the STRUCTURE-FAITHFUL QUOTE QUARRY retrofit. Zero content risk, same rule
+  // as the pilot: the beat slots mirror QQ's PROVEN quote-video skeleton (the
+  // kit-less shorts lane — brands.mjs ships no script block for quotequarry, so
+  // youtube-engine.mjs resolves SC=null and the default skeleton + the
+  // titleHistory's quote-and-author shape IS the format that made the existing
+  // uploads). The beats name what each numbered point must BE for a quote-card
+  // video: quote reveal → wisdom unpacking → modern application → mic-drop
+  // reflection (4 beats == the shorts skeleton floor — no free slots padded).
+  // - niches carry QQ's EXACT kit niche string (brands.mjs quotequarry:18) plus
+  //   the second psychology string — QQ's 'dark psychology defense' sub-niche
+  //   is a member of BOTH canonical niches (niches.js NICHE_MAP), and the D7
+  //   psychology rows carry both strings for exactly that reason (review A-N2).
+  // - formats ['short'] — QQ's proven lane (1 short/day, 22:35 ET slot). The
+  //   family ships 16:9 too; the recipe declares only what the channel runs
+  //   (never declared beyond the family — formats ⊆ aspectRatios holds).
+  // - NO explicit variation_threshold/cross_channel_threshold: wisdom is not
+  //   YMYL — the brain's documented defaults (0.85 cosine variation / 0.90
+  //   cross-channel) apply (header note; the brain-wiring pin holds "only
+  //   finance-explainers declares the fields").
+  // - review_thumb_pick: T4 assigned quotequarry the slab-quote/serif-frame/
+  //   plinth thumb set (kit.thumbTemplates) — picking ON lets the render emit
+  //   registry candidates from that set (thumbCandidateCount reads THIS key).
+  'quote-cards-premium': {
+    version: '1.0.0',
+    template_id: 'quote-cards-premium',
+    family: 'quote-cards-premium',
+    niches: [
+      'Timeless wisdom, self-mastery & human psychology',
+      'Human psychology & social dynamics',
+    ],
+    formats: ['short'],
+    renderer: 'remotion',
+    required_capabilities: ['script-gen', 'tts', 'captions'],
+    // D2: point-slot constraints over the IMMUTABLE shorts skeleton — the
+    // numbered points stay hook + points + closing in shape; each beat names
+    // what numbered point i must BE for a quote-card video.
+    story_structure: {
+      beats: [
+        'slot 1 is the quote reveal — the anchor quote stated and attributed (who said it, the single wisdom it carries) — the video\'s opening point',
+        'slot 2 unpacks the wisdom — what the quote actually means, the principle beneath the words (a truth, never a restatement of the quote)',
+        'slot 3 is the modern application — the present-day situation the principle governs (respect, silence, comparison, boundaries) and what obeying or ignoring it costs',
+        'slot 4 is the mic-drop reflection — the quote\'s challenge turned on the viewer, landing the payoff the closing question completes',
+      ],
+      // QQ's proven hook shapes: the stoic question / the quote call-out / the
+      // you-stake reflection — the kit's hook trio spoken in wisdom, plus the
+      // quote-author openings the titleHistory shows.
+      hook_classes: ['stoic question', 'quote call-out', 'you-stake reflection'],
+      // REPLACE the kit title line (T2a Ruling): patterns mirrored from the
+      // ACTUAL uploads (yt-mcp/state/quotequarry.json titleHistory); the
+      // engine's buildScriptMeta appends the authority suffix (" | Timeless
+      // Wisdom" / "| Stoicism Philosophy" era) at publish.
+      title_patterns: [
+        'the power-of-a-virtue call-out ("The Power Of Solitude", "The Power Of Silence", "The Power of a Single Daily Mantra")',
+        'the second-person stoic command ("Control Everything", "Never Lower Yourself", "Plan Your Life Like A Stoic")',
+        'the named-philosopher numbered-laws ("Seneca\'s 3 Laws Of Control")',
+        'the psychological trap call-out ("The Psychological Trap of Reacting", "How to Break the Comparison Trap")',
+        'the transformation promise ("Become Emotionally Unbreakable", "Master Your Inner Peace")',
+      ],
+      payoff_rule: 'the closing lands the mic-drop reflection — a direct question or challenge to the viewer that invites a numbered comment ("Which one do you live by? Comment the number."), never a summary',
+    },
+    // D3 bar: every rule names the no-repeat OBJECT, the lookback window, and
+    // the enforcement site. Rule 4 is the story-shape prose — labeled
+    // unenforceable per the spec's Honest Limits convention.
+    variation_rules: [
+      'no repeated quote — the anchor quote and its author differ from every quote used in the channel\'s last 5 videos (enforced: the variation gate similarity)',
+      'no repeated theme — each video\'s wisdom theme (respect, silence, solitude, comparison, boundaries) differs from the themes of the channel\'s last 5 videos (enforced: the seed rotation)',
+      'no repeated hook across the channel\'s last 5 videos (enforced: the variation gate similarity)',
+      'the story is always quote-then-principle — the anchor quote is unpacked and applied, never merely displayed (prose for the author and the review desk, NOT machine-enforced — spec Honest Limits)',
+    ],
+    // #106 T5b (D18/OQ-4): picking ON from launch — see the comment above.
+    review_thumb_pick: true,
+    safety: { required_sources: false, review_required: [] },
+    deprecated: false,
+    changelog: [{ version: '1.0.0', date: '2026-11-03', note: 'QUOTE QUARRY proven recipe — the format behind the existing uploads, now panel-assignable' }],
+  },
 };
