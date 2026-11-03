@@ -7,9 +7,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "Y5qqfprd4QI",
-      "publishAt": "2026-10-31T22:35:00Z",
-      "title": "The Old Money Rule for Passing Down Wealth"
+      "videoId": "RK9Nloigkx4",
+      "publishAt": "2026-11-03T22:35:00Z",
+      "title": "The Old Money Playbook That Saved $15,000"
     }
   ],
   "imageDate": "2026-10-20",
@@ -123,6 +123,10 @@
     {
       "t": "The Old Money Rule for Passing Down Wealth",
       "at": "2026-10-31T22:35:00Z"
+    },
+    {
+      "t": "The Old Money Playbook That Saved $15,000",
+      "at": "2026-11-03T22:35:00Z"
     }
   ],
   "usedLongSeeds": [
@@ -163,7 +167,8 @@
         "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/695985908",
         "startSec": 247.4,
         "durSec": 21.9,
-        "file": "tt-lf/clipfeed-debt-free-doctrine/clips/clip-02.mp4"
+        "file": "tt-lf/clipfeed-debt-free-doctrine/clips/clip-02.mp4",
+        "postedAt": "2026-11-03T04:01:19.155Z"
       },
       {
         "part": 3,
@@ -185,14 +190,14 @@
       }
     ]
   },
-  "clipLastPostDate": "2026-10-31",
+  "clipLastPostDate": "2026-11-03",
   "uploadsToday": {
-    "date": "2026-10-31",
-    "count": 2
+    "date": "2026-11-02",
+    "count": 1
   },
   "reviewGate": {
     "assigned": false,
     "gated": false,
-    "checkedAt": "2026-10-31T17:06:02.994Z"
+    "checkedAt": "2026-11-03T04:01:13.996Z"
   }
 }
