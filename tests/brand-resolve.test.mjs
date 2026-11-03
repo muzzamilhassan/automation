@@ -1,6 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { resolveBrand, registryToKit } from '../lib/brand-resolve.mjs';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 test('resolveBrand resolves all 4 primary channels with required keys', async () => {
   const primarySlugs = ['quotequarry', 'investors-compass', 'money-rulebook', 'debt-free-doctrine'];
@@ -71,10 +76,12 @@ test('#101 registryToKit fabricates authority only from a real niche/theme', () 
 // accent, so registryToKit fabricated '#38BDF8' and the merge's
 // `regEntry.accent || legacy.accent` let the fabricated default beat each
 // legacy channel's hand-tuned accent in EVERY engine-side render. D1 carries
-// the legacy accents in the registry rows; C1 is the defense — the fallback
-// prefers the legacy kit accent over the fabricated default (the Studio wizard
-// can rewrite a row without the accent field at any time, so the fix must not
-// depend on the data edit staying put).
+// the legacy accents in the registry rows; C1 round 1 fixes the PRECEDENCE:
+// declared registry accent (the Studio accent editor must win) -> legacy kit
+// accent (a bare re-saved row falls back to the hand-tuned value) ->
+// undefined (registryToKit never fabricates — the '#38BDF8' default survives
+// ONLY in resolveBrand's pure-registry branch, so it can never beat a
+// declared or legacy accent for genuinely new channels).
 // ---------------------------------------------------------------------------
 
 test('P5-T6 C1 pin: the four legacy channels resolve their factory accents (the #38BDF8 clobber is dead)', async () => {
@@ -90,9 +97,18 @@ test('P5-T6 C1 pin: the four legacy channels resolve their factory accents (the 
   }
 });
 
-test('P5-T6 C1 defense: a legacy-slug registry row with no accent falls through to the kit accent, never the fabricated default', () => {
+test('P5-T6 C1 round 1: a DECLARED registry accent beats the legacy kit accent (the Studio accent editor lives)', () => {
+  const declared = registryToKit({ slug: 'money-rulebook', label: 'THE MONEY RULEBOOK', accent: '#C1272D' });
+  assert.equal(declared.accent, '#C1272D', `the declared registry accent must win, got ${declared.accent}`);
+});
+
+test('P5-T6 C1 round 1: bare rows fall back to the legacy accent, and the fabricated default is LAST (registryToKit never fabricates)', () => {
   const bare = registryToKit({ slug: 'money-rulebook', label: 'THE MONEY RULEBOOK' });
-  assert.equal(bare.accent, '#3DDC97', 'the legacy kit accent wins over the fabricated #38BDF8');
+  assert.equal(bare.accent, '#3DDC97', 'no declared accent -> the legacy kit accent (never the fabricated default)');
   const noLegacy = registryToKit({ slug: 'stoic-path', label: 'STOIC PATH' });
-  assert.equal(noLegacy.accent, '#38BDF8', 'no legacy kit -> the fabricated default still applies');
+  assert.equal(noLegacy.accent, undefined, 'no legacy kit -> registryToKit returns undefined (it does not fabricate)');
+  // the default moves to resolveBrand's pure-registry branch (no fixture seam —
+  // resolveBrand reads the live mirror — so this is a source pin, house style)
+  const src = fs.readFileSync(path.join(ROOT, 'lib/brand-resolve.mjs'), 'utf8');
+  assert.match(src, /accent: regEntry\.accent \|\| '#38BDF8'/, 'the pure-registry branch keeps the #38BDF8 default for genuinely new channels');
 });
