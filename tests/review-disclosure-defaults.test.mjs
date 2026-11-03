@@ -24,7 +24,7 @@ describe('#106 — review desk disclosure defaults', () => {
     assert.match(PAGE, /real_person:\s*false/, 'category 1 (a real person appears to say/do something they didn\'t) defaults No');
     assert.match(PAGE, /alters_footage:\s*false/, 'category 2 (alters footage of a real event or place) defaults No');
     assert.match(PAGE, /realistic_scene:\s*true/, 'category 3 (a realistic scene that didn\'t occur) defaults Yes');
-    assert.match(PAGE, /music_focus:\s*true/, 'category 4 defaults Yes (the owner\'s production-style answer)');
+    assert.match(PAGE, /music_focus:\s*false/, 'category 4 defaults No — the catalog is LICENSED music, not AI-generated (the honest production answer; aligned with the page)');
   });
 
   test('opening a script seeds the disclosure state from the defaults — required scripts only', () => {

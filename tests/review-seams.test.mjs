@@ -123,8 +123,22 @@ describe('#106 T5b — saveGeneratedScript (AC-P4-17: persisted BEFORE any rende
       hook: GENERATED.hook, points: GENERATED.points, closing: GENERATED.closing,
       thumbHeadline: GENERATED.thumbHeadline, seed: 'wave-title', themes: 'topic directive',
       publishAt: `${TODAY}T15:00:00Z`,
-    }, 'the resume renders from THIS object — it must be the complete input');
+      disclosure: { synthetic_media_required: true },
+    }, 'the resume renders from THIS object — it must be the complete input, disclosure flag included');
     assert.ok(f.text.includes(GENERATED.hook) && f.text.includes(GENERATED.closing), 'text carries the full script');
+  });
+
+  test('P5: the generate-only save CARRIES the disclosure flag — the /review checklist renders and Approve cannot enable unanswered', async () => {
+    const store = fakeStore();
+    const r = await saveGeneratedScript({
+      scriptStore: store, channelId: SLUG, templateId: 'finance-explainers', templateVersion: '1.0.0',
+      kind: 'short', title: 'T', script: GENERATED,
+    });
+    assert.equal(r.ok, true);
+    const input = store.saved[0].fullRenderInput;
+    assert.equal(input.disclosure.synthetic_media_required, true,
+      'the desk renders the four-category checklist ONLY off this key — without it Approve enables UNANSWERED');
+    assert.equal(input.disclaimer_block, undefined, 'the disclaimer gate (T2c) keys on its OWN block — the disclosure flag never fakes it');
   });
 
   test('a BLOCKED/unusable script is never saved: no store call without a real script shape', async () => {
@@ -892,7 +906,7 @@ const SPY_DOC_STORE_GEN = [
   'const client = async (sql, params) => {',
   '  const s = String(sql).replace(/\\s+/g, " ").trim();',
   '  if (s.startsWith("CREATE ") || s.startsWith("ALTER ")) return [];',
-  '  if (s.startsWith("INSERT INTO scripts ")) { const row = { id: params[0], status: params[8], created_at: new Date().toISOString() }; rows.scripts.push(row); return [{ id: row.id }]; }',
+  '  if (s.startsWith("INSERT INTO scripts ")) { const row = { id: params[0], status: params[8], fri: params[7], created_at: new Date().toISOString() }; rows.scripts.push(row); return [{ id: row.id }]; }',
   '  if (s.startsWith("INSERT INTO script_sources ")) { rows.sources.push({ id: rows.sources.length + 1 }); return [{ id: rows.sources.length }]; }',
   '  if (s.startsWith("INSERT INTO script_claims ")) { rows.claims.push({}); return []; }',
   '  if (s.startsWith("SELECT status FROM scripts")) { const r = rows.scripts[rows.scripts.length - 1]; return r ? [{ status: r.status }] : []; }',
@@ -1204,6 +1218,7 @@ describe('#106 T5c — GENERATE-ONLY saves the doc awaiting_review, zero render 
         seed: 'wave-doc-seed',
         themes: null,
         publishAt: expectedDocPublishAt(),
+        disclosure: { synthetic_media_required: true },
       },
       'the resume renders from THIS object — the complete doc structure the render path re-reads',
     );
@@ -1429,8 +1444,8 @@ describe('#106 P5 T2c — the contains() SAVE gate in saveGeneratedScript (D4/AC
       assert.equal(block, T2C_DISCLAIMER);
       assert.deepEqual(
         rest,
-        { hook: GENERATED.hook, points: GENERATED.points, closing: GENERATED.closing, thumbHeadline: GENERATED.thumbHeadline, seed: null, themes: null, publishAt: `${TODAY}T15:00:00Z` },
-        'the rest of the stored render input is unchanged',
+        { hook: GENERATED.hook, points: GENERATED.points, closing: GENERATED.closing, thumbHeadline: GENERATED.thumbHeadline, seed: null, themes: null, publishAt: `${TODAY}T15:00:00Z`, disclosure: { synthetic_media_required: true } },
+        'the rest of the stored render input is unchanged (disclosure flag included)',
       );
     });
   });
@@ -1499,7 +1514,8 @@ describe('#106 P5 T2c — the contains() SAVE gate in saveGeneratedScript (D4/AC
       hook: GENERATED.hook, points: GENERATED.points, closing: GENERATED.closing,
       thumbHeadline: GENERATED.thumbHeadline, seed: 'wave-title', themes: 'topic directive',
       publishAt: `${TODAY}T15:00:00Z`,
-    }, 'the stored shape is byte-identical — no disclaimer_block key (the legacy pin)');
+      disclosure: { synthetic_media_required: true },
+    }, 'no disclaimer_block key for an undeclared template — but the disclosure flag IS present on every hold (P5: the desk checklist must render)');
   });
 });
 
@@ -1639,8 +1655,9 @@ describe('#106 P5 T5d — the doc lane\'s disclaimer chain (save through the sha
         seed: 'wave-doc-seed',
         themes: null,
         publishAt: expectedDocPublishAt(),
+        disclosure: { synthetic_media_required: true },
       },
-      'disclaimer_block is the ONE new key — the rest of the stored doc render input is unchanged',
+      'disclaimer_block and the disclosure flag are the new keys — the rest of the stored doc render input is unchanged',
     );
     assert.ok(String(f.fullRenderInput.themes).includes('wave-doc-seed'), 'the trend directive still rides as themes');
     assert.equal(r.spy.filter((c) => c.mod === 'doccp' && c.fn === 'execFileSync').length, 0, 'zero render spend (generate-only still stops before TTS/render)');
