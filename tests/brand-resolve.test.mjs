@@ -65,3 +65,34 @@ test('#101 registryToKit fabricates authority only from a real niche/theme', () 
   const withNiche = registryToKit({ slug: 'niched', label: 'NICHED', niche: 'Value investing' });
   assert.equal(withNiche.authority, 'Value investing Wisdom', 'real niche still fabricates the authority as before');
 });
+
+// ---------------------------------------------------------------------------
+// P5-T6 — the accent clobber (audit 2026-11-03): every registry row lacked an
+// accent, so registryToKit fabricated '#38BDF8' and the merge's
+// `regEntry.accent || legacy.accent` let the fabricated default beat each
+// legacy channel's hand-tuned accent in EVERY engine-side render. D1 carries
+// the legacy accents in the registry rows; C1 is the defense — the fallback
+// prefers the legacy kit accent over the fabricated default (the Studio wizard
+// can rewrite a row without the accent field at any time, so the fix must not
+// depend on the data edit staying put).
+// ---------------------------------------------------------------------------
+
+test('P5-T6 C1 pin: the four legacy channels resolve their factory accents (the #38BDF8 clobber is dead)', async () => {
+  const FACTORY = {
+    quotequarry: '#F5E31C',
+    'investors-compass': '#E8C15A',
+    'money-rulebook': '#3DDC97',
+    'debt-free-doctrine': '#D9C7A7',
+  };
+  for (const [slug, accent] of Object.entries(FACTORY)) {
+    const brand = await resolveBrand(slug);
+    assert.equal(brand.accent, accent, `${slug} must keep its hand-tuned legacy accent, got ${brand.accent}`);
+  }
+});
+
+test('P5-T6 C1 defense: a legacy-slug registry row with no accent falls through to the kit accent, never the fabricated default', () => {
+  const bare = registryToKit({ slug: 'money-rulebook', label: 'THE MONEY RULEBOOK' });
+  assert.equal(bare.accent, '#3DDC97', 'the legacy kit accent wins over the fabricated #38BDF8');
+  const noLegacy = registryToKit({ slug: 'stoic-path', label: 'STOIC PATH' });
+  assert.equal(noLegacy.accent, '#38BDF8', 'no legacy kit -> the fabricated default still applies');
+});

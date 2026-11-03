@@ -957,7 +957,7 @@
       "id": "tabloid",
       "label": "Tabloid",
       "category": "retro-print",
-      "needsPhoto": true,
+      "needsPhoto": false,
       "desc": "Passion One stacked + red masthead overline — tabloid energy",
       "aiPreset": "vintage news scene matching the topic, high contrast print mood, no text",
       "bg": "#F4F1EA",

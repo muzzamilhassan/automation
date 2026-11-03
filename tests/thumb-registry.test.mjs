@@ -314,6 +314,40 @@ describe('P5-T4 — the launch thumb-set assignments (kit JSONB, D13)', () => {
       );
     }
   });
+
+  test('P5-T6 D2: the de-overlapped assignment sets — gold-standard no longer blankets 3 of 4 channels', () => {
+    const EXPECTED = {
+      quotequarry: ['slab-quote', 'serif-frame', 'plinth'],
+      'investors-compass': ['gold-standard', 'coinflip', 'price-fight'],
+      'money-rulebook': ['price-fight', 'ledger', 'coinflip'],
+      'debt-free-doctrine': ['gold-standard', 'pillar'],
+    };
+    for (const [slug, set] of Object.entries(EXPECTED)) {
+      const ch = CHANNELS.find((c) => c.slug === slug);
+      assert.deepEqual(ch.kit.thumbTemplates, set, `${slug}'s assigned set (T6 de-overlap)`);
+    }
+    const goldUsers = CHANNELS.filter((c) => c.kit?.thumbTemplates?.includes('gold-standard')).map((c) => c.slug);
+    assert.ok(
+      goldUsers.length <= 2,
+      `gold-standard must not blanket the network (was 3 of 4), now on: ${goldUsers.join(', ')}`,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// P5-T6 — the catalog flag fix: tabloid's design draws NO photo
+// (photo:"none") but declared needsPhoto:true, so the Studio panel
+// (app/thumbs/page.js) and the preview route demanded a photo the renderer
+// would ignore.
+// ---------------------------------------------------------------------------
+
+describe('P5-T6 — the tabloid flag fix (catalog data)', () => {
+  test('tabloid is needsPhoto:false — Studio stops demanding a photo the design ignores', () => {
+    const t = catalogById.get('tabloid');
+    assert.ok(t, 'tabloid exists in thumb-catalog.json');
+    assert.equal(t.needsPhoto, false, 'needsPhoto:false — no photo demand at the panel or the preview route');
+    assert.equal(t.photo, 'none', 'the design itself draws no photo — the flag must match');
+  });
 });
 
 // ---------------------------------------------------------------------------
