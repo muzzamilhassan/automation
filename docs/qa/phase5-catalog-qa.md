@@ -315,7 +315,7 @@ Verify: the produced title matches the template's declared `title_patterns[]` (e
 | 16 | paper-editorial | — | | | | | n/a | | | | |
 | 17 | dark-psychology-defense | — | | | | | n/a | | | | |
 | 18 | social-rule | — | | | | | n/a | | | | |
-| 19 | quote-principle | — | | | | | n/a | | | | |
+| 19 | quote-cards-premium (γ0 — shipped under the family id; was quote-principle) | — | | | | | n/a | | | | |
 | 20 | stoic-case-study | — | | | | | n/a | | | | |
 | 21 | deep-work-rule | — | | | | | n/a | | | | |
 | 22 | focus-ritual | — | | | | | n/a | | | | |
@@ -329,6 +329,8 @@ Verify: the produced title matches the template's declared `title_patterns[]` (e
 | 30 | doc-shift-briefing | — | | | | | n/a | | | | |
 | 31 | doc-science-explained | — | | | | | n/a | | | | |
 | 32 | doc-evidence-review | medical | | | | | via Drill B | | | | |
+
+> γ0 note (row 19, quote-cards-premium): assigning to quotequarry PAUSES QQ's live weekly doc via D15's foreign-format loud skip (QQ's proven cadence is 1 short/day + 1 doc/week, kit docDay Tue; the last doc shipped 2026-10-31, state deepdiveDate): every doc day emits the action_required warning `doc_template_foreign_format` and produces nothing — and that warning's recommended_action ("Assign a doc/long-format template ... (assign = swap)") is a TRAP under D19's one-active rule: following it swaps AWAY this shorts recipe. Restoring the doc is a deliberate reassignment, not a follow-the-warning click.
 
 ### I — Cross-slice + exit gate
 

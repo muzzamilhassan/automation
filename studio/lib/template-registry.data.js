@@ -280,6 +280,16 @@ export const REGISTRY_META = {
   // - formats ['short'] — QQ's proven lane (1 short/day, 22:35 ET slot). The
   //   family ships 16:9 too; the recipe declares only what the channel runs
   //   (never declared beyond the family — formats ⊆ aspectRatios holds).
+  // - DOC-PAUSE DISCLOSURE (D15 — read before assigning to quotequarry): this
+  //   entry is shorts-only, so assigning it PAUSES QQ's live weekly doc via
+  //   D15's foreign-format loud skip (QQ's proven cadence is 1 short/day + 1
+  //   doc/week, kit docDay Tue; the last doc shipped 2026-10-31, state
+  //   deepdiveDate). From the day of assignment, every doc day emits the
+  //   action_required warning doc_template_foreign_format and produces
+  //   nothing — and that warning's recommended_action ("Assign a doc/long-format
+  //   template ... (assign = swap)") is a TRAP under D19's one-active rule:
+  //   following it swaps AWAY this shorts recipe. Restoring the doc is a
+  //   deliberate reassignment, not a follow-the-warning click.
   // - NO explicit variation_threshold/cross_channel_threshold: wisdom is not
   //   YMYL — the brain's documented defaults (0.85 cosine variation / 0.90
   //   cross-channel) apply (header note; the brain-wiring pin holds "only
@@ -308,9 +318,12 @@ export const REGISTRY_META = {
         'slot 3 is the modern application — the present-day situation the principle governs (respect, silence, comparison, boundaries) and what obeying or ignoring it costs',
         'slot 4 is the mic-drop reflection — the quote\'s challenge turned on the viewer, landing the payoff the closing question completes',
       ],
-      // QQ's proven hook shapes: the stoic question / the quote call-out / the
-      // you-stake reflection — the kit's hook trio spoken in wisdom, plus the
-      // quote-author openings the titleHistory shows.
+      // NOT a mirrored kit block — QQ ships NO kit hook trio (the kit-less
+      // lane: the engine's kitted hook rule never renders for QQ; its only
+      // kit-less guidance was "a curiosity-gap hook"). These three classes are
+      // the kitted hookRule trio (question / shocking number / you-stake)
+      // GENERALIZED to wisdom + the titleHistory's quote-author openings — a
+      // recipe constraint, not a mirrored kit block.
       hook_classes: ['stoic question', 'quote call-out', 'you-stake reflection'],
       // REPLACE the kit title line (T2a Ruling): patterns mirrored from the
       // ACTUAL uploads (yt-mcp/state/quotequarry.json titleHistory); the
@@ -323,6 +336,13 @@ export const REGISTRY_META = {
         'the psychological trap call-out ("The Psychological Trap of Reacting", "How to Break the Comparison Trap")',
         'the transformation promise ("Become Emotionally Unbreakable", "Master Your Inner Peace")',
       ],
+      // NOT a proven closing — the quoted literal lives only in the engine's
+      // fallbackScriptFor (the all-providers-failed EMERGENCY script); the 13
+      // proven uploads were LLM-generated under the kit-less closing
+      // instruction "a memorable closing line", with no state evidence tying
+      // the literal to any upload. The engine's kit-less closing instruction,
+      // adopted as this recipe's payoff rule — a NEW constraint the proven
+      // uploads never ran under (the rule itself is sound — kept).
       payoff_rule: 'the closing lands the mic-drop reflection — a direct question or challenge to the viewer that invites a numbered comment ("Which one do you live by? Comment the number."), never a summary',
     },
     // D3 bar: every rule names the no-repeat OBJECT, the lookback window, and
