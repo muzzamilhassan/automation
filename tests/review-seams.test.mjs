@@ -616,6 +616,7 @@ const SPY_ENGINE = [
   '}',
   'export function buildScriptMeta() { return { title: "T | A", description: "d", tags: [] }; }',
   'export async function resolveTemplateId() { return null; }',
+  'export function thumbDesignFor() { return null; }',
   'export default renderYouTubeScriptShort;',
 ].join('\n');
 
@@ -874,6 +875,7 @@ const SPY_DOC_ENGINE_GEN = [
   'export function registryThresholds() { return { variation: 0.82, crossChannel: 0.9, financeGated: false }; }',
   'export async function renderYouTubeThumbnail() { rec("renderYouTubeThumbnail", {}); throw new Error("RENDER FORBIDDEN IN GENERATE-ONLY"); }',
   'export async function resolveTemplateId() { return null; }',
+  'export function thumbDesignFor() { return null; }',
   'export default callScriptBrain;',
 ].join('\n');
 
@@ -890,6 +892,7 @@ const SPY_DOC_ENGINE_RESUME = [
   'export function registryThresholds() { return { variation: 0.82, crossChannel: 0.9, financeGated: false }; }',
   'export async function renderYouTubeThumbnail() { rec("renderYouTubeThumbnail", {}); return Buffer.from("fake-doc-thumb"); }',
   'export async function resolveTemplateId() { return null; }',
+  'export function thumbDesignFor() { return null; }',
   'export default renderYouTubeThumbnail;',
 ].join('\n');
 

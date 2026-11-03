@@ -264,6 +264,72 @@ async function renderOverlay(pageId, brand, hook, bodyLines, takeaway, withNarra
 // ---------------------------------------------------------------------------
 const capitalized = (s) => titleCase(s);
 
+/**
+ * R4 (red-flags spec) — the active doc template's thumb_design block, or
+ * null. Registry DATA only: the doc lane passes it to renderYouTubeThumbnail
+ * as opts.thumbDesign; templates without the block render byte-identical to
+ * today (R5, default-inert). Never a hardcoded per-channel map.
+ */
+export function thumbDesignFor(templateId) {
+  const meta = templateId ? REGISTRY_META[templateId] : null;
+  const td = meta && typeof meta === 'object' ? meta.thumb_design : null;
+  return td && typeof td === 'object' && !Array.isArray(td) ? td : null;
+}
+
+/**
+ * The left-stack doc-thumb overlay (owner reference BFCa-bRy-3M): full-bleed
+ * frame + red-tinted scrim, top-left chip (accent dot + letterspaced caps),
+ * accent eyebrow above a LEFT-anchored Anton headline whose LAST word takes
+ * the accent tspan, bottom-right diamond brand mark. Pure SVG string — the
+ * tests assert its elements without sharp. Only reached via thumb_design.
+ */
+export function leftStackThumbOverlay({ lines, size, accent, eyebrow, b64, td }) {
+  const n = lines.length;
+  const lastLine = lines[n - 1] || '';
+  const words = lastLine.split(/\s+/).filter(Boolean);
+  const lastWord = words[words.length - 1] || '';
+  const escLast = lastWord ? lastWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : null;
+  const lineEls = lines.map((line, i) => {
+    let inner = escapeXml(line);
+    if (escLast && i === n - 1 && line.includes(lastWord)) {
+      inner = line.split(new RegExp(`(${escLast})`)).map((p) => (p === lastWord
+        ? `<tspan fill="${accent}">${escapeXml(p)}</tspan>`
+        : escapeXml(p))).join('');
+    }
+    const y = 648 - (n - 1 - i) * (size + 16);
+    return `<text text-anchor="start" x="72" y="${y}" font-family="'Anton', 'Impact', 'Arial Black', sans-serif" font-size="${size}" fill="#000000" opacity="0.65" filter="url(#soft)" transform="translate(0,10)">${inner}</text>
+  <text text-anchor="start" x="72" y="${y}" font-family="'Anton', 'Impact', 'Arial Black', sans-serif" font-size="${size}" fill="#FFFFFF">${inner}</text>`;
+  }).join('\n  ');
+  const chipText = String(td.chip || '').trim();
+  const chip = chipText ? `<g data-thumb="chip">
+    <rect x="72" y="56" width="${72 + chipText.length * 19}" height="52" rx="26" fill="rgba(10,10,10,0.72)" stroke="rgba(255,255,255,0.45)" stroke-width="2"/>
+    <circle cx="104" cy="82" r="7" fill="${accent}"/>
+    <text x="122" y="93" font-family="'Oswald', 'Arial Narrow', sans-serif" font-weight="600" font-size="28" letter-spacing="8" fill="#FFFFFF">${escapeXml(chipText.toUpperCase())}</text>
+  </g>` : '';
+  const brand = String(td.brandmark || '').trim();
+  const brandmark = brand ? `<g data-thumb="brandmark">
+    <rect x="1128" y="646" width="14" height="14" fill="${accent}" transform="rotate(45 1135 653)"/>
+    <text x="1208" y="668" text-anchor="end" font-family="'Oswald', 'Arial Narrow', sans-serif" font-weight="600" font-size="30" letter-spacing="6" fill="#FFFFFF" fill-opacity="0.92">${escapeXml(brand.toUpperCase())}</text>
+  </g>` : '';
+  const tint = td.scrim_tint || '#7A1E1E';
+  const eyebrowY = 648 - (n - 1) * (size + 16) - size - 34;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs><style>${EMBEDDED_FONTS_CSS}</style>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="12"/></filter>
+    <linearGradient id="vg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="rgba(0,0,0,0.42)"/><stop offset="0.55" stop-color="rgba(0,0,0,0.62)"/><stop offset="1" stop-color="rgba(0,0,0,0.85)"/>
+    </linearGradient>
+  </defs>
+  <image href="data:image/jpeg;base64,${b64.toString('base64')}" x="0" y="0" width="1280" height="720" preserveAspectRatio="xMidYMid slice"/>
+  <rect width="1280" height="720" fill="${tint}" opacity="0.42"/>
+  <rect width="1280" height="720" fill="url(#vg)"/>
+  <text x="72" y="${eyebrowY}" font-family="'Oswald', 'Arial Narrow', sans-serif" font-weight="600" font-size="34" letter-spacing="10" fill="${accent}">${escapeXml(String(eyebrow).toUpperCase())}</text>
+  ${chip}
+  ${lineEls}
+  ${brandmark}
+</svg>`;
+}
+
 export async function renderYouTubeThumbnail(headline, cleanFrameFile, opts = {}) {
   const accent = opts.accent || '#F5E31C';
   const eyebrow = opts.eyebrow || 'QUOTE QUARRY';
@@ -271,6 +337,18 @@ export async function renderYouTubeThumbnail(headline, cleanFrameFile, opts = {}
 
   const raw = String(headline || 'DAILY MOTIVATION')
     .replace(/#[\w]+/g, '').replace(/[—|].*$/, '').trim().toUpperCase();
+  // R4 (red-flags spec): a template-declared thumb_design switches the frame
+  // thumbnail to the left-stack design (chip / brandmark / last-word accent /
+  // tinted scrim). Everything below this branch is the DEFAULT path, untouched
+  // byte-for-byte (R5 default-inert — the incident-sensitive guard).
+  if (opts.thumbDesign && opts.thumbDesign.layout === 'left-stack') {
+    const td = opts.thumbDesign;
+    const tdLines = wrapTextToLines(raw, 18).slice(0, 3);
+    let tdSize = tdLines.some((l) => l.length > 15) ? 96 : 112;
+    if (tdLines.length === 1 && tdLines[0].length <= 8) tdSize = 128;
+    const tdSvg = leftStackThumbOverlay({ lines: tdLines, size: tdSize, accent, eyebrow, b64, td });
+    return sharp(Buffer.from(tdSvg), { density: 150 }).resize(1280, 720).jpeg({ quality: 92 }).toBuffer();
+  }
   let lines = wrapTextToLines(raw, 13).slice(0, 3);
   let size = lines.some((l) => l.length > 10) ? 128 : 150;
   if (lines.length === 1 && lines[0].length <= 8) size = 180;

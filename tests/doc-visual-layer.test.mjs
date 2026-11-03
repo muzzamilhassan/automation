@@ -140,3 +140,88 @@ describe('#106 source pins — yt-deepdive threads the fix', () => {
     assert.match(SRC_CLIPS, /clipCandidates\(hits, \{ minDur, used, minWidth: t\.minWidth \}\)/, 'the tier loop feeds the same filter');
   });
 });
+
+// ---------------------------------------------------------------------------
+// R4/R5 (red-flags spec, 2026-11-03) — the left-stack doc-thumb design. The
+// owner's reference video (BFCa-bRy-3M) carries a frame thumbnail with a
+// top-left chip, an accent eyebrow, a LEFT-anchored Anton headline whose LAST
+// word takes the accent, a red-tinted scrim, and a bottom-right brand mark.
+// The doc lane switches to it ONLY from the active template's thumb_design
+// data (registry, never a channel map); without the block the render is the
+// default center path, untouched (R5 default-inert — the incident-sensitive
+// guard: any default-path diff is a FAIL even if the image "looks fine").
+// ---------------------------------------------------------------------------
+import { leftStackThumbOverlay, thumbDesignFor } from '../youtube-engine.mjs';
+import { REGISTRY_META } from '../studio/lib/template-registry.data.js';
+
+const REF_TD = { layout: 'left-stack', chip: 'SCANDALS', brandmark: 'MONEYRULEBOOK', accent_word: 'last', scrim_tint: '#7A1E1E', accent: '#F0776E', eyebrow: 'MONEY RULEBOOK' };
+const REF_LINES = ['7 RED FLAGS THAT LED', 'TO BERNIE MADOFF PONZI', 'EXPLAINED'];
+
+describe('R4 — the left-stack thumb overlay renders the reference design', () => {
+  const svg = leftStackThumbOverlay({ lines: REF_LINES, size: 96, accent: REF_TD.accent, eyebrow: REF_TD.eyebrow, b64: Buffer.from('stub'), td: REF_TD });
+
+  test('1280x720 svg with the fonts still embedded', () => {
+    assert.ok(svg.includes('<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720"'), 'thumbnail canvas');
+    assert.ok(svg.includes(EMBEDDED_FONTS_CSS), 'Anton/Oswald stay embedded');
+  });
+
+  test('the chip: dot + SCANDALS in a top-left pill', () => {
+    assert.ok(svg.includes('data-thumb="chip"'), 'chip group present');
+    assert.ok(svg.includes('>SCANDALS</text>'), 'chip text verbatim, uppercased');
+    assert.match(svg, /<circle cx="104" cy="82" r="7" fill="#F0776E"\/>/, 'the accent dot');
+    assert.match(svg, /<rect x="72" y="56"[^>]*rx="26"/, 'the pill, top-left at x=72');
+  });
+
+  test('the brand mark: accent diamond + MONEYRULEBOOK bottom-right', () => {
+    assert.ok(svg.includes('data-thumb="brandmark"'), 'brandmark group present');
+    assert.ok(svg.includes('>MONEYRULEBOOK</text>'), 'brandmark text verbatim');
+    assert.match(svg, /x="1208" y="668" text-anchor="end"/, 'anchored bottom-right');
+    assert.match(svg, /<rect x="1128" y="646" width="14" height="14" fill="#F0776E"[^>]*rotate\(45/, 'the diamond');
+  });
+
+  test('the scrim: red-tint rect UNDER the neutral gradient', () => {
+    const imgEnd = svg.indexOf('</image>') + '</image>'.length;
+    const tintAt = svg.indexOf('<rect width="1280" height="720" fill="#7A1E1E"');
+    const gradAt = svg.indexOf('<rect width="1280" height="720" fill="url(#vg)"');
+    assert.ok(tintAt > imgEnd, 'tint paints over the frame');
+    assert.ok(gradAt > tintAt, 'gradient stacks over the tint (readability)');
+  });
+
+  test('the headline is LEFT-anchored and the LAST word takes the accent tspan', () => {
+    assert.match(svg, /text-anchor="start" x="72" y="648"[^>]*font-size="96"/, 'last line sits on the 648 baseline, left x=72');
+    const accentCount = (svg.match(/<tspan fill="#F0776E">/g) || []).length;
+    assert.equal(accentCount, 2, 'shadow + white layers BOTH carry the accent tspan (default-path parity); last word, not longest');
+    assert.ok(svg.includes('<tspan fill="#F0776E">EXPLAINED</tspan>'), 'the reference\'s accent word');
+    assert.match(svg, /<text x="72" y="\d+"[^>]*letter-spacing="10" fill="#F0776E">MONEY RULEBOOK<\/text>/, 'salmon eyebrow above the stack');
+  });
+
+  test('single-word last line: the whole word accents; empty chip/brandmark omit their groups', () => {
+    const one = leftStackThumbOverlay({ lines: ['THE BIG SHORT'], size: 112, accent: '#F0776E', eyebrow: 'MR', b64: Buffer.from('x'), td: { ...REF_TD, chip: '', brandmark: '' } });
+    assert.ok(one.includes('<tspan fill="#F0776E">SHORT</tspan>'), 'the last WORD accents even on a single line');
+    assert.ok(!one.includes('data-thumb='), 'no chip/brandmark groups when unset');
+  });
+});
+
+describe('R5 — default-inert: the default path never sees the new design', () => {
+  test('thumbDesignFor reads ONLY registry thumb_design data', () => {
+    assert.deepEqual(thumbDesignFor('red-flags-explained'), REF_TD, 'the red-flags entry carries the block');
+    assert.equal(thumbDesignFor('myth-vs-money'), null, 'templates without the block resolve null');
+    assert.equal(thumbDesignFor(null), null, 'template-less lanes resolve null');
+    assert.equal(thumbDesignFor('not-a-template'), null, 'unknown ids resolve null');
+  });
+
+  test('SOURCE PIN: the doc lane threads thumbDesignFor(docTemplateId) into both render calls', () => {
+    assert.match(SRC_DEEPDIVE, /const thumbDesign = thumbDesignFor\(docTemplateId\);/, 'resolved once, inside renderAndShipEpisode (resume = the row\'s template)');
+    assert.match(SRC_DEEPDIVE, /renderYouTubeThumbnail\(script\.title, `\$\{work\}\/frame\.jpg`, thumbOpts\)/, 'candidate 1 rides the shared opts');
+    assert.match(SRC_DEEPDIVE, /renderYouTubeThumbnail\(script\.title, `\$\{work\}\/frame-alt\.jpg`, thumbOpts\)/, 'staggered candidates ride the same opts');
+    assert.match(SRC_DEEPDIVE, /accent: \(thumbDesign\?\.accent\) \|\| b\.accent/, 'template accent wins over kit (T6 precedence); kit is the fallback');
+  });
+
+  test('SOURCE PIN: the default center path is untouched — left-stack gates on layout data only', () => {
+    assert.match(SRC_DEEPDIVE.replace(/\r/g, ''), /left-stack/, 'deepdive references the design only via the data helper');
+    const eng = fs.readFileSync(path.join(ROOT, 'youtube-engine.mjs'), 'utf8');
+    assert.match(eng, /opts\.thumbDesign && opts\.thumbDesign\.layout === 'left-stack'/, 'the branch fires on the DATA, never on channel identity');
+    assert.match(eng, /text-anchor="middle" x="640" y="120"/, 'the default centered eyebrow literal survives byte-for-byte');
+    assert.match(eng, /wrapTextToLines\(raw, 13\)/, 'the default 13-char wrap survives');
+  });
+});

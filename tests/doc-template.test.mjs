@@ -255,6 +255,11 @@ const SPY_ENGINE = [
   '  };',
   '}',
   'export async function resolveTemplateId() { return process.env.T2E_ASSIGNED_TEMPLATE || null; }',
+  'export function thumbDesignFor(templateId) {',
+  '  const meta = templateId ? REGISTRY_META[templateId] : null;',
+  '  const td = meta && typeof meta === "object" ? meta.thumb_design : null;',
+  '  return td && typeof td === "object" && !Array.isArray(td) ? td : null;',
+  '}',
   'export async function callScriptBrain(o = {}) {',
   "  rec('callScriptBrain', { slug: o.slug, prompt: o.prompt, dedupe: o.dedupe ? {",
   "    kind: o.dedupe.kind, templateId: o.dedupe.templateId, threshold: o.dedupe.threshold,",
@@ -485,5 +490,40 @@ describe('P5-T2e — the doc lane spawns (real yt-deepdive.mjs, generate-only)',
     assert.equal(prompt.includes('Episode section plan'), false, 'no template plan leaks into the unassigned prompt');
     assert.equal(r.stdout.includes('ACTION REQUIRED'), false, 'no foreign-format noise without an assignment');
     assert.ok(savesOf(r.spy).length === 1, 'the save path is unchanged');
+  });
+});
+
+// ---- the REAL registry entry (AC-2, red-flags spec 2026-11-03) -------------
+
+import { REGISTRY_META } from '../studio/lib/template-registry.data.js';
+
+describe('red-flags-explained — the real entry\'s doc plan parses to the reference shape', () => {
+  const meta = REGISTRY_META['red-flags-explained'];
+
+  test('the entry exists and declares the reference doc plan (10 chapters x >=170 words)', () => {
+    assert.ok(meta, 'red-flags-explained is in the registry');
+    const plan = docStoryPlan(meta);
+    assert.deepEqual(
+      { chapters: plan.chapters, chapterMinWords: plan.chapterMinWords },
+      { chapters: 10, chapterMinWords: 170 },
+      'the reference video is 10 chapters ≈ 12:30 — the plan writes toward that shape'
+    );
+    assert.deepEqual(plan.sections, ['cold_open', 'chapters:10', 'exhibits', 'outro'], 'sections ride verbatim');
+  });
+
+  test('the plan line renders the section order verbatim (no code map)', () => {
+    const line = docStoryPlanLines(docStoryPlan(meta));
+    assert.equal(
+      line,
+      'Episode section plan: cold_open -> exhibits -> outro; exactly 10 chapters. Every chapter text MUST be at least 170 words.',
+      'the ONE directive line the doc prompt gains'
+    );
+  });
+
+  test('governance is the finance lane: sources + finance review + the disclaimer', () => {
+    assert.equal(meta.safety.review_required.includes('finance'), true, 'finance review class');
+    assert.deepEqual(meta.safety.disclaimers, ['Education, not financial advice.'], 'the fixed disclaimer rides at publish');
+    assert.equal(meta.review_thumb_pick, true, 'thumb picking ON (3 candidates, candidate 1 ships)');
+    assert.ok(meta.thumb_design && meta.thumb_design.layout === 'left-stack', 'the left-stack thumb design is declared');
   });
 });

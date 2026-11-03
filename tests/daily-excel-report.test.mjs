@@ -26,12 +26,17 @@ function tmpDir(t, name) {
 test('T4b reportChannels: the legacy 4 keep byte-identical labels/handles/fbPageIds (same report rows as the hardcoded array)', () => {
   const chans = reportChannels();
   const bySlug = Object.fromEntries(chans.map((c) => [c.slug, c]));
-  // These four tuples are the OLD hardcoded CHANNELS array verbatim.
-  assert.deepEqual([bySlug['quotequarry'].label, bySlug['quotequarry'].handle, bySlug['quotequarry'].fbPageId], ['Quote Quarry', '@quotequarry302', '114550268199751']);
-  assert.deepEqual([bySlug['investors-compass'].label, bySlug['investors-compass'].handle, bySlug['investors-compass'].fbPageId], ["Investor's Compass", '@investorscompasshq', '116157974886564']);
+  // MR-only mode (owner directive 2026-11-03): only the ACTIVE registry
+  // channels report — the paused three must NOT appear.
+  assert.deepEqual(chans.map((c) => c.slug), ['money-rulebook'], 'the active set is the MR-only pause');
   assert.deepEqual([bySlug['money-rulebook'].label, bySlug['money-rulebook'].handle, bySlug['money-rulebook'].fbPageId], ['The Money Rulebook', '@themoneyrulebook-p4y', '1077306835630491']);
-  assert.deepEqual([bySlug['debt-free-doctrine'].label, bySlug['debt-free-doctrine'].handle, bySlug['debt-free-doctrine'].fbPageId], ['Debt-Free Doctrine', '@debtfreedoctrine', '106473735839651']);
-  assert.deepEqual(chans.map((c) => c.slug), ['quotequarry', 'investors-compass', 'money-rulebook', 'debt-free-doctrine'], 'canonical legacy order is preserved (Excel row order)');
+  // The four legacy tuples stay pinned against the REGISTRY FILE itself
+  // (state-independent — reactivation restores the rows with zero test edits).
+  const reg = JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8'));
+  const fileBySlug = Object.fromEntries(reg.channels.map((c) => [c.slug, c]));
+  assert.deepEqual([fileBySlug['quotequarry'].label, fileBySlug['quotequarry'].handle, registryFbPageId('quotequarry')], ['Quote Quarry', '@quotequarry302', '114550268199751']);
+  assert.deepEqual([fileBySlug['investors-compass'].label, fileBySlug['investors-compass'].handle, registryFbPageId('investors-compass')], ["Investor's Compass", '@investorscompasshq', '116157974886564']);
+  assert.deepEqual([fileBySlug['debt-free-doctrine'].label, fileBySlug['debt-free-doctrine'].handle, registryFbPageId('debt-free-doctrine')], ['Debt-Free Doctrine', '@debtfreedoctrine', '106473735839651']);
 });
 
 test('T4b reportChannels: derived from the live registry — a new active channel joins without a code change', () => {
@@ -207,7 +212,7 @@ test('T4b buildExcel: growth deltas appear when the previous snapshot is from an
       [{ label: 'Quote Quarry', title: 'Quote Quarry', handle: '@quotequarry302', subs: 1000, views: 50000, videos: 120, retention: null, videoRows: [] }],
       [],
       null,
-      { reportsDir, stateDir },
+      { reportsDir, stateDir, channels: [{ slug: 'quotequarry', label: 'Quote Quarry', handle: '@quotequarry302' }] },
     );
   } finally {
     if (prevTopic !== undefined) process.env.NTFY_TOPIC = prevTopic;

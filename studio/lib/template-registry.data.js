@@ -264,6 +264,70 @@ export const REGISTRY_META = {
     changelog: [{ version: '1.0.0', date: '2026-11-02', note: 'Phase 5 pilot — structure-faithful to the money-rulebook kit format' }],
   },
 
+  // ---- Phase 5 MR-2 (owner directive 2026-11-03): red-flags-explained —
+  // the STRUCTURE-FAITHFUL retrofit of MR's proven reference video "7 Red
+  // Flags That Led to Bernie Madoff Ponzi Explained" (BFCa-bRy-3M, 12:30,
+  // 10 chapters): cold-open question hook, numbered red-flag enumeration
+  // with $ evidence, collapse + aftermath, closing lesson checklist. Same
+  // zero-content-risk rule as the pilot: beats mirror MR's numbered-listicle
+  // shorts skeleton with red-flag slot semantics; sections[] drive the DOC
+  // lane (10 chapters x >=170 words ≈ the reference's 12:30 runtime).
+  // thumb_design carries the reference video's THUMBNAIL (the left-stack
+  // look): full-bleed episode frame + red-tinted scrim, top-left chip
+  // (dot + SCANDALS), salmon eyebrow, left-anchored Anton headline with the
+  // LAST word accented, bottom-right brand mark. The doc lane's frame
+  // renderer switches on THIS DATA (spec R4); entries without the block
+  // render byte-identical to today (R5, default-inert). Template values win
+  // over the kit accent per the T6 precedence.
+  'red-flags-explained': {
+    version: '1.0.0',
+    template_id: 'red-flags-explained',
+    family: 'beat-synced-type',
+    niches: ['Personal finance rules & money habits'],
+    formats: ['long', 'short'],
+    renderer: 'remotion',
+    required_capabilities: ['script-gen', 'tts', 'captions'],
+    thumb_design: {
+      layout: 'left-stack',
+      chip: 'SCANDALS',
+      brandmark: 'MONEYRULEBOOK',
+      accent_word: 'last',
+      scrim_tint: '#7A1E1E',
+      accent: '#F0776E',
+      eyebrow: 'MONEY RULEBOOK',
+    },
+    story_structure: {
+      sections: ['cold_open', 'chapters:10', 'exhibits', 'outro'],
+      chapter_min_words: 170,
+      beats: [
+        'slot 1 opens the red-flag listicle — the scheme or habit and the $ figure it promises, stated as the hook',
+        'slot 2 names the first red flag with its $ evidence — the number insiders ignored',
+        'slot 3 names the middle red flag — the mechanism that kept the scheme alive and who it drained',
+        'slot 4 is the payoff — the red-flag checklist the viewer can run on any opportunity, one rule to keep',
+      ],
+      // The reference video's hook shapes: the google-search call-out it
+      // literally opens with ("people still type ... into Google"), plus the
+      // kit's proven money hooks.
+      hook_classes: ['google-search question call-out', 'shocking $ number', 'you-stake money question'],
+      title_patterns: [
+        'numbered red-flags-to-a-collapse explainer ("7 Red Flags That Led to Bernie Madoff Ponzi Explained")',
+        'numbered warning-signs listicle with the $-stake ("6 Warning Signs Your Fund Is a Scam")',
+        'anatomy-of-a-collapse explainer ("The Fraud That Fooled Wall Street — Explained")',
+      ],
+      payoff_rule: 'the closing lands the red-flag checklist — the flags recapped as ONE auditable list plus the single rule to keep, a mic-drop never a summary',
+    },
+    variation_rules: [
+      "distinct collapse/case per video — the scheme examined differs from every case in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+      'no recycled red-flag set — each video enumerates different flags against the last 5 videos (enforced: the variation gate similarity)',
+      'no repeated hook across the channel\'s last 5 videos (enforced: the variation gate similarity)',
+      'every figure is a cited case number sourced to the named collapse (prose for the author and the review desk — spec Honest Limits)',
+    ],
+    review_thumb_pick: true,
+    safety: { required_sources: true, review_required: ['finance'], disclaimers: ['Education, not financial advice.'] },
+    deprecated: false,
+    changelog: [{ version: '1.0.0', date: '2026-11-03', note: 'owner-directed structure-faithful retrofit of the MR reference video (BFCa-bRy-3M) + the left-stack doc-thumb design' }],
+  },
+
   // ---- Phase 5 γ0 (spec D7 row 19's family · 2026-11-03 dispatch): quote-cards-premium —
   // the STRUCTURE-FAITHFUL QUOTE QUARRY retrofit. Zero content risk, same rule
   // as the pilot: the beat slots mirror QQ's PROVEN quote-video skeleton (the

@@ -160,7 +160,7 @@ test('SWEEP: all 1440 daily crons x 48 heartbeats — exactly-once holds (the ha
 test('MIGRATION (registry): every live channel is selected by exactly one fire instant per day', () => {
   const reg = JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8'));
   const chans = toDiscoverChannels(reg.channels);
-  assert.ok(chans.length >= 4, 'the four legacy channels must still be discovered');
+  assert.ok(chans.length >= 1, 'the active channel(s) must still be discovered (MR-only mode: the paused three are filtered by design)');
   const picks = Object.fromEntries(chans.map((c) => [c.slug, []]));
   for (let h = 0; h < 24; h++) {
     for (const m of FIRE_MINUTES) {
@@ -310,15 +310,15 @@ test('discover script (extracted from the workflow): single-slug dispatch input 
   t.after(() => fs.rmSync(out, { force: true }));
   const r = spawnSync(process.execPath, ['--input-type=module', '-e', discoverScript()], {
     cwd: process.cwd(),
-    env: { ...process.env, INPUT_CHANNEL: 'quotequarry', EVENT_SCHEDULE: '', GITHUB_OUTPUT: out },
+    env: { ...process.env, INPUT_CHANNEL: 'money-rulebook', EVENT_SCHEDULE: '', GITHUB_OUTPUT: out },
     encoding: 'utf8',
     timeout: 60000,
   });
   assert.equal(r.status, 0, `discover script must exit 0\nstdout: ${r.stdout}\nstderr: ${r.stderr}`);
   const channels = readGithubOutput(out);
   assert.equal(channels.length, 1);
-  assert.equal(channels[0].slug, 'quotequarry');
-  assert.equal(channels[0].envSlug, 'QUOTEQUARRY');
+  assert.equal(channels[0].slug, 'money-rulebook');
+  assert.equal(channels[0].envSlug, 'MONEY_RULEBOOK');
 });
 
 test('discover script (extracted from the workflow): schedule event slot-gates via the module', (t) => {

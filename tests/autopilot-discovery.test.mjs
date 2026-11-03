@@ -13,11 +13,25 @@ const WF = '.github/workflows/channel-autopilot.yml';
 
 test('toDiscoverChannels: preserves the legacy channels and their envSlug mapping', () => {
   const reg = JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8'));
-  const bySlug = Object.fromEntries(toDiscoverChannels(reg.channels).map((c) => [c.slug, c]));
-  assert.equal(bySlug.quotequarry.envSlug, 'QUOTEQUARRY');
-  assert.equal(bySlug['investors-compass'].envSlug, 'INVESTORS_COMPASS');
+  const discovered = toDiscoverChannels(reg.channels);
+  const bySlug = Object.fromEntries(discovered.map((c) => [c.slug, c]));
+  // MR-only mode (owner directive 2026-11-03): the non-pilot channels carry
+  // active:false in the registry — discovery filters them; the one active
+  // channel keeps its envSlug mapping.
+  const paused = reg.channels.filter((c) => c.active === false).map((c) => c.slug);
+  assert.ok(paused.length >= 3, 'the MR-only pause is in the registry');
+  for (const slug of paused) assert.equal(bySlug[slug], undefined, `paused channel not discoverable: ${slug}`);
   assert.equal(bySlug['money-rulebook'].envSlug, 'MONEY_RULEBOOK');
-  assert.equal(bySlug['debt-free-doctrine'].envSlug, 'DEBT_FREE_DOCTRINE');
+  // the mapping convention itself is slug-derived — fixture-pinned so this
+  // test no longer breaks on live registry state changes:
+  const fixture = toDiscoverChannels([
+    { slug: 'quotequarry', autopilot: true, active: true, tokenSecretSaved: true },
+    { slug: 'investors-compass', autopilot: true, active: true, tokenSecretSaved: true },
+    { slug: 'debt-free-doctrine', autopilot: true, active: true, tokenSecretSaved: true },
+  ]);
+  assert.equal(fixture.find((c) => c.slug === 'quotequarry').envSlug, 'QUOTEQUARRY');
+  assert.equal(fixture.find((c) => c.slug === 'investors-compass').envSlug, 'INVESTORS_COMPASS');
+  assert.equal(fixture.find((c) => c.slug === 'debt-free-doctrine').envSlug, 'DEBT_FREE_DOCTRINE');
 });
 
 test('toDiscoverChannels: paused/inactive/tokenless channels are excluded; cron falls back to the catch-all', () => {

@@ -299,9 +299,13 @@ test('T4c round 1: the daily LOOP accumulates state across targets — B never e
 
 test('T4c reportChannels: every channel carries its resolved destinations', () => {
   const bySlug = Object.fromEntries(reportChannels().map((c) => [c.slug, c]));
-  assert.equal(bySlug['quotequarry'].threadsHandle, 'quotequarry8', 'the report reads the seeded Threads handle');
-  assert.equal(bySlug['quotequarry'].fbPageId, '114550268199751', 'fbPageId still resolves via the oracle');
-  assert.equal(bySlug['debt-free-doctrine'].tiktokHandle, undefined, 'absent destinations stay absent');
+  // MR-only mode (owner directive 2026-11-03): the report covers the ACTIVE
+  // set only; destination RESOLUTION is a registry lookup and stays correct
+  // for the paused channels (reactivation restores their rows, zero edits).
+  assert.equal(bySlug['money-rulebook'].fbPageId, '1077306835630491', 'the active channel resolves via the oracle');
+  assert.equal(bySlug['quotequarry'], undefined, 'paused channels stay out of the report');
+  assert.equal(destinationsFor('quotequarry')?.threadsHandle, 'quotequarry8', 'the seeded Threads handle still resolves from the registry');
+  assert.equal(destinationsFor('debt-free-doctrine')?.tiktokHandle, undefined, 'absent destinations stay absent');
 });
 
 test('T4c buildExcel: channels with a threadsHandle get a Threads row — the global profile read only adds followers', async (t) => {

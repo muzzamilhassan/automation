@@ -17,7 +17,7 @@ import { EMBEDDED_FONTS_CSS } from './typography-poster-engine.mjs';
 import { getTopicClip } from './youtube-clips.mjs';
 import { pickApprovedTrack } from './music-engine.mjs';
 const APPROVED_MUSIC = JSON.parse(fs.readFileSync(new URL('./yt-brands/approved-music.json', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'), 'utf8'));
-import { renderYouTubeThumbnail, callScriptBrain, fetchBrainContext, brainContextSection, registryThresholds, resolveTemplateId } from './youtube-engine.mjs';
+import { renderYouTubeThumbnail, callScriptBrain, fetchBrainContext, brainContextSection, registryThresholds, resolveTemplateId, thumbDesignFor } from './youtube-engine.mjs';
 import { bySlug } from './yt-brands/brands.mjs';
 // P5-T2e (D15/AC-P5-15/16): the doc lane's template reads — the assigned doc
 // template's section plan and the foreign-format loud skip. Pure helpers: this
@@ -372,8 +372,16 @@ async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null
   } else { fs.copyFileSync(joined, final); }
 
   // premium thumbnail from a mid-episode frame
+  // R4 (red-flags spec): the active doc template's thumb_design drives the
+  // frame thumbnail's design (left-stack chip/brandmark/last-word accent/tint).
+  // Template values win over the kit accent per the T6 precedence; null td =
+  // today's center render byte-identical (R5). docTemplateId is the resolved
+  // assignment on the normal doc day and the APPROVED ROW's template on a
+  // resume (same threading as the disclaimers block).
+  const thumbDesign = thumbDesignFor(docTemplateId);
   sh(['-y', '-v', 'error', '-ss', String(Math.round(total * 0.35)), '-i', final, '-frames:v', '1', `${work}/frame.jpg`]);
-  const thumb = await renderYouTubeThumbnail(script.title, `${work}/frame.jpg`, { accent: b.accent, eyebrow: b.eyebrow });
+  const thumbOpts = { accent: (thumbDesign?.accent) || b.accent, eyebrow: (thumbDesign?.eyebrow) || b.eyebrow, thumbDesign };
+  const thumb = await renderYouTubeThumbnail(script.title, `${work}/frame.jpg`, thumbOpts);
 
   // #106 T5b SEAM 2 (D18/AC-P4-23): WHERE the pipeline's gate enabled picking
   // (REVIEW_THUMB_CANDIDATES from the template DATA), the render emits N
@@ -386,7 +394,7 @@ async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null
     try {
       for (const pct of [0.22, 0.48]) {
         sh(['-y', '-v', 'error', '-ss', String(Math.round(total * pct)), '-i', final, '-frames:v', '1', `${work}/frame-alt.jpg`]);
-        docThumbs.push(await renderYouTubeThumbnail(script.title, `${work}/frame-alt.jpg`, { accent: b.accent, eyebrow: b.eyebrow }));
+        docThumbs.push(await renderYouTubeThumbnail(script.title, `${work}/frame-alt.jpg`, thumbOpts));
         fs.rmSync(`${work}/frame-alt.jpg`, { force: true });
       }
     } catch (e) {

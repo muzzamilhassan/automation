@@ -270,9 +270,9 @@ function statsKey(ytData, fbPages) {
   fbPages.forEach(f => { s.fb[f.name] = { followers: f.followers, ig: f.igFollowers }; });
   return s;
 }
-function growthRows(prev, cur) {
+function growthRows(prev, cur, channels = CHANNELS) {
   const rows = [];
-  for (const ch of CHANNELS) {
+  for (const ch of channels) {
     const p = prev.yt && prev.yt[ch.label], c = cur.yt[ch.label];
     rows.push([ch.label + ' — YouTube',
       c ? c.subs : '-',
@@ -400,7 +400,7 @@ async function buildExcel(ytData, fbPages, threads, { mode = 'daily', stateDir =
   const cur = statsKey(ytData, fbPages);
   let prev = null;
   try { prev = JSON.parse(fs.readFileSync(path.join(stateDir, 'report-stats.json'), 'utf8')); } catch { }
-  if (prev && prev.date !== cur.date) growthRows(prev, cur).forEach(r => ws5.addRow(r));
+  if (prev && prev.date !== cur.date) growthRows(prev, cur, channels).forEach(r => ws5.addRow(r));
   else ws5.addRow(['(first run — deltas appear from the next report on)', '', '', '', '']);
   fs.mkdirSync(stateDir, { recursive: true });
   fs.writeFileSync(path.join(stateDir, 'report-stats.json'), JSON.stringify(cur, null, 2));
