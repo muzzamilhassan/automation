@@ -52,6 +52,26 @@ function saveUsed(arr) {
   fs.writeFileSync(USED_FILE, JSON.stringify(arr.slice(-400)));
 }
 
+// The quality filter (the old inline 4K chain, parameterized + exported pure
+// for the suite): a `large` stream at least minWidth wide, long enough, sorted
+// by downloads, capped at 6, minus everything used recently.
+export function clipCandidates(hits, { minDur = 12, used = [], minWidth = 3500 } = {}) {
+  return hits
+    .filter((h) => h.videos?.large && h.videos.large.width >= minWidth && (h.duration || 0) >= minDur)
+    .sort((a, b) => (b.downloads || 0) - (a.downloads || 0))
+    .slice(0, 6)
+    .filter((h) => !used.includes(h.id));
+}
+
+// #106 INCIDENT: 4K first, full-HD before giving up. The 4K-only filter can
+// return empty for many queries (niche finance topics especially) — an empty
+// candidate list pushes the doc lane toward its zero-clips refusal, so a
+// full-HD tier runs before the query gives up to null.
+const QUALITY_TIERS = [
+  { minWidth: 3500, label: '4K' },
+  { minWidth: 1920, label: 'full-HD' },
+];
+
 export async function getTopicClip(page, postData, minDur = 12) {
   if (!KEY) throw new Error('PIXABAY_API_KEY missing');
   const brandQ = brandQueries(page?.ytBrand);
@@ -65,18 +85,20 @@ export async function getTopicClip(page, postData, minDur = 12) {
     try {
       const res = await fetch(`https://pixabay.com/api/videos/?key=${KEY}&q=${encodeURIComponent(q)}&per_page=25&video_type=film`);
       const hits = (await res.json()).hits || [];
-      // 4K only (large stream), long enough, not used recently, decent popularity
-      const cands = hits
-        .filter((h) => h.videos?.large && h.videos.large.width >= 3500 && (h.duration || 0) >= minDur)
-        .sort((a, b) => (b.downloads || 0) - (a.downloads || 0))
-        .slice(0, 6)
-        .filter((h) => !used.includes(h.id));
+      // Quality tiers, best first (#106): 4K (large stream >= 3500), then
+      // full-HD (>= 1920). Long enough, not used recently, decent popularity.
+      let cands = [];
+      let tier = QUALITY_TIERS[0];
+      for (const t of QUALITY_TIERS) {
+        cands = clipCandidates(hits, { minDur, used, minWidth: t.minWidth });
+        if (cands.length) { tier = t; break; }
+      }
       if (!cands.length) continue;
       const hit = cands[Math.floor(Math.random() * Math.min(3, cands.length))];
       const file = `${POOL_DIR}/yt-clip-${hit.id}.mp4`;
       fs.mkdirSync(POOL_DIR, { recursive: true });
       if (!fs.existsSync(file) || fs.statSync(file).size < 500000) {
-        console.log(`[YT Clips] Downloading 4K "${q}" clip ${hit.id} (${hit.duration}s, ${hit.downloads || 0} downloads)...`);
+        console.log(`[YT Clips] Downloading ${tier.label} "${q}" clip ${hit.id} (${hit.duration}s, ${hit.downloads || 0} downloads)...`);
         execFileSync('curl', ['-s', '--retry', '3', '--retry-delay', '2', '-L', '-o', file, hit.videos.large.url]);
         if (fs.statSync(file).size < 500000) throw new Error('download failed');
       }

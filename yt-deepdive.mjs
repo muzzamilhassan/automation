@@ -23,6 +23,10 @@ import { bySlug } from './yt-brands/brands.mjs';
 // template's section plan and the foreign-format loud skip. Pure helpers: this
 // module executes top-level code, so the logic lives in lib/ for the suite.
 import { docStoryPlan, docStoryPlanLines, foreignDocFormat, skipForeignDocFormat } from './lib/doc-template.mjs';
+// #106 INCIDENT: the doc lane's frame helpers as pure lib functions — the
+// TRANSPARENT chapter lower-third (the old opaque card covered the b-roll
+// under overlay=0:0) and the fail-closed b-roll gate (zero clips = refuse).
+import { chapterLowerThirdSvg, docBrollGate } from './lib/doc-frames.mjs';
 // REGISTRY_META is registry DATA keyed by the ONE identity string (D19) — the
 // doc lane reads the ASSIGNED template's own block (no family fallback).
 import { REGISTRY_META } from './studio/lib/template-registry.data.js';
@@ -201,16 +205,20 @@ async function introCard(title) {
   return f;
 }
 async function chapterLowerThird(num, title) {
-  const inner = `
-  <rect x="0" y="872" width="1920" height="208" fill="#000000" fill-opacity="0.58"/>
-  <rect x="0" y="872" width="14" height="208" fill="${b.accent}"/>
-  <text x="70" y="948" font-family="Oswald" font-weight="600" font-size="30" letter-spacing="8" fill="${b.accent}">CHAPTER ${String(num).padStart(2, '0')} / 08</text>
-  <text x="70" y="1028" font-family="Oswald" font-weight="700" font-size="56" fill="#FFFFFF">${esc(String(title).slice(0, 46).toUpperCase())}</text>`;
+  // #106 INCIDENT (DEFECT 2): the card built on frameSvg — TWO FULL-FRAME
+  // OPAQUE rects (gradient + glow) — and segment() composites it overlay=0:0,
+  // so the card covered the chapter b-roll 100%: black docs with voice. The
+  // lower-third is now a TRANSPARENT overlay (lib/doc-frames.mjs) — only the
+  // bottom band, the accent bar, and the text are painted; the b-roll shows
+  // through. frameSvg stays opaque for the intro/end cards (static gradient
+  // cards by design).
   const f = `demos/deepdive-${slug}/lt-${num}.png`;
-  await sharp(Buffer.from(svg2png(inner)), { density: 96 }).png().toFile(f);
+  // NO density option: at 96 the SVG rasterizes 2560x1440 (96/72 scaling) and
+  // segment()'s unscaled overlay would push the band below the 1080 canvas —
+  // the default 72 dpi renders the intrinsic 1920x1080 exactly.
+  await sharp(Buffer.from(chapterLowerThirdSvg({ num, title, accent: b.accent }))).png().toFile(f);
   return f;
 }
-function svg2png(inner) { return frameSvg(inner); }
 async function endCard() {
   const inner = `
   <text x="960" y="420" text-anchor="middle" font-family="Oswald" font-weight="500" font-size="36" letter-spacing="12" fill="${b.accent}">DAILY EPISODES</text>
@@ -283,19 +291,43 @@ async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null
   total += introDur;
 
   // chapters: b-roll + lower-third + narration
+  let chaptersWithClips = 0;
   for (let i = 0; i < script.chapters.length; i++) {
     const ch = script.chapters[i];
     console.log(`[long] chapter ${i + 1}/${script.chapters.length}: ${ch.title}`);
     const narr = narrate(ch.text, i + 1);
     const dur = Math.max(14, probeDur(narr) + 1.4);
     const seg = `${work}/seg-${String(i + 1).padStart(2, '0')}.mp4`;
+    // #106 INCIDENT (DEFECT 1 hardening): a failed fetch is LOGGED, never
+    // swallowed — the e7fb691 undefined-`page` ReferenceError died silently in
+    // the old bare `catch { }` for every doc ever rendered.
     let clip = null;
-    try { clip = await getTopicClip(page(), { headline: ch.title }); } catch { }
+    try { clip = await getTopicClip(page(), { headline: ch.title }); }
+    catch (e) { console.log(`[long] WARN chapter ${i + 1} b-roll fetch failed: ${String(e?.message || e).slice(0, 90)}`); }
+    if (clip) chaptersWithClips++;
+    else console.log(`[long] WARN chapter ${i + 1}/${script.chapters.length}: no b-roll — chapter renders on the flat 0x0C0C0E fallback`);
     const lt = await chapterLowerThird(i + 1, ch.title);
     segment(lt, clip?.file || null, narr, seg, dur, true);
     segs.push({ file: seg, dur });
     total += dur;
     console.log(`  ✓ ${dur.toFixed(0)}s`);
+  }
+
+  // #106 INCIDENT BRAKE — the loud fail-closed b-roll gate. The fetches above
+  // are best-effort per chapter, but a run where ZERO chapters carry a clip is
+  // systemic (dead key, network down, empty search — or a swallowed regression
+  // like the undefined-`page` ReferenceError) — exactly the four black Money
+  // Rulebook videos. REFUSE before any upload: nonzero exit (the pipeline
+  // records the failed step), the slot stays unproduced (deepdiveDate never
+  // advances — a fixed next run retries), and the owner is pushed.
+  const gate = docBrollGate(script.chapters.length, chaptersWithClips);
+  if (!gate.ok) {
+    console.error(`[long] FAIL-CLOSED: ${gate.reason}`);
+    try {
+      const { sendAlert } = await import('./lib/ntfy-alert.mjs');
+      await sendAlert({ text: `${slug}: doc render REFUSED — ${gate.reason}. The episode was NOT uploaded. Check PIXABAY_API_KEY / b-roll queries, then re-dispatch (the script/slot is unspent).`, title: `[${slug}] doc refused: zero b-roll` });
+    } catch { }
+    throw new Error(gate.reason);
   }
 
   // end card with outro narration
