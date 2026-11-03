@@ -188,7 +188,7 @@ jobs:
         # This is the review-queue approval path (#106 T5): approve at
         # Studio > Review dispatches resume=<held job id> and the run
         # re-enters at the first non-succeeded step (D4).
-        run: node channel-pipeline.mjs "$SLUG" ${{ inputs.topup && format('--topup={0}', inputs.topup) || '' }} ${{ inputs.force_doc == '1' && '--force' || '' }} ${{ inputs.resume && format('--resume {0}', inputs.resume) || '' }}
+        run: node channel-pipeline.mjs "$SLUG" ${{ inputs.topup && format('--topup={0}', inputs.topup) || '' }} ${{ inputs.force_doc == '1' && '--force' || '' }} ${{ inputs.resume && format('--resume {0}', inputs.resume) || '' }} --no-episode  # INCIDENT BRAKE 2026-11-03: doc renders ship black visuals (4 videos pulled private) — the doc-lane visual layer is under investigation; REMOVE this flag when the fix lands. Shorts lanes unaffected.
 
       - name: 📦 Keep reels for IG slot poster
         if: ${{ hashFiles(format('fb-outbox/{0}/*.json*', matrix.slug.slug)) != '' }}
