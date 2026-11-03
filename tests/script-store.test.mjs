@@ -231,8 +231,14 @@ describe('#106 T5 script store — transactional saveScript (AC-P4-17 + T5f tran
     assert.equal(tables.scripts[0].status, 'awaiting_review', 'a saved gated script starts awaiting_review');
     assert.equal(tables.script_sources.length, 2);
     assert.equal(tables.script_claims.length, 3);
-    // full render input persisted COMPLETE (resume must never re-generate — D4/D14)
-    const stored = JSON.parse(tables.scripts[0].full_render_input);
+    // full render input persisted COMPLETE (resume must never re-generate — D4/D14).
+    // P5 round 2 (live MR pilot): the binding hands jsonb the OBJECT — the
+    // stored value is the object itself, never a JSON string (double-encode)
+    // and never an array wrap.
+    const stored = tables.scripts[0].full_render_input;
+    assert.equal(typeof stored, 'object', 'jsonb holds the object');
+    assert.ok(!Array.isArray(stored), 'NOT an array wrap (the live row held ["{\"hook\": ...}"])');
+    assert.equal(typeof stored.full_render_input, 'undefined', 'not double-encoded either');
     assert.equal(stored.hook, BASE.fullRenderInput.hook);
     assert.deepEqual(stored.points, BASE.fullRenderInput.points);
     assert.equal(stored.thumbHeadline, BASE.fullRenderInput.thumbHeadline);

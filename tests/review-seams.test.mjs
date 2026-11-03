@@ -914,7 +914,7 @@ const SPY_DOC_STORE_GEN = [
   '};',
   'const real = makeScriptStore({ dbClient: client });',
   'const store = {',
-  '  async saveScript(fields) { rec("saveScript", fields); const r = await real.saveScript(fields); rec("saveResult", { ok: r.ok, error: r.error || null, sources: rows.sources.length, claims: rows.claims.length }); return r; },',
+  '  async saveScript(fields) { rec("saveScript", fields); const r = await real.saveScript(fields); rec("saveResult", { ok: r.ok, error: r.error || null, sources: rows.sources.length, claims: rows.claims.length, fri: rows.scripts.length ? rows.scripts[rows.scripts.length - 1].fri : null }); return r; },',
   '  async latestApprovedForJob() { rec("latestApprovedForJob", {}); return { ok: true, script: null }; },',
   '  async latestApproved() { rec("latestApproved", {}); return { ok: true, script: null }; },',
   '  async markConsumed() { rec("markConsumed", {}); return { ok: true, id: "x" }; },',
@@ -1232,6 +1232,17 @@ describe('#106 T5c — GENERATE-ONLY saves the doc awaiting_review, zero render 
     assert.equal(savedForReal.args.ok, true, `the sources-less doc record PERSISTED: ${savedForReal?.args?.error}`);
     assert.equal(savedForReal.args.sources, 0, 'zero source rows — the doc lane records its sources honestly empty');
     assert.equal(savedForReal.args.claims, 0, 'zero claim rows');
+    // P5 round 2 (live MR pilot): the STORED full_render_input is the jsonb
+    // OBJECT with the structure as KEYS — the live row held
+    // ["{\"hook\": ...}"] (an array wrapping a JSON string), which /review's
+    // requiresDisclosure and the resume's storedInputOf both reject.
+    const fri = savedForReal.args.fri;
+    assert.equal(typeof fri, 'object', 'the stored full_render_input is the jsonb object itself');
+    assert.ok(!Array.isArray(fri), 'NOT an array wrap (the live-pilot double-encode shape)');
+    assert.equal(typeof fri.hook, 'string', 'hook is a KEY of the stored object');
+    assert.ok(Array.isArray(fri.points) && fri.points.length > 0, 'points is a KEY holding the chapter array');
+    assert.equal(typeof fri.closing, 'string', 'closing is a KEY');
+    assert.equal(fri.disclosure?.synthetic_media_required, true, 'the disclosure flag is a KEY (the checklist renders)');
     const tts = r.spy.filter((c) => c.mod === 'doccp' && c.fn === 'execFileSync');
     assert.deepEqual(tts, [], 'ZERO TTS/ffmpeg calls — the generate-only run stops before any render spend');
     assert.equal(r.spy.filter((c) => c.mod === 'docmusic' && c.fn === 'pickApprovedTrack').length, 0, 'ZERO music picks');

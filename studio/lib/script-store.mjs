@@ -216,8 +216,14 @@ export function makeScriptStore(deps) {
         await tx(
           `INSERT INTO scripts (id, channel_id, template_id, template_version, kind, title, text, full_render_input, status, job_id, dedupe_verdict_id, slot_date, slot_idx, publish_at)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
+          // P5 round 2 (live MR pilot, run 41482343689): jsonb gets the OBJECT
+          // itself — the drivers serialize it natively. Binding a pre-stringified
+          // string double-encodes (the column holds a JSON *string*, and a string
+          // serialized through a driver's array/array-literal path lands as
+          // ["{\"hook\": ...}"] — exactly the live row, which /review's
+          // requiresDisclosure and the resume's storedInputOf both reject).
           [id, fields.channelId, fields.templateId ?? null, fields.templateVersion ?? null, fields.kind ?? null,
-            fields.title ?? null, fields.text, JSON.stringify(fields.fullRenderInput), status,
+            fields.title ?? null, fields.text, fields.fullRenderInput, status,
             fields.jobId ?? null, fields.dedupeVerdictId ?? null, fields.slotDate ?? null,
             Number.isInteger(fields.slotIdx) ? fields.slotIdx : null, fields.publishAt ?? null],
         );
