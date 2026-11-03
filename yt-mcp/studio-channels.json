@@ -6,7 +6,7 @@
       "handle": "@quotequarry302",
       "cron": "13 2 * * *",
       "docDay": "Tue",
-      "active": true,
+      "active": false,
       "autopilot": true,
       "tokenSecretSaved": true,
       "niche": "Timeless wisdom, self-mastery & human psychology",
@@ -25,7 +25,11 @@
           "22:35"
         ],
         "docDay": "Tue",
-        "thumbTemplates": ["slab-quote", "serif-frame", "plinth"]
+        "thumbTemplates": [
+          "slab-quote",
+          "serif-frame",
+          "plinth"
+        ]
       },
       "destinations": {
         "fbPageId": "114550268199751",
@@ -38,7 +42,7 @@
       "handle": "@investorscompasshq",
       "cron": "47 2 * * *",
       "docDay": "Wed",
-      "active": true,
+      "active": false,
       "autopilot": true,
       "tokenSecretSaved": true,
       "niche": "Investing psychology & market wisdom",
@@ -57,7 +61,11 @@
           "23:35"
         ],
         "docDay": "Wed",
-        "thumbTemplates": ["gold-standard", "coinflip", "price-fight"]
+        "thumbTemplates": [
+          "gold-standard",
+          "coinflip",
+          "price-fight"
+        ]
       },
       "destinations": {
         "fbPageId": "116157974886564"
@@ -88,7 +96,11 @@
           "00:05"
         ],
         "docDay": "Thu",
-        "thumbTemplates": ["price-fight", "ledger", "coinflip"]
+        "thumbTemplates": [
+          "price-fight",
+          "ledger",
+          "coinflip"
+        ]
       },
       "destinations": {
         "fbPageId": "1077306835630491"
@@ -100,7 +112,7 @@
       "handle": "@debtfreedoctrine",
       "cron": "53 3 * * *",
       "docDay": "Fri",
-      "active": true,
+      "active": false,
       "autopilot": true,
       "tokenSecretSaved": true,
       "niche": "Old money habits & quiet wealth",
@@ -118,7 +130,10 @@
           "21:20"
         ],
         "docDay": "Fri",
-        "thumbTemplates": ["gold-standard", "pillar"]
+        "thumbTemplates": [
+          "gold-standard",
+          "pillar"
+        ]
       },
       "destinations": {
         "fbPageId": "106473735839651"
