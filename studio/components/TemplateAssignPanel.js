@@ -101,6 +101,17 @@ export default function TemplateAssignPanel({ slug }) {
   const isOwner = data?.role === 'owner';
   const byTemplate = useMemo(() => new Map(templates.map((t) => [t.templateId, t])), [templates]);
 
+  // Registry templates may SHARE one visual family (v2: many templates -> one
+  // family, e.g. myth-vs-money and red-flags-explained both render
+  // beat-synced-type) — the family NAME alone is then ambiguous in the
+  // picker. Count the shared names; those options get their registry key
+  // appended so the owner can tell them apart.
+  const sharedNames = useMemo(() => {
+    const m = new Map();
+    for (const t of templates) m.set(t.name, (m.get(t.name) || 0) + 1);
+    return m;
+  }, [templates]);
+
   // AC-10: templates whose niches overlap the channel's niches first.
   const orderedTemplates = useMemo(() => {
     const hit = (t) => (t.registry?.niches || []).some((n) => channelNiches.includes(n));
@@ -302,7 +313,7 @@ export default function TemplateAssignPanel({ slug }) {
                 const fmtMiss = !(t.registry?.formats || []).some((f) => channelFormats.includes(f));
                 return (
                   <option key={t.templateId} value={t.templateId}>
-                    {nicheHit ? '★ ' : ''}{t.name} · v{t.registry.version}{t.registry.deprecated ? ' (deprecated)' : ''}{fmtMiss ? ' — format mismatch' : ''}
+                    {nicheHit ? '★ ' : ''}{t.name}{sharedNames.get(t.name) > 1 ? ` — ${t.templateId}` : ''} · v{t.registry.version}{t.registry.deprecated ? ' (deprecated)' : ''}{fmtMiss ? ' — format mismatch' : ''}
                   </option>
                 );
               })}
