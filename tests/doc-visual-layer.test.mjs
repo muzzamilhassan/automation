@@ -176,7 +176,9 @@ describe('R4 — the left-stack thumb overlay renders the reference design', () 
     assert.ok(svg.includes('data-thumb="brandmark"'), 'brandmark group present');
     assert.ok(svg.includes('>MONEYRULEBOOK</text>'), 'brandmark text verbatim');
     assert.match(svg, /x="1208" y="668" text-anchor="end"/, 'anchored bottom-right');
-    assert.match(svg, /<rect x="1128" y="646" width="14" height="14" fill="#F0776E"[^>]*rotate\(45/, 'the diamond');
+    assert.match(svg, /<rect x="(\d+)" y="646" width="14" height="14" fill="#F0776E"[^>]*rotate\(45/, 'the diamond');
+    const diamondX = Number(svg.match(/<rect x="(\d+)" y="646" width="14" height="14" fill="#F0776E"/)[1]);
+    assert.ok(diamondX > 800 && diamondX < 1208, 'the diamond sits left of the end-anchored text (inside the brandmark, never past x=1208)');
   });
 
   test('the scrim: red-tint rect UNDER the neutral gradient', () => {
