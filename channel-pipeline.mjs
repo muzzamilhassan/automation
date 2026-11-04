@@ -294,10 +294,14 @@ if (JOB_STORE_ENABLED) {
   }
 }
 
-function run(script, args = []) {
+function run(script, args = [], opts = {}) {
   log(`▶ ${script} ${args.join(' ')}`);
   try {
-    const r = spawnSync('node', [script, ...args], { stdio: 'inherit', timeout: 900000 });
+    // opts.timeoutMs: per-lane bound. The default 900s predates the
+    // 10-chapter doc class — a long documentary (10 chapters x >=170 words:
+    // ~10 clip downloads + TTS + render) needs ~30 min, and the 15-min kill
+    // landed mid-download exactly at 900000 ms (2026-11-04 resume run).
+    const r = spawnSync('node', [script, ...args], { stdio: 'inherit', timeout: opts.timeoutMs ?? 900000 });
     return r.status === 0;
   } catch (e) { errors.push(`${script}: ${e.message}`); return false; }
 }
@@ -797,7 +801,9 @@ if (jobCtl?.isSkipped('episode')) {
 } else if (!SKIP_EPISODE && !episodeDone && (await quotaGate('Episode'))) {
   log(`Phase 5 — Producing daily episode...`);
   await jobCtl?.startStep('episode');
-  const ok = run('yt-deepdive.mjs', [slug, ...(FORCE ? ['--force'] : [])]);
+  // 45-min bound: the 10-chapter doc class (clips per chapter + TTS + render)
+  // outgrew the default 900s — the kill landed mid-download at exactly 15 min.
+  const ok = run('yt-deepdive.mjs', [slug, ...(FORCE ? ['--force'] : [])], { timeoutMs: 2700000 });
   if (ok) { results.episode = true; log(`✓ Episode done`); await jobCtl?.finishStep('episode', 'succeeded'); }
   else { errors.push('Episode failed'); await jobCtl?.finishStep('episode', 'failed', 'Episode failed'); }
 } else if (SKIP_EPISODE) {
