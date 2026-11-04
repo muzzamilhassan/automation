@@ -1,16 +1,13 @@
 // Complete Video Templates Catalog for Quarry Studio
-// Incorporating 100+ modular Remotion template families (Documentary, Kinetic, Tech, Finance, Podcasts, Shorts, VFX).
+// 6 REAL Remotion template families (Documentary, Finance) since the 2026-11-04
+// owner-approved cleanup — the 12 cloned 10–15s-pack families were removed.
 // Every template is parameter-driven with live simulation props, color palettes, and variant styles.
+// Count fields are the GALLERY GROUND TRUTH (kept in sync with TEMPLATES_DATA below).
 
 export const TEMPLATE_CATEGORIES = [
   { id: 'all', label: 'All Templates' },
-  { id: 'documentary', label: 'Documentary & Cinema', count: 18 },
-  { id: 'typography', label: 'Kinetic Typography', count: 14 },
-  { id: 'tech', label: 'Tech & Architecture', count: 16 },
-  { id: 'finance', label: 'Finance & Infographics', count: 15 },
-  { id: 'podcasts', label: 'Podcasts & Waveforms', count: 10 },
-  { id: 'shorts', label: 'Vertical Shorts & Reels', count: 12 },
-  { id: 'effects', label: 'Visual FX & Transitions', count: 15 },
+  { id: 'documentary', label: 'Documentary & Cinema', count: 5 },
+  { id: 'finance', label: 'Finance & Infographics', count: 1 },
 ];
 
 export const TEMPLATES_DATA = [
@@ -124,125 +121,6 @@ export const TEMPLATES_DATA = [
     accentColor: '#E2E8F0',
   },
 
-  // ================= KINETIC TYPOGRAPHY =================
-  {
-    id: 'kinetic-typography',
-    name: 'High-Impact Kinetic Typography',
-    category: 'typography',
-    family: 'kinetic-typography',
-    aspectRatios: ['16:9', '9:16', '1:1'],
-    status: 'ready',
-    variants: [
-      'impact',
-      'typewriter',
-      'mask-reveal',
-      'wave',
-      'slide-cascade',
-      'focus-pull',
-      'letter-drop',
-      'outline-fill',
-      'split-flip',
-      'marquee-shout',
-    ],
-    desc: 'Ten structurally distinct kinetic typography animations driven by spring physics and character-stagger easing. Zero dull moments.',
-    usedFor: 'Hormozi / MrBeast video hooks, motivational shorts, and key quote emphasizes',
-    previewTheme: 'sunset',
-    sampleProps: {
-      headline: 'DISCIPLINE WILL TAKE YOU WHERE MOTIVATION CANNOT',
-      subline: 'WHEN EXCUSES DIE, YOUR REAL LIFE BEGINS.',
-    },
-    accentColor: '#FF6B35',
-  },
-  {
-    id: 'beat-synced-type',
-    name: 'Beat-Synced Karaoke Stabs',
-    category: 'typography',
-    family: 'beat-synced-type',
-    aspectRatios: ['9:16', '16:9'],
-    status: 'ready',
-    variants: ['punch-pop', 'word-glow', 'speed-reader', 'highlight-wipe'],
-    desc: 'Locks precisely onto word-level timestamps. The current spoken word pulses in vibrant neon yellow with instant pop scale.',
-    usedFor: 'Viral YouTube Shorts, TikToks, and Instagram Reels',
-    previewTheme: 'midnight',
-    sampleProps: {
-      activeWord: 'UNSTOPPABLE',
-      sentence: 'YOU ARE CAPABLE OF MORE THAN YOU KNOW',
-    },
-    accentColor: '#FACC15',
-  },
-  {
-    id: 'quote-cards-premium',
-    name: 'Prestige Authority Quote Cards',
-    category: 'typography',
-    family: 'quote-cards-premium',
-    aspectRatios: ['16:9', '9:16'],
-    status: 'ready',
-    variants: ['gold-foil-serif', 'minimal-brutalist', 'neon-accent-box', 'author-cutout'],
-    desc: 'Luxurious quote cards featuring giant quotation glyphs, gold/platinum typography, and circular speaker portraits.',
-    usedFor: 'Philosophical essays, Warren Buffett / Marcus Aurelius quotes, and podcasts',
-    previewTheme: 'mono',
-    sampleProps: {
-      quote: 'We suffer more often in imagination than in reality.',
-      author: 'SENECA',
-      title: 'LETTERS FROM A STOIC',
-    },
-    accentColor: '#D4AF37',
-  },
-
-  // ================= TECH & ARCHITECTURE =================
-  {
-    id: 'code-product-demos',
-    name: 'Developer Terminal & Code Typing',
-    category: 'tech',
-    family: 'code-product-demos',
-    aspectRatios: ['16:9'],
-    status: 'ready',
-    variants: ['macos-terminal', 'vs-code-editor', 'blinking-cursor', 'diff-checker', 'syntax-highlight'],
-    desc: 'Realistic dark-mode code editors with character-by-character syntax typing, blinking cursor, line numbers, and glowing tabs.',
-    usedFor: 'ByteByteGo, Fireship, and software engineering explainers',
-    previewTheme: 'midnight',
-    sampleProps: {
-      filename: 'pipeline.worker.ts',
-      codeSnippet: `async function renderVideo(jobId: string) {\n  const engine = await Remotion.init({ fps: 30 });\n  return await engine.render(jobId);\n}`,
-      language: 'typescript',
-    },
-    accentColor: '#22D3EE',
-  },
-  {
-    id: 'explainer-diagrams',
-    name: 'System Architecture & Flow',
-    category: 'tech',
-    family: 'explainer-diagrams',
-    aspectRatios: ['16:9'],
-    status: 'ready',
-    variants: ['microservices-mesh', 'event-loop', 'database-cluster', 'load-balancer', 'data-pipeline'],
-    desc: 'Animated SVG network diagrams where glowing data packets glide along interconnecting lines with spring-loaded node pop-ins.',
-    usedFor: 'System design interviews, cloud tutorials, and technical explainers',
-    previewTheme: 'midnight',
-    sampleProps: {
-      title: 'DISTRIBUTED CACHE ARCHITECTURE',
-      nodes: ['CLIENT', 'API GATEWAY', 'REDIS CLUSTER', 'POSTGRES DB'],
-    },
-    accentColor: '#34D399',
-  },
-  {
-    id: 'browser-chrome',
-    name: 'Browser Window & UI Mockup',
-    category: 'tech',
-    family: 'browser-chrome',
-    aspectRatios: ['16:9'],
-    status: 'ready',
-    variants: ['safari-dark', 'floating-glass', 'perspective-tilt', 'url-typewriter'],
-    desc: '3D perspective tilted browser windows with address bars, window controls, and smooth inner viewport scrolling.',
-    usedFor: 'SaaS product launches, website feature walkthroughs, and web tutorials',
-    previewTheme: 'ocean',
-    sampleProps: {
-      url: 'https://quarry.studio/dashboard',
-      pageTitle: 'Quarry Studio — Autonomous Channel Control Room',
-    },
-    accentColor: '#38BDF8',
-  },
-
   // ================= FINANCE & INFOGRAPHICS =================
   {
     id: 'finance-explainers',
@@ -272,119 +150,5 @@ export const TEMPLATES_DATA = [
       currency: '$',
     },
     accentColor: '#10B981',
-  },
-  {
-    id: 'stats-counters',
-    name: 'Giant Ticking Stat Counters',
-    category: 'finance',
-    family: 'stats-counters',
-    aspectRatios: ['16:9', '9:16'],
-    status: 'ready',
-    variants: ['ticker-counter', 'percentage-bar', 'comparison-delta', 'odometer-roll'],
-    desc: 'Ultra-sized numbers that dynamically tick up from 0 to target metrics with custom ease-out curves and formatted commas.',
-    usedFor: 'Revenue milestones, net worth reveals, and shocking statistics',
-    previewTheme: 'midnight',
-    sampleProps: {
-      label: 'TOTAL ASSETS LOST',
-      targetValue: 4200000000,
-      formattedText: '$4.2 BILLION',
-      delta: '-94.2%',
-    },
-    accentColor: '#F43F5E',
-  },
-  {
-    id: 'chart-animations',
-    name: 'Real-Time Animated Charts',
-    category: 'finance',
-    family: 'chart-animations',
-    aspectRatios: ['16:9'],
-    status: 'ready',
-    variants: ['area-growth', 'bar-race', 'pie-donut-reveal', 'multi-line-comparison'],
-    desc: 'SVG charts that draw their path in real-time with gradient area fills, floating coordinate tooltips, and axis labels.',
-    usedFor: 'Market trends, GDP comparisons, and valuation history',
-    previewTheme: 'ocean',
-    sampleProps: {
-      title: 'NVIDIA MARKET CAP SURGE',
-      xAxis: ['2020', '2022', '2024', '2026'],
-      yAxis: ['$300B', '$1.0T', '$3.0T', '$4.5T'],
-    },
-    accentColor: '#3B82F6',
-  },
-
-  // ================= PODCASTS & AUDIO =================
-  {
-    id: 'podcast-audio',
-    name: 'Dynamic Podcast Audiogram',
-    category: 'podcasts',
-    family: 'podcast-audio',
-    aspectRatios: ['16:9', '9:16', '1:1'],
-    status: 'ready',
-    variants: ['circular-equalizer', 'soundwave-bars', 'minimal-line', 'speaker-avatar-pulse'],
-    desc: 'Converts podcast MP3 clips into engaging social video with reactive audio frequency bars and centered host portraits.',
-    usedFor: 'Repurposing podcast episodes, interview highlights, and Spotify clips',
-    previewTheme: 'sunset',
-    sampleProps: {
-      episodeTitle: 'EPISODE 42: THE FUTURE OF AI AGENTS',
-      speaker: 'SAM ALTMAN & LEX FRIDMAN',
-      duration: '00:45',
-    },
-    accentColor: '#A855F7',
-  },
-
-  // ================= VERTICAL SHORTS & REELS =================
-  {
-    id: 'vertical-safe-zones',
-    name: 'Mobile Safe-Zone Shorts Rail',
-    category: 'shorts',
-    family: 'vertical-safe-zones',
-    aspectRatios: ['9:16'],
-    status: 'ready',
-    variants: ['center-focal', 'split-reaction', 'rule-countdown', 'top-third-hook'],
-    desc: 'Designed strictly around YouTube Shorts and TikTok mobile interfaces. Guarantees 0% overlap with like buttons or channel titles.',
-    usedFor: 'Daily viral Shorts, TikToks, and Instagram Reels',
-    previewTheme: 'midnight',
-    sampleProps: {
-      ruleNumber: '01',
-      ruleTitle: 'NEVER ANNOUNCE YOUR MOVES',
-      ruleBody: 'Work in absolute silence. Let your undeniable results make the noise.',
-    },
-    accentColor: '#F59E0B',
-  },
-
-  // ================= VISUAL EFFECTS & TRANSITIONS =================
-  {
-    id: 'retro-vhs',
-    name: '90s VHS & Retro CRT Camcorder',
-    category: 'effects',
-    family: 'retro-vhs',
-    aspectRatios: ['16:9', '9:16'],
-    status: 'ready',
-    variants: ['vhs-tape-flicker', 'crt-scanlines', 'timecode-rec', 'glitch-tracking'],
-    desc: 'Authentic 90s camcorder aesthetic with blinking REC indicators, battery icons, tracking line distortion, and RGB chromatic shifts.',
-    usedFor: 'Nostalgia retrospectives, vaporwave music, and vintage tech reviews',
-    previewTheme: 'mono',
-    sampleProps: {
-      date: 'OCT. 17 1994',
-      timecode: 'SP 0:14:32',
-      badge: '● REC',
-    },
-    accentColor: '#10B981',
-  },
-  {
-    id: 'transitions-pack',
-    name: 'Cinematic Scene Transitions',
-    category: 'effects',
-    family: 'transitions',
-    aspectRatios: ['16:9', '9:16'],
-    status: 'ready',
-    variants: ['whip-pan', 'light-leak', 'film-burn', 'slide-wipe', 'zoom-through', 'shutter-snap'],
-    desc: 'Modular transition clips that bridge narrative beats smoothly without awkward black-screen dips.',
-    usedFor: 'Transitions between chapters, scene changes, and dramatic reveals',
-    previewTheme: 'midnight',
-    sampleProps: {
-      durationMs: 400,
-      direction: 'right-to-left',
-    },
-    accentColor: '#EC4899',
   },
 ];

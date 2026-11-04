@@ -271,19 +271,21 @@ const SEED_IDS = [
   'timeline-history',
   'photo-stories',
   'finance-explainers',
-  'stats-counters',
-  'chart-animations',
+  // stats-counters + chart-animations were REMOVED 2026-11-04 with the cloned
+  // 10–15s pack (owner-approved catalog cleanup) — no longer launch seeds.
 ];
-const FINANCE_SEED_IDS = ['finance-explainers', 'stats-counters', 'chart-animations'];
+const FINANCE_SEED_IDS = ['finance-explainers'];
 const HISTORY_SEED_IDS = ['documentary-frames', 'timeline-history', 'photo-stories'];
 
 // Aspect-ratio -> format mapping is the lib's (formatsForAspectRatios, imported
 // above) — one source of truth shared with the loader's formats ⊆ family gate.
 
-test('seeds: REGISTRY_META contains at least the six seeded families', () => {
+test('seeds: REGISTRY_META contains at least the launch seed families', () => {
   // The registry grows as data (exit gate added editorial-headlines as #7) —
-  // pin the six launch seeds as REQUIRED, not exhaustive; every additional
+  // pin the surviving launch seeds as REQUIRED, not exhaustive; every additional
   // entry must still pass validateRegistryMeta (covered by the loader test).
+  // Two launch seeds (stats-counters, chart-animations) were removed with the
+  // cloned 10–15s pack on 2026-11-04 (owner-approved catalog cleanup).
   const keys = Object.keys(REGISTRY_META);
   for (const id of SEED_IDS) assert.ok(keys.includes(id), `missing seed ${id}`);
 });
@@ -687,12 +689,11 @@ const LEGACY_IDS = [
   'timeline-history',
   'photo-stories',
   'finance-explainers',
-  'stats-counters',
-  'chart-animations',
+  // stats-counters + chart-animations: removed 2026-11-04 with the cloned pack.
   'editorial-headlines',
 ];
 
-test('seeds: the legacy 7 carry template_id equal to their family id (backward compatible, D1)', () => {
+test('seeds: the legacy 5 carry template_id equal to their family id (backward compatible, D1)', () => {
   const keys = Object.keys(REGISTRY_META);
   for (const id of LEGACY_IDS) {
     assert.ok(keys.includes(id), `missing legacy entry ${id}`);
