@@ -66,7 +66,15 @@ export type V2Beat = {
   startMs: number; ms: number; audio: string | null; i: number;
 };
 
-export type V2Doc = { title: string; theme?: string; brand?: string; eyebrow?: string; beats: V2Beat[]; totalMs: number; fps: number };
+// badge/progressParts: the storybook doc lane's furniture overrides — BOTH
+// default-inert. Docs that don't set them render byte-identically to before
+// (brand/eyebrow/badge fall back to the theme; the progress track counts beats).
+// badge          the circular end-card mark + the furniture's bottom-right
+//                circle (the reference's "MR" coin)
+// progressParts  ONE dash per part (capped 16) instead of one per beat, filled
+//                by the beat's chapter progress (beat.n) — the reference's
+//                10-dash chapter track
+export type V2Doc = { title: string; theme?: string; brand?: string; eyebrow?: string; badge?: string; progressParts?: number; beats: V2Beat[]; totalMs: number; fps: number };
 
 const loadFonts = () => {
   const h = delayRender("lv2 fonts");
@@ -112,7 +120,7 @@ const Content: React.FC<{ children: React.ReactNode; beat: V2Beat }> = ({ childr
   );
 };
 
-const Furniture: React.FC<{ beat: V2Beat; total: number; kicker: string }> = ({ beat, total, kicker }) => {
+const Furniture: React.FC<{ beat: V2Beat; total: number; kicker: string; showBadge?: boolean; progressParts?: number }> = ({ beat, total, kicker, showBadge, progressParts }) => {
   const T = useT();
   return (
     <>
@@ -121,6 +129,15 @@ const Furniture: React.FC<{ beat: V2Beat; total: number; kicker: string }> = ({ 
       </div>
       <div style={{ position: "absolute", top: 52, right: 130, display: "flex", gap: 10 }}>
         {(() => {
+          const parts = progressParts && progressParts > 0 ? Math.min(progressParts, 16) : 0;
+          if (parts > 0) {
+            // one dash per part, filled = parts completed (this beat's chapter)
+            const part = beat.n || (beat.layout === "end" ? progressParts || parts : 0);
+            const filled = Math.min(Math.max(part, 0), parts);
+            return Array.from({ length: parts }).map((_, i) => (
+              <div key={i} style={{ width: 26, height: 5, borderRadius: 3, background: i < filled ? T.accent : T.dot }} />
+            ));
+          }
           const shown = Math.min(total, 16);
           const filled = total <= shown ? beat.i + 1 : Math.round(((beat.i + 1) / total) * shown);
           return Array.from({ length: shown }).map((_, i) => (
@@ -132,6 +149,11 @@ const Furniture: React.FC<{ beat: V2Beat; total: number; kicker: string }> = ({ 
       <div style={{ position: "absolute", bottom: 30, left: 130, fontFamily: T.mono, fontWeight: 700, fontSize: 19, letterSpacing: "0.26em", color: T.furn }}>
         {T.brand}
       </div>
+      {showBadge ? (
+        <div style={{ position: "absolute", bottom: 26, right: 130, width: 44, height: 44, borderRadius: "50%", background: T.accent2, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: T.mono, fontWeight: 700, fontSize: 15, letterSpacing: "0.06em", color: "#FFFFFF" }}>
+          {T.badge}
+        </div>
+      ) : null}
     </>
   );
 };
@@ -353,7 +375,7 @@ export const DocV2: React.FC<any> = (input) => {
   const { fps, durationInFrames } = useVideoConfig();
   useEffect(() => { loadFonts(); }, []);
   const base = THEMES[doc?.theme] || THEMES.investing;
-  const T: Theme = { ...base, brand: doc?.brand || base.brand, eyebrow: doc?.eyebrow || base.eyebrow };
+  const T: Theme = { ...base, brand: doc?.brand || base.brand, eyebrow: doc?.eyebrow || base.eyebrow, badge: doc?.badge || base.badge };
   if (!doc) return <AbsoluteFill style={{ background: T.bg }} />;
   const total = doc.beats.length;
 
@@ -373,7 +395,7 @@ export const DocV2: React.FC<any> = (input) => {
           return (
             <Sequence key={`${b.layout}-${b.i}`} from={from} durationInFrames={dur} name={`b${b.i}-${b.layout}`}>
               {comp}
-              <Furniture beat={{ ...b, i }} total={total} kicker={T.eyebrow} />
+              <Furniture beat={{ ...b, i }} total={total} kicker={T.eyebrow} showBadge={Boolean(doc?.badge)} progressParts={doc?.progressParts} />
               {b.words && b.words.length ? <Captions b={b} /> : null}
             </Sequence>
           );

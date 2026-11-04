@@ -5,7 +5,7 @@
 // Usage: node yt-deepdive.mjs <slug> [--force]
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import sharp from 'sharp';
 import { Readable } from 'node:stream';
 import { google } from 'googleapis';
@@ -27,6 +27,13 @@ import { docStoryPlan, docStoryPlanLines, foreignDocFormat, skipForeignDocFormat
 // TRANSPARENT chapter lower-third (the old opaque card covered the b-roll
 // under overlay=0:0) and the fail-closed b-roll gate (zero clips = refuse).
 import { chapterLowerThirdSvg, docBrollGate } from './lib/doc-frames.mjs';
+// STORYBOOK doc lane (spec docs/superpowers/specs/2026-11-04-storybook-doc-lane-spec.md):
+// the assigned template's story_structure.doc_render === 'storybook' flips the
+// visual layer to the DocV2 vox engine (the owner's wanted look — the reference
+// BFCa-bRy-3M style). Pure helpers live in lib/doc-storybook.mjs; photos ride
+// the same Pexels→Pixabay lane make-longform proves, in portrait for the cards.
+import { docRenderOf, docPresentation, edgeVoiceFor, buildStorybookBeats, timeBeats, buildStorybookDoc, storybookPhotoGate, photoQueryFor, srtFromBeats } from './lib/doc-storybook.mjs';
+import { fetchPhoto, fetchPhotoPixabay } from './explainer/assets-photos.mjs';
 // REGISTRY_META is registry DATA keyed by the ONE identity string (D19) — the
 // doc lane reads the ASSIGNED template's own block (no family fallback).
 import { REGISTRY_META } from './studio/lib/template-registry.data.js';
@@ -271,6 +278,22 @@ function segment(cardPng, clipFile, audioFile, outFile, dur, drift = false) {
 // ignores the result and the module ends right after (identical behavior), the
 // resume maps a refusal to exit 1 with the script left approved.
 async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null, reviewScript = null, docTemplateId = null, docDisclaimerBlock = null } = {}) {
+  // STORYBOOK LANE (spec SB-1/SB-12): the ASSIGNED template's own DATA picks
+  // the visual layer — story_structure.doc_render === 'storybook' renders the
+  // DocV2 vox engine (the reference's editorial storybook look); any other
+  // value/absent key falls through to the legacy b-roll lane below,
+  // byte-identical. The branch reads the template INSIDE renderAndShipEpisode
+  // so the review-resume path (which re-enters here with the APPROVED row's
+  // template_id and the STORED script — zero generation calls) picks the same
+  // lane its owner approved. Both lanes end in shipEpisode (SB-11) — the
+  // upload tail is shared verbatim.
+  const sbMeta = docTemplateId ? (REGISTRY_META[docTemplateId] || null) : null;
+  if (docRenderOf(sbMeta) === 'storybook') {
+    return shipEpisode(script, {
+      yt, auth, intents, longSeed, reviewScript, docTemplateId, docDisclaimerBlock,
+      ...(await renderStorybookVisuals(script, docPresentation(sbMeta, b))),
+    });
+  }
   // P5 T5d: docTemplateId = the doc template whose declared disclaimers the
   // upload description machine-appends; docDisclaimerBlock = the APPROVED
   // row's stored block, which wins VERBATIM on a resume (round 1 FIX 1).
@@ -371,6 +394,162 @@ async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null
       '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', final]);
   } else { fs.copyFileSync(joined, final); }
 
+  // Chapter timestamps for the upload description — cumulative segment
+  // durations (the storybook lane derives the same lines from its divider
+  // beats). The upload tail itself is SHARED: shipEpisode below (SB-11).
+  let cum = 0;
+  const chapterLines = script.chapters.map((c, i) => {
+    const t = cum; cum += segs[i + 1]?.dur || 0;
+    return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')} ${c.title}`;
+  });
+  return shipEpisode(script, {
+    yt, auth, intents, longSeed, reviewScript, docTemplateId, docDisclaimerBlock,
+    final, total, chapterLines, music,
+    cleanupFiles: [joined, ...segs.map((s) => s.file)],
+  });
+}
+
+// ---------- STORYBOOK visual layer (spec 2026-11-04) ----------
+// The reference look (DocV2 vox) with the doc lane's structure: script ->
+// beats (hero / divider+splits per chapter / end) -> ONE edge_batch TTS call
+// (real Edge-TTS WordBoundary timings — the karaoke captions' fuel) ->
+// portrait photos per slide (Pexels->Pixabay, pool reuse) -> fail-closed
+// photo gate (#106 doctrine: zero photos is systemic) -> timeline -> approved
+// music -> DocV2 render (npx remotion render, the make-longform invocation
+// this repo's Actions proves) -> episode.srt from the beat words. The upload
+// tail is shipEpisode — shared with the legacy lane.
+async function renderStorybookVisuals(script, pres) {
+  const EXPL = path.join(HERE, 'explainer');
+  const PUB = path.join(EXPL, 'public');
+  const work = `demos/deepdive-${slug}`;
+  fs.mkdirSync(work, { recursive: true });
+  const audioDir = path.join(PUB, 'lf-audio', slug);
+  const photoDir = path.join(PUB, 'lf-photos', slug);
+  fs.mkdirSync(audioDir, { recursive: true });
+  fs.mkdirSync(photoDir, { recursive: true });
+  const IS_WIN = process.platform === 'win32';
+  const sOpts = { stdio: 'inherit', shell: IS_WIN };
+
+  // beats (SB-4): hero -> per chapter divider + one split per sentence -> end
+  const beats = buildStorybookBeats(script, { followLine: `Follow ${pres.brand} for more.` });
+  console.log(`[storybook] ${beats.length} beats (${(script.chapters || []).length} chapters)`);
+
+  // TTS (SB-7): one edge_batch call for ALL beats — a real Edge voice (the kit
+  // voice when Edge-shaped, else en-US-AndrewNeural; kokoro ids like bm_daniel
+  // are NOT edge voices). The #41 text-hash resume cache makes re-runs cheap.
+  const spoken = beats.filter((x) => (x.text || '').trim()).map((x) => ({ i: x.i, text: x.text }));
+  const inPath = path.join(audioDir, 'tts-input.json');
+  fs.writeFileSync(inPath, JSON.stringify(spoken));
+  const voice = edgeVoiceFor(b.voice);
+  console.log(`[storybook] tts: ${spoken.length} spoken beats, voice ${voice}`);
+  const tts = spawnSync('python', [path.join(EXPL, 'edge_batch.py'), inPath], { ...sOpts, env: { ...process.env, EXPLAINER_VOICE: voice } });
+  if (tts.status !== 0) throw new Error('storybook tts failed');
+  const durs = JSON.parse(fs.readFileSync(path.join(audioDir, 'tts-durations.json'), 'utf8'));
+
+  // photos (SB-8): portrait stock per split slide — the same lane make-longform
+  // proves (Pexels first, Pixabay fallback, niche-word retry, pool reuse), the
+  // research doc's "portrait crops for the cards".
+  const nicheWords = (Array.isArray(b.niches) && b.niches.length ? b.niches : String(b.niche || '').split(',')).map((x) => String(x).trim()).filter(Boolean);
+  const pool = [];
+  let poolIdx = 0;
+  let photoIdx = 0;
+  const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
+  for (const beat of beats) {
+    if (beat.layout !== 'split') continue;
+    const outPath = path.join(photoDir, `p-${beat.i}.jpg`);
+    const q = photoQueryFor(beat.chapterTitle, nicheWords, photoIdx++);
+    let r = await fetchPhoto({ key: process.env.PEXELS_API_KEY, query: q, outPath, orientation: 'portrait' });
+    if (!r) r = await fetchPhotoPixabay({ key: process.env.PIXABAY_API_KEY, query: q, outPath, orientation: 'portrait' });
+    if (!r) {
+      await sleepMs(2600);
+      r = await fetchPhoto({ key: process.env.PEXELS_API_KEY, query: photoQueryFor(beat.chapterTitle, nicheWords, photoIdx + 7), outPath, orientation: 'portrait' });
+    }
+    if (!r) r = await fetchPhotoPixabay({ key: process.env.PIXABAY_API_KEY, query: nicheWords[photoIdx % nicheWords.length], outPath, orientation: 'portrait' });
+    const rel = r ? path.relative(PUB, r.file).split(path.sep).join('/') : null;
+    if (rel) { pool.push(rel); beat.photo = rel; }
+    else if (pool.length) { beat.photo = pool[poolIdx++ % pool.length]; console.log(`[storybook] beat ${beat.i}: pool reuse`); }
+    else beat.photo = null;
+    await sleepMs(350);
+  }
+  const slides = beats.filter((x) => x.layout === 'split');
+  console.log(`[storybook] photos: ${slides.filter((x) => x.photo).length}/${slides.length} slides set (pool ${pool.length})`);
+  // #106 doctrine on the photo lane: a run where ZERO slides carry a photo is
+  // systemic (dead key / network down) — refuse BEFORE the render spend. The
+  // script stays approved (the resume can re-render after a re-dispatch); a
+  // partially covered episode is degraded (text-only slides), not refused.
+  const gate = storybookPhotoGate(slides.length, slides.filter((x) => x.photo).length);
+  if (!gate.ok) {
+    console.error(`[storybook] FAIL-CLOSED: ${gate.reason}`);
+    try {
+      const { sendAlert } = await import('./lib/ntfy-alert.mjs');
+      await sendAlert({ text: `${slug}: storybook render REFUSED — ${gate.reason}. Check PEXELS/PIXABAY keys, then re-dispatch (the script/slot is unspent).`, title: `[${slug}] storybook refused: zero photos` });
+    } catch { }
+    throw new Error(gate.reason);
+  }
+
+  // timeline (SB-6) + doc json (SB-2/SB-15): make-longform's proven pacing;
+  // progressParts = one dash per chapter (the reference's track).
+  const audioFor = (i) => {
+    const rel = `lf-audio/${slug}/audio/beat-${String(i).padStart(2, '0')}.mp3`;
+    const abs = path.join(PUB, rel);
+    return fs.existsSync(abs) && fs.statSync(abs).size > 2048 ? rel : null;
+  };
+  const { totalMs } = timeBeats(beats, durs, audioFor);
+  let musicRel = null;
+  let track = null;
+  try { track = await pickApprovedTrack(APPROVED_MUSIC[slug] || []); } catch { }
+  if (track) {
+    musicRel = `lf-audio/${slug}/music.mp3`;
+    fs.copyFileSync(track.file, path.join(PUB, musicRel));
+    console.log(`[storybook] music: "${track.title}" (${track.feel})`);
+  }
+  const doc = buildStorybookDoc({ title: script.title, presentation: pres, beats, totalMs, music: musicRel, progressParts: (script.chapters || []).length });
+  const jsonPath = path.join(PUB, `lf-${slug}.json`);
+  fs.writeFileSync(jsonPath, JSON.stringify(doc, null, 2));
+  console.log(`[storybook] timeline: ${(totalMs / 60000).toFixed(1)} min -> ${path.basename(jsonPath)}`);
+
+  // render (SB-9): deps on first use, browser ensure, then the make-longform
+  // DocV2 invocation (concurrency 2 with a concurrency-1 retry).
+  if (!fs.existsSync(path.join(EXPL, 'node_modules', 'remotion'))) {
+    console.log('[storybook] installing explainer deps (first storybook render on this runner) ...');
+    const ci = spawnSync('npm', ['ci'], { cwd: EXPL, ...sOpts });
+    if (ci.status !== 0) throw new Error('explainer npm ci failed');
+  }
+  const ensure = spawnSync('npx', ['remotion', 'browser', 'ensure'], { cwd: EXPL, ...sOpts });
+  if (ensure.status !== 0) throw new Error('remotion browser ensure failed');
+  const final = path.resolve(work, 'episode.mp4');
+  const renderArgs = (conc) => ['remotion', 'render', 'remotion/index.ts', 'DocV2', final, `--props=${jsonPath}`, `--concurrency=${conc}`, '--timeout=300000', '--port=3492'];
+  let r = spawnSync('npx', renderArgs(2), { cwd: EXPL, ...sOpts });
+  if (r.status !== 0) {
+    console.log('[storybook] render retry concurrency 1');
+    r = spawnSync('npx', renderArgs(1), { cwd: EXPL, ...sOpts });
+  }
+  if (r.status !== 0) throw new Error('storybook docv2 render failed');
+
+  // SRT (SB-10): the beat words shifted onto the episode timeline — the same
+  // cuesFromWords/toSrt the legacy lane feeds; episode.srt lands where the
+  // pipeline's tt-lf artifact step already reads it.
+  const srt = srtFromBeats(beats, durs);
+  fs.writeFileSync(path.join(work, 'episode.srt'), srt);
+  console.log(`[storybook] SRT cues -> ${work}/episode.srt`);
+
+  const chapterLines = (script.chapters || []).map((c, i) => {
+    const d = beats.find((x) => x.layout === 'chapter' && x.n === i + 1);
+    const t = (d ? d.startMs : 0) / 1000;
+    return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')} ${c.title}`;
+  });
+  console.log(`[storybook] ✅ episode rendered: ${final} (${(totalMs / 1000 / 60).toFixed(1)} min)`);
+  return { final, total: totalMs / 1000, chapterLines, music: track, cleanupFiles: [] };
+}
+
+// ---------- SHIP TAIL (SB-11 — shared verbatim by BOTH visual layers) ----------
+// Moved verbatim out of renderAndShipEpisode (the legacy body assembles its
+// visual layer, then hands off here; the storybook branch hands off after
+// renderStorybookVisuals). Only two generalizations: the description's chapter
+// lines arrive per-lane (chapterLines) and the cleanup list (cleanupFiles).
+async function shipEpisode(script, { yt, auth, intents, longSeed = null, reviewScript = null, docTemplateId = null, docDisclaimerBlock = null, final, total, chapterLines, music = null, cleanupFiles = [] }) {
+  const work = `demos/deepdive-${slug}`;
+
   // premium thumbnail from a mid-episode frame
   // R4 (red-flags spec): the active doc template's thumb_design drives the
   // frame thumbnail's design (left-stack chip/brandmark/last-word accent/tint).
@@ -447,12 +626,7 @@ async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null
   // YouTube's 5000-char cap and the verbatim text is never truncated (never
   // slice after the append).
   const disclaimerAppend = Array.isArray(docDisclaimers) ? docDisclaimers.filter(Boolean).join('\n') : '';
-  let cum = 0;
-  const chapters = script.chapters.map((c, i) => {
-    const t = cum; cum += segs[i + 1]?.dur || 0;
-    return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')} ${c.title}`;
-  });
-  const description = [`"${script.title}" — a daily ${b.kwShort} episode from ${b.label}.`, '', script.intro, '', ...chapters, '', script.outro, `New episodes every day. ${b.hashtags || ''}`, ...(music ? [`🎵 ${music.credit}`] : [])].join('\n').slice(0, Math.max(0, 4900 - (disclaimerAppend ? disclaimerAppend.length + 2 : 0)));
+  const description = [`"${script.title}" — a daily ${b.kwShort} episode from ${b.label}.`, '', script.intro, '', ...chapterLines, '', script.outro, `New episodes every day. ${b.hashtags || ''}`, ...(music ? [`🎵 ${music.credit}`] : [])].join('\n').slice(0, Math.max(0, 4900 - (disclaimerAppend ? disclaimerAppend.length + 2 : 0)));
 
   // 10-05 DUPLICATE TITLE GATE — the "Musonius Rufus" doc went out twice in two
   // days; a near-dup episode must never upload. Skip WITHOUT marking
@@ -536,8 +710,7 @@ async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null
   fs.copyFileSync(final, `fb-outbox/${slug}/${stamp}.mp4`);
   fs.writeFileSync(`fb-outbox/${slug}/${stamp}.json`, JSON.stringify({ videoFile: `fb-outbox/${slug}/${stamp}.mp4`, publishAt, title: `${script.title} | ${b.authority}`, description, slug, kind: 'episode' }, null, 2));
 
-  fs.rmSync(`${work}/joined.mp4`, { force: true });
-  for (const s of segs) fs.rmSync(s.file, { force: true });
+  for (const f of cleanupFiles) fs.rmSync(f, { force: true });
   console.log(`\n✅ ${b.label} EPISODE scheduled: https://youtube.com/watch?v=${videoId} → public ${publishAt} (${(total / 60).toFixed(1)} min) + FB/IG outbox`);
   return { ok: true, videoId };
 }

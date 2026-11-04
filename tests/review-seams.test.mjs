@@ -1081,7 +1081,13 @@ const SPY_GOOGLE = [
 // (encoding utf8 -> "5.0"); the narration .txt bytes are READ at call time so
 // the test can pin exactly which text the render consumed.
 const SPY_DOC_CP = [
+  // the spy itself imports the REAL builtin: the loader scopes the
+  // node:child_process redirect to yt-deepdive.mjs as the importing parent, so
+  // this module resolves the genuine module and forwards spawnSync (the
+  // storybook lane's edge_batch/remotion calls — these children never reach
+  // them, the named import must exist).
   "import { appendFileSync, readFileSync } from 'node:fs';",
+  "import * as real from 'node:child_process';",
   'const LOG = process.env.PIPELINE_SPY_LOG;',
   "function rec(fn, args) { try { appendFileSync(LOG, JSON.stringify({ mod: 'doccp', fn, args }) + '\\n'); } catch {} }",
   'export function execFileSync(cmd, args = [], opts = {}) {',
@@ -1090,7 +1096,8 @@ const SPY_DOC_CP = [
   '  rec("execFileSync", { cmd: String(cmd), txt });',
   '  return (opts && opts.encoding) === "utf8" ? "5.0" : "";',
   '}',
-  'export default { execFileSync };',
+  'export const spawnSync = real.spawnSync;',
+  'export default { execFileSync, spawnSync };',
 ].join('\n');
 
 function docChildLoaderSource(sandboxHref, extraBare = {}) {
@@ -1106,7 +1113,6 @@ function docChildLoaderSource(sandboxHref, extraBare = {}) {
     '  "upload-intents.mjs": SANDBOX + "/spy-doc-intents.mjs",',
     '  "googleapis": SANDBOX + "/spy-doc-google.mjs",',
     '  "youtube-clips.mjs": SANDBOX + "/spy-doc-clips.mjs",',
-    '  "node:child_process": SANDBOX + "/spy-doc-cp.mjs",',
     // T5d: extra EXACT-specifier redirects (e.g. review-seams\' dynamic
     // '../studio/lib/template-registry.data.js' — the only importer of that
     // exact string in the child flow)
@@ -1114,6 +1120,11 @@ function docChildLoaderSource(sandboxHref, extraBare = {}) {
     '};',
     'registerHooks({',
     '  resolve(specifier, context, nextResolve) {',
+    '    if (specifier === "node:child_process") {',
+    '      // scoped to the lane: spy-doc-cp.mjs must resolve the REAL builtin',
+    '      if (/\\/yt-deepdive\\.mjs$/.test(String(context && context.parentURL || ""))) return { url: SANDBOX + "/spy-doc-cp.mjs", shortCircuit: true };',
+    '      return nextResolve(specifier, context);',
+    '    }',
     '    if (REDIRECTS[specifier]) return { url: REDIRECTS[specifier], shortCircuit: true };',
     '    const res = nextResolve(specifier, context);',
     '    if (res && res.url && /\\/yt-deepdive\\.mjs$/.test(String(context && context.parentURL || ""))) {',

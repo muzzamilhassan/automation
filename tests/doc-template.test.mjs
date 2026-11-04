@@ -333,11 +333,18 @@ const SPY_GOOGLE = [
 ].join('\n');
 
 const SPY_CP = [
+  // the spy itself imports the REAL builtin: the loader scopes the
+  // node:child_process redirect to yt-deepdive.mjs as the importing parent, so
+  // this module resolves the genuine module and forwards everything the lane
+  // imports (spawnSync joined with the storybook lane's edge_batch/remotion
+  // calls — generate-only children never reach them, the import must exist).
   "import { appendFileSync } from 'node:fs';",
+  "import * as real from 'node:child_process';",
   'const LOG = process.env.PIPELINE_SPY_LOG;',
   "function rec(fn, args) { try { appendFileSync(LOG, JSON.stringify({ mod: 'doccp', fn, args }) + '\\n'); } catch {} }",
   'export function execFileSync(cmd, args = [], opts = {}) { rec("execFileSync", { cmd: String(cmd) }); return (opts && opts.encoding) === "utf8" ? "5.0" : ""; }',
-  'export default { execFileSync };',
+  'export const spawnSync = real.spawnSync;',
+  'export default { execFileSync, spawnSync };',
 ].join('\n');
 
 const SPY_CLIPS = [
@@ -392,10 +399,14 @@ function runDeepdiveChild({ assigned = null } = {}) {
       '  "upload-intents.mjs": SANDBOX + "/spy-intents.mjs",',
       '  "googleapis": SANDBOX + "/spy-google.mjs",',
       '  "youtube-clips.mjs": SANDBOX + "/spy-clips.mjs",',
-      '  "node:child_process": SANDBOX + "/spy-cp.mjs",',
       '};',
       'registerHooks({',
       '  resolve(specifier, context, nextResolve) {',
+      '    if (specifier === "node:child_process") {',
+'      // scoped to the lane: the spy must itself be able to import the real builtin',
+      '      if (/\\/yt-deepdive\\.mjs$/.test(String(context && context.parentURL || ""))) return { url: SANDBOX + "/spy-cp.mjs", shortCircuit: true };',
+      '      return nextResolve(specifier, context);',
+      '    }',
       '    if (REDIRECTS[specifier]) return { url: REDIRECTS[specifier], shortCircuit: true };',
       '    const res = nextResolve(specifier, context);',
       '    if (res && res.url && /\\/yt-deepdive\\.mjs$/.test(String(context && context.parentURL || ""))) {',
