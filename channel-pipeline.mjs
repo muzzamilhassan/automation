@@ -330,7 +330,12 @@ if (_keysApplied) {
   log('[keys] using shared keys');
 }
 const shortsDone = state[slug]?.lastRunDate === today;
-const episodeDone = state[slug]?.deepdiveDate === today;
+// A --resume run re-renders the APPROVED held episode regardless of the
+// once-per-day guard: the owner explicitly approved that script at the review
+// desk, so the day-guard must not silently starve the render slot (found live
+// 2026-11-04: the storybook resume fell through with Episode ✗, Errors: 0 —
+// the previous day's b-roll doc had already set deepdiveDate).
+const episodeDone = state[slug]?.deepdiveDate === today && !RESUME_JOB_ID;
 
 // 2026-10-23 OWNER DIRECTIVE: YouTube-only focus — all non-YouTube platform
 // publishing (FB/IG/TikTok) is paused until YouTube work is fully finished.
