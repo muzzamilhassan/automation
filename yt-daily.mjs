@@ -768,7 +768,10 @@ if (RUN_SHORTS) {
 // Daily long-form episode (yt-deepdive has its own once-per-day state guard)
 if (RUN_EPISODE) {
   console.log(`\n[${slug}] producing today's deep-dive episode...`);
-  const dd = spawnSync('node', ['yt-deepdive.mjs', slug], { stdio: 'inherit' });
+  // FORCE threads into the episode child — same defect class as the
+  // pipeline's generate-only spawn: without it, a force_doc yt-daily pass
+  // lets the child's produced-guard skip the doc silently (2026-11-03).
+  const dd = spawnSync('node', ['yt-deepdive.mjs', slug, ...(FORCE ? ['--force'] : [])], { stdio: 'inherit' });
   console.log(`[${slug}] deep-dive exit: ${dd.status}`);
 } else {
   console.log(`[${slug}] episode step skipped`);

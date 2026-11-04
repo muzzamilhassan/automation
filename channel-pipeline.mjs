@@ -619,7 +619,13 @@ if (REVIEW_QUEUE_ENABLED) {
       process.env.REVIEW_GENERATE_ONLY = '1';
       process.env.REVIEW_SCRIPT_SLOT_DATE = today;
       await jobCtl?.startStep('episode');
-      const okGen = run('yt-deepdive.mjs', [slug]);
+      // FORCE threads into the child (parity with the docDay path below): a
+      // force_doc dispatch must regenerate even when today's doc already
+      // shipped — otherwise the child's own produced-guard silently skips,
+      // nothing is saved, and the /review desk stays empty (found live
+      // 2026-11-03: the first red-flags-explained generate-only run no-op'd
+      // on the day-guard set by that morning's pilot render).
+      const okGen = run('yt-deepdive.mjs', [slug, ...(FORCE ? ['--force'] : [])]);
       await jobCtl?.finishStep('episode', okGen ? 'succeeded' : 'failed', okGen ? null : 'generate-only doc generation failed');
     } else {
       log(`[review] held — slot skipped today (${gate.reason}); approve at Studio > Review to resume at render (D17)`);
