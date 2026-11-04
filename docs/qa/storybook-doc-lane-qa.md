@@ -23,8 +23,11 @@ Each row verifies one spec requirement. Automated rows run in
   karaoke box on the exact spoken word), end card (MR coin + brand + follow
   line), furniture (BUSINESS STORIES // MR kicker, MONEY RULEBOOK footer,
   MR badge circle bottom-right, per-part dashes).
-- Row 18: dispatched after push (force_doc on money-rulebook); completes at the
-  owner's Studio approval → resume.
+- Row 18: IN PROGRESS — dispatched 2026-11-04 19:16 UTC (force_doc=1,
+  channel=money-rulebook, run 41895407694, exit 0). The generate-only hold
+  saved the episode script awaiting_review (id 9f6ea419-436b-41f5-a1f7-
+  d11842b40726), 0 renders, 0 uploads. The storybook render fires on the
+  owner's Studio > Review approval → resume.
 
 | # | Requirement | How to verify | Type |
 |---|---|---|---|
