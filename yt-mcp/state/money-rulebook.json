@@ -7,9 +7,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "ESxKCJaOrvw",
-      "publishAt": "2026-11-03T22:35:00Z",
-      "title": "5‑Minute Night Timer Turns $1,200 Spend into $3,600 Savings"
+      "videoId": "3zs9vRGXIvE",
+      "publishAt": "2026-11-04T22:35:00Z",
+      "title": "The Hidden Credit Card Wealth Killer"
     }
   ],
   "imageDate": "2026-10-18",
@@ -80,6 +80,10 @@
     {
       "t": "5‑Minute Night Timer Turns $1,200 Spend into $3,600 Savings",
       "at": "2026-11-03T22:35:00Z"
+    },
+    {
+      "t": "The Hidden Credit Card Wealth Killer",
+      "at": "2026-11-04T22:35:00Z"
     }
   ],
   "cooldownSeeds": [
@@ -105,7 +109,8 @@
         "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/706294969",
         "startSec": 55,
         "durSec": 21.7,
-        "file": "tt-lf/clipfeed-money-rulebook/clips/clip-01.mp4"
+        "file": "tt-lf/clipfeed-money-rulebook/clips/clip-01.mp4",
+        "postedAt": "2026-11-04T16:39:23.796Z"
       },
       {
         "part": 2,
@@ -136,15 +141,15 @@
       }
     ]
   },
-  "clipLastPostDate": "2026-11-03",
+  "clipLastPostDate": "2026-11-04",
   "uploadsToday": {
-    "date": "2026-11-03",
-    "count": 2
+    "date": "2026-11-04",
+    "count": 1
   },
   "reviewGate": {
     "assigned": true,
     "gated": true,
-    "checkedAt": "2026-11-04T16:21:53.235Z"
+    "checkedAt": "2026-11-04T16:39:19.371Z"
   },
   "usedLongSeeds": [
     "Stop Wasting Vegetables! 8 Freezer Tricks That Save You Money | Annie Tips",
