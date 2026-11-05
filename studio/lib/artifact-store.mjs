@@ -211,6 +211,11 @@ export function makeArtifactStore(deps = {}) {
         // (bytes are never public).
         access: 'private',
         addRandomSuffix: false,
+        // content-addressed pathname: same hash = same bytes, so re-putting
+        // is semantically a no-op — without allowOverwrite the SDK refuses
+        // and EVERY repeat render degrades to blob_url null (found live:
+        // step-6 preview + storybook candidates on any re-run).
+        allowOverwrite: true,
         contentType: meta?.contentType ?? 'application/octet-stream',
       });
       return { ok: true, hash, pathname, blob_url: res?.url ?? null, degraded: false };

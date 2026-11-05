@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -25,6 +25,16 @@ export default function TemplatesPage() {
   const [selectedRatio, setSelectedRatio] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [activePreviewTemplate, setActivePreviewTemplate] = useState(null);
+  // Phase C: REAL sample renders (mp4 per template, CI-written). Absent = the
+  // card renders today's interactive banner unchanged (default-inert).
+  const [samples, setSamples] = useState({});
+  useEffect(() => {
+    fetch('/api/template-previews').then(async (r) => {
+      if (!r.ok) return;
+      const d = await r.json();
+      if (d.samples) setSamples(d.samples);
+    }).catch(() => { });
+  }, []);
 
   // Filter templates
   const filteredTemplates = useMemo(() => {
@@ -127,6 +137,17 @@ export default function TemplatesPage() {
                 }}
                 onClick={() => setActivePreviewTemplate(t)}
               >
+                {/* Phase C: the REAL sample render when one exists (default-inert without) */}
+                {samples[t.id]?.mp4 ? (
+                  <video
+                    src={samples[t.id].mp4}
+                    muted
+                    loop
+                    playsInline
+                    autoPlay
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                ) : null}
                 {/* Glow accent */}
                 <div
                   className="absolute -right-10 -bottom-10 w-40 h-40 rounded-full blur-3xl pointer-events-none opacity-40 group-hover:opacity-75 transition duration-500"
@@ -168,7 +189,7 @@ export default function TemplatesPage() {
                 <div className="relative z-10 flex justify-between items-center pt-2 border-t border-white/10 text-[10px] text-zinc-400">
                   <span className="truncate max-w-[180px]">{t.variants.slice(0, 2).join(' · ')}...</span>
                   <span className="flex items-center gap-1 text-sky-400 font-semibold group-hover:underline">
-                    <Play size={10} /> Interactive Demo
+                    <Play size={10} /> {samples[t.id]?.mp4 ? 'Sample Episode' : 'Interactive Demo'}
                   </span>
                 </div>
               </div>

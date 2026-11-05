@@ -1,0 +1,79 @@
+# Phase C (docs/qa/template-previews-qa.md) — template AUTO-PREVIEWS.
+# Push a registry template change → each changed template renders a real
+# ~12s sample (its own palette/layouts/voice) → blob + Neon → the gallery
+# plays it. Manual dispatch re-renders one template.
+name: 🖼 Template Previews
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'studio/lib/template-registry.data.js'
+  workflow_dispatch:
+    inputs:
+      template:
+        description: "one template_id to (re)render (blank = changed-by-diff)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  ids:
+    runs-on: ubuntu-latest
+    outputs:
+      list: ${{ steps.ids.outputs.list }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Extract changed template ids
+        id: ids
+        env:
+          BEFORE: ${{ github.event.before }}
+          TEMPLATE: ${{ inputs.template }}
+        run: |
+          node --input-type=module -e "
+            import { execSync } from 'node:child_process';
+            import fs from 'node:fs';
+            const manual = process.env.TEMPLATE || '';
+            let ids = [];
+            if (manual) { ids = [manual]; }
+            else {
+              const before = process.env.BEFORE || 'HEAD~1';
+              let diff = '';
+              try { diff = execSync(\`git diff \${before} HEAD -- studio/lib/template-registry.data.js\`, { encoding: 'utf8' }); } catch {}
+              ids = [...diff.matchAll(/^\\+\\s+'([a-z0-9-]+)': \\{$/gm)].map((m) => m[1]);
+            }
+            fs.writeFileSync('ids.json', JSON.stringify(ids));
+            console.log('ids:', JSON.stringify(ids));
+          "
+          echo "list=$(cat ids.json)" >> "$GITHUB_OUTPUT"
+
+  render:
+    needs: ids
+    if: ${{ needs.ids.outputs.list != '[]' && needs.ids.outputs.list != '' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        template: ${{ fromJson(needs.ids.outputs.list) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install deps (root + explainer)
+        run: |
+          npm install --no-audit --no-fund
+          cd explainer && npm install --no-audit --no-fund
+      - name: Render + store sample
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+        run: node scripts/render-template-preview.mjs ${{ matrix.template }}
