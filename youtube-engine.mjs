@@ -312,11 +312,8 @@ export function leftStackThumbOverlay({ lines, size, accent, eyebrow, b64, td })
     <text x="122" y="93" font-family="'Oswald', 'Arial Narrow', sans-serif" font-weight="600" font-size="28" letter-spacing="8" fill="#FFFFFF">${escapeXml(chipText.toUpperCase())}</text>
   </g>` : '';
   const brand = String(td.brandmark || '').trim();
-  // the diamond sits just LEFT of the letterspaced text (end-anchored at
-  // x=1208) — estimated advance ≈ 0.62em glyph + 6px tracking at 30px
-  const brandDiamondX = 1208 - Math.round(brand.length * (30 * 0.62 + 6)) - 24;
+  // owner directive 2026-11-05: the diamond is gone — letterspaced text only
   const brandmark = brand ? `<g data-thumb="brandmark">
-    <rect x="${brandDiamondX}" y="646" width="14" height="14" fill="${accent}" transform="rotate(45 ${brandDiamondX + 7} 653)"/>
     <text x="1208" y="668" text-anchor="end" font-family="'Oswald', 'Arial Narrow', sans-serif" font-weight="600" font-size="30" letter-spacing="6" fill="#FFFFFF" fill-opacity="0.92">${escapeXml(brand.toUpperCase())}</text>
   </g>` : '';
   const eyebrowY = 648 - (n - 1) * (size + 16) - size - 34;

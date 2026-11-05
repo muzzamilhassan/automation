@@ -174,13 +174,11 @@ describe('R4 — the left-stack thumb overlay renders the reference design', () 
     assert.match(svg, /<rect x="72" y="56"[^>]*rx="26"/, 'the pill, top-left at x=72');
   });
 
-  test('the brand mark: accent diamond + MONEYRULEBOOK bottom-right', () => {
+  test('the brand mark: MONEYRULEBOOK letterspaced text bottom-right, NO diamond (owner 2026-11-05)', () => {
     assert.ok(svg.includes('data-thumb="brandmark"'), 'brandmark group present');
     assert.ok(svg.includes('>MONEYRULEBOOK</text>'), 'brandmark text verbatim');
     assert.match(svg, /x="1208" y="668" text-anchor="end"/, 'anchored bottom-right');
-    assert.match(svg, /<rect x="(\d+)" y="646" width="14" height="14" fill="#F0776E"[^>]*rotate\(45/, 'the diamond');
-    const diamondX = Number(svg.match(/<rect x="(\d+)" y="646" width="14" height="14" fill="#F0776E"/)[1]);
-    assert.ok(diamondX > 800 && diamondX < 1208, 'the diamond sits left of the end-anchored text (inside the brandmark, never past x=1208)');
+    assert.ok(!svg.includes('rotate(45'), 'the diamond is GONE');
   });
 
   test('the scrim: a LEFT-ONLY black gradient, fully clear on the right (owner 2026-11-05)', () => {
