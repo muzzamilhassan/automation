@@ -543,7 +543,17 @@ async function renderStorybookVisuals(script, pres) {
     return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')} ${c.title}`;
   });
   console.log(`[storybook] ✅ episode rendered: ${final} (${(totalMs / 1000 / 60).toFixed(1)} min)`);
-  return { final, total: totalMs / 1000, chapterLines, music: track, cleanupFiles: [] };
+  // P1-fix: CLEAN photo backgrounds for the thumbnails — a storybook frame
+  // grab IS a text slide (slide serif text doubled under the headline). The
+  // episode's own portrait photos at ~22/50/75% are clean and on-subject.
+  const photoBeats = beats.filter((x) => x.layout === 'split' && x.photo);
+  const thumbPhotos = [0.22, 0.5, 0.75].map((p) => {
+    const target = totalMs * p;
+    let best = null;
+    for (const pb of photoBeats) { if (!best || Math.abs(pb.startMs - target) < Math.abs(best.startMs - target)) best = pb; }
+    return best ? path.join(photoDir, `p-${best.i}.jpg`) : null;
+  }).filter((p) => p && fs.existsSync(p));
+  return { final, total: totalMs / 1000, chapterLines, music: track, cleanupFiles: [], thumbPhotos };
 }
 
 // ---------- SHIP TAIL (SB-11 — shared verbatim by BOTH visual layers) ----------
@@ -551,7 +561,7 @@ async function renderStorybookVisuals(script, pres) {
 // visual layer, then hands off here; the storybook branch hands off after
 // renderStorybookVisuals). Only two generalizations: the description's chapter
 // lines arrive per-lane (chapterLines) and the cleanup list (cleanupFiles).
-async function shipEpisode(script, { yt, auth, intents, longSeed = null, reviewScript = null, docTemplateId = null, docDisclaimerBlock = null, final, total, chapterLines, music = null, cleanupFiles = [] }) {
+async function shipEpisode(script, { yt, auth, intents, longSeed = null, reviewScript = null, docTemplateId = null, docDisclaimerBlock = null, final, total, chapterLines, music = null, cleanupFiles = [], thumbPhotos = [] }) {
   const work = `demos/deepdive-${slug}`;
 
   // premium thumbnail from a mid-episode frame
@@ -562,9 +572,19 @@ async function shipEpisode(script, { yt, auth, intents, longSeed = null, reviewS
   // assignment on the normal doc day and the APPROVED ROW's template on a
   // resume (same threading as the disclaimers block).
   const thumbDesign = thumbDesignFor(docTemplateId);
-  sh(['-y', '-v', 'error', '-ss', String(Math.round(total * 0.35)), '-i', final, '-frames:v', '1', `${work}/frame.jpg`]);
   const thumbOpts = { accent: (thumbDesign?.accent) || b.accent, eyebrow: (thumbDesign?.eyebrow) || b.eyebrow, thumbDesign };
-  const thumb = await renderYouTubeThumbnail(script.title, `${work}/frame.jpg`, thumbOpts);
+  const sbPhotos = (Array.isArray(thumbPhotos) ? thumbPhotos : []).filter((p) => fs.existsSync(p));
+  let thumb;
+  if (sbPhotos.length) {
+    // storybook lane: the episode's OWN portrait photos are clean backgrounds —
+    // a mid-video frame grab of a storybook episode IS a text slide (the slide's
+    // serif text doubled under the Anton headline). Photos carry no text.
+    thumb = await renderYouTubeThumbnail(script.title, sbPhotos[0], thumbOpts);
+  } else {
+    // b-roll lane (legacy): mid-episode frame grab, unchanged byte-for-byte
+    sh(['-y', '-v', 'error', '-ss', String(Math.round(total * 0.35)), '-i', final, '-frames:v', '1', `${work}/frame.jpg`]);
+    thumb = await renderYouTubeThumbnail(script.title, `${work}/frame.jpg`, thumbOpts);
+  }
 
   // #106 T5b SEAM 2 (D18/AC-P4-23): WHERE the pipeline's gate enabled picking
   // (REVIEW_THUMB_CANDIDATES from the template DATA), the render emits N
@@ -575,10 +595,14 @@ async function shipEpisode(script, { yt, auth, intents, longSeed = null, reviewS
   if (THUMB_CANDIDATES_N > 1) {
     const docThumbs = [thumb].filter(Boolean);
     try {
-      for (const pct of [0.22, 0.48]) {
-        sh(['-y', '-v', 'error', '-ss', String(Math.round(total * pct)), '-i', final, '-frames:v', '1', `${work}/frame-alt.jpg`]);
-        docThumbs.push(await renderYouTubeThumbnail(script.title, `${work}/frame-alt.jpg`, thumbOpts));
-        fs.rmSync(`${work}/frame-alt.jpg`, { force: true });
+      if (sbPhotos.length > 1) {
+        for (const p of sbPhotos.slice(1)) docThumbs.push(await renderYouTubeThumbnail(script.title, p, thumbOpts));
+      } else {
+        for (const pct of [0.22, 0.48]) {
+          sh(['-y', '-v', 'error', '-ss', String(Math.round(total * pct)), '-i', final, '-frames:v', '1', `${work}/frame-alt.jpg`]);
+          docThumbs.push(await renderYouTubeThumbnail(script.title, `${work}/frame-alt.jpg`, thumbOpts));
+          fs.rmSync(`${work}/frame-alt.jpg`, { force: true });
+        }
       }
     } catch (e) {
       console.log(`[long] thumb candidates degraded (${String(e.message).slice(0, 60)}) — candidate 1 proceeds`);
