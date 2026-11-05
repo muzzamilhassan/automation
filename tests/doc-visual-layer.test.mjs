@@ -233,3 +233,36 @@ describe('R5 — default-inert: the default path never sees the new design', () 
     assert.match(eng, /wrapTextToLines\(raw, 13\)/, 'the default 13-char wrap survives');
   });
 });
+
+// P6 (2026-11-05) — the DYNAMIC gradient: strength solved from the photo's
+// text-region luminance so the headline is crystal clear on ANY background.
+import { gradientForLum } from '../youtube-engine.mjs';
+
+describe('P6 — gradientForLum: the overlay adapts to the background', () => {
+  test('a BRIGHT scene gets a strong, long gradient', () => {
+    const g = gradientForLum(0.85);
+    assert.ok(g.a0 >= 0.8, `edge alpha strong (got ${g.a0})`);
+    assert.ok(g.x2 >= 0.65, `fade reaches past the middle (got ${g.x2})`);
+  });
+  test('an already-DARK scene gets barely a veil', () => {
+    const g = gradientForLum(0.15);
+    assert.ok(g.a0 <= 0.4, `edge alpha light (got ${g.a0})`);
+    assert.ok(g.x2 <= 0.5, `fade stays short (got ${g.x2})`);
+  });
+  test('mid scenes land between, all values clamped and rounded', () => {
+    const g = gradientForLum(0.5);
+    assert.ok(g.a0 > 0.35 && g.a0 < 0.8);
+    assert.ok(g.a55 <= g.a0 * 0.5, 'the mid stop is proportionally lighter');
+    for (const v of [g.a0, g.a55, g.x2]) assert.ok(v === Number(v.toFixed(2)), '2-decimal stable');
+  });
+  test('extremes clamp (never invisible, never solid black)', () => {
+    assert.ok(gradientForLum(0).a0 <= 0.94, 'black photo: still a veil');
+    assert.ok(gradientForLum(1).a0 >= 0.8, 'white photo: strong gradient');
+  });
+  test('SOURCE PIN: the overlay interpolates grad; absent = the fixed defaults', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'youtube-engine.mjs'), 'utf8');
+    assert.match(src, /const g = grad \|\| \{ a0: 0\.9, a55: 0\.42, x2: 0\.62 \};/, 'defaults = the pre-P6 values');
+    assert.match(src, /x2="\$\{g\.x2\}"/, 'the gradient interpolates the measured values');
+    assert.match(src, /gradientForPhoto\(cleanFrameFile\)/, 'the lane measures the actual photo');
+  });
+});

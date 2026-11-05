@@ -72,3 +72,20 @@ compose visibly different episodes from one maintained engine.
 | 13 | R8 mood | preferMood filters by feel substring, fail-open (pure pins) | A | **PASS** |
 | 14 | DATA | history=en-GB-Ryan/epic, wisdom=Andrew/calming, science=Emma/bright | A | **PASS** (registry pins) |
 | 15 | regressions | full suite | A | **PASS** — 1084/1087 (3 pre-existing network flakes) |
+
+## P6 — dynamic gradient from the background (2026-11-05)
+
+- R7: THE GRADIENT SHALL be solved from the photo's text-region luminance
+  (gradientForPhoto: 24×14 greyscale probe, left 55% columns) — bright
+  backgrounds get a stronger, longer gradient; dark ones barely a veil
+  (gradientForLum: target post-overlay luminance ~0.16, clamped 0.35–0.94,
+  fade reach 0.46–0.74).
+- R8: ABSENT measurement = the fixed defaults (0.9/0.42/0.62) — the overlay
+  interpolates the measured values; both paths pinned.
+
+| # | Req | Check | Type | Result |
+|---|---|---|---|---|
+| 11 | R7 mapping | bright→strong+long, dark→veil, mid→between, extremes clamp | A | **PASS** (5 pins) |
+| 12 | R7 live | bright premium photo measured a0 0.76 / x2 0.66 → left darkened, right vivid | V | **PASS** (local still) |
+| 13 | R8 default-inert | overlay interpolates grad; absent = fixed defaults (source pins) | A | **PASS** |
+| 14 | regressions | full suite | A | **PASS** — storybook 91/91 |

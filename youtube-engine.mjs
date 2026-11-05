@@ -283,7 +283,38 @@ export function thumbDesignFor(templateId) {
  * the accent tspan, bottom-right diamond brand mark. Pure SVG string — the
  * tests assert its elements without sharp. Only reached via thumb_design.
  */
-export function leftStackThumbOverlay({ lines, size, accent, eyebrow, b64, td }) {
+// ---- P6 (owner 2026-11-05): DYNAMIC gradient from the background itself ----
+// The text region (left ~55%, where the headline sits) is measured; the
+// gradient alpha is solved so the region lands at a readable luminance
+// (target ~0.16 post-overlay). Bright backgrounds get a stronger, longer
+// gradient; already-dark ones get barely a veil. Pure — pinned.
+export function gradientForLum(lum) {
+  const l = Math.min(Math.max(Number(lum) || 0, 0), 1);
+  const a0 = Math.min(Math.max(1 - 0.16 / Math.max(l, 0.08), 0.35), 0.94);
+  const a55 = Math.min(a0 * 0.45, 0.55);
+  const x2 = Math.min(Math.max(0.42 + l * 0.36, 0.46), 0.74);
+  return { a0: Number(a0.toFixed(2)), a55: Number(a55.toFixed(2)), x2: Number(x2.toFixed(2)) };
+}
+
+export async function gradientForPhoto(photoPath) {
+  try {
+    const { data } = await sharp(photoPath).resize(24, 14, { fit: 'cover', position: 'attention' }).greyscale().raw().toBuffer({ resolveWithObject: true });
+    // the text column = the left 55% of the rows (the headline's zone)
+    const cols = Math.floor(24 * 0.55);
+    let sum = 0, n = 0;
+    for (let y = 0; y < 14; y++) {
+      for (let x = 0; x < cols; x++) { sum += data[y * 24 + x]; n++; }
+    }
+    return gradientForLum(sum / (n * 255));
+  } catch {
+    return { a0: 0.9, a55: 0.42, x2: 0.62 }; // the fixed defaults when the probe fails
+  }
+}
+
+export function leftStackThumbOverlay({ lines, size, accent, eyebrow, b64, td, grad = null }) {
+  // P6: grad = { a0, a55, x2 } measured from the photo (gradientForPhoto);
+  // null = the fixed defaults (the pre-P6 values, byte-identical).
+  const g = grad || { a0: 0.9, a55: 0.42, x2: 0.62 };
   const n = lines.length;
   const lastLine = lines[n - 1] || '';
   const words = lastLine.split(/\s+/).filter(Boolean);
@@ -327,9 +358,9 @@ export function leftStackThumbOverlay({ lines, size, accent, eyebrow, b64, td })
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
   <defs><style>${EMBEDDED_FONTS_CSS}</style>
     <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="12"/></filter>
-    <linearGradient id="lg" x1="0" y1="0" x2="0.62" y2="0">
-      <stop offset="0" stop-color="rgba(0,0,0,0.9)"/>
-      <stop offset="0.55" stop-color="rgba(0,0,0,0.42)"/>
+    <linearGradient id="lg" x1="0" y1="0" x2="${g.x2}" y2="0">
+      <stop offset="0" stop-color="rgba(0,0,0,${g.a0})"/>
+      <stop offset="0.55" stop-color="rgba(0,0,0,${g.a55})"/>
       <stop offset="1" stop-color="rgba(0,0,0,0)"/>
     </linearGradient>
   </defs>
@@ -360,7 +391,12 @@ export async function renderYouTubeThumbnail(headline, cleanFrameFile, opts = {}
     if (tdLines.length === 1 && tdLines[0].length <= 8) tdSize = 128;
     // eyebrow comes from the TEMPLATE only (absent = no row rendered); the
     // kit/QUOTE QUARRY fallbacks never leak into the left-stack design.
-    const tdSvg = leftStackThumbOverlay({ lines: tdLines, size: tdSize, accent: td.accent || accent, eyebrow: td.eyebrow ?? '', b64, td });
+    // P6 (owner 2026-11-05): the gradient strength is DYNAMIC — measured from
+    // the photo's text region, so the headline is crystal clear on ANY
+    // background (bright scenes get a stronger, longer gradient; already-dark
+    // ones get barely a veil).
+    const grad = await gradientForPhoto(cleanFrameFile);
+    const tdSvg = leftStackThumbOverlay({ lines: tdLines, size: tdSize, accent: td.accent || accent, eyebrow: td.eyebrow ?? '', b64, td, grad });
     return sharp(Buffer.from(tdSvg), { density: 150 }).resize(1280, 720).jpeg({ quality: 95 }).toBuffer();
   }
   let lines = wrapTextToLines(raw, 13).slice(0, 3);
