@@ -109,9 +109,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "3zs9vRGXIvE",
-        "publishAt": "2026-11-04T22:35:00Z",
-        "title": "The Hidden Credit Card Wealth Killer"
+        "videoId": "jgRPl3aTox0",
+        "publishAt": "2026-11-05T22:35:00Z",
+        "title": "The Grocery Trap Most People Fall For"
       }
     ],
     "imageDate": "2026-10-18",
@@ -124,7 +124,7 @@
         "title": "Pay Yourself First | Personal Finance"
       }
     ],
-    "deepdiveDate": "2026-11-04",
+    "deepdiveDate": "2026-11-05",
     "healedDate": "2026-09-19",
     "healedCount": 3,
     "usedTrendSeeds": [
@@ -186,6 +186,10 @@
       {
         "t": "The Hidden Credit Card Wealth Killer",
         "at": "2026-11-04T22:35:00Z"
+      },
+      {
+        "t": "The Grocery Trap Most People Fall For",
+        "at": "2026-11-05T22:35:00Z"
       }
     ],
     "cooldownSeeds": [
@@ -193,65 +197,66 @@
       "11 Kitchen Rules Americans Break That No 1950s Housewife Would Have Allowed"
     ],
     "clipQueue": {
-      "lastRunId": "local-1793812820581",
+      "lastRunId": "local-1793881384902",
       "doneRuns": [
         "39750079904",
         "40632589104",
         "local-1793646363618",
         "local-1793723406652",
-        "local-1793812820581"
+        "local-1793812820581",
+        "local-1793881384902"
       ],
-      "docTitle": "The Hidden Frugal Playbook That Turns OK Money into Real Wealth | Personal finance rules & money habits Wisdom",
-      "createdAt": "2026-11-04T17:21:31.715Z",
+      "docTitle": "The Debt Confessions That Reveal 10 Hidden Money Rules | Personal finance rules & money habits Wisdom",
+      "createdAt": "2026-11-05T12:24:31.401Z",
       "local": true,
       "clips": [
         {
           "part": 1,
-          "title": "The Grocery Trap Most People Fall For",
+          "title": "Pay $150 extra to slash $7,300 credit‑card interest",
           "asset": "clip-01.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/710298979",
-          "startSec": 79.2,
-          "durSec": 21.3,
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/713327022",
+          "startSec": 40.6,
+          "durSec": 24.2,
           "file": "tt-lf/clipfeed-money-rulebook/clips/clip-01.mp4"
         },
         {
           "part": 2,
-          "title": "How Canceling 5 Subscriptions Made Her $600",
+          "title": "Balance‑transfer trap: 24% interest hit after deadline",
           "asset": "clip-02.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/710298999",
-          "startSec": 358.4,
-          "durSec": 21.3,
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/713327058",
+          "startSec": 83.2,
+          "durSec": 23.2,
           "file": "tt-lf/clipfeed-money-rulebook/clips/clip-02.mp4"
         },
         {
           "part": 3,
-          "title": "Why Reverse Budgeting Works Better",
+          "title": "Bridge fund saved Tom from a 400% payday loan",
           "asset": "clip-03.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/710299068",
-          "startSec": 409.8,
-          "durSec": 22.3,
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/713327095",
+          "startSec": 310.9,
+          "durSec": 20.8,
           "file": "tt-lf/clipfeed-money-rulebook/clips/clip-03.mp4"
         },
         {
           "part": 4,
-          "title": "The Weekly Family Forum That Saved $800",
+          "title": "Lena’s $120/month audit freed $1,440 for debt",
           "asset": "clip-04.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/710299129",
-          "startSec": 446.9,
-          "durSec": 22.7,
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/713327133",
+          "startSec": 155.4,
+          "durSec": 22.4,
           "file": "tt-lf/clipfeed-money-rulebook/clips/clip-04.mp4"
         }
       ]
     },
-    "clipLastPostDate": "2026-11-04",
+    "clipLastPostDate": "2026-11-05",
     "uploadsToday": {
-      "date": "2026-11-04",
-      "count": 3
+      "date": "2026-11-05",
+      "count": 2
     },
     "reviewGate": {
       "assigned": true,
       "gated": true,
-      "checkedAt": "2026-11-05T11:30:55.575Z"
+      "checkedAt": "2026-11-05T11:44:10.225Z"
     },
     "usedLongSeeds": [
       "Stop Wasting Vegetables! 8 Freezer Tricks That Save You Money | Annie Tips",
@@ -263,10 +268,10 @@
       "21 Minutes of People Confessing Their Worst Debt Mistakes"
     ],
     "deepdiveVideo": {
-      "videoId": "h1uhT6h5oYA",
-      "publishAt": "2026-11-04T22:30:00Z",
-      "title": "hidden frugal playbook turns ok money into real wealth",
-      "recovered": true
+      "videoId": "_WWIG1XGsSw",
+      "publishAt": "2026-11-05T22:30:00Z",
+      "title": "The Debt Confessions That Reveal 10 Hidden Money Rules | Personal finance rules & money habits Wisdom",
+      "text": "Every debt story hides a rule that could save you thousands, but most people never hear it. In the next 30 minutes we’ll crack open ten real‑life confessions and extract the exact habits that turn a financial nightmare into a roadmap for freedom.\n\nWhen Maya, a 32‑year‑old teacher, thought paying only the minimum on her $12,000 credit‑card balance was safe, she didn’t realize she was signing a 15‑year loan at 22% APR. Each $200 monthly payment shaved off a sliver of principal, while the remaining balance swelled by $2,200 in interest after just one year. The hidden rule: never treat the minimum as a payment plan—calculate the true cost of interest and set a target payoff date. By adding an extra $150 each month, Maya could have cleared the debt in 4.5 years and saved $7,300 in interest. The payoff is simple: treat every minimum payment as a warning sign, not a solution, and immediately re‑budget to overpay the balance.\n\nJake, a freelance photographer, celebrated a 0% balance‑transfer offer on a $9,500 card, only to forget the 12‑month deadline. He kept paying the minimum, and when the promotional period ended, the interest jumped to 24%, adding $1,800 in surprise charges. The rule here is clear: a balance transfer is a tool, not a cure. You must set a countdown calendar, calculate the exact payoff amount before the rate resets, and automate a larger payment to erase the balance within the promo window. Jake could have saved $1,200 by committing $600 extra each month and clearing the debt before the cliff. The takeaway: any “free” financing expires, so lock in a concrete exit strategy before you sign.\n\nLena switched to cash for all discretionary spending, thinking it would stop her credit‑card debt from growing. Yet she kept using a second card for online subscriptions, racking up $3,200 in unnoticed fees. The hidden habit: cash alone doesn’t reveal hidden recurring costs. Lena’s rule is to audit every account monthly, flagging any automatic withdrawals, and consolidate them onto a single, zero‑balance card that she can monitor in real time. By moving those subscriptions to a $0‑balance checking account with alerts, she discovered $120 per month in unnecessary services and eliminated them, freeing $1,440 a year for debt repayment. The payoff: cash is only as transparent as the accounts you actually track.\n\nCollege graduate Marco took the standard 10‑year repayment plan on $45,000 of loans at 5.6% APR, assuming it was the easiest route. Six years later, his balance sat at $30,000, and he was paying $540 each month. The rule: default plans rarely align with life’s twists. By refinancing to a 5‑year schedule, Marco could increase his monthly payment to $850, shaving three years off the term and saving $5,200 in interest. The key habit is to perform a “loan health check” annually—compare your current payment to your income growth and adjust the term accordingly. The payoff is a faster path to freedom and a larger credit‑score boost from lower utilization.\n\nWhen Ana received a $7,800 hospital bill, she ignored it, assuming insurance would cover everything. The bill compounded with late fees, eventually reaching $9,600. The hidden rule: medical debt rarely disappears on its own; proactive negotiation can cut 30‑40% off the balance. Ana learned to request an itemized statement, spot billing errors, and appeal to the hospital’s financial assistance program. By doing so, she negotiated a $2,500 reduction and set up a $150 monthly payment plan, saving $2,100 in fees. The habit to embed: treat every unexpected bill as a negotiation opportunity, not a sunk cost.\n\nTom took a $500 payday loan with a 400% APR to cover a car repair, thinking it was a one‑time bridge. He rolled it over twice, ending up paying $250 in interest for a $500 principal. The rule: high‑cost short‑term loans are financial landmines. Tom’s rescue came when he opened a high‑interest‑savings account, transferred $600 from his side‑gig earnings, and paid off the loan in full, avoiding the next roll‑over fee. The habit to adopt is a “bridge fund” of at least one month’s expenses, stored in an accessible account, to replace any need for predatory credit. The payoff is eliminating a debt that would have cost him half its value in interest alone.\n\nSophie chased 5% cash‑back offers, opening three new cards in six months. Each application triggered a hard inquiry, dropping her credit score by 45 points and raising her mortgage rate by 0.25%, costing her $3,200 over the loan’s life. The hidden rule: reward hunting can backfire if it hurts your credit profile. Sophie learned to limit new credit applications to one per year, focus on cards with low annual fees, and use a spreadsheet to track rewards versus credit‑score impact. By consolidating to a single 2% cash‑back card, she saved $1,100 in annual fees and kept her score stable, preserving her mortgage savings. The habit: treat credit as a long‑term asset, not a short‑term cash‑grab.\n\nWhen Maya’s friend suggested a rent‑to‑own furniture plan, she signed a $2,400 contract, paying $75 a month for three years. At the end, she owned a sofa worth $300 and paid $1,500 in interest. The rule: rent‑to‑own is an expensive lease that rarely delivers value. By waiting six months and saving $300 in a high‑yield account, Maya could have bought the same sofa outright for $350, saving $1,150. The habit to embed is a 30‑day “pause” rule: before any lease or subscription, wait a month, compare total cost of ownership, and decide if a purchase or a second‑hand option makes more sense. The payoff is avoiding hidden financing that drains your budget.\n\nWhen Alex started the debt‑snowball method, he paid off his $1,200 credit‑card first, then moved to a $9,500 personal loan at 12% APR. He ignored the higher‑interest debt, extending the loan’s life by two years and paying $1,800 extra interest. The hidden rule: the snowball works when the smallest balances also have the highest rates; otherwise, the avalanche (pay highest APR first) saves money. Alex recalculated, targeting the 12% loan first while making minimum payments on the credit card. By adding $200 extra monthly, he cleared the loan in 30 months, saving $1,200 in interest. The habit: always run the numbers—choose the method that minimizes total interest, not just the one that feels psychologically rewarding.\n\nThese ten confessions prove that every debt mistake carries a precise rule you can apply today. Subscribe now for more deep‑dive money playbooks that turn hard‑earned dollars into lasting freedom."
     }
   },
   "debt-free-doctrine": {
