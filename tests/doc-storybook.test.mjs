@@ -454,3 +454,21 @@ describe('planEntityDirectives — names pop on the words they are spoken on', (
     assert.match(SRC_DEEPDIVE, /planStoryDirectives\(beats\);[\s\S]*?planEntityDirectives\(beats\)/, 'stat pass first (R7 order)');
   });
 });
+
+// P2 (2026-11-05) — motion grammar: themes carry an entrance profile
+// (spring = original math, stepped = quantized "on Ns", typewriter = hard
+// ticker). Absent profile = the original spring byte-identically.
+describe('motion grammar — themes carry their entrance profile', () => {
+  test('SOURCE PIN: the three factory themes declare distinct motion profiles', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'explainer/remotion/longscenes2.tsx'), 'utf8');
+    assert.match(src, /motion: \{ kind: "typewriter", step: 3 \}/, 'history types its reveals');
+    assert.match(src, /motion: \{ kind: "stepped", step: 4 \}/, 'wisdom writes on cue');
+    assert.match(src, /motion: \{ kind: "stepped", step: 2 \}/, 'science measures on 2s');
+    assert.ok(!/motion: \{/.test(src.split('vox: {')[1].split('},')[0]), 'vox (the MR look) stays motionless');
+  });
+
+  test('SOURCE PIN: useMotion falls back to the identical spring when no profile exists', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'explainer/remotion/longscenes2.tsx'), 'utf8');
+    assert.match(src, /if \(!m \|\| m\.kind === "spring"\) return spring\(\{ frame: f - delay, fps, config: \{ damping: 200 \} \}\);/, 'the fallback IS the original math');
+  });
+});

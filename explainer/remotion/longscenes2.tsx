@@ -18,6 +18,9 @@ export type Theme = {
   subStyle: "bar" | "marker" | "none"; highlight: string;
   capColor: string;
   brand: string; eyebrow: string; badge: string;
+  // P2 motion grammar — per-theme entrance style. Absent = the original
+  // smooth spring, byte-identically (default-inert).
+  motion?: { kind: "spring" | "stepped" | "typewriter"; step?: number };
 };
 
 const SERIF = "'Playfair Display', Georgia, serif";
@@ -64,6 +67,7 @@ export const THEMES: Record<string, Theme> = {
     display: SERIF, body: GROT, mono: MONO,
     displayWeight: 800, upper: false, grain: true,
     subStyle: "marker", highlight: "#FFD84D", capColor: "#3659E3",
+    motion: { kind: "typewriter", step: 3 }, // the record unfolds line by line
     brand: "HISTORY VAULT", eyebrow: "HISTORY STORIES // HV", badge: "HV",
   },
   wisdom: {
@@ -73,6 +77,7 @@ export const THEMES: Record<string, Theme> = {
     display: SERIF, body: GROT, mono: MONO,
     displayWeight: 800, upper: false, grain: true,
     subStyle: "marker", highlight: "rgba(87,138,224,0.4)", capColor: "#578AE0",
+    motion: { kind: "stepped", step: 4 }, // written on cue, not animated in
     brand: "TIMELESS WISDOM", eyebrow: "WISDOM STORIES // TW", badge: "TW",
   },
   science: {
@@ -82,12 +87,29 @@ export const THEMES: Record<string, Theme> = {
     display: SERIF, body: GROT, mono: MONO,
     displayWeight: 800, upper: false, grain: false,
     subStyle: "bar", highlight: "rgba(254,175,29,0.5)", capColor: "#1D2070",
+    motion: { kind: "stepped", step: 2 }, // measured, on 2s
     brand: "SCIENCE EXPLAINED", eyebrow: "SCIENCE STORIES // SE", badge: "SE",
   },
 };
 
 const ThemeCtx = React.createContext<Theme>(THEMES.investing);
 const useT = () => React.useContext(ThemeCtx);
+
+// P2 motion grammar — the theme-aware entrance. With no motion profile the
+// math is IDENTICAL to the original spring (default-inert); stepped themes
+// quantize the frame (the "on Ns" feel), typewriter themes hard-reveal on a
+// quantized ticker (the typed pacing).
+const useMotion = (delay: number): number => {
+  const T = useT();
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const m = T.motion;
+  if (!m || m.kind === "spring") return spring({ frame: f - delay, fps, config: { damping: 200 } });
+  const step = m.kind === "typewriter" ? (m.step ?? 2) : (m.step ?? 3);
+  const qf = Math.floor(f / step) * step;
+  if (m.kind === "typewriter") return interpolate(qf - delay, [0, 14], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  return spring({ frame: qf - delay, fps, config: { damping: 200 } });
+};
 
 export type V2Beat = {
   layout: "hero" | "chapter" | "split" | "stat" | "end" | "quote" | "process" | "versus" | "timeline" | "map" | "terminal";
@@ -248,8 +270,8 @@ const Sub: React.FC<{ text: string; align?: string; size?: number }> = ({ text, 
 const HeroLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const kIn = spring({ frame: f - 4, fps, config: { damping: 200 } });
-  const hIn = spring({ frame: f - 10, fps, config: { damping: 200 } });
+  const kIn = useMotion(4);
+  const hIn = useMotion(10);
   const len = (b.headline || "").length;
   const size = len > 66 ? 68 : 88;
   return (
@@ -273,7 +295,7 @@ const SplitLayout: React.FC<{ b: V2Beat; side: "left" | "right" }> = ({ b, side 
   const T = useT();
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const tIn = spring({ frame: f - 6, fps, config: { damping: 200 } });
+  const tIn = useMotion(6);
   const textW = 900, imgW = 620;
   // photo sits OPPOSITE the text column — they must never overlap
   const textSide = side === "left" ? "left" : "right";
@@ -319,8 +341,8 @@ const ChapterLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
   const T = useT();
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const numS = spring({ frame: f, fps, config: { damping: 200 } });
-  const tS = spring({ frame: f - 8, fps, config: { damping: 200 } });
+  const numS = useMotion(0);
+  const tS = useMotion(8);
   return (
     <Content beat={b}>
       <AbsoluteFill style={{ alignItems: "center", justifyContent: "center" }}>
@@ -410,8 +432,8 @@ const QuoteLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
   const T = useT();
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const qIn = spring({ frame: f - 4, fps, config: { damping: 200 } });
-  const aIn = spring({ frame: f - 16, fps, config: { damping: 200 } });
+  const qIn = useMotion(4);
+  const aIn = useMotion(16);
   const quote = b.headline || "";
   const size = quote.length > 140 ? 52 : quote.length > 90 ? 64 : 76;
   return (
@@ -448,7 +470,7 @@ const ProcessLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
       ) : null}
       <div style={{ position: "absolute", top: b.headline ? 400 : 220, left: SAFE.x, right: SAFE.x, display: "flex", flexDirection: "column", gap: 26 }}>
         {steps.map((st, i) => {
-          const s = spring({ frame: f - 10 - i * 12, fps, config: { damping: 200 } });
+          const s = useMotion(10 + i * 12);
           return (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 30, opacity: s, transform: `translateX(${(1 - s) * -60}px)` }}>
               <div style={{ fontFamily: T.mono, fontWeight: 700, fontSize: 30, color: T.accent, border: `3px solid ${T.accent}`, borderRadius: "50%", width: 64, height: 64, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -468,7 +490,7 @@ const VersusLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
   const col = (title: string, pts: string[], side: -1 | 1, delay: number, colAccent: string) => {
-    const s = spring({ frame: f - delay, fps, config: { damping: 200 } });
+    const s = useMotion(delay);
     return (
       <div style={{ flex: 1, opacity: s, transform: `translateX(${side * (1 - s) * 70}px)`, border: `3px solid ${colAccent}`, borderRadius: 12, padding: "30px 40px" }}>
         <div style={{ fontFamily: T.mono, fontWeight: 700, fontSize: 26, letterSpacing: "0.2em", color: colAccent, marginBottom: 20 }}>{title}</div>
@@ -504,7 +526,7 @@ const TimelineLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
   const ticks = (Array.isArray(b.ticks) ? b.ticks : []).slice(0, 5);
-  const railIn = spring({ frame: f - 4, fps, config: { damping: 200 } });
+  const railIn = useMotion(4);
   return (
     <Content beat={b}>
       {b.headline ? (
@@ -517,7 +539,7 @@ const TimelineLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
         <div style={{ height: 5, background: T.line, borderRadius: 3, transform: `scaleX(${railIn})`, transformOrigin: "left" }} />
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 0 }}>
           {ticks.map((tk, i) => {
-            const s = spring({ frame: f - 14 - i * 14, fps, config: { damping: 200 } });
+            const s = useMotion(14 + i * 14);
             const year = typeof tk === "object" && tk ? String(tk.year ?? "") : String(tk ?? "");
             const label = typeof tk === "object" && tk ? String(tk.label ?? "") : "";
             return (
@@ -540,8 +562,8 @@ const MapLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
   const { fps } = useVideoConfig();
   const draw = interpolate(f, [10, 70], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const circ = 1500;
-  const aIn = spring({ frame: f - 6, fps, config: { damping: 200 } });
-  const bIn = spring({ frame: f - 62, fps, config: { damping: 200 } });
+  const aIn = useMotion(6);
+  const bIn = useMotion(62);
   const dot = (x: number, y: number, label: string, s: number) => (
     <div style={{ position: "absolute", left: x, top: y, opacity: s, transform: `scale(${Math.max(s, 0.01)})` }}>
       <div style={{ width: 18, height: 18, borderRadius: "50%", background: T.accent, boxShadow: `0 0 0 8px ${T.ghost}` }} />

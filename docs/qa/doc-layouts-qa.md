@@ -41,3 +41,18 @@ compose visibly different episodes from one maintained engine.
 | 4 | R4 safe zones | layouts use the Content/top-band contract (source pins) | A | **PASS** |
 | 5 | visual | still-render proof: terminal (science) + versus (wisdom) | V | **PASS** — both frames rendered clean |
 | 6 | regressions | full suite green | A | **PASS** — 1081/1084 (3 pre-existing network flakes) |
+
+## P2 — motion grammar (2026-11-05)
+
+- R5: THEMES MAY declare `motion: { kind, step }` — spring (default math) /
+  stepped (quantized "on Ns") / typewriter (hard ticker). Absent = the
+  original spring byte-identically.
+- R6: ENTRANCES SHALL read the profile through useMotion; the fallback math
+  IS the original spring line (pinned).
+
+| # | Req | Check | Type | Result |
+|---|---|---|---|---|
+| 7 | R5 profiles | history=typewriter-3, wisdom=stepped-4, science=stepped-2, vox untouched | A | **PASS** (source pins) |
+| 8 | R6 fallback | useMotion's no-profile branch IS the original spring line | A | **PASS** (source pin) |
+| 9 | live path | stepped render executes (wisdom versus slide at a quantized frame) | V | **PASS** — still render succeeded through the quantized path |
+| 10 | regressions | full suite | A | **PASS** — 1083/1086 (3 pre-existing network flakes) |
