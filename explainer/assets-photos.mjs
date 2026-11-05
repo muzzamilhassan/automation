@@ -7,6 +7,25 @@ import path from "node:path";
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// P5 premium curation (owner directive 2026-11-05: "premium, attractive,
+// related, different every time"): landscape, >=1080p, highest resolution
+// wins, dark scenes get a small contrast bonus (the left gradient + white
+// text), and the pick varies within the top-3 so every video differs.
+export function pickPremium(photos, count = 8) {
+  const pool = (photos || []).slice(0, count);
+  const usable = pool.filter((p) => p.width > p.height && (p.width || 0) >= 1080);
+  const list = (usable.length ? usable : pool).filter((p) => p.src?.large2x || p.src?.large || p.src?.original);
+  if (!list.length) return null;
+  const lum = (hex) => { const n = parseInt(String(hex || '#808080').replace('#', ''), 16); const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255; return (0.299 * r + 0.587 * g + 0.114 * b) / 255; };
+  const ranked = [...list].sort((a, b) => {
+    const sa = (a.width || 0) * (a.height || 0) + (lum(a.avg_color) < 0.55 ? 2e6 : 0);
+    const sb = (b.width || 0) * (b.height || 0) + (lum(b.avg_color) < 0.55 ? 2e6 : 0);
+    return sb - sa;
+  });
+  const top = ranked.slice(0, 3);
+  return top[Math.floor(Math.random() * top.length)];
+}
+
 export async function fetchPhoto({ key, query, outPath, orientation = "landscape" }) {
   try {
     if (!key) throw new Error("no PEXELS_API_KEY");
@@ -19,7 +38,7 @@ export async function fetchPhoto({ key, query, outPath, orientation = "landscape
     const d = await r.json();
     const photos = d.photos || [];
     if (!photos.length) throw new Error("no results");
-    const pick = photos[Math.floor(Math.random() * Math.min(photos.length, 6))]; // random among top 6 = variety
+    const pick = pickPremium(photos);
     const src = pick.src?.large2x || pick.src?.large || pick.src?.original;
     if (!src) throw new Error("no src");
 

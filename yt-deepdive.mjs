@@ -556,7 +556,8 @@ async function renderStorybookVisuals(script, pres) {
     for (const pb of photoBeats) { if (!best || Math.abs(pb.startMs - target) < Math.abs(best.startMs - target)) best = pb; }
     if (!best) continue;
     const outPath = path.join(photoDir, `t-${best.i}.jpg`);
-    const q = photoQueryFor(best.chapterTitle, nicheWords, best.i);
+    const titleWords = String(script.title || '').split(/\s+/).map((x) => x.replace(/[^A-Za-z0-9]/g, '')).filter((x) => x.length > 3);
+    const q = photoQueryFor(best.chapterTitle, nicheWords, best.i, titleWords.slice(0, 2));
     let r = await fetchPhoto({ key: process.env.PEXELS_API_KEY, query: q, outPath, orientation: 'landscape' });
     if (!r) r = await fetchPhotoPixabay({ key: process.env.PIXABAY_API_KEY, query: q, outPath, orientation: 'landscape' });
     const abs = r ? outPath : path.join(photoDir, `p-${best.i}.jpg`);
