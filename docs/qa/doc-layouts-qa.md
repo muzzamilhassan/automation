@@ -56,3 +56,19 @@ compose visibly different episodes from one maintained engine.
 | 8 | R6 fallback | useMotion's no-profile branch IS the original spring line | A | **PASS** (source pin) |
 | 9 | live path | stepped render executes (wisdom versus slide at a quantized frame) | V | **PASS** — still render succeeded through the quantized path |
 | 10 | regressions | full suite | A | **PASS** — 1083/1086 (3 pre-existing network flakes) |
+
+## P4 — per-template voice + music mood (2026-11-05)
+
+- R7: doc_presentation MAY declare `voice` (Edge-shaped, validated by
+  edgeVoiceFor) and `music_mood` (a feel substring). Template wins, channel
+  kit falls back, invalid voices fall to Andrew. Absent = today's behavior.
+- R8: pickApprovedTrack(titles, mood) prefers tracks whose feel matches the
+  mood (substring); no match = the full approved pool (fail-open).
+
+| # | Req | Check | Type | Result |
+|---|---|---|---|---|
+| 11 | R7 passthrough | docPresentation carries voice/musicMood; absent = undefined | A | **PASS** |
+| 12 | R7 precedence | yt-deepdive uses pres.voice || b.voice (SOURCE PIN, SB-7 updated) | A | **PASS** |
+| 13 | R8 mood | preferMood filters by feel substring, fail-open (pure pins) | A | **PASS** |
+| 14 | DATA | history=en-GB-Ryan/epic, wisdom=Andrew/calming, science=Emma/bright | A | **PASS** (registry pins) |
+| 15 | regressions | full suite | A | **PASS** — 1084/1087 (3 pre-existing network flakes) |

@@ -209,7 +209,17 @@ export async function pickMusicTrack(pageIndex = 0, opts = {}) {
  * @param {string[]} titles approved track titles (exact catalog titles)
  * @returns {Promise<null|{file:string, title:string, credit:string, feel:string}>}
  */
-export async function pickApprovedTrack(titles) {
+// P4: prefer tracks whose feel matches the template's declared mood
+// (substring, case-insensitive — catalog feels are comma lists). No match /
+// no mood = the full approved pool (existing behavior).
+export function preferMood(pool, mood) {
+  const m = String(mood || '').trim().toLowerCase();
+  if (!m || !Array.isArray(pool) || !pool.length) return pool;
+  const hits = pool.filter((t) => String(t.feel || '').toLowerCase().includes(m));
+  return hits.length ? hits : pool;
+}
+
+export async function pickApprovedTrack(titles, mood = null) {
   try {
     const own = await pickOwnTrack([]).catch(() => null);
     if (own) {
@@ -220,7 +230,7 @@ export async function pickApprovedTrack(titles) {
     // RAW catalog — the approved pool bypasses the shorts feel-whitelist
     // (documentary picks are intentionally dark/tense, which GOOD_FEELS would exclude)
     const raw = await fetchCatalog();
-    const pool = raw.filter((t) => want.has(String(t.title || '').trim().toLowerCase()) && t.filename && t.filename.endsWith('.mp3'));
+    const pool = preferMood(raw.filter((t) => want.has(String(t.title || '').trim().toLowerCase()) && t.filename && t.filename.endsWith('.mp3')), mood);
     if (!pool.length) return null;
     const track = pool[Math.floor(Math.random() * pool.length)];
     const slug = slugify(track.title) || `track-${track.uuid}`;

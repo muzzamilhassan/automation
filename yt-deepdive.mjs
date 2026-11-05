@@ -441,7 +441,7 @@ async function renderStorybookVisuals(script, pres) {
   const spoken = beats.filter((x) => (x.text || '').trim()).map((x) => ({ i: x.i, text: x.text }));
   const inPath = path.join(audioDir, 'tts-input.json');
   fs.writeFileSync(inPath, JSON.stringify(spoken));
-  const voice = edgeVoiceFor(b.voice);
+  const voice = edgeVoiceFor(pres.voice || b.voice); // template voice wins; kit falls back
   console.log(`[storybook] tts: ${spoken.length} spoken beats, voice ${voice}`);
   const tts = spawnSync('python', [path.join(EXPL, 'edge_batch.py'), inPath], { ...sOpts, env: { ...process.env, EXPLAINER_VOICE: voice } });
   if (tts.status !== 0) throw new Error('storybook tts failed');
@@ -501,7 +501,7 @@ async function renderStorybookVisuals(script, pres) {
   console.log(`[storybook] directives: ${directives.pops} stat + ${entities.pops} entity pop(s) on the spoken words`);
   let musicRel = null;
   let track = null;
-  try { track = await pickApprovedTrack(APPROVED_MUSIC[slug] || []); } catch { }
+  try { track = await pickApprovedTrack(APPROVED_MUSIC[slug] || [], pres.musicMood); } catch { }
   if (track) {
     musicRel = `lf-audio/${slug}/music.mp3`;
     fs.copyFileSync(track.file, path.join(PUB, musicRel));
