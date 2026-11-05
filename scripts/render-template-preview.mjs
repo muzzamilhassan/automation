@@ -60,7 +60,7 @@ console.log(`[preview] tts: ${spoken.length} spoken beat(s), voice ${voice}`);
 // edge_batch writes tts-durations.json + a-<i>.mp3 NEXT TO its input — the
 // input rides in the audio dir (the storybook lane's exact pattern)
 fs.writeFileSync(path.join(audioDir, 'tts-input.json'), JSON.stringify(spoken));
-const tts = spawnSync('python', [path.resolve('explainer', 'edge_batch.py'), path.join(work, 'tts-input.json')], { ...sOpts, env: { ...process.env, EXPLAINER_VOICE: voice }, cwd: path.resolve('.') });
+const tts = spawnSync('python', [path.resolve('explainer', 'edge_batch.py'), path.join(audioDir, 'tts-input.json')], { ...sOpts, env: { ...process.env, EXPLAINER_VOICE: voice }, cwd: path.resolve('.') });
 if (tts.status !== 0) throw new Error('preview tts failed');
 const durs = JSON.parse(fs.readFileSync(path.join(audioDir, 'tts-durations.json'), 'utf8'));
 const audioFor = (i) => {
