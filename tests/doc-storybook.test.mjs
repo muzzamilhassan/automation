@@ -359,7 +359,7 @@ describe('doc_presentation.theme — palette selection is DATA, default-inert', 
 
   test('the engine THEMES registry carries every named palette', () => {
     const src = fs.readFileSync(path.join(ROOT, 'explainer/remotion/longscenes2.tsx'), 'utf8');
-    for (const t of ['investing', 'vox', 'poster', 'history', 'wisdom', 'science']) {
+    for (const t of ['investing', 'vox', 'poster', 'history', 'wisdom', 'science', 'travel', 'focus']) {
       assert.match(src, new RegExp(`^  ${t}: \{`, 'm'), `THEMES.${t} exists`);
     }
     assert.match(src, /THEMES\[doc\?\.theme\] \|\| THEMES\.investing/, 'unknown names fall back safely in the engine');

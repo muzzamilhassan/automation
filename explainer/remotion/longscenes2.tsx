@@ -80,6 +80,26 @@ export const THEMES: Record<string, Theme> = {
     motion: { kind: "stepped", step: 4 }, // written on cue, not animated in
     brand: "TIMELESS WISDOM", eyebrow: "WISDOM STORIES // TW", badge: "TW",
   },
+  travel: {
+    bg: "#241812", ink: "#F7EFE2", sub: "#A08B78", accent: "#E8853D", accent2: "#2E9E8F",
+    line: "rgba(247,239,226,0.15)", dot: "rgba(247,239,226,0.2)", furn: "rgba(247,239,226,0.55)",
+    ghost: "rgba(232,133,61,0.4)", photoTint: "rgba(36,24,18,0.3)",
+    display: SERIF, body: GROT, mono: MONO,
+    displayWeight: 800, upper: false, grain: true,
+    subStyle: "marker", highlight: "rgba(232,133,61,0.45)", capColor: "#F2A65A",
+    motion: { kind: "stepped", step: 3 },
+    brand: "TRAVEL EXPLAINED", eyebrow: "MAPS & ROUTES // TE", badge: "TE",
+  },
+  focus: {
+    bg: "#EDF5F1", ink: "#0E2A23", sub: "#5E7A72", accent: "#0FA36B", accent2: "#F2B84B",
+    line: "rgba(14,42,35,0.14)", dot: "rgba(14,42,35,0.2)", furn: "rgba(14,42,35,0.55)",
+    ghost: "rgba(15,163,107,0.32)", photoTint: "rgba(14,42,35,0.16)",
+    display: SERIF, body: GROT, mono: MONO,
+    displayWeight: 800, upper: false, grain: false,
+    subStyle: "bar", highlight: "rgba(15,163,107,0.28)", capColor: "#0E2A23",
+    motion: { kind: "typewriter", step: 2 },
+    brand: "DEEP FOCUS", eyebrow: "SYSTEMS // DEEP FOCUS", badge: "DF",
+  },
   science: {
     bg: "#EEF1F6", ink: "#1D2070", sub: "#5A5F73", accent: "#1D2070", accent2: "#FEAF1D",
     line: "rgba(29,32,112,0.16)", dot: "rgba(29,32,112,0.22)", furn: "rgba(29,32,112,0.6)",
