@@ -14,12 +14,16 @@ export async function GET(req) {
   if (!url) return Response.json({ samples: {}, error: 'db unavailable' }, { status: 503 });
   const sql = postgres(url, { max: 1, idle_timeout: 5 });
   try {
-    const rows = await sql`SELECT family_id, template_id, mp4_url, poster_url, rendered_at FROM template_previews`;
-    const samples = {};
+    const rows = await sql`SELECT family_id, template_id, mp4_url, poster_url, rendered_at FROM template_previews ORDER BY rendered_at DESC`;
+    const samples = {};       // keyed by template_id — one row per template
+    const familySamples = {}; // keyed by family — the family card's latest
     for (const r of rows) {
-      if (r.mp4_url) samples[r.family_id] = { mp4: r.mp4_url, poster: r.poster_url, templateId: r.template_id, renderedAt: r.rendered_at };
+      if (r.mp4_url) {
+        samples[r.template_id] = { mp4: r.mp4_url, poster: r.poster_url, familyId: r.family_id, renderedAt: r.rendered_at };
+        if (!familySamples[r.family_id]) familySamples[r.family_id] = samples[r.template_id];
+      }
     }
-    return Response.json({ samples });
+    return Response.json({ samples, familySamples });
   } catch (e) {
     return Response.json({ samples: {}, error: String(e.message || e).slice(0, 120) }, { status: 502 });
   } finally {

@@ -114,8 +114,8 @@ const { default: postgres } = await import('postgres');
 const envUrl = process.env.DATABASE_URL || (fs.readFileSync(path.resolve('.env'), 'utf8').match(/DATABASE_URL=(.*)/) || [])[1]?.trim().replace(/^\"|\"$/g, '');
 const sql = postgres(envUrl, { max: 1, idle_timeout: 5 });
 await sql`CREATE TABLE IF NOT EXISTS template_previews (
-  family_id text PRIMARY KEY,
-  template_id text,
+  template_id text PRIMARY KEY,
+  family_id text,
   mp4_url text, mp4_hash text,
   poster_url text, poster_hash text,
   voice text, theme text,
@@ -123,8 +123,8 @@ await sql`CREATE TABLE IF NOT EXISTS template_previews (
 )`;
 await sql`INSERT INTO template_previews (family_id, template_id, mp4_url, mp4_hash, poster_url, poster_hash, voice, theme, rendered_at)
   VALUES (${familyId}, ${id}, ${mp4.url}, ${mp4.hash}, ${poster.url}, ${poster.hash}, ${pres.voice || null}, ${pres.theme || 'vox'}, now())
-  ON CONFLICT (family_id) DO UPDATE SET template_id = EXCLUDED.template_id, mp4_url = EXCLUDED.mp4_url, mp4_hash = EXCLUDED.mp4_hash,
+  ON CONFLICT (template_id) DO UPDATE SET mp4_url = EXCLUDED.mp4_url, mp4_hash = EXCLUDED.mp4_hash,
   poster_url = EXCLUDED.poster_url, poster_hash = EXCLUDED.poster_hash, voice = EXCLUDED.voice,
-  theme = EXCLUDED.theme, rendered_at = now()`;
+  theme = EXCLUDED.theme, family_id = EXCLUDED.family_id, rendered_at = now()`;
 await sql.end();
 console.log(`[preview] ✅ ${id} sample stored (blob + Neon)`);
