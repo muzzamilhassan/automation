@@ -322,7 +322,7 @@ export const REGISTRY_META = {
     formats: ['long', 'short'],
     renderer: 'remotion',
     required_capabilities: ['script-gen', 'tts', 'captions'],
-    doc_presentation: { brand: 'HISTORY VAULT', eyebrow: 'HISTORY STORIES // HV', badge: 'HV' },
+    doc_presentation: { theme: 'history', brand: 'HISTORY VAULT', eyebrow: 'HISTORY STORIES // HV', badge: 'HV' },
     story_structure: {
       doc_render: 'storybook',
       sections: ['cold_open', 'chapters:10', 'exhibits', 'outro'],
@@ -361,7 +361,7 @@ export const REGISTRY_META = {
     formats: ['long', 'short'],
     renderer: 'remotion',
     required_capabilities: ['script-gen', 'tts', 'captions'],
-    doc_presentation: { brand: 'TIMELESS WISDOM', eyebrow: 'WISDOM STORIES // TW', badge: 'TW' },
+    doc_presentation: { theme: 'wisdom', brand: 'TIMELESS WISDOM', eyebrow: 'WISDOM STORIES // TW', badge: 'TW' },
     story_structure: {
       doc_render: 'storybook',
       sections: ['cold_open', 'chapters:10', 'exhibits', 'outro'],
@@ -400,7 +400,7 @@ export const REGISTRY_META = {
     formats: ['long', 'short'],
     renderer: 'remotion',
     required_capabilities: ['script-gen', 'tts', 'captions'],
-    doc_presentation: { brand: 'SCIENCE EXPLAINED', eyebrow: 'SCIENCE STORIES // SE', badge: 'SE' },
+    doc_presentation: { theme: 'science', brand: 'SCIENCE EXPLAINED', eyebrow: 'SCIENCE STORIES // SE', badge: 'SE' },
     story_structure: {
       doc_render: 'storybook',
       sections: ['cold_open', 'chapters:10', 'exhibits', 'outro'],

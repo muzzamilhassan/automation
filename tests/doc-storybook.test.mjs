@@ -320,3 +320,35 @@ describe('Registry DATA — the pilot template opts in (SB-1/SB-2 data side)', (
     assert.deepEqual(meta.formats, ['long', 'short']);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Batch palettes (2026-11-05) — doc_presentation.theme names a DocV2 palette.
+// The look is template DATA; absent = 'vox' byte-identically (default-inert).
+// ---------------------------------------------------------------------------
+describe('doc_presentation.theme — palette selection is DATA, default-inert', () => {
+  test('an explicit theme rides through buildStorybookDoc', () => {
+    const doc = buildStorybookDoc({ title: 'T', presentation: { theme: 'wisdom', brand: 'TW', eyebrow: 'E', badge: 'B' }, beats: [], totalMs: 1000 });
+    assert.equal(doc.theme, 'wisdom', 'the named palette reaches the doc json');
+  });
+
+  test('absent theme = vox byte-identically (the default-inert rule)', () => {
+    const doc = buildStorybookDoc({ title: 'T', presentation: { brand: 'B', eyebrow: 'E', badge: 'B' }, beats: [], totalMs: 1000 });
+    assert.equal(doc.theme, 'vox', 'templates without the field keep the original palette');
+    assert.equal(buildStorybookDoc({ title: 'T', presentation: {}, beats: [], totalMs: 1 }).theme, 'vox', 'empty presentation too');
+  });
+
+  test('SOURCE PIN: the three factory variants name their palettes; red-flags stays vox', () => {
+    for (const [id, theme] of [['history-storybook', 'history'], ['wisdom-storybook', 'wisdom'], ['science-storybook', 'science']]) {
+      assert.equal(REGISTRY_META[id]?.doc_presentation?.theme, theme, `${id} names ${theme}`);
+    }
+    assert.equal(REGISTRY_META['red-flags-explained']?.doc_presentation?.theme, undefined, 'the MR pilot keeps vox by absence');
+  });
+
+  test('the engine THEMES registry carries every named palette', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'explainer/remotion/longscenes2.tsx'), 'utf8');
+    for (const t of ['investing', 'vox', 'poster', 'history', 'wisdom', 'science']) {
+      assert.match(src, new RegExp(`^  ${t}: \{`, 'm'), `THEMES.${t} exists`);
+    }
+    assert.match(src, /THEMES\[doc\?\.theme\] \|\| THEMES\.investing/, 'unknown names fall back safely in the engine');
+  });
+});

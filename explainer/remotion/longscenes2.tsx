@@ -51,6 +51,38 @@ export const THEMES: Record<string, Theme> = {
     subStyle: "none", highlight: "transparent", capColor: "#FF5C82",
     brand: "SIGNAL LAB", eyebrow: "TECH DECODED // SIGNAL LAB", badge: "SL",
   },
+  // Template-factory batch palettes (2026-11-05) — adapted from the Hassan
+  // skills' theme tokens (research/hassan-video-skills-findings-2026-11-05.md).
+  // Selected by storybook DATA: doc_presentation.theme; templates without the
+  // field stay on vox byte-identically (default-inert, same rule as every
+  // storybook DATA toggle).
+  history: {
+    bg: "#F5F3EE", ink: "#1D2025", sub: "#6B6455", accent: "#3659E3", accent2: "#8A6D3B",
+    line: "rgba(29,32,37,0.16)", dot: "rgba(29,32,37,0.22)", furn: "rgba(29,32,37,0.6)",
+    ghost: "rgba(54,89,227,0.35)", photoTint: "rgba(29,32,37,0.2)",
+    display: SERIF, body: GROT, mono: MONO,
+    displayWeight: 800, upper: false, grain: true,
+    subStyle: "marker", highlight: "#FFD84D", capColor: "#3659E3",
+    brand: "HISTORY VAULT", eyebrow: "HISTORY STORIES // HV", badge: "HV",
+  },
+  wisdom: {
+    bg: "#181A1C", ink: "#F2EFE9", sub: "#8A8F98", accent: "#578AE0", accent2: "#CB9370",
+    line: "rgba(242,239,233,0.14)", dot: "rgba(242,239,233,0.2)", furn: "rgba(242,239,233,0.55)",
+    ghost: "rgba(87,138,224,0.4)", photoTint: "rgba(24,26,28,0.35)",
+    display: SERIF, body: GROT, mono: MONO,
+    displayWeight: 800, upper: false, grain: true,
+    subStyle: "marker", highlight: "rgba(87,138,224,0.4)", capColor: "#578AE0",
+    brand: "TIMELESS WISDOM", eyebrow: "WISDOM STORIES // TW", badge: "TW",
+  },
+  science: {
+    bg: "#EEF1F6", ink: "#1D2070", sub: "#5A5F73", accent: "#1D2070", accent2: "#FEAF1D",
+    line: "rgba(29,32,112,0.16)", dot: "rgba(29,32,112,0.22)", furn: "rgba(29,32,112,0.6)",
+    ghost: "rgba(29,32,112,0.3)", photoTint: "rgba(29,32,112,0.18)",
+    display: SERIF, body: GROT, mono: MONO,
+    displayWeight: 800, upper: false, grain: false,
+    subStyle: "bar", highlight: "rgba(254,175,29,0.5)", capColor: "#1D2070",
+    brand: "SCIENCE EXPLAINED", eyebrow: "SCIENCE STORIES // SE", badge: "SE",
+  },
 };
 
 const ThemeCtx = React.createContext<Theme>(THEMES.investing);
