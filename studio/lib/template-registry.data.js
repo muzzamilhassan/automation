@@ -305,6 +305,132 @@ export const REGISTRY_META = {
     ],
   },
 
+  // ---- Template factory batch 1 (owner "build step 2", 2026-11-05): the
+  // storybook look as PICKABLE templates. Same proven engine DATA shape as
+  // red-flags-explained (story_structure.doc_render = storybook -> DocV2 vox
+  // engine; doc_presentation brand strings with kit fallback) — no new
+  // renderer code. Each variant serves ONE canonical niche with niche-shaped
+  // beats/hooks/titles. Palette stays the engine's vox (cream/red/Playfair);
+  // per-theme palettes are a later engine follow-up. doc_presentation values
+  // are DEFAULTS — the channel kit's brand strings win at render time
+  // (doc-storybook.mjs docPresentation(meta, kit)).
+  'history-storybook': {
+    version: '1.0.0',
+    template_id: 'history-storybook',
+    family: 'documentary-frames',
+    niches: ['History stories'],
+    formats: ['long', 'short'],
+    renderer: 'remotion',
+    required_capabilities: ['script-gen', 'tts', 'captions'],
+    doc_presentation: { brand: 'HISTORY VAULT', eyebrow: 'HISTORY STORIES // HV', badge: 'HV' },
+    story_structure: {
+      doc_render: 'storybook',
+      sections: ['cold_open', 'chapters:10', 'exhibits', 'outro'],
+      chapter_min_words: 170,
+      beats: [
+        'slot 1 drops the reader into the era — the world as it was, and the crack nobody noticed',
+        'slot 2 names the decision or figure that set the arc in motion, with its dated evidence',
+        'slot 3 traces the turning point — what changed hands, who resisted, what it cost',
+        'slot 4 is the payoff — the aftermath the record actually shows and the lesson the era leaves',
+      ],
+      hook_classes: ['dated document call-out', 'empire-scale number', 'you-were-there question'],
+      title_patterns: [
+        'the-history-you-were-not-told explainer ("The Deal That Redrew Europe — Explained")',
+        'numbered turning-points listicle ("5 Decisions That Ended an Empire")',
+        'rise-and-collapse arc ("How One City Ruled the World — Then Lost It")',
+      ],
+      payoff_rule: 'the closing lands the era\'s verdict — what the record shows, one sentence of lesson, never a summary',
+    },
+    variation_rules: [
+      "distinct era/case per video — the arc examined differs from every case in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+      'no recycled turning-point set — each video enumerates different decision points against the last 5 videos (enforced: the variation gate similarity)',
+      'no repeated hook across the channel\'s last 5 videos (enforced: the variation gate similarity)',
+      'every date and figure is a cited record sourced to the named era (prose for the author and the review desk — spec Honest Limits)',
+    ],
+    review_thumb_pick: true,
+    safety: { required_sources: true, review_required: [], disclaimers: ['History retold from cited records; dates summarized.'] },
+    deprecated: false,
+    changelog: [{ version: '1.0.0', date: '2026-11-05', note: 'template factory batch 1 — storybook look as a pickable history-lane template' }],
+  },
+
+  'wisdom-storybook': {
+    version: '1.0.0',
+    template_id: 'wisdom-storybook',
+    family: 'documentary-frames',
+    niches: ['Timeless wisdom, self-mastery & human psychology'],
+    formats: ['long', 'short'],
+    renderer: 'remotion',
+    required_capabilities: ['script-gen', 'tts', 'captions'],
+    doc_presentation: { brand: 'TIMELESS WISDOM', eyebrow: 'WISDOM STORIES // TW', badge: 'TW' },
+    story_structure: {
+      doc_render: 'storybook',
+      sections: ['cold_open', 'chapters:10', 'exhibits', 'outro'],
+      chapter_min_words: 170,
+      beats: [
+        'slot 1 names the modern ache — the feeling the viewer knows, stated plainly',
+        'slot 2 brings the timeless lens — the Stoic/Eastern/psychological principle that names it first',
+        'slot 3 works the principle on the ache — one practice, one reframe, with the psychology behind it',
+        'slot 4 is the payoff — the daily rule the viewer keeps, one sentence they can repeat',
+      ],
+      hook_classes: ['the-feeling call-out', 'the-old-book line', 'you-stake question'],
+      title_patterns: [
+        'the-timeless-lens explainer ("What Marcus Aurelius Knew About Your Worst Days")',
+        'numbered principles listicle ("7 Stoic Rules for a Loud World")',
+        'the-psychology-behind explainer ("The Psychology of Why You Feel Behind — Explained")',
+      ],
+      payoff_rule: 'the closing lands ONE repeatable rule — the practice stated so plainly the viewer can start tonight',
+    },
+    variation_rules: [
+      "distinct ache/principle pairing per video — the pairing differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+      'no recycled principle set — each video draws different Stoic/Eastern/psychological sources against the last 5 videos (enforced: the variation gate similarity)',
+      'no repeated hook across the channel\'s last 5 videos (enforced: the variation gate similarity)',
+      'attribution stays honest — a principle named for its source, paraphrase never put in a dead man\'s mouth (prose for the author and the review desk — spec Honest Limits)',
+    ],
+    review_thumb_pick: true,
+    safety: { required_sources: true, review_required: [], disclaimers: ['Reflections on published philosophy; not personal advice.'] },
+    deprecated: false,
+    changelog: [{ version: '1.0.0', date: '2026-11-05', note: 'template factory batch 1 — storybook look as a pickable wisdom/psychology template' }],
+  },
+
+  'science-storybook': {
+    version: '1.0.0',
+    template_id: 'science-storybook',
+    family: 'documentary-frames',
+    niches: ['Science & how things work'],
+    formats: ['long', 'short'],
+    renderer: 'remotion',
+    required_capabilities: ['script-gen', 'tts', 'captions'],
+    doc_presentation: { brand: 'SCIENCE EXPLAINED', eyebrow: 'SCIENCE STORIES // SE', badge: 'SE' },
+    story_structure: {
+      doc_render: 'storybook',
+      sections: ['cold_open', 'chapters:10', 'exhibits', 'outro'],
+      chapter_min_words: 170,
+      beats: [
+        'slot 1 opens the everyday mystery — the thing the viewer touches daily and never questions',
+        'slot 2 names the mechanism — the one physical rule or discovery that explains it, with its source',
+        'slot 3 follows the chain — how the mechanism scales from lab to the thing in their hand',
+        'slot 4 is the payoff — what to now SEE in the everyday world, one wonder to keep',
+      ],
+      hook_classes: ['everyday-object call-out', 'the-scale number (nano to cosmic)', 'you-use-it question'],
+      title_patterns: [
+        'the-hidden-mechanism explainer ("The Hidden Physics Inside Your Phone — Explained")',
+        'numbered mechanisms listicle ("5 Engineering Tricks That Hold Up the World")',
+        'from-lab-to-life arc ("How a 1905 Idea Became Your GPS")',
+      ],
+      payoff_rule: 'the closing lands the wonder — the mechanism recapped as ONE chain the viewer can now trace themselves',
+    },
+    variation_rules: [
+      "distinct mechanism/object pairing per video — the pairing differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+      'no recycled mechanism set — each video explains different physical rules against the last 5 videos (enforced: the variation gate similarity)',
+      'no repeated hook across the channel\'s last 5 videos (enforced: the variation gate similarity)',
+      'the science stays sourced — every mechanism tied to its discovery or measurement (prose for the author and the review desk — spec Honest Limits)',
+    ],
+    review_thumb_pick: true,
+    safety: { required_sources: true, review_required: [], disclaimers: ['Science summarized from cited sources.'] },
+    deprecated: false,
+    changelog: [{ version: '1.0.0', date: '2026-11-05', note: 'template factory batch 1 — storybook look as a pickable science template' }],
+  },
+
   // ---- REMOVED 2026-11-04 (owner-approved catalog cleanup): 'quote-cards-premium'
   // retired WITH its family — the entry WAS the QQ shorts recipe bound to its own
   // family (owner call: retire the recipe with the family). QQ reverts to its
