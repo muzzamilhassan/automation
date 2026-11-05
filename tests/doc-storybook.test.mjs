@@ -52,21 +52,29 @@ describe('SB-2 — docPresentation: template block wins, kit falls back, initial
   test('the doc_presentation block carries the reference strings verbatim', () => {
     assert.deepEqual(
       docPresentation({ doc_presentation: { brand: 'MONEY RULEBOOK', eyebrow: 'BUSINESS STORIES // MR', badge: 'MR' } }, kit),
-      { brand: 'MONEY RULEBOOK', eyebrow: 'BUSINESS STORIES // MR', badge: 'MR' },
+      { brand: 'MONEY RULEBOOK', eyebrow: 'BUSINESS STORIES // MR', badge: 'MR', theme: undefined, docLayouts: undefined },
     );
   });
+  test('step 3/5 seams: theme + doc_layouts ride the presentation block; absent = undefined', () => {
+    const withBoth = docPresentation({ doc_presentation: { theme: 'wisdom', doc_layouts: ['split', 'quote'], brand: 'TW', eyebrow: 'E', badge: 'TW' } }, kit);
+    assert.equal(withBoth.theme, 'wisdom');
+    assert.deepEqual(withBoth.docLayouts, ['split', 'quote']);
+    const without = docPresentation({ doc_presentation: { brand: 'B', eyebrow: 'E', badge: 'B' } }, kit);
+    assert.equal(without.theme, undefined, 'no theme field = undefined (default vox downstream)');
+    assert.equal(without.docLayouts, undefined, 'no doc_layouts field = undefined (all splits downstream)');
+  });
   test('no block: kit label/eyebrow + derived initials', () => {
-    assert.deepEqual(docPresentation(null, kit), { brand: 'THE MONEY RULEBOOK', eyebrow: 'MONEY RULES // THE MONEY RULEBOOK', badge: 'TMR' });
-    assert.deepEqual(docPresentation({}, { label: 'Quote Quarry' }), { brand: 'Quote Quarry', eyebrow: '', badge: 'QQ' });
+    assert.deepEqual(docPresentation(null, kit), { brand: 'THE MONEY RULEBOOK', eyebrow: 'MONEY RULES // THE MONEY RULEBOOK', badge: 'TMR', theme: undefined, docLayouts: undefined });
+    assert.deepEqual(docPresentation({}, { label: 'Quote Quarry' }), { brand: 'Quote Quarry', eyebrow: '', badge: 'QQ', theme: undefined, docLayouts: undefined });
   });
   test('partial block: per-field fallback (blank brand string falls back too)', () => {
     assert.deepEqual(
       docPresentation({ doc_presentation: { badge: 'MR' } }, kit),
-      { brand: 'THE MONEY RULEBOOK', eyebrow: 'MONEY RULES // THE MONEY RULEBOOK', badge: 'MR' },
+      { brand: 'THE MONEY RULEBOOK', eyebrow: 'MONEY RULES // THE MONEY RULEBOOK', badge: 'MR', theme: undefined, docLayouts: undefined },
     );
   });
   test('the real pilot entry carries the reference presentation', () => {
-    assert.deepEqual(docPresentation(REGISTRY_META['red-flags-explained'], kit), { brand: 'MONEY RULEBOOK', eyebrow: 'BUSINESS STORIES // MR', badge: 'MR' });
+    assert.deepEqual(docPresentation(REGISTRY_META['red-flags-explained'], kit), { brand: 'MONEY RULEBOOK', eyebrow: 'BUSINESS STORIES // MR', badge: 'MR', theme: undefined, docLayouts: undefined });
   });
 });
 

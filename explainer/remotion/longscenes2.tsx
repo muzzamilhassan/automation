@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { useSteppedFrame } from "./stylepacks";
 import { AbsoluteFill, Audio, Img, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig, continueRender, delayRender } from "remotion";
 
 // ============ DOCUMENTARY V2 — themed layout engine with safe zones ============
@@ -89,7 +90,10 @@ const ThemeCtx = React.createContext<Theme>(THEMES.investing);
 const useT = () => React.useContext(ThemeCtx);
 
 export type V2Beat = {
-  layout: "hero" | "chapter" | "split" | "stat" | "end";
+  layout: "hero" | "chapter" | "split" | "stat" | "end" | "quote" | "process" | "versus" | "timeline" | "map" | "terminal";
+  steps?: string[]; ticks?: Array<{ year?: string; label?: string } | string>;
+  lines?: string[]; from?: string; to?: string;
+  leftTitle?: string; leftPoints?: string[]; rightTitle?: string; rightPoints?: string[];
   kicker?: string; headline?: string; sub?: string; big?: string; label?: string;
   n?: number; chapterTitle?: string; chapterCount?: number; total?: number;
   photo?: string; photoSide?: "left" | "right";
@@ -396,6 +400,214 @@ const BeatPop: React.FC<{ b: V2Beat }> = ({ b }) => {
   );
 };
 
+// ---------------- P1 batch: six niche layouts (2026-11-05) ----------------
+// Each is one theme-styled composition inside the standard Content contract
+// (SAFE padding, useT palette, spring entrances). DocV2's dispatcher routes
+// beats with matching `layout` here; beats without them never touch this code
+// (default-inert).
+
+const QuoteLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
+  const T = useT();
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const qIn = spring({ frame: f - 4, fps, config: { damping: 200 } });
+  const aIn = spring({ frame: f - 16, fps, config: { damping: 200 } });
+  const quote = b.headline || "";
+  const size = quote.length > 140 ? 52 : quote.length > 90 ? 64 : 76;
+  return (
+    <Content beat={b}>
+      <div style={{ position: "absolute", top: 40, left: 30, fontFamily: T.display, fontSize: 420, lineHeight: 1, color: T.ghost, opacity: 0.55, userSelect: "none" }}>“</div>
+      <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", padding: "0 170px" }}>
+        <div style={{ opacity: qIn, transform: `translateY(${(1 - qIn) * 26}px)`, textAlign: "center" }}>
+          <div style={{ fontFamily: T.display, fontWeight: T.displayWeight, fontSize: size, lineHeight: 1.3, color: T.ink }}>
+            {quote}
+          </div>
+          {b.sub ? (
+            <div style={{ marginTop: 44, fontFamily: T.mono, fontWeight: 700, fontSize: 26, letterSpacing: "0.28em", color: T.accent, opacity: aIn }}>
+              {b.sub}
+            </div>
+          ) : null}
+        </div>
+      </AbsoluteFill>
+    </Content>
+  );
+};
+
+const ProcessLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
+  const T = useT();
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const steps = Array.isArray(b.steps) ? b.steps.slice(0, 5) : [];
+  return (
+    <Content beat={b}>
+      {b.headline ? (
+        <div style={{ position: "absolute", top: 170, left: SAFE.x, right: SAFE.x }}>
+          <Kicker text={b.kicker || "THE PROCESS"} />
+          <div style={{ marginTop: 22 }}><Headline text={fitText(b.headline, 70)} size={64} /></div>
+        </div>
+      ) : null}
+      <div style={{ position: "absolute", top: b.headline ? 400 : 220, left: SAFE.x, right: SAFE.x, display: "flex", flexDirection: "column", gap: 26 }}>
+        {steps.map((st, i) => {
+          const s = spring({ frame: f - 10 - i * 12, fps, config: { damping: 200 } });
+          return (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 30, opacity: s, transform: `translateX(${(1 - s) * -60}px)` }}>
+              <div style={{ fontFamily: T.mono, fontWeight: 700, fontSize: 30, color: T.accent, border: `3px solid ${T.accent}`, borderRadius: "50%", width: 64, height: 64, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                {String(i + 1).padStart(2, "0")}
+              </div>
+              <div style={{ fontFamily: T.body, fontWeight: 600, fontSize: 42, lineHeight: 1.3, color: T.ink }}>{st}</div>
+            </div>
+          );
+        })}
+      </div>
+    </Content>
+  );
+};
+
+const VersusLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
+  const T = useT();
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const col = (title: string, pts: string[], side: -1 | 1, delay: number, colAccent: string) => {
+    const s = spring({ frame: f - delay, fps, config: { damping: 200 } });
+    return (
+      <div style={{ flex: 1, opacity: s, transform: `translateX(${side * (1 - s) * 70}px)`, border: `3px solid ${colAccent}`, borderRadius: 12, padding: "30px 40px" }}>
+        <div style={{ fontFamily: T.mono, fontWeight: 700, fontSize: 26, letterSpacing: "0.2em", color: colAccent, marginBottom: 20 }}>{title}</div>
+        {pts.map((p, i) => (
+          <div key={i} style={{ fontFamily: T.body, fontWeight: 600, fontSize: 34, lineHeight: 1.4, color: T.ink, marginBottom: 14 }}>
+            <span style={{ color: colAccent, marginRight: 12 }}>—</span>{p}
+          </div>
+        ))}
+      </div>
+    );
+  };
+  const pts = (v: any) => (Array.isArray(v) ? v.map(String) : []);
+  return (
+    <Content beat={b}>
+      {b.headline ? (
+        <div style={{ position: "absolute", top: 150, left: 0, right: 0, textAlign: "center" }}>
+          <Headline text={fitText(b.headline, 60)} size={56} />
+        </div>
+      ) : null}
+      <div style={{ position: "absolute", top: b.headline ? 300 : 210, left: SAFE.x, right: SAFE.x, bottom: 60, display: "flex", gap: 40, alignItems: "stretch" }}>
+        {col(b.leftTitle || "SIDE A", pts(b.leftPoints), -1, 4, T.accent)}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+          <div style={{ fontFamily: T.display, fontWeight: T.displayWeight, fontSize: 72, color: T.accent }}>VS</div>
+        </div>
+        {col(b.rightTitle || "SIDE B", pts(b.rightPoints), 1, 14, T.accent2)}
+      </div>
+    </Content>
+  );
+};
+
+const TimelineLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
+  const T = useT();
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const ticks = (Array.isArray(b.ticks) ? b.ticks : []).slice(0, 5);
+  const railIn = spring({ frame: f - 4, fps, config: { damping: 200 } });
+  return (
+    <Content beat={b}>
+      {b.headline ? (
+        <div style={{ position: "absolute", top: 170, left: SAFE.x, right: SAFE.x }}>
+          <Kicker text={b.kicker || "THE TIMELINE"} />
+          <div style={{ marginTop: 22 }}><Headline text={fitText(b.headline, 70)} size={64} /></div>
+        </div>
+      ) : null}
+      <div style={{ position: "absolute", top: b.headline ? 430 : 330, left: SAFE.x, right: SAFE.x }}>
+        <div style={{ height: 5, background: T.line, borderRadius: 3, transform: `scaleX(${railIn})`, transformOrigin: "left" }} />
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 0 }}>
+          {ticks.map((tk, i) => {
+            const s = spring({ frame: f - 14 - i * 14, fps, config: { damping: 200 } });
+            const year = typeof tk === "object" && tk ? String(tk.year ?? "") : String(tk ?? "");
+            const label = typeof tk === "object" && tk ? String(tk.label ?? "") : "";
+            return (
+              <div key={i} style={{ width: 260, opacity: s, transform: `translateY(${(1 - s) * 24}px)`, textAlign: "left" }}>
+                <div style={{ width: 16, height: 16, borderRadius: "50%", background: T.accent, margin: "-10px 0 18px -8px" }} />
+                <div style={{ fontFamily: T.mono, fontWeight: 700, fontSize: 40, color: T.accent }}>{year}</div>
+                <div style={{ fontFamily: T.body, fontWeight: 600, fontSize: 26, lineHeight: 1.35, color: T.ink, marginTop: 8 }}>{label}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </Content>
+  );
+};
+
+const MapLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
+  const T = useT();
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const draw = interpolate(f, [10, 70], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const circ = 1500;
+  const aIn = spring({ frame: f - 6, fps, config: { damping: 200 } });
+  const bIn = spring({ frame: f - 62, fps, config: { damping: 200 } });
+  const dot = (x: number, y: number, label: string, s: number) => (
+    <div style={{ position: "absolute", left: x, top: y, opacity: s, transform: `scale(${Math.max(s, 0.01)})` }}>
+      <div style={{ width: 18, height: 18, borderRadius: "50%", background: T.accent, boxShadow: `0 0 0 8px ${T.ghost}` }} />
+      <div style={{ fontFamily: T.mono, fontWeight: 700, fontSize: 26, letterSpacing: "0.18em", color: T.ink, marginTop: 12, whiteSpace: "nowrap" }}>{label}</div>
+    </div>
+  );
+  return (
+    <Content beat={b}>
+      {b.headline ? (
+        <div style={{ position: "absolute", top: 165, left: SAFE.x, right: SAFE.x }}>
+          <Kicker text={b.kicker || "THE ROUTE"} />
+          <div style={{ marginTop: 20 }}><Headline text={fitText(b.headline, 70)} size={62} /></div>
+        </div>
+      ) : null}
+      <div style={{ position: "absolute", top: b.headline ? 380 : 240, left: 0, right: 0, bottom: 40 }}>
+        <svg viewBox="0 0 1600 560" style={{ width: "100%", height: "100%" }} preserveAspectRatio="xMidYMid meet">
+          {Array.from({ length: 14 }).map((_, r) => (
+            <line key={`h${r}`} x1="60" y1={40 + r * 38} x2="1540" y2={40 + r * 38} stroke={T.line} strokeWidth="1" />
+          ))}
+          {Array.from({ length: 26 }).map((_, c) => (
+            <line key={`v${c}`} x1={60 + c * 60} y1="40" x2={60 + c * 60} y2="520" stroke={T.line} strokeWidth="1" />
+          ))}
+          <path d="M 180 430 C 500 120, 900 520, 1420 160" fill="none" stroke={T.accent} strokeWidth="6" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={circ * (1 - draw)} />
+        </svg>
+        {dot(160, 400, String(b.from || "A"), aIn)}
+        {dot(1390, 130, String(b.to || "B"), bIn)}
+      </div>
+    </Content>
+  );
+};
+
+const TerminalLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
+  const T = useT();
+  const f = useSteppedFrame(2);
+  const lines = (Array.isArray(b.lines) ? b.lines : []).slice(0, 9);
+  const shown = Math.max(1, Math.ceil(interpolate(f, [6, 6 + lines.length * 10], [1, lines.length], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })));
+  return (
+    <Content beat={b}>
+      {b.headline ? (
+        <div style={{ position: "absolute", top: 165, left: SAFE.x, right: SAFE.x }}>
+          <Kicker text={b.kicker || "INSIDE THE MACHINE"} />
+          <div style={{ marginTop: 20 }}><Headline text={fitText(b.headline, 70)} size={62} /></div>
+        </div>
+      ) : null}
+      <div style={{ position: "absolute", top: b.headline ? 380 : 220, left: 180, right: 180 }}>
+        <div style={{ background: "#0C1014", borderRadius: 12, border: `2px solid ${T.line}`, boxShadow: "0 14px 40px rgba(0,0,0,0.3)", overflow: "hidden" }}>
+          <div style={{ display: "flex", gap: 10, padding: "16px 20px", borderBottom: `2px solid ${T.line}` }}>
+            <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#FF5F57" }} />
+            <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#FEBC2E" }} />
+            <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#28C840" }} />
+            <div style={{ fontFamily: T.mono, fontSize: 20, color: T.sub, marginLeft: 12 }}>{b.label || "session"}</div>
+          </div>
+          <div style={{ padding: "28px 34px", fontFamily: T.mono, fontSize: 30, lineHeight: 1.75 }}>
+            {lines.slice(0, shown).map((ln, i) => (
+              <div key={i} style={{ color: i === shown - 1 ? T.accent : T.ink, opacity: 0.95, whiteSpace: "pre-wrap" }}>
+                <span style={{ color: T.accent2, marginRight: 16 }}>$</span>{ln}
+              </div>
+            ))}
+            <div style={{ color: T.accent2 }}><span style={{ marginRight: 16 }}>$</span><span style={{ opacity: f % 2 ? 1 : 0.2 }}>▊</span></div>
+          </div>
+        </div>
+      </div>
+    </Content>
+  );
+};
+
 const Captions: React.FC<{ b: V2Beat }> = ({ b }) => {
   const T = useT();
   const f = useCurrentFrame();
@@ -454,7 +666,10 @@ export const DocV2: React.FC<any> = (input) => {
         {doc.beats.map((b: V2Beat, i: number) => {
           const from = Math.round((b.startMs / 1000) * fps);
           const dur = Math.max(Math.ceil((b.ms / 1000) * fps), 2);
-          const comp = b.layout === "hero" ? <HeroLayout b={b} /> : b.layout === "chapter" ? <ChapterLayout b={b} /> : b.layout === "stat" ? <StatLayout b={b} /> : b.layout === "end" ? <EndLayout b={b} /> : <SplitLayout b={b} side={(b.photoSide || (i % 2 === 0 ? "left" : "right")) as "left" | "right"} />;
+          const comp = b.layout === "hero" ? <HeroLayout b={b} /> : b.layout === "chapter" ? <ChapterLayout b={b} /> : b.layout === "stat" ? <StatLayout b={b} /> : b.layout === "end" ? <EndLayout b={b} />
+            : b.layout === "quote" ? <QuoteLayout b={b} /> : b.layout === "process" ? <ProcessLayout b={b} /> : b.layout === "versus" ? <VersusLayout b={b} />
+            : b.layout === "timeline" ? <TimelineLayout b={b} /> : b.layout === "map" ? <MapLayout b={b} /> : b.layout === "terminal" ? <TerminalLayout b={b} />
+            : <SplitLayout b={b} side={(b.photoSide || (i % 2 === 0 ? "left" : "right")) as "left" | "right"} />;
           return (
             <Sequence key={`${b.layout}-${b.i}`} from={from} durationInFrames={dur} name={`b${b.i}-${b.layout}`}>
               {comp}

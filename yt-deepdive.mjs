@@ -430,8 +430,9 @@ async function renderStorybookVisuals(script, pres) {
   const IS_WIN = process.platform === 'win32';
   const sOpts = { stdio: 'inherit', shell: IS_WIN };
 
-  // beats (SB-4): hero -> per chapter divider + one split per sentence -> end
-  const beats = buildStorybookBeats(script, { followLine: `Follow ${pres.brand} for more.` });
+  // beats (SB-4): hero -> per chapter divider + sentence slides cycling the
+  // template's declared layouts (doc_presentation.doc_layouts; absent = splits)
+  const beats = buildStorybookBeats(script, { followLine: `Follow ${pres.brand} for more.`, docLayouts: pres.docLayouts });
   console.log(`[storybook] ${beats.length} beats (${(script.chapters || []).length} chapters)`);
 
   // TTS (SB-7): one edge_batch call for ALL beats — a real Edge voice (the kit
