@@ -248,12 +248,12 @@ export const REGISTRY_META = {
     required_capabilities: ['script-gen', 'tts', 'captions'],
     thumb_design: {
       layout: 'left-stack',
-      chip: 'SCANDALS',
+      // chip + eyebrow removed (owner directive 2026-11-05): the number/name
+      // chips carry the identity now; the eyebrow row cluttered the top band.
       brandmark: 'MONEYRULEBOOK',
       accent_word: 'last',
       scrim_tint: '#7A1E1E',
       accent: '#F0776E',
-      eyebrow: 'MONEY RULEBOOK',
     },
     // STORYBOOK DOC LANE (spec docs/superpowers/specs/2026-11-04-storybook-doc-lane-spec.md,
     // owner research storybook-doc-template-2026-11-04.md): story_structure.doc_render

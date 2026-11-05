@@ -154,11 +154,13 @@ describe('#106 source pins — yt-deepdive threads the fix', () => {
 import { leftStackThumbOverlay, thumbDesignFor } from '../youtube-engine.mjs';
 import { REGISTRY_META } from '../studio/lib/template-registry.data.js';
 
-const REF_TD = { layout: 'left-stack', chip: 'SCANDALS', brandmark: 'MONEYRULEBOOK', accent_word: 'last', scrim_tint: '#7A1E1E', accent: '#F0776E', eyebrow: 'MONEY RULEBOOK' };
+const REF_TD = { layout: 'left-stack', brandmark: 'MONEYRULEBOOK', accent_word: 'last', scrim_tint: '#7A1E1E', accent: '#F0776E' };
+// the full reference look WITH its optional rows — used for capability pins
+const RENDER_TD = { ...REF_TD, chip: 'SCANDALS', eyebrow: 'MONEY RULEBOOK' };
 const REF_LINES = ['7 RED FLAGS THAT LED', 'TO BERNIE MADOFF PONZI', 'EXPLAINED'];
 
 describe('R4 — the left-stack thumb overlay renders the reference design', () => {
-  const svg = leftStackThumbOverlay({ lines: REF_LINES, size: 96, accent: REF_TD.accent, eyebrow: REF_TD.eyebrow, b64: Buffer.from('stub'), td: REF_TD });
+  const svg = leftStackThumbOverlay({ lines: REF_LINES, size: 96, accent: RENDER_TD.accent, eyebrow: RENDER_TD.eyebrow, b64: Buffer.from('stub'), td: RENDER_TD });
 
   test('1280x720 svg with the fonts still embedded', () => {
     assert.ok(svg.includes('<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720"'), 'thumbnail canvas');
@@ -195,6 +197,8 @@ describe('R4 — the left-stack thumb overlay renders the reference design', () 
     assert.equal(accentCount, 1, 'ONLY the crisp white layer carries the accent tspan — the blurred shadow layer skips it (owner: crisp accent, no faded shadow)');
     assert.ok(svg.includes('<tspan fill="#F0776E">EXPLAINED</tspan>'), 'the reference\'s accent word');
     assert.match(svg, /<text x="72" y="\d+"[^>]*letter-spacing="10" fill="#F0776E">MONEY RULEBOOK<\/text>/, 'salmon eyebrow above the stack');
+    const bare = leftStackThumbOverlay({ lines: REF_LINES, size: 96, accent: '#F0776E', eyebrow: '', b64: Buffer.from('x'), td: { ...RENDER_TD, eyebrow: '' } });
+    assert.ok(!bare.includes('letter-spacing="10"'), 'owner 2026-11-05: no eyebrow row renders when the template declares none');
   });
 
   test('single-word last line: the whole word accents; empty chip/brandmark omit their groups', () => {

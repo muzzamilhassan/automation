@@ -581,7 +581,7 @@ async function shipEpisode(script, { yt, auth, intents, longSeed = null, reviewS
   // assignment on the normal doc day and the APPROVED ROW's template on a
   // resume (same threading as the disclaimers block).
   const thumbDesign = thumbDesignFor(docTemplateId);
-  const thumbOpts = { accent: (thumbDesign?.accent) || b.accent, eyebrow: (thumbDesign?.eyebrow) || b.eyebrow, thumbDesign };
+  const thumbOpts = { accent: (thumbDesign?.accent) || b.accent, eyebrow: thumbDesign ? (thumbDesign.eyebrow ?? '') : b.eyebrow, thumbDesign };
   const sbPhotos = (Array.isArray(thumbPhotos) ? thumbPhotos : []).filter((p) => fs.existsSync(p));
   let thumb;
   if (sbPhotos.length) {

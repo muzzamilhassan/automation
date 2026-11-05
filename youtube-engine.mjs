@@ -321,6 +321,9 @@ export function leftStackThumbOverlay({ lines, size, accent, eyebrow, b64, td })
   </g>` : '';
   const tint = td.scrim_tint || '#7A1E1E';
   const eyebrowY = 648 - (n - 1) * (size + 16) - size - 34;
+  const eyebrowRow = String(eyebrow || '').trim()
+    ? `<text x="72" y="${eyebrowY}" font-family="'Oswald', 'Arial Narrow', sans-serif" font-weight="600" font-size="34" letter-spacing="10" fill="${accent}">${escapeXml(String(eyebrow).toUpperCase())}</text>`
+    : ''; // no eyebrow declared — the row is omitted entirely
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
   <defs><style>${EMBEDDED_FONTS_CSS}</style>
     <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="12"/></filter>
@@ -331,7 +334,7 @@ export function leftStackThumbOverlay({ lines, size, accent, eyebrow, b64, td })
   <image href="data:image/jpeg;base64,${b64.toString('base64')}" x="0" y="0" width="1280" height="720" preserveAspectRatio="xMidYMid slice"/>
   <rect width="1280" height="720" fill="${tint}" opacity="0.42"/>
   <rect width="1280" height="720" fill="url(#vg)"/>
-  <text x="72" y="${eyebrowY}" font-family="'Oswald', 'Arial Narrow', sans-serif" font-weight="600" font-size="34" letter-spacing="10" fill="${accent}">${escapeXml(String(eyebrow).toUpperCase())}</text>
+  ${eyebrowRow}
   ${chip}
   ${lineEls}
   ${brandmark}
@@ -354,8 +357,10 @@ export async function renderYouTubeThumbnail(headline, cleanFrameFile, opts = {}
     const tdLines = wrapTextToLines(raw, 18).slice(0, 3);
     let tdSize = tdLines.some((l) => l.length > 15) ? 96 : 112;
     if (tdLines.length === 1 && tdLines[0].length <= 8) tdSize = 128;
-    const tdSvg = leftStackThumbOverlay({ lines: tdLines, size: tdSize, accent, eyebrow, b64, td });
-    return sharp(Buffer.from(tdSvg), { density: 150 }).resize(1280, 720).jpeg({ quality: 92 }).toBuffer();
+    // eyebrow comes from the TEMPLATE only (absent = no row rendered); the
+    // kit/QUOTE QUARRY fallbacks never leak into the left-stack design.
+    const tdSvg = leftStackThumbOverlay({ lines: tdLines, size: tdSize, accent: td.accent || accent, eyebrow: td.eyebrow ?? '', b64, td });
+    return sharp(Buffer.from(tdSvg), { density: 150 }).resize(1280, 720).jpeg({ quality: 95 }).toBuffer();
   }
   let lines = wrapTextToLines(raw, 13).slice(0, 3);
   let size = lines.some((l) => l.length > 10) ? 128 : 150;
