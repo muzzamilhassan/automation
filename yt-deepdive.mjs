@@ -664,6 +664,24 @@ async function shipEpisode(script, { yt, auth, intents, longSeed = null, reviewS
   const videoId = up.videoId;
   await yt.thumbnails.set({ videoId, media: { body: Readable.from(thumb) } }).catch(() => { });
 
+  // R7 (red-flags QA, the captions gap): the doc lane's SRT rides as YouTube
+  // CLOSED CAPTIONS — the same CC behavior as the reference video. Both lanes
+  // write episode.srt into demos/deepdive-<slug>/. Fail-soft: a captions
+  // failure never fails the upload (warn + continue).
+  try {
+    const srtPath = path.join('demos', `deepdive-${slug}`, 'episode.srt');
+    if (fs.existsSync(srtPath)) {
+      await yt.captions.insert({
+        part: ['snippet'],
+        requestBody: { snippet: { videoId, language: 'en', name: 'English' } },
+        media: { body: Readable.from(fs.readFileSync(srtPath, 'utf8')), mimeType: 'text/plain' },
+      });
+      console.log(`[long] captions uploaded (CC from episode.srt)`);
+    } else {
+      console.log(`[warn] captions: no episode.srt found — video ships with auto-captions only`);
+    }
+  } catch (e) { console.log(`[warn] captions: ${String(e.message).slice(0, 90)}`); }
+
   // #106 T5b SEAM 3 (D14): the video_id write-back — fail-soft; a normal doc
   // day has no script rows (silent no-op), and the kind guard keeps a doc
   // upload from ever stamping a shorts script row. The resumed doc retires BY
