@@ -192,7 +192,7 @@ describe('R4 — the left-stack thumb overlay renders the reference design', () 
   test('the headline is LEFT-anchored and the LAST word takes the accent tspan', () => {
     assert.match(svg, /text-anchor="start" x="72" y="648"[^>]*font-size="96"/, 'last line sits on the 648 baseline, left x=72');
     const accentCount = (svg.match(/<tspan fill="#F0776E">/g) || []).length;
-    assert.equal(accentCount, 2, 'shadow + white layers BOTH carry the accent tspan (default-path parity); last word, not longest');
+    assert.equal(accentCount, 1, 'ONLY the crisp white layer carries the accent tspan — the blurred shadow layer skips it (owner: crisp accent, no faded shadow)');
     assert.ok(svg.includes('<tspan fill="#F0776E">EXPLAINED</tspan>'), 'the reference\'s accent word');
     assert.match(svg, /<text x="72" y="\d+"[^>]*letter-spacing="10" fill="#F0776E">MONEY RULEBOOK<\/text>/, 'salmon eyebrow above the stack');
   });

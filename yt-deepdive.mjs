@@ -544,15 +544,24 @@ async function renderStorybookVisuals(script, pres) {
   });
   console.log(`[storybook] ✅ episode rendered: ${final} (${(totalMs / 1000 / 60).toFixed(1)} min)`);
   // P1-fix: CLEAN photo backgrounds for the thumbnails — a storybook frame
-  // grab IS a text slide (slide serif text doubled under the headline). The
-  // episode's own portrait photos at ~22/50/75% are clean and on-subject.
+  // grab IS a text slide (slide serif text doubled under the headline). Each
+  // of the three thumbnail positions fetches its own LANDSCAPE large2x photo
+  // (owner directive 2026-11-05: premium, sharp, full scene — portrait slide
+  // photos crop hard into the 1280x720 canvas). Fail-soft to the slide photo.
   const photoBeats = beats.filter((x) => x.layout === 'split' && x.photo);
-  const thumbPhotos = [0.22, 0.5, 0.75].map((p) => {
+  const thumbPhotos = [];
+  for (const p of [0.22, 0.5, 0.75]) {
     const target = totalMs * p;
     let best = null;
     for (const pb of photoBeats) { if (!best || Math.abs(pb.startMs - target) < Math.abs(best.startMs - target)) best = pb; }
-    return best ? path.join(photoDir, `p-${best.i}.jpg`) : null;
-  }).filter((p) => p && fs.existsSync(p));
+    if (!best) continue;
+    const outPath = path.join(photoDir, `t-${best.i}.jpg`);
+    const q = photoQueryFor(best.chapterTitle, nicheWords, best.i);
+    let r = await fetchPhoto({ key: process.env.PEXELS_API_KEY, query: q, outPath, orientation: 'landscape' });
+    if (!r) r = await fetchPhotoPixabay({ key: process.env.PIXABAY_API_KEY, query: q, outPath, orientation: 'landscape' });
+    const abs = r ? outPath : path.join(photoDir, `p-${best.i}.jpg`);
+    if (fs.existsSync(abs)) thumbPhotos.push(abs);
+  }
   return { final, total: totalMs / 1000, chapterLines, music: track, cleanupFiles: [], thumbPhotos };
 }
 

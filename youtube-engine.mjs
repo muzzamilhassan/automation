@@ -291,13 +291,18 @@ export function leftStackThumbOverlay({ lines, size, accent, eyebrow, b64, td })
   const escLast = lastWord ? lastWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : null;
   const lineEls = lines.map((line, i) => {
     let inner = escapeXml(line);
+    let shadowInner = inner;
     if (escLast && i === n - 1 && line.includes(lastWord)) {
       inner = line.split(new RegExp(`(${escLast})`)).map((p) => (p === lastWord
         ? `<tspan fill="${accent}">${escapeXml(p)}</tspan>`
         : escapeXml(p))).join('');
+      // owner directive 2026-11-05: the accent word is CRISP — the blurred
+      // shadow layer skips it (spaces keep the shadow words in place). Safe
+      // because the accent is the line's LAST word (nothing follows it).
+      shadowInner = escapeXml(line.replace(new RegExp(`(${escLast})`), ' '.repeat(lastWord.length)));
     }
     const y = 648 - (n - 1 - i) * (size + 16);
-    return `<text text-anchor="start" x="72" y="${y}" font-family="'Anton', 'Impact', 'Arial Black', sans-serif" font-size="${size}" fill="#000000" opacity="0.65" filter="url(#soft)" transform="translate(0,10)">${inner}</text>
+    return `<text text-anchor="start" x="72" y="${y}" font-family="'Anton', 'Impact', 'Arial Black', sans-serif" font-size="${size}" fill="#000000" opacity="0.65" filter="url(#soft)" transform="translate(0,10)">${shadowInner}</text>
   <text text-anchor="start" x="72" y="${y}" font-family="'Anton', 'Impact', 'Arial Black', sans-serif" font-size="${size}" fill="#FFFFFF">${inner}</text>`;
   }).join('\n  ');
   const chipText = String(td.chip || '').trim();
@@ -336,7 +341,7 @@ export function leftStackThumbOverlay({ lines, size, accent, eyebrow, b64, td })
 export async function renderYouTubeThumbnail(headline, cleanFrameFile, opts = {}) {
   const accent = opts.accent || '#F5E31C';
   const eyebrow = opts.eyebrow || 'QUOTE QUARRY';
-  const b64 = await sharp(cleanFrameFile).resize(1280, 720, { fit: 'cover', position: 'attention' }).jpeg({ quality: 88 }).toBuffer();
+  const b64 = await sharp(cleanFrameFile).resize(1280, 720, { fit: 'cover', position: 'attention' }).jpeg({ quality: 95 }).toBuffer();
 
   const raw = String(headline || 'DAILY MOTIVATION')
     .replace(/#[\w]+/g, '').replace(/[—|].*$/, '').trim().toUpperCase();
