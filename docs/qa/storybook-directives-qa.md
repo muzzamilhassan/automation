@@ -31,3 +31,22 @@ that word fires a themed stat chip at its exact word timing.
 | 4 | R4 default-inert engine | pop-less beats render identically (source pin: the pop render is conditional) | A | **PASS** |
 | 5 | wire | yt-deepdive calls planStoryDirectives after timeBeats, logs the count | A | **PASS** (SOURCE PIN) |
 | 6 | regressions | full storybook + pipeline suites green | A | **PASS** — storybook 51/51; full 1075/1077 (2 pre-existing network flakes) |
+
+## Step 5 — entity pops (2026-11-05)
+
+- R6: WHEN a beat has no stat pop AND its spoken words contain a proper-noun
+  entity (capitalized token group, not sentence-initial, ≥3 chars), THE
+  PLANNER SHALL attach `beat.pop = { kind: 'entity', text, w }` at the group's
+  first word.
+- R7: THE STAT POP SHALL WIN — a beat with both keeps its stat pop.
+- R8: THE ENGINE SHALL render entity chips filled (accent bg, theme text) —
+  visually distinct from the bordered stat chips. Pop-less beats unchanged.
+- R9: THE PLANNER SHALL stay deterministic in v1 (capitalization heuristics;
+  the LLM/logo-domain upgrade is a later slice).
+
+| # | Requirement | Check | Type | Result |
+|---|---|---|---|---|
+| 7 | R6 entity detection | capitalized mid-sentence tokens/groups pop at their first word | A | **PASS** (multi-word groups joined, sentence-initial excluded, verb-after-function-word excluded) |
+| 8 | R7 stat wins | a beat with both keeps stat | A | **PASS** |
+| 9 | R8 filled entity chips | BeatPop styles entity kind filled | A | **PASS** — local history-theme frame: filled cobalt chip + karaoke active on the same word |
+| 10 | R9 deterministic | no LLM/network in the planner | A | **PASS** (pure capitalization heuristics) |

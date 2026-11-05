@@ -25,7 +25,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC_DEEPDIVE = fs.readFileSync(path.join(ROOT, 'yt-deepdive.mjs'), 'utf8');
 const SRC_DOCV2 = fs.readFileSync(path.join(ROOT, 'explainer', 'remotion', 'longscenes2.tsx'), 'utf8');
 
-import { docRenderOf, docPresentation, edgeVoiceFor, sentences, buildStorybookBeats, timeBeats, buildStorybookDoc, storybookPhotoGate, photoQueryFor, srtFromBeats } from '../lib/doc-storybook.mjs';
+import { docRenderOf, docPresentation, edgeVoiceFor, sentences, buildStorybookBeats, timeBeats, buildStorybookDoc, storybookPhotoGate, photoQueryFor, srtFromBeats, planStoryDirectives, planEntityDirectives } from '../lib/doc-storybook.mjs';
 import { parseSrt } from '../lib/srt.mjs';
 import { REGISTRY_META } from '../studio/lib/template-registry.data.js';
 
@@ -360,8 +360,6 @@ describe('doc_presentation.theme — palette selection is DATA, default-inert', 
 // Deterministic v1 — no LLM (numbers need no model). Beats without numbers
 // are untouched (default-inert).
 // ---------------------------------------------------------------------------
-import { planStoryDirectives } from '../lib/doc-storybook.mjs';
-
 describe('planStoryDirectives — stats pop on the spoken numbers', () => {
   const beatWith = (...words) => ({ layout: 'split', words: words.map((w, i) => ({ w, t0: i * 300, t1: i * 300 + 250 })) });
 
@@ -400,5 +398,51 @@ describe('planStoryDirectives — stats pop on the spoken numbers', () => {
   test('SOURCE PIN: the doc lane plans directives after the word timings exist', () => {
     assert.match(SRC_DEEPDIVE, /timeBeats\(beats, durs, audioFor\);[\s\S]*?planStoryDirectives\(beats\)/, 'planner runs after timeBeats (words exist)');
     assert.match(SRC_DEEPDIVE, /planStoryDirectives\(beats\)/, 'the planner is wired');
+  });
+});
+
+// Step 5 (2026-11-05) — entity pops: the name fires on the word it's spoken
+// on. Deterministic v1 (proper-noun groups, never sentence-initial); stat
+// pops win; entity chips render filled.
+describe('planEntityDirectives — names pop on the words they are spoken on', () => {
+  const beatWith = (...words) => ({ layout: 'split', words: words.map((w, i) => ({ w, t0: i * 300, t1: i * 300 + 250 })) });
+
+  test('mid-sentence proper nouns pop at their first word; multi-word groups keep together', () => {
+    const b = beatWith('the', 'scheme', 'behind', 'Bernie', 'Madoff', 'quietly', 'grew');
+    const r = planEntityDirectives([b]);
+    assert.equal(r.pops, 1);
+    assert.deepEqual(b.pop, { kind: 'entity', text: 'Bernie Madoff', w: 3 }, 'the group fires at its first word, joined');
+  });
+
+  test('sentence-initial capitals are NOT entities', () => {
+    const b = beatWith('WordPress', 'runs', 'millions', 'of', 'blogs', 'worldwide');
+    const r = planEntityDirectives([b]);
+    assert.equal(r.pops, 0, 'WordPress opens the sentence — excluded (heuristic honesty)');
+    assert.equal(b.pop, undefined);
+  });
+
+  test('R7: a beat with a stat pop is left alone', () => {
+    const b = beatWith('the', 'fund', 'held', '$65', 'billion', 'for', 'Decades');
+    b.pop = { kind: 'stat', text: '$65', w: 3 };
+    const r = planEntityDirectives([b]);
+    assert.equal(r.pops, 0, 'stat wins');
+    assert.deepEqual(b.pop, { kind: 'stat', text: '$65', w: 3 }, 'the stat pop untouched');
+  });
+
+  test('small caps words (The/Its/When) and acronyms never pass', () => {
+    const b = beatWith('When', 'It', 'Happens', 'MR', 'speaks');
+    const r = planEntityDirectives([b]);
+    assert.equal(r.pops, 0, 'function words + acronyms excluded');
+  });
+
+  test('SOURCE PIN: entity chips render filled (kind-distinct), stat chips bordered', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'explainer/remotion/longscenes2.tsx'), 'utf8');
+    assert.match(src, /pop\.kind === "entity" \? T\.accent : T\.bg/, 'entity chip = filled accent');
+    const lib = fs.readFileSync(path.join(ROOT, 'lib/doc-storybook.mjs'), 'utf8');
+    assert.match(lib, /export function planEntityDirectives/, 'the planner is exported from the lib');
+  });
+
+  test('SOURCE PIN: the doc lane runs entities after stats', () => {
+    assert.match(SRC_DEEPDIVE, /planStoryDirectives\(beats\);[\s\S]*?planEntityDirectives\(beats\)/, 'stat pass first (R7 order)');
   });
 });

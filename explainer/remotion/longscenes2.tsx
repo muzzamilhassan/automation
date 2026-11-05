@@ -383,9 +383,12 @@ const BeatPop: React.FC<{ b: V2Beat }> = ({ b }) => {
     <div style={{ position: "absolute", top: 150, left: 0, right: 0, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
       <div style={{
         transform: `scale(${Math.max(s, 0.01)}) rotate(-1.2deg)`,
-        background: T.bg, border: `3px solid ${T.accent}`, borderRadius: 10,
+        // stat chips are bordered; entity chips are filled — visually distinct kinds
+        background: pop.kind === "entity" ? T.accent : T.bg,
+        border: `3px solid ${T.accent}`, borderRadius: 10,
         padding: "10px 34px", boxShadow: "0 6px 22px rgba(0,0,0,0.14)",
-        fontFamily: T.mono, fontWeight: 700, fontSize: 52, letterSpacing: "0.04em", color: T.accent,
+        fontFamily: T.mono, fontWeight: 700, fontSize: 52, letterSpacing: "0.04em",
+        color: pop.kind === "entity" ? T.bg : T.accent,
       }}>
         {pop.text}
       </div>
