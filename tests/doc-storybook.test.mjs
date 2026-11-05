@@ -352,3 +352,53 @@ describe('doc_presentation.theme — palette selection is DATA, default-inert', 
     assert.match(src, /THEMES\[doc\?\.theme\] \|\| THEMES\.investing/, 'unknown names fall back safely in the engine');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Step 4 (2026-11-05) — the word-timed stat directives. When the narration
+// SPEAKS a number, the viewer SEES it: the planner marks the beat's pop at
+// that word's index, the engine fires a themed chip at that word's timing.
+// Deterministic v1 — no LLM (numbers need no model). Beats without numbers
+// are untouched (default-inert).
+// ---------------------------------------------------------------------------
+import { planStoryDirectives } from '../lib/doc-storybook.mjs';
+
+describe('planStoryDirectives — stats pop on the spoken numbers', () => {
+  const beatWith = (...words) => ({ layout: 'split', words: words.map((w, i) => ({ w, t0: i * 300, t1: i * 300 + 250 })) });
+
+  test('currency, percent, year, comma-grouped and magnitude tokens all pop', () => {
+    for (const token of ['$65', '70%', '1920', '3,000,000', '1.5 million', '$65 billion']) {
+      const b = beatWith('the', 'network', 'managed', token, 'quietly');
+      const r = planStoryDirectives([b]);
+      assert.equal(r.pops, 1, `${token} pops`);
+      assert.deepEqual(b.pop, { kind: 'stat', text: token, w: 3 }, `the pop names the token at its index`);
+      assert.equal(b.words[3].key, true, 'the spoken number is flagged key');
+    }
+  });
+
+  test('no number = untouched beat (default-inert)', () => {
+    const b = beatWith('the', 'network', 'trusted', 'nobody', 'verifying');
+    const r = planStoryDirectives([b]);
+    assert.equal(r.pops, 0);
+    assert.equal(b.pop, undefined, 'no pop attached');
+    assert.ok(b.words.every((w) => !w.key), 'no key flags');
+  });
+
+  test('word-less beats (dividers) are skipped safely', () => {
+    const b = { layout: 'chapter', n: 2, words: [] };
+    const r = planStoryDirectives([b]);
+    assert.equal(r.pops, 0);
+    assert.equal(b.pop, undefined);
+  });
+
+  test('SOURCE PIN: the engine renders the chip only when a pop exists, at the pop word timing', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'explainer/remotion/longscenes2.tsx'), 'utf8');
+    assert.match(src, /\{b\.pop \? <BeatPop b=\{b\} \/> : null\}/, 'the pop render is conditional — pop-less beats unchanged');
+    assert.match(src, /b\.words\[pop\.w\]\.t0/, 'the chip fires at the POP WORD timing, not the beat start');
+    assert.match(src, /top: 150/, 'the chip sits below the top furniture band (safe area)');
+  });
+
+  test('SOURCE PIN: the doc lane plans directives after the word timings exist', () => {
+    assert.match(SRC_DEEPDIVE, /timeBeats\(beats, durs, audioFor\);[\s\S]*?planStoryDirectives\(beats\)/, 'planner runs after timeBeats (words exist)');
+    assert.match(SRC_DEEPDIVE, /planStoryDirectives\(beats\)/, 'the planner is wired');
+  });
+});

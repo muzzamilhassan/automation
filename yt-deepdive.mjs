@@ -32,7 +32,7 @@ import { chapterLowerThirdSvg, docBrollGate } from './lib/doc-frames.mjs';
 // visual layer to the DocV2 vox engine (the owner's wanted look — the reference
 // BFCa-bRy-3M style). Pure helpers live in lib/doc-storybook.mjs; photos ride
 // the same Pexels→Pixabay lane make-longform proves, in portrait for the cards.
-import { docRenderOf, docPresentation, edgeVoiceFor, buildStorybookBeats, timeBeats, buildStorybookDoc, storybookPhotoGate, photoQueryFor, srtFromBeats } from './lib/doc-storybook.mjs';
+import { docRenderOf, docPresentation, edgeVoiceFor, buildStorybookBeats, timeBeats, buildStorybookDoc, storybookPhotoGate, photoQueryFor, srtFromBeats, planStoryDirectives } from './lib/doc-storybook.mjs';
 import { fetchPhoto, fetchPhotoPixabay } from './explainer/assets-photos.mjs';
 // REGISTRY_META is registry DATA keyed by the ONE identity string (D19) — the
 // doc lane reads the ASSIGNED template's own block (no family fallback).
@@ -495,6 +495,8 @@ async function renderStorybookVisuals(script, pres) {
     return fs.existsSync(abs) && fs.statSync(abs).size > 2048 ? rel : null;
   };
   const { totalMs } = timeBeats(beats, durs, audioFor);
+  const directives = planStoryDirectives(beats);
+  console.log(`[storybook] directives: ${directives.pops} stat pop(s) planned on the spoken numbers`);
   let musicRel = null;
   let track = null;
   try { track = await pickApprovedTrack(APPROVED_MUSIC[slug] || []); } catch { }

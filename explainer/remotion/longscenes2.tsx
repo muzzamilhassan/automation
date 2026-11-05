@@ -94,6 +94,7 @@ export type V2Beat = {
   n?: number; chapterTitle?: string; chapterCount?: number; total?: number;
   photo?: string; photoSide?: "left" | "right";
   words?: Array<{ w: string; t0: number; t1: number; key?: boolean }>;
+  pop?: { kind: string; text: string; w: number };
   cues?: Array<{ t0: number; t1: number; text: string }>;
   startMs: number; ms: number; audio: string | null; i: number;
 };
@@ -365,6 +366,33 @@ const EndLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
 // STYLE 2 — KARAOKE HIGHLIGHT (user pick 09-16): full phrase shown, spoken words
 // turn accent, active word pops inside an accent box, upcoming words dimmed.
 const CapWindow = 4; // ONE line at a time (user requirement) — 4 words max, never wraps
+// The word-timed stat chip (step 4): when the planner attached b.pop, the
+// chip springs in at the POP WORD's timing (b.words[b.pop.w].t0) and holds in
+// the safe area just below the top furniture band. Beats without a pop never
+// render it (default-inert).
+const BeatPop: React.FC<{ b: V2Beat }> = ({ b }) => {
+  const T = useT();
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const pop = b.pop as { kind: string; text: string; w: number } | undefined;
+  if (!pop || !b.words || !b.words[pop.w]) return null;
+  const at = (b.words[pop.w].t0 / 1000) * fps;
+  const s = spring({ frame: f - at, fps, config: { damping: 11, stiffness: 190 } });
+  if (s <= 0.01) return null;
+  return (
+    <div style={{ position: "absolute", top: 150, left: 0, right: 0, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
+      <div style={{
+        transform: `scale(${Math.max(s, 0.01)}) rotate(-1.2deg)`,
+        background: T.bg, border: `3px solid ${T.accent}`, borderRadius: 10,
+        padding: "10px 34px", boxShadow: "0 6px 22px rgba(0,0,0,0.14)",
+        fontFamily: T.mono, fontWeight: 700, fontSize: 52, letterSpacing: "0.04em", color: T.accent,
+      }}>
+        {pop.text}
+      </div>
+    </div>
+  );
+};
+
 const Captions: React.FC<{ b: V2Beat }> = ({ b }) => {
   const T = useT();
   const f = useCurrentFrame();
@@ -428,6 +456,7 @@ export const DocV2: React.FC<any> = (input) => {
             <Sequence key={`${b.layout}-${b.i}`} from={from} durationInFrames={dur} name={`b${b.i}-${b.layout}`}>
               {comp}
               <Furniture beat={{ ...b, i }} total={total} kicker={T.eyebrow} showBadge={Boolean(doc?.badge)} progressParts={doc?.progressParts} />
+              {b.pop ? <BeatPop b={b} /> : null}
               {b.words && b.words.length ? <Captions b={b} /> : null}
             </Sequence>
           );
