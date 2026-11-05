@@ -67,6 +67,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - name: Setup render env (fonts, Edge-TTS, image engine)
+        uses: ./.github/actions/setup-render
       - name: Install deps (root + explainer)
         run: |
           npm install --no-audit --no-fund
