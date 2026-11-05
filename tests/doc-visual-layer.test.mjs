@@ -183,12 +183,16 @@ describe('R4 — the left-stack thumb overlay renders the reference design', () 
     assert.ok(diamondX > 800 && diamondX < 1208, 'the diamond sits left of the end-anchored text (inside the brandmark, never past x=1208)');
   });
 
-  test('the scrim: red-tint rect UNDER the neutral gradient', () => {
+  test('the scrim: a LEFT-ONLY black gradient, fully clear on the right (owner 2026-11-05)', () => {
     const imgEnd = svg.indexOf('</image>') + '</image>'.length;
-    const tintAt = svg.indexOf('<rect width="1280" height="720" fill="#7A1E1E"');
-    const gradAt = svg.indexOf('<rect width="1280" height="720" fill="url(#vg)"');
-    assert.ok(tintAt > imgEnd, 'tint paints over the frame');
-    assert.ok(gradAt > tintAt, 'gradient stacks over the tint (readability)');
+    const gradAt = svg.indexOf('<rect width="1280" height="720" fill="url(#lg)"/>');
+    assert.ok(gradAt > imgEnd, 'the gradient paints over the frame');
+    assert.match(svg, /<linearGradient id="lg" x1="0" y1="0" x2="0\.62" y2="0">/, 'horizontal: left edge to just past the middle');
+    const stops = svg.slice(svg.indexOf('id="lg"'), svg.indexOf('</linearGradient>'));
+    assert.match(stops, /offset="0" stop-color="rgba\(0,0,0,0\.9\)"/, 'dark at the left edge');
+    assert.match(stops, /offset="1" stop-color="rgba\(0,0,0,0\)"/, 'fully clear at the gradient end');
+    assert.ok(!svg.includes('fill="#7A1E1E"'), 'NO full-frame tint rect — the right side keeps the original colors');
+    assert.ok(!svg.includes('fill="url(#vg)"'), 'the old vertical wash is gone');
   });
 
   test('the headline is LEFT-anchored and the LAST word takes the accent tspan', () => {

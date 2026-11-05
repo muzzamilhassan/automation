@@ -319,21 +319,25 @@ export function leftStackThumbOverlay({ lines, size, accent, eyebrow, b64, td })
     <rect x="${brandDiamondX}" y="646" width="14" height="14" fill="${accent}" transform="rotate(45 ${brandDiamondX + 7} 653)"/>
     <text x="1208" y="668" text-anchor="end" font-family="'Oswald', 'Arial Narrow', sans-serif" font-weight="600" font-size="30" letter-spacing="6" fill="#FFFFFF" fill-opacity="0.92">${escapeXml(brand.toUpperCase())}</text>
   </g>` : '';
-  const tint = td.scrim_tint || '#7A1E1E';
   const eyebrowY = 648 - (n - 1) * (size + 16) - size - 34;
   const eyebrowRow = String(eyebrow || '').trim()
     ? `<text x="72" y="${eyebrowY}" font-family="'Oswald', 'Arial Narrow', sans-serif" font-weight="600" font-size="34" letter-spacing="10" fill="${accent}">${escapeXml(String(eyebrow).toUpperCase())}</text>`
     : ''; // no eyebrow declared — the row is omitted entirely
+  // owner directive 2026-11-05: NO full-frame overlay. A black gradient from
+  // the LEFT only — dark at the edge for the text, fading to fully clear just
+  // past the middle — the right side keeps the photo's original colors and
+  // brightness (no tint, no wash).
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
   <defs><style>${EMBEDDED_FONTS_CSS}</style>
     <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="12"/></filter>
-    <linearGradient id="vg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="rgba(0,0,0,0.42)"/><stop offset="0.55" stop-color="rgba(0,0,0,0.62)"/><stop offset="1" stop-color="rgba(0,0,0,0.85)"/>
+    <linearGradient id="lg" x1="0" y1="0" x2="0.62" y2="0">
+      <stop offset="0" stop-color="rgba(0,0,0,0.9)"/>
+      <stop offset="0.55" stop-color="rgba(0,0,0,0.42)"/>
+      <stop offset="1" stop-color="rgba(0,0,0,0)"/>
     </linearGradient>
   </defs>
   <image href="data:image/jpeg;base64,${b64.toString('base64')}" x="0" y="0" width="1280" height="720" preserveAspectRatio="xMidYMid slice"/>
-  <rect width="1280" height="720" fill="${tint}" opacity="0.42"/>
-  <rect width="1280" height="720" fill="url(#vg)"/>
+  <rect width="1280" height="720" fill="url(#lg)"/>
   ${eyebrowRow}
   ${chip}
   ${lineEls}
