@@ -60,6 +60,15 @@ class _ChunkText(BaseModel):
     chunk_kind: str | None = None
 
 
+class _BotDraftRequest(BaseModel):
+    """Phase B /bot/draft body (module-level: FastAPI resolves annotations
+    from the module namespace, and `from __future__ import annotations` makes
+    a closure-nested class unresolvable)."""
+    niche: str
+    count: int = 1
+    theme_hint: str | None = None
+
+
 class _Chunk(BaseModel):
     """/embed chunk: chunk_kind is part of the unique storage key."""
     chunk_kind: str
@@ -171,6 +180,23 @@ def create_app() -> FastAPI:
         )
 
     # ----------------------------------------------------------- /health
+
+    @app.post("/bot/draft")
+    def bot_draft(req: _BotDraftRequest):
+        """Phase B — the template bot (LangGraph draft/review/repair)."""
+        import os
+        api_key = os.environ.get("GROQ_API_KEY")
+        if not api_key:
+            return JSONResponse(status_code=503, content={"error": "bot key missing (GROQ_API_KEY) — the keyless endpoints are unaffected"})
+        from bot.graph import build_graph
+        from langchain_openai import ChatOpenAI
+        model = ChatOpenAI(model="openai/gpt-oss-120b", api_key=api_key,
+                           base_url="https://api.groq.com/openai/v1", temperature=0.7)
+        graph = build_graph(model)
+        result = graph.invoke({"niche": req.niche, "count": max(1, min(req.count, 3)),
+                               "theme_hint": req.theme_hint, "max_attempts": 2})
+        return {"drafts": result.get("shaped", []), "issues": result.get("issues", []),
+                "attempts": result.get("attempts", 1)}
 
     @app.get("/health")
     def health() -> dict:

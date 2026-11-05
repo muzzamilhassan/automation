@@ -20,12 +20,22 @@ for (const lineStr of (() => { try { return fs.readFileSync(path.resolve('.env')
   if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].trim().replace(/^"|"$/g, '');
 }
 
-const id = process.argv[2];
-if (!id || !REGISTRY_META[id]) {
-  console.error(`unknown template "${id || ''}" — pass a registry template_id`);
-  process.exit(1);
+// --draft <file>: preview a STAGED bot draft (the entry json) instead of a
+// registry template — previews rows keyed draft-<id>, never the gallery
+// family cards (R3 isolation: unapproved drafts stay out of the gallery).
+const draftArg = (() => { const i = process.argv.indexOf('--draft'); return i > 0 ? process.argv[i + 1] : null; })();
+let id = process.argv[2];
+let meta;
+if (draftArg) {
+  meta = JSON.parse(fs.readFileSync(draftArg, 'utf8'));
+  id = `draft-${meta.template_id}`;
+} else {
+  if (!id || !REGISTRY_META[id]) {
+    console.error(`unknown template "${id || ''}" — pass a registry template_id`);
+    process.exit(1);
+  }
+  meta = REGISTRY_META[id];
 }
-const meta = REGISTRY_META[id];
 const familyId = meta.family || id; // the gallery card unit — one sample per family card
 const pres = meta.doc_presentation && typeof meta.doc_presentation === 'object' ? meta.doc_presentation : {};
 const niche = Array.isArray(meta.niches) && meta.niches.length ? meta.niches[0] : 'stories';
@@ -122,7 +132,7 @@ await sql`CREATE TABLE IF NOT EXISTS template_previews (
   rendered_at timestamptz DEFAULT now()
 )`;
 await sql`INSERT INTO template_previews (family_id, template_id, mp4_url, mp4_hash, poster_url, poster_hash, voice, theme, rendered_at)
-  VALUES (${familyId}, ${id}, ${mp4.url}, ${mp4.hash}, ${poster.url}, ${poster.hash}, ${pres.voice || null}, ${pres.theme || 'vox'}, now())
+  VALUES (${draftArg ? `draft-${id}` : familyId}, ${id}, ${mp4.url}, ${mp4.hash}, ${poster.url}, ${poster.hash}, ${pres.voice || null}, ${pres.theme || 'vox'}, now())
   ON CONFLICT (template_id) DO UPDATE SET mp4_url = EXCLUDED.mp4_url, mp4_hash = EXCLUDED.mp4_hash,
   poster_url = EXCLUDED.poster_url, poster_hash = EXCLUDED.poster_hash, voice = EXCLUDED.voice,
   theme = EXCLUDED.theme, family_id = EXCLUDED.family_id, rendered_at = now()`;

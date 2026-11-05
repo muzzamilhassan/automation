@@ -5,6 +5,10 @@ uvicorn==0.54.0
 fastembed==0.9.1
 psycopg[binary]==3.3.6
 
+# Phase B — the template bot (LangGraph draft/review/repair graph)
+langgraph==1.2.20
+langchain-openai==1.7.4
+
 # Dev / test
 pytest==9.2.0
 httpx==0.28.1

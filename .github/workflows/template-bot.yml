@@ -1,0 +1,67 @@
+# Phase B (docs/qa/template-bot-qa.md) — the template bot: LangGraph drafts
+# (draft → self-review → repair → shape) for a niche, staged for owner
+# approval. The registry NEVER sees an unapproved draft (R3). Approval is the
+# owner's explicit `--approve` (run locally or via dispatch with approve).
+name: 🤖 Template Bot
+
+on:
+  workflow_dispatch:
+    inputs:
+      niche:
+        description: "canonical niche string (verbatim from studio/lib/niches.js)"
+        required: true
+      count:
+        description: "how many templates to draft (1-3)"
+        required: false
+        default: "2"
+      theme:
+        description: "optional palette direction"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install sidecar + render deps
+        run: |
+          pip install -q -r services/ai/requirements.txt
+          npm install --no-audit --no-fund
+          cd explainer && npm install --no-audit --no-fund
+      - name: Start the brain sidecar (LangGraph bot endpoint)
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          (cd services/ai && nohup python -m uvicorn app:app --host 127.0.0.1 --port 8000 > sidecar.log 2>&1 &)
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8000/health > /dev/null 2>&1 && break
+            sleep 2
+          done
+          curl -sf http://127.0.0.1:8000/health > /dev/null || { echo "::error::sidecar not healthy"; exit 1; }
+      - name: Draft + stage + render previews
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          node scripts/template-bot.mjs --niche "${{ inputs.niche }}" --count "${{ inputs.count }}" --theme "${{ inputs.theme }}"
+      - name: Upload staged drafts + previews
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bot-drafts
+          path: |
+            studio/lib/template-bot-drafts/
+            public/previews/
+          retention-days: 30
