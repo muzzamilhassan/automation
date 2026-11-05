@@ -27,6 +27,7 @@ const SRC_DOCV2 = fs.readFileSync(path.join(ROOT, 'explainer', 'remotion', 'long
 
 import { docRenderOf, docPresentation, edgeVoiceFor, sentences, buildStorybookBeats, timeBeats, buildStorybookDoc, storybookPhotoGate, photoQueryFor, srtFromBeats, planStoryDirectives, planEntityDirectives } from '../lib/doc-storybook.mjs';
 import { preferMood } from '../music-engine.mjs';
+import { entityDomainFor } from '../lib/doc-storybook.mjs';
 import { parseSrt } from '../lib/srt.mjs';
 import { REGISTRY_META } from '../studio/lib/template-registry.data.js';
 
@@ -485,5 +486,20 @@ describe('P4 — preferMood (the music mood preference, pure)', () => {
     assert.ok(hit.every((t) => t.title !== 'B'), 'the epic/dark track filtered out');
     assert.equal(preferMood(pool, 'kazoo').length, 3, 'no match = full pool (fail-open)');
     assert.equal(preferMood(pool, null).length, 3, 'no mood = full pool');
+  });
+});
+
+describe('entityDomainFor — the curated brand→domain map (step 6)', () => {
+  test('exact + token matches resolve; unknown names resolve null', () => {
+    assert.equal(entityDomainFor('WordPress'), 'wordpress.com');
+    assert.equal(entityDomainFor('Goldman Sachs'), 'goldmansachs.com', 'token match');
+    assert.equal(entityDomainFor('Bernie Madoff'), null, 'people are not brand-mapped');
+    assert.equal(entityDomainFor('Unknown Corp'), null);
+    assert.equal(entityDomainFor(''), null);
+  });
+  test('SOURCE PIN: the lane chains Simple Icons SVG -> favicon -> name-text', () => {
+    assert.match(SRC_DEEPDIVE, /cdn\.simpleicons\.org\/\$\{slug\}/, 'tier 1: Simple Icons SVG');
+    assert.match(SRC_DEEPDIVE, /s2\/favicons\?domain=\$\{domain\}/, 'tier 2: favicon fallback');
+    assert.match(SRC_DEEPDIVE, /the name-text chip stays/, 'tier 3: fail-soft text chip');
   });
 });

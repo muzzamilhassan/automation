@@ -50,3 +50,26 @@ that word fires a themed stat chip at its exact word timing.
 | 8 | R7 stat wins | a beat with both keeps stat | A | **PASS** |
 | 9 | R8 filled entity chips | BeatPop styles entity kind filled | A | **PASS** — local history-theme frame: filled cobalt chip + karaoke active on the same word |
 | 10 | R9 deterministic | no LLM/network in the planner | A | **PASS** (pure capitalization heuristics) |
+
+## Step 6 — entity LOGOS (2026-11-05)
+
+- R10: WHEN an entity pop's name matches the curated brand→domain map, THE
+  LANE SHALL fetch the brand logo (Clearbit, free, no key) at render time,
+  save it to the public dir, and attach `pop.logo` — the DocV2 chip then
+  renders the LOGO (with the name beneath) at the spoken word.
+- R11: WHEN the name has no domain mapping, OR the fetch fails (8s timeout,
+  non-200, tiny file), THE LANE SHALL keep the name-text chip — fail-soft,
+  never blocking.
+- R12: THE MAP SHALL be lib-level curated DATA (deterministic v1; the LLM
+  domain-extraction seam stays a later upgrade). Lookups: exact lowercase
+  match, then per-token match.
+- R13: THE CHIP SHALL size the logo by contain (max 150px) on a white
+  rounded plate — brand colors stay legible on any palette.
+
+| # | Req | Check | Type | Result |
+|---|---|---|---|---|
+| 16 | R10 mapping | WordPress → wordpress.com; token match ("Goldman Sachs") | A | **PASS** (pins) |
+| 17 | R11 fail-soft | unknown name / fetch fail = text chip, pop.logo unset | A | **PASS** (3-tier chain, fail-soft per tier) |
+| 18 | R12 map DATA | lib-level curated BRAND_DOMAINS (~50 brands), no per-channel code | A | **PASS** |
+| 19 | R13 chip | BeatPop renders the mark contained on a white plate + name (source-pinned branch) | A | **PASS** |
+| 20 | visual | local frame: WordPress SVG mark on the white plate, science palette | V | **PASS** |

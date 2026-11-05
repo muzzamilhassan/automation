@@ -120,7 +120,7 @@ export type V2Beat = {
   n?: number; chapterTitle?: string; chapterCount?: number; total?: number;
   photo?: string; photoSide?: "left" | "right";
   words?: Array<{ w: string; t0: number; t1: number; key?: boolean }>;
-  pop?: { kind: string; text: string; w: number };
+  pop?: { kind: string; text: string; w: number; logo?: string };
   cues?: Array<{ t0: number; t1: number; text: string }>;
   startMs: number; ms: number; audio: string | null; i: number;
 };
@@ -400,11 +400,23 @@ const BeatPop: React.FC<{ b: V2Beat }> = ({ b }) => {
   const T = useT();
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const pop = b.pop as { kind: string; text: string; w: number } | undefined;
+  const pop = b.pop as { kind: string; text: string; w: number; logo?: string } | undefined;
   if (!pop || !b.words || !b.words[pop.w]) return null;
   const at = (b.words[pop.w].t0 / 1000) * fps;
   const s = spring({ frame: f - at, fps, config: { damping: 11, stiffness: 190 } });
   if (s <= 0.01) return null;
+  // R13 (step 6): a mapped brand fires its LOGO on a white plate, name
+  // beneath — the plate keeps any brand's colors legible on every palette.
+  if (pop.kind === 'entity' && pop.logo) {
+    return (
+      <div style={{ position: 'absolute', top: 120, left: 0, right: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
+        <div style={{ transform: `scale(${Math.max(s, 0.01)}) rotate(-1deg)`, background: '#FFFFFF', borderRadius: 14, padding: '20px 38px', boxShadow: '0 10px 30px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          <Img src={staticFile(pop.logo)} style={{ maxHeight: 92, maxWidth: 210, objectFit: 'contain' }} />
+          <div style={{ fontFamily: T.mono, fontWeight: 700, fontSize: 22, letterSpacing: '0.16em', color: T.ink, textTransform: 'uppercase' }}>{pop.text}</div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div style={{ position: "absolute", top: 150, left: 0, right: 0, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
       <div style={{

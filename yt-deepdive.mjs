@@ -32,7 +32,7 @@ import { chapterLowerThirdSvg, docBrollGate } from './lib/doc-frames.mjs';
 // visual layer to the DocV2 vox engine (the owner's wanted look — the reference
 // BFCa-bRy-3M style). Pure helpers live in lib/doc-storybook.mjs; photos ride
 // the same Pexels→Pixabay lane make-longform proves, in portrait for the cards.
-import { docRenderOf, docPresentation, edgeVoiceFor, buildStorybookBeats, timeBeats, buildStorybookDoc, storybookPhotoGate, photoQueryFor, srtFromBeats, planStoryDirectives, planEntityDirectives } from './lib/doc-storybook.mjs';
+import { docRenderOf, docPresentation, edgeVoiceFor, buildStorybookBeats, timeBeats, buildStorybookDoc, storybookPhotoGate, photoQueryFor, srtFromBeats, planStoryDirectives, planEntityDirectives, entityDomainFor } from './lib/doc-storybook.mjs';
 import { fetchPhoto, fetchPhotoPixabay } from './explainer/assets-photos.mjs';
 // REGISTRY_META is registry DATA keyed by the ONE identity string (D19) — the
 // doc lane reads the ASSIGNED template's own block (no family fallback).
@@ -498,7 +498,41 @@ async function renderStorybookVisuals(script, pres) {
   const { totalMs } = timeBeats(beats, durs, audioFor);
   const directives = planStoryDirectives(beats);
   const entities = planEntityDirectives(beats);
-  console.log(`[storybook] directives: ${directives.pops} stat + ${entities.pops} entity pop(s) on the spoken words`);
+  // step 6: entity LOGOS — a mapped brand's mark fires with its name at the
+  // spoken word. Clearbit (free, no key); fail-soft per pop: no mapping or a
+  // failed fetch keeps the name-text chip (R11).
+  // step 6 chain (research/brand-logos-research-2026-11-05.md), all fail-soft:
+  // 1. Simple Icons SVG (crisp, brand's own colors)  2. Google s2 favicon 256
+  // 3. the name-text chip (pop.logo unset = R11)
+  let logos = 0;
+  for (const b of beats) {
+    if (b.pop?.kind !== 'entity') continue;
+    const domain = entityDomainFor(b.pop.text);
+    if (!domain) continue;
+    const slug = domain.split('.')[0].toLowerCase();
+    const tries = [
+      [`cdn.simpleicons.org/${slug}`, `logo-${b.i}.svg`, 'svg', 500],
+      [`www.google.com/s2/favicons?domain=${domain}&sz=256`, `logo-${b.i}.png`, 'png', 500],
+    ];
+    let ok = false;
+    for (const [url, fname, kind, minBytes] of tries) {
+      try {
+        const res = await fetch(`https://${url}`, { signal: AbortSignal.timeout(8000) });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const buf = Buffer.from(await res.arrayBuffer());
+        if (buf.length < minBytes) throw new Error(`tiny mark (${buf.length}B)`);
+        const outPath = path.join(photoDir, fname);
+        fs.writeFileSync(outPath, buf);
+        b.pop.logo = path.relative(PUB, outPath).split(path.sep).join('/');
+        logos++; ok = true;
+        break;
+      } catch (e) {
+        console.log(`[storybook] ${url.split('/')[0]} skip (${b.pop.text}): ${String(e.message).slice(0, 50)}`);
+      }
+    }
+    if (!ok) console.log(`[storybook] logo skip (${b.pop.text} → ${domain}): no source — the name-text chip stays (R11)`);
+  }
+  if (logos) console.log(`[storybook] directives: ${logos} brand mark(s) attached`);
   let musicRel = null;
   let track = null;
   try { track = await pickApprovedTrack(APPROVED_MUSIC[slug] || [], pres.musicMood); } catch { }
