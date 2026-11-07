@@ -109,9 +109,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "jgRPl3aTox0",
-        "publishAt": "2026-11-05T22:35:00Z",
-        "title": "The Grocery Trap Most People Fall For"
+        "videoId": "mT3gxcNwdV0",
+        "publishAt": "2026-11-07T22:35:00Z",
+        "title": "Pay $150 extra to slash $7,300 credit‑card interest"
       }
     ],
     "imageDate": "2026-10-18",
@@ -124,7 +124,7 @@
         "title": "Pay Yourself First | Personal Finance"
       }
     ],
-    "deepdiveDate": "2026-11-05",
+    "deepdiveDate": "2026-11-07",
     "healedDate": "2026-09-19",
     "healedCount": 3,
     "usedTrendSeeds": [
@@ -190,6 +190,10 @@
       {
         "t": "The Grocery Trap Most People Fall For",
         "at": "2026-11-05T22:35:00Z"
+      },
+      {
+        "t": "Pay $150 extra to slash $7,300 credit‑card interest",
+        "at": "2026-11-07T22:35:00Z"
       }
     ],
     "cooldownSeeds": [
@@ -197,66 +201,67 @@
       "11 Kitchen Rules Americans Break That No 1950s Housewife Would Have Allowed"
     ],
     "clipQueue": {
-      "lastRunId": "local-1793881384902",
+      "lastRunId": "local-1794075015189",
       "doneRuns": [
         "39750079904",
         "40632589104",
         "local-1793646363618",
         "local-1793723406652",
         "local-1793812820581",
-        "local-1793881384902"
+        "local-1793881384902",
+        "local-1794075015189"
       ],
-      "docTitle": "The Debt Confessions That Reveal 10 Hidden Money Rules | Personal finance rules & money habits Wisdom",
-      "createdAt": "2026-11-05T12:24:31.401Z",
+      "docTitle": "Why Your Budget Is Secretly Killing Your Wealth | Personal finance rules & money habits Wisdom",
+      "createdAt": "2026-11-07T18:10:53.857Z",
       "local": true,
       "clips": [
         {
           "part": 1,
-          "title": "Pay $150 extra to slash $7,300 credit‑card interest",
+          "title": "The Hidden Trap of Credit Card Points",
           "asset": "clip-01.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/713327022",
-          "startSec": 40.6,
-          "durSec": 24.2,
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/721513065",
+          "startSec": 217.6,
+          "durSec": 20.4,
           "file": "tt-lf/clipfeed-money-rulebook/clips/clip-01.mp4"
         },
         {
           "part": 2,
-          "title": "Balance‑transfer trap: 24% interest hit after deadline",
+          "title": "Why Salary Advances Are Costing You Extra",
           "asset": "clip-02.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/713327058",
-          "startSec": 83.2,
-          "durSec": 23.2,
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/721513115",
+          "startSec": 342.8,
+          "durSec": 22.8,
           "file": "tt-lf/clipfeed-money-rulebook/clips/clip-02.mp4"
         },
         {
           "part": 3,
-          "title": "Bridge fund saved Tom from a 400% payday loan",
+          "title": "How Tiny Monthly Leaks Drain Your Savings",
           "asset": "clip-03.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/713327095",
-          "startSec": 310.9,
-          "durSec": 20.8,
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/721513179",
+          "startSec": 45.9,
+          "durSec": 21,
           "file": "tt-lf/clipfeed-money-rulebook/clips/clip-03.mp4"
         },
         {
           "part": 4,
-          "title": "Lena’s $120/month audit freed $1,440 for debt",
+          "title": "Why Round-Up Savings Apps Can Backfire",
           "asset": "clip-04.mp4",
-          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/713327133",
-          "startSec": 155.4,
-          "durSec": 22.4,
+          "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/721513217",
+          "startSec": 301.7,
+          "durSec": 21.9,
           "file": "tt-lf/clipfeed-money-rulebook/clips/clip-04.mp4"
         }
       ]
     },
-    "clipLastPostDate": "2026-11-05",
+    "clipLastPostDate": "2026-11-07",
     "uploadsToday": {
-      "date": "2026-11-05",
+      "date": "2026-11-07",
       "count": 2
     },
     "reviewGate": {
       "assigned": true,
       "gated": true,
-      "checkedAt": "2026-11-06T03:38:03.889Z"
+      "checkedAt": "2026-11-07T17:38:43.740Z"
     },
     "usedLongSeeds": [
       "Stop Wasting Vegetables! 8 Freezer Tricks That Save You Money | Annie Tips",
@@ -269,10 +274,10 @@
       "Another Bad Labour Budget"
     ],
     "deepdiveVideo": {
-      "videoId": "_WWIG1XGsSw",
-      "publishAt": "2026-11-05T22:30:00Z",
-      "title": "The Debt Confessions That Reveal 10 Hidden Money Rules | Personal finance rules & money habits Wisdom",
-      "text": "Every debt story hides a rule that could save you thousands, but most people never hear it. In the next 30 minutes we’ll crack open ten real‑life confessions and extract the exact habits that turn a financial nightmare into a roadmap for freedom.\n\nWhen Maya, a 32‑year‑old teacher, thought paying only the minimum on her $12,000 credit‑card balance was safe, she didn’t realize she was signing a 15‑year loan at 22% APR. Each $200 monthly payment shaved off a sliver of principal, while the remaining balance swelled by $2,200 in interest after just one year. The hidden rule: never treat the minimum as a payment plan—calculate the true cost of interest and set a target payoff date. By adding an extra $150 each month, Maya could have cleared the debt in 4.5 years and saved $7,300 in interest. The payoff is simple: treat every minimum payment as a warning sign, not a solution, and immediately re‑budget to overpay the balance.\n\nJake, a freelance photographer, celebrated a 0% balance‑transfer offer on a $9,500 card, only to forget the 12‑month deadline. He kept paying the minimum, and when the promotional period ended, the interest jumped to 24%, adding $1,800 in surprise charges. The rule here is clear: a balance transfer is a tool, not a cure. You must set a countdown calendar, calculate the exact payoff amount before the rate resets, and automate a larger payment to erase the balance within the promo window. Jake could have saved $1,200 by committing $600 extra each month and clearing the debt before the cliff. The takeaway: any “free” financing expires, so lock in a concrete exit strategy before you sign.\n\nLena switched to cash for all discretionary spending, thinking it would stop her credit‑card debt from growing. Yet she kept using a second card for online subscriptions, racking up $3,200 in unnoticed fees. The hidden habit: cash alone doesn’t reveal hidden recurring costs. Lena’s rule is to audit every account monthly, flagging any automatic withdrawals, and consolidate them onto a single, zero‑balance card that she can monitor in real time. By moving those subscriptions to a $0‑balance checking account with alerts, she discovered $120 per month in unnecessary services and eliminated them, freeing $1,440 a year for debt repayment. The payoff: cash is only as transparent as the accounts you actually track.\n\nCollege graduate Marco took the standard 10‑year repayment plan on $45,000 of loans at 5.6% APR, assuming it was the easiest route. Six years later, his balance sat at $30,000, and he was paying $540 each month. The rule: default plans rarely align with life’s twists. By refinancing to a 5‑year schedule, Marco could increase his monthly payment to $850, shaving three years off the term and saving $5,200 in interest. The key habit is to perform a “loan health check” annually—compare your current payment to your income growth and adjust the term accordingly. The payoff is a faster path to freedom and a larger credit‑score boost from lower utilization.\n\nWhen Ana received a $7,800 hospital bill, she ignored it, assuming insurance would cover everything. The bill compounded with late fees, eventually reaching $9,600. The hidden rule: medical debt rarely disappears on its own; proactive negotiation can cut 30‑40% off the balance. Ana learned to request an itemized statement, spot billing errors, and appeal to the hospital’s financial assistance program. By doing so, she negotiated a $2,500 reduction and set up a $150 monthly payment plan, saving $2,100 in fees. The habit to embed: treat every unexpected bill as a negotiation opportunity, not a sunk cost.\n\nTom took a $500 payday loan with a 400% APR to cover a car repair, thinking it was a one‑time bridge. He rolled it over twice, ending up paying $250 in interest for a $500 principal. The rule: high‑cost short‑term loans are financial landmines. Tom’s rescue came when he opened a high‑interest‑savings account, transferred $600 from his side‑gig earnings, and paid off the loan in full, avoiding the next roll‑over fee. The habit to adopt is a “bridge fund” of at least one month’s expenses, stored in an accessible account, to replace any need for predatory credit. The payoff is eliminating a debt that would have cost him half its value in interest alone.\n\nSophie chased 5% cash‑back offers, opening three new cards in six months. Each application triggered a hard inquiry, dropping her credit score by 45 points and raising her mortgage rate by 0.25%, costing her $3,200 over the loan’s life. The hidden rule: reward hunting can backfire if it hurts your credit profile. Sophie learned to limit new credit applications to one per year, focus on cards with low annual fees, and use a spreadsheet to track rewards versus credit‑score impact. By consolidating to a single 2% cash‑back card, she saved $1,100 in annual fees and kept her score stable, preserving her mortgage savings. The habit: treat credit as a long‑term asset, not a short‑term cash‑grab.\n\nWhen Maya’s friend suggested a rent‑to‑own furniture plan, she signed a $2,400 contract, paying $75 a month for three years. At the end, she owned a sofa worth $300 and paid $1,500 in interest. The rule: rent‑to‑own is an expensive lease that rarely delivers value. By waiting six months and saving $300 in a high‑yield account, Maya could have bought the same sofa outright for $350, saving $1,150. The habit to embed is a 30‑day “pause” rule: before any lease or subscription, wait a month, compare total cost of ownership, and decide if a purchase or a second‑hand option makes more sense. The payoff is avoiding hidden financing that drains your budget.\n\nWhen Alex started the debt‑snowball method, he paid off his $1,200 credit‑card first, then moved to a $9,500 personal loan at 12% APR. He ignored the higher‑interest debt, extending the loan’s life by two years and paying $1,800 extra interest. The hidden rule: the snowball works when the smallest balances also have the highest rates; otherwise, the avalanche (pay highest APR first) saves money. Alex recalculated, targeting the 12% loan first while making minimum payments on the credit card. By adding $200 extra monthly, he cleared the loan in 30 months, saving $1,200 in interest. The habit: always run the numbers—choose the method that minimizes total interest, not just the one that feels psychologically rewarding.\n\nThese ten confessions prove that every debt mistake carries a precise rule you can apply today. Subscribe now for more deep‑dive money playbooks that turn hard‑earned dollars into lasting freedom."
+      "videoId": "aRJ4sgEtzXc",
+      "publishAt": "2026-11-07T22:30:00Z",
+      "title": "Why Your Budget Is Secretly Killing Your Wealth | Personal finance rules & money habits Wisdom",
+      "text": "Every month you think you’re in control, but a hidden flaw in your budgeting is draining your future. In the next hour we expose the silent habits that sabotage even the most disciplined spenders.\n\nZero‑based budgeting promises every dollar has a job, but most people treat it like a to‑do list rather than a forensic audit. Meet Alex, a 34‑year‑old software engineer who dutifully allocated $2,500 to rent, $800 to groceries, $300 to entertainment, and so on, yet still ended each month $400 short. The problem wasn’t the categories – it was the assumption that every line item was static. When his gym membership auto‑renewed for $75, his streaming service added a premium tier for $12, and his credit‑card fee rose by $10, those increments slipped through his spreadsheet untouched. Over a year, those “tiny” leaks added up to $12,600, eroding his emergency fund and forcing a costly payday loan. The payoff? Realizing that a true zero‑based budget must track every change, not just the big numbers, and that the moment you stop updating, the budget becomes a lie.\n\nConvenience fees are the silent tax on modern life, and they’re far more corrosive than most realize. Sarah, a freelance photographer, loved the ease of buying coffee via a mobile app that added a 2.9% processing fee. She also ordered groceries through a delivery service that tacked on a $5 surcharge per order. Over six months, those tiny percentages turned into $180 in extra costs – money that could have covered a new lens or bolstered her retirement account. The mechanism is simple: each time you choose a friction‑free option, a hidden percentage chips away at your net income. Multiply that by dozens of transactions, and the loss compounds. The consequence is a slower wealth trajectory, and the payoff is a simple habit shift: use cash or debit for everyday purchases, reserve digital convenience for true emergencies, and watch the hidden tax evaporate.\n\nSubscriptions feel harmless until they stack like a financial snowball. Jake, a 27‑year‑old marketer, started with a music streaming service at $9.99, then added a video platform for $13.99, a cloud storage plan for $5, a meditation app for $7, and a meal‑kit service for $45. Six months later, he was paying $80 a month for services he barely used. The math is brutal: $80 × 12 = $960 annually – nearly a full month’s salary for a median earner. The mistake? Treating each subscription as a separate, justified expense rather than a single, cumulative budget line. The payoff emerges when Jake audited his subscriptions, cancelled three, and negotiated a family plan for the remaining two, cutting his outflow to $38 per month and freeing $504 a year for debt repayment or investing.\n\nCredit cards promise rewards, but the real cost hides in the fine print. Maya opened a rewards card with a $0 annual fee but a 19.99% APR. She carried a $2,000 balance for six months, thinking the points she earned would offset the interest. In reality, she paid $200 in interest while earning only $30 in points – a net loss of $170. The mechanism is simple: any balance carried beyond the grace period turns a “free” reward into a money‑draining liability. The consequence is a slower debt‑free journey and a false sense of financial progress. Maya’s payoff came when she switched to a 0% APR introductory card, paid off the balance within the promotional period, and redirected the saved interest into a high‑yield savings account, turning a hidden cost into a hidden gain.\n\nRound‑up apps promise effortless savings by rounding every purchase to the nearest dollar and tucking the change away. Ben, a 31‑year‑old teacher, enrolled in one of these apps, assuming it would build a nest egg without effort. Over a year, the app rounded up $3.50 per transaction, but Ben averaged 150 transactions per month, resulting in $525 saved – a modest sum. The psychological twist is that the app creates an illusion of saving, leading users to spend more elsewhere because they feel “covered.” Ben’s credit‑card statements showed a 12% increase in discretionary spending, erasing the round‑up gains. The payoff arrived when he disabled the app, instituted a manual budgeting rule, and redirected the perceived surplus into a dedicated emergency fund, turning illusion into tangible security.\n\nMany employers offer “pay‑it‑later” options like salary advances or flexible pay days, but they often come with hidden fees. Lina, a retail manager, took a $500 advance during a tough month, paying a $25 processing fee and a 5% interest rate. She repaid it over three months, costing her an extra $75. While the cash helped her avoid a late‑fee on her car loan, the net cost was $100 – more than the original late fee she avoided. The mechanism is the same: short‑term liquidity is sold at a premium, and frequent use creates a cycle of dependency. The consequence is a gradual erosion of net earnings. Lina’s payoff came when she built a $1,000 buffer in a high‑yield account, allowing her to decline future advances and keep the extra $75 each time.\n\nAn emergency fund is essential, but many treat it as a static number instead of a dynamic shield. Tom saved $5,000 after a rigorous three‑year plan, then stopped contributing, assuming the fund was “complete.” When his car broke down, he spent $1,200 on repairs, leaving only $3,800. Two months later, his landlord raised his rent by $150, and Tom had to dip into the fund again, reducing it to $3,250. The mistake was not recalibrating the fund to reflect rising living costs and new liabilities. The consequence is a false sense of security that crumbles under real stress. Tom’s payoff arrived when he set a rule to replenish the fund to 3‑month living expenses after any withdrawal and automated a 5% salary contribution, ensuring the safety net grew with his expenses.\n\nSocial media influencers often tout “free” budgeting templates, but the real cost is the time you waste customizing a one‑size‑fits‑all spreadsheet. Maya downloaded a popular template that required 20 hours to tailor to her variable income, leaving her too exhausted to actually implement any changes. In that time, she could have earned $300 by freelancing on the side. The mechanism is opportunity cost: every hour spent tweaking a generic tool is an hour not spent generating income or improving habits. The consequence is stagnation despite the appearance of proactive planning. Maya’s payoff came when she switched to a simple envelope system, spending only 5 minutes a week reviewing cash flow, freeing up 15 hours a month to pursue a side hustle that added $800 to her monthly income.\n\nInflation silently erodes purchasing power, but most budgets ignore its impact on recurring expenses. Carlos kept his grocery budget at $400 a month, not accounting for a 4% annual price rise. After two years, his actual spend rose to $432, yet his budget remained static, forcing him to dip into his savings each month. Over five years, that $32 monthly shortfall accumulated to $1,920 in lost savings potential. The mechanism is simple: static budgets become outdated as costs climb, creating a hidden deficit. The consequence is a gradual depletion of safety nets and delayed wealth building. Carlos’s payoff arrived when he added a 3% inflation buffer to all recurring categories, allowing his budget to self‑adjust and preserving his savings trajectory.\n\nIf you’ve spotted a hidden leak in your own budget, hit subscribe for more deep‑dive money rules that turn pitfalls into profit. Stay sharp, stay wealthy."
     }
   },
   "debt-free-doctrine": {
