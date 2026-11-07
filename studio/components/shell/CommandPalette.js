@@ -74,10 +74,28 @@ export default function CommandPalette({ open, onClose }) {
   }, [open, chans]);
 
   const channelRuns = (chans || []).map((c) => ({
+    kind: 'run',
     id: 'run-' + c.slug,
     label: 'Run ' + c.label + ' Shorts now',
-    action: 'yt-daily',
-    slug: c.slug,
+    sub: 'Production action · starts in background',
+    icon: Play,
+    run: async () => {
+      await fetch('/api/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'yt-daily', slug: c.slug }),
+      });
+      router.push('/operations?tab=logs');
+    },
+  }));
+
+  const channelJumps = (chans || []).map((c) => ({
+    kind: 'channel',
+    id: 'channel-' + c.slug,
+    label: 'Channel: ' + c.label,
+    sub: `Inspect ${c.label} in Network`,
+    icon: Tv,
+    run: () => router.push(`/network?channel=${c.slug}`),
   }));
 
   const items = [
@@ -89,7 +107,9 @@ export default function CommandPalette({ open, onClose }) {
       icon: PAGE_ICONS[n.href] || LayoutDashboard,
       run: () => router.push(n.href),
     })),
-    ...[...channelRuns, ...NETWORK_RUN_ACTIONS].map((a) => ({
+    ...channelJumps,
+    ...channelRuns,
+    ...NETWORK_RUN_ACTIONS.map((a) => ({
       kind: 'run',
       id: a.id,
       label: a.label,
@@ -99,9 +119,9 @@ export default function CommandPalette({ open, onClose }) {
         await fetch('/api/action', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: a.action, slug: a.slug || null }),
+          body: JSON.stringify({ action: a.action }),
         });
-        router.push('/logs');
+        router.push('/operations?tab=logs');
       },
     })),
     {

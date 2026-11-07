@@ -1,12 +1,24 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { Settings, Sun, Moon, Monitor, Check, Plug, Bell, Server, ShieldAlert, Users, Trash2, Plus, MonitorSmartphone } from 'lucide-react';
+import { Settings, Sun, Moon, Monitor, Check, Plug, Bell, Server, ShieldAlert, Users, Trash2, Plus, MonitorSmartphone, SquareKanban } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, Switch } from '@/components/ui';
+import TabNav from '@/components/TabNav';
+import UsersPage from '@/app/users/page';
+import SessionsAdminPage from '@/app/sessions/page';
+import Tasks from '@/app/tasks/page';
 import { INTEGRATIONS } from '@/lib/site-data';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
+
+const SETTINGS_TABS = [
+  { id: 'general', label: 'General & Appearance', icon: Settings },
+  { id: 'team', label: 'Team & Access', icon: Users },
+  { id: 'security', label: 'Security & Sessions', icon: MonitorSmartphone },
+  { id: 'roadmap', label: 'System Roadmap', icon: SquareKanban },
+];
 
 const STATUS_STYLE = {
   ok: { label: 'connected', tone: 'ok' },
@@ -65,7 +77,11 @@ function MiniPreview({ dark }) {
   );
 }
 
-export default function SettingsPage() {
+function SettingsContent() {
+  const searchParams = useSearchParams();
+  const tabFromQuery = searchParams.get('tab');
+  const activeTab = tabFromQuery && SETTINGS_TABS.some((tab) => tab.id === tabFromQuery) ? tabFromQuery : 'general';
+
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [notifs, setNotifs] = useState({ ntfy: true, fails: true, weekly: false });
@@ -156,10 +172,19 @@ export default function SettingsPage() {
   };
 
   return (
-    <div>
-      <PageHeader icon={Settings} title="Settings" sub="Appearance, engine and integrations — the studio talks to live APIs, so be gentle" />
+    <div className="space-y-6">
+      <PageHeader icon={Settings} title="Settings & Workspace" sub="Appearance, team roles, active device security, integrations and roadmap." />
 
-      <div className="grid lg:grid-cols-3 gap-4">
+      <TabNav
+        tabs={SETTINGS_TABS}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+        paramName="tab"
+      />
+
+      {activeTab === 'general' && (
+        <div className="space-y-4">
+          <div className="grid lg:grid-cols-3 gap-4">
         {/* appearance */}
         <Card className="lg:col-span-2 p-5">
           <div className="overline mb-3">Appearance</div>
@@ -365,6 +390,20 @@ export default function SettingsPage() {
           ) : null}
         </div>
       </Card>
+        </div>
+      )}
+
+      {activeTab === 'team' && <UsersPage />}
+      {activeTab === 'security' && <SessionsAdminPage />}
+      {activeTab === 'roadmap' && <Tasks />}
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-faint">Loading Settings…</div>}>
+      <SettingsContent />
+    </Suspense>
   );
 }

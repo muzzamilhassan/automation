@@ -19,13 +19,36 @@ import {
   OctagonAlert,
   Pickaxe,
   LogOut,
+  Sparkles,
 } from 'lucide-react';
-import { NAV } from './nav';
+import { NAV, PINNED_CHANNELS } from './nav';
 import CommandPalette from './CommandPalette';
 import { ALERTS } from '@/lib/site-data';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/untitledui/base/buttons/button';
 import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
 import { Badge, BadgeWithIcon } from '@/components/untitledui/base/badges/badges';
+import { BrandMark } from '@/components/ui';
+
+function isPathActive(href, pathname) {
+  if (href === '/') return pathname === '/';
+  if (href === '/studio') {
+    return pathname.startsWith('/studio') || ['/review', '/topics', '/create', '/thumbs', '/templates'].some((p) => pathname.startsWith(p));
+  }
+  if (href === '/content') {
+    return pathname.startsWith('/content') || ['/videos', '/social', '/music'].some((p) => pathname.startsWith(p));
+  }
+  if (href === '/operations') {
+    return pathname.startsWith('/operations') || ['/production', '/logs', '/warnings'].some((p) => pathname.startsWith(p));
+  }
+  if (href === '/network') {
+    return pathname.startsWith('/network') || ['/channels', '/providers', '/usage'].some((p) => pathname.startsWith(p));
+  }
+  if (href === '/settings') {
+    return pathname.startsWith('/settings') || ['/users', '/sessions', '/tasks'].some((p) => pathname.startsWith(p));
+  }
+  return pathname === href;
+}
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -82,17 +105,17 @@ function Notifications({ open, onClose }) {
 function NavGroups({ collapsed, onNavigate }) {
   const pathname = usePathname();
   return (
-    <nav className="flex-1 overflow-y-auto pb-4 px-3">
+    <nav className="flex-1 overflow-y-auto pb-4 px-2.5">
       {NAV.map((g) => (
-        <div key={g.group}>
+        <div key={g.group} className="mb-2">
           {collapsed ? (
-            <div className="mx-2 my-2.5 h-px bg-white/10" />
+            <div className="mx-2 my-2 h-px bg-white/10" />
           ) : (
             <div className="qs-side-group">{g.group}</div>
           )}
           <div className={cn('space-y-0.5', collapsed && 'qs-rail')}>
             {g.items.map((i) => {
-              const active = pathname === i.href;
+              const active = isPathActive(i.href, pathname);
               const Icon = i.icon;
               return (
                 <Link
@@ -103,22 +126,68 @@ function NavGroups({ collapsed, onNavigate }) {
                   className={cn('qs-side-link', active && 'active')}
                 >
                   <Icon />
-                  <span className="truncate">{i.label}</span>
+                  {!collapsed ? (
+                    <>
+                      <span className="truncate flex-1">{i.label}</span>
+                      {i.href === '/studio' ? (
+                        <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-accent/20 text-accent">
+                          3
+                        </span>
+                      ) : null}
+                      {i.href === '/operations' ? (
+                        <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-error-solid/20 text-error-primary">
+                          1
+                        </span>
+                      ) : null}
+                    </>
+                  ) : null}
                 </Link>
               );
             })}
           </div>
         </div>
       ))}
-      <div className={cn('mt-5 pt-4 border-t border-white/10', collapsed ? 'flex justify-center' : '')}>
+
+      {/* Pinned Channels Section */}
+      <div className="mt-3 pt-3 border-t border-white/10">
+        {!collapsed ? (
+          <div className="qs-side-group flex items-center justify-between">
+            <span>Pinned Channels</span>
+            <Link href="/network?tab=channels" className="text-[10px] lowercase text-[#6b7671] hover:text-[#98a2a7]">
+              all 16 →
+            </Link>
+          </div>
+        ) : null}
+        <div className={cn('space-y-1', collapsed && 'flex flex-col items-center gap-1.5')}>
+          {PINNED_CHANNELS.map((p) => (
+            <Link
+              key={p.slug}
+              href={`/network?channel=${p.slug}`}
+              onClick={onNavigate}
+              title={`${p.label} (${p.short})`}
+              className={cn(
+                'flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] text-[#98a2a7] hover:text-white hover:bg-white/5 transition-colors',
+                collapsed && 'px-1 py-1'
+              )}
+            >
+              <BrandMark short={p.short} accent={p.accent} size={20} />
+              {!collapsed ? (
+                <span className="truncate font-medium">{p.label}</span>
+              ) : null}
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      <div className={cn('mt-4 pt-3 border-t border-white/10', collapsed ? 'flex justify-center' : '')}>
         <a
           href="https://muzzamilhassan.github.io/quarrystudio/dashboard.html"
           target="_blank"
           rel="noreferrer"
-          className="flex items-center gap-2 px-2 text-[12px] text-[#6b7671] hover:text-[#98a2a7] transition-colors"
+          className="flex items-center gap-2 px-2 text-[11.5px] text-[#6b7671] hover:text-[#98a2a7] transition-colors"
           title="TikTok dashboard"
         >
-          <ExternalLink size={13} />
+          <ExternalLink size={12} />
           {!collapsed ? 'TikTok dashboard' : null}
         </a>
       </div>
@@ -224,7 +293,7 @@ export default function AppShell({ children }) {
       {/* desktop sidebar */}
       <aside
         className="hidden lg:flex flex-col sticky top-0 h-screen shrink-0 z-30 qs-side transition-[width] duration-200 ease-out"
-        style={{ width: collapsed ? 64 : 246 }}
+        style={{ width: collapsed ? 56 : 232 }}
       >
         {sidebarInner(collapsed)}
       </aside>
@@ -250,14 +319,20 @@ export default function AppShell({ children }) {
               <Menu size={16} />
             </button>
 
-            <div className="hidden md:flex items-center gap-2 text-[13px] min-w-0">
+            <div className="hidden md:flex items-center gap-1.5 text-[13px] min-w-0">
               <Activity size={13} className="text-fg-quaternary" />
-              <span className="text-fg-quaternary">Quarry Studio</span>
+              <Link href="/" className="text-fg-quaternary hover:text-fg-secondary transition-colors">Quarry Studio</Link>
               <span className="text-fg-quaternary">/</span>
               <span className="font-semibold text-fg-primary truncate">{pageTitle}</span>
             </div>
 
             <div className="flex-1" />
+
+            <Link href="/studio?tab=create" className="hidden sm:inline-flex">
+              <Button color="primary" size="sm" iconLeading={<Sparkles size={14} />}>
+                Create
+              </Button>
+            </Link>
 
             <button
               onClick={() => setPaletteOpen(true)}

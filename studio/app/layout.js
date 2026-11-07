@@ -2,6 +2,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import ThemeProvider from "@/components/ThemeProvider";
 import AppShell from "@/components/shell/AppShell";
+import { WorkspaceProvider } from "@/components/WorkspaceContext";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -25,7 +26,9 @@ export default function RootLayout({ children }) {
     >
       <body className="min-h-full">
         <ThemeProvider>
-          <AppShell>{children}</AppShell>
+          <WorkspaceProvider>
+            <AppShell>{children}</AppShell>
+          </WorkspaceProvider>
         </ThemeProvider>
       </body>
     </html>

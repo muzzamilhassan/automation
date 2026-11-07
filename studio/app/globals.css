@@ -13,17 +13,15 @@
   --font-display: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
 
-  /* 10-15 DREAMS CONVERSION: sharp 5px corners across the app (rounded-full
-     is a special value and stays perfectly round). Dreams sets every radius
-     token to 5px. */
-  --radius-xs: 5px;
-  --radius-sm: 5px;
-  --radius-md: 5px;
-  --radius-lg: 5px;
-  --radius-xl: 5px;
-  --radius-2xl: 5px;
-  --radius-3xl: 6px;
-  --radius-4xl: 8px;
+  /* Modern balanced radius hierarchy */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 14px;
+  --radius-3xl: 16px;
+  --radius-4xl: 20px;
 
   --color-bg: var(--bg);
   --color-bg-soft: var(--bg-soft);
@@ -47,44 +45,46 @@
    Paragraphs & text below headings: Inter Regular, #686868
    Base background: #f9f9f9 */
 :root {
-  --bg: #f9f9f9;
-  --bg-soft: #f0f1f3;
+  --bg: #f8fafc;
+  --bg-soft: #f1f5f9;
   --surface: #ffffff;
-  --surface-2: #f1f3f4;
-  --line: #e6e8eb;
-  --line-strong: #d5d9dc;
-  --ink: #171717;
-  --muted: #686868;
-  --faint: #8e959c;
-  --accent: #C9B7EF;
-  --accent-ink: #0a0a0a;
-  --accent-soft: rgba(201, 183, 239, 0.16);
-  --ok: #12a66e;
-  --warn: #e8a317;
-  --bad: #dc2f2f;
-  --info: #0aa2c0;
-  --card-shadow: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
-  --glow: radial-gradient(600px 220px at 70% -60px, rgba(201, 183, 239, 0.18), transparent 70%);
+  --surface-2: #f8fafc;
+  --surface-3: #f1f5f9;
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
+  --ink: #0f172a;
+  --muted: #475569;
+  --faint: #64748b;
+  --accent: #7c3aed;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(124, 58, 237, 0.12);
+  --ok: #10b981;
+  --warn: #f59e0b;
+  --bad: #ef4444;
+  --info: #0284c7;
+  --card-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03);
+  --glow: radial-gradient(600px 220px at 70% -60px, rgba(124, 58, 237, 0.12), transparent 70%);
   color-scheme: light;
 }
 
 .dark {
-  --bg: #0f1113;
-  --bg-soft: #0b0d0e;
-  --surface: #17191c;
-  --surface-2: #1e2124;
-  --line: #26292d;
-  --line-strong: #3a3e44;
-  --ink: #ffffff;
-  --muted: #cdd3d8;
-  --faint: #939ca4;
+  --bg: #0b0d0e;
+  --bg-soft: #08090a;
+  --surface: #121518;
+  --surface-2: #181c20;
+  --surface-3: #22272c;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --ink: #f8fafc;
+  --muted: #94a3b8;
+  --faint: #64748b;
   --accent: #C9B7EF;
   --accent-ink: #0a0a0a;
   --accent-soft: rgba(201, 183, 239, 0.16);
-  --ok: #17b26a;
-  --warn: #fdb022;
-  --bad: #f97066;
-  --info: #38bdf8;
+  --ok: #10b981;
+  --warn: #f59e0b;
+  --bad: #ef4444;
+  --info: #06b6d4;
   --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.24);
   --glow: radial-gradient(700px 260px at 68% -80px, rgba(139, 112, 255, 0.14), transparent 70%);
   color-scheme: dark;
@@ -152,7 +152,7 @@ body {
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: var(--radius-lg, 10px);
   box-shadow: var(--card-shadow);
 }
 
@@ -170,8 +170,8 @@ body {
 
 .inset-tile {
   background: var(--surface-2);
-  border: none;
-  border-radius: 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 8px);
 }
 
 /* 10-09: box main values read as near-black (light) / near-white (dark) */
@@ -230,7 +230,7 @@ body {
   gap: 7px;
   height: 36px;
   padding: 0 14px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm, 6px);
   font-size: 13px;
   font-weight: 600;
   border: 1px solid transparent;
@@ -266,7 +266,7 @@ body {
   background: var(--surface-2);
   border: 1px solid var(--line-strong);
   color: var(--ink);
-  border-radius: 5px;
+  border-radius: var(--radius-sm, 6px);
   padding: 8px 12px;
   font-size: 13px;
   font-weight: 500;

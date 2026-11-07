@@ -1,6 +1,7 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { FacebookIcon, InstagramIcon } from '@/components/BrandIcons';
 import {
   Users,
@@ -13,17 +14,30 @@ import {
   Clock,
   CalendarDays,
   Radar,
+  LayoutDashboard,
+  TrendingUp,
 } from 'lucide-react';
 import ActionButton from '@/components/ActionButton';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import { Card, CardHead, Chip, StatCard, PageSkeleton, EmptyState, BrandMark } from '@/components/ui';
 import { MiniBars } from '@/components/charts';
+import TabNav from '@/components/TabNav';
+import Analytics from '@/app/analytics/page';
 import { ALERTS, BRAND_META } from '@/lib/site-data';
 import { fmt, fmtFull, timeAgo, when } from '@/lib/utils';
 
 const ALERT_ICON = { bad: 'var(--bad)', warn: 'var(--warn)', info: 'var(--info)' };
 
-export default function Overview() {
+const OVERVIEW_TABS = [
+  { id: 'pulse', label: 'Pulse & Production', icon: LayoutDashboard },
+  { id: 'analytics', label: 'Deep Analytics (28d)', icon: TrendingUp },
+];
+
+function OverviewContent() {
+  const searchParams = useSearchParams();
+  const tabFromQuery = searchParams.get('tab');
+  const activeTab = tabFromQuery && OVERVIEW_TABS.some((tab) => tab.id === tabFromQuery) ? tabFromQuery : 'pulse';
+
   const [data, setData] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [err, setErr] = useState(false);
@@ -45,9 +59,16 @@ export default function Overview() {
   };
 
   useEffect(() => {
-    load();
+    let alive = true;
+    (async () => {
+      await Promise.resolve();
+      if (alive) load();
+    })();
     const t = setInterval(() => load(), 60000);
-    return () => clearInterval(t);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
   }, [tick]);
 
   if (err)
@@ -96,11 +117,24 @@ export default function Overview() {
           <Button color="secondary" onClick={() => load(true)} isDisabled={refreshing} iconLeading={<RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />}>
             {refreshing ? 'Refreshing…' : 'Refresh'}
           </Button>
-          <Link href="/production"><Button color="primary" iconLeading={<Zap size={16} />}>Production</Button></Link>
+          <Link href="/operations?tab=pipelines"><Button color="primary" iconLeading={<Zap size={16} />}>Pipelines</Button></Link>
         </div>
       </div>
 
-      {/* KPI row */}
+      <div className="mb-6">
+        <TabNav
+          tabs={OVERVIEW_TABS}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+          paramName="tab"
+        />
+      </div>
+
+      {activeTab === 'analytics' ? (
+        <Analytics />
+      ) : (
+        <>
+          {/* KPI row */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-5">
         <StatCard delay={0} icon={Users} label="YT subs" value={totals.ytSubs} fmt={fmt} />
         <StatCard delay={1} icon={Eye} label="YT views" value={totals.ytViews} fmt={fmt} delta={viewsDelta} spark={daily.map((d) => d.views)} color="var(--info)" iconBg="color-mix(in srgb, var(--info) 12%, transparent)" />
@@ -281,6 +315,16 @@ export default function Overview() {
       <p className="mt-4 text-[11px] text-faint">
         Live totals: {fmtFull(totals.ytSubs)} subs · {fmtFull(totals.ytViews)} all-time views · refreshed every 60s. Real 28-day numbers live on the Analytics page.
       </p>
+        </>
+      )}
     </div>
+  );
+}
+
+export default function Overview() {
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <OverviewContent />
+    </Suspense>
   );
 }
