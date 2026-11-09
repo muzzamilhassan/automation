@@ -1,0 +1,59 @@
+{
+  "version": "1.0.0",
+  "template_id": "paper-trail-storybook",
+  "family": "documentary-frames",
+  "niches": ["Personal finance rules & money habits"],
+  "formats": ["long", "short"],
+  "renderer": "remotion",
+  "required_capabilities": ["script-gen", "tts", "captions"],
+  "doc_presentation": {
+    "style": "collage-archive",
+    "theme": "vox",
+    "voice": "en-US-AndrewNeural",
+    "music_mood": "bright",
+    "doc_layouts": ["split", "quote", "split", "process", "quote", "split"],
+    "brand": "PAPER TRAIL",
+    "badge": "PT",
+    "eyebrow": "THE MONEY ARCHIVE // PT"
+  },
+  "story_structure": {
+    "doc_render": "storybook",
+    "sections": ["cold_open", "chapters:10", "exhibits", "outro"],
+    "chapter_min_words": 170,
+    "beats": [
+      "Opening: A shoebox of receipts from 1974 — and the price tags that explain every money argument your family still has.",
+      "Evidence: The clipping from the folder: 'A dollar saved is a dollar earned' — printed in a paper that cost five cents.",
+      "Mechanism: Inflation as a storyteller — how each decade rewrote the same rule in new numbers.",
+      "Payoff: The archive habit — one folder, one page a month, and your own paper trail becomes the lesson."
+    ],
+    "hook_classes": ["the-shoebox reveal", "the-clipping", "the-archive habit"],
+    "title_patterns": [
+      "The 1974 Shoebox of Receipts That Explains Every Money Argument",
+      "A Dollar Saved: The Clipping That Outlived Its Newspaper",
+      "Start a Paper Trail: One Folder, One Page a Month"
+    ],
+    "payoff_rule": "the closing files the lesson — one habit the viewer starts this month"
+  },
+  "variation_rules": [
+    "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+    "no recycled example set against the last 5 videos (enforced: the variation gate similarity)",
+    "no repeated hook across the channel's last 5 videos (enforced: the variation gate similarity)",
+    "every figure and fact is a cited source (prose for the author and the review desk — spec Honest Limits)"
+  ],
+  "review_thumb_pick": true,
+  "safety": {
+    "required_sources": true,
+    "review_required": [],
+    "disclaimers": [
+      "Money-history storytelling with cited sources — not financial advice."
+    ]
+  },
+  "deprecated": false,
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-11-09",
+      "note": "family F7 collage-archive draft (MR pilot #2) — staged, awaiting owner approval (--approve)"
+    }
+  ]
+}

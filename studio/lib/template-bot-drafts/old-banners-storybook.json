@@ -1,0 +1,59 @@
+{
+  "version": "1.0.0",
+  "template_id": "old-banners-storybook",
+  "family": "documentary-frames",
+  "niches": ["History stories"],
+  "formats": ["long", "short"],
+  "renderer": "remotion",
+  "required_capabilities": ["script-gen", "tts", "captions"],
+  "doc_presentation": {
+    "style": "map-atlas",
+    "theme": "frontier",
+    "voice": "en-US-ChristopherNeural",
+    "music_mood": "epic",
+    "doc_layouts": ["split", "map", "split", "stat", "quote", "split"],
+    "brand": "OLD BANNERS",
+    "badge": "OB",
+    "eyebrow": "THE ATLAS // OB"
+  },
+  "story_structure": {
+    "doc_render": "storybook",
+    "sections": ["cold_open", "chapters:10", "exhibits", "outro"],
+    "chapter_min_words": 170,
+    "beats": [
+      "Opening: Three routes crossed one mountain pass — whoever held the pass held three empires' trade, and everyone knew it.",
+      "Evidence: The survey maps and the garrison logs: supply wagons that never arrived, dated and counted.",
+      "Mechanism: The pass economics — why a single ridge could tax three kingdoms and starve a fourth.",
+      "Payoff: The atlas lesson — border lines on old maps are supply lines wearing costumes."
+    ],
+    "hook_classes": ["the-pass reveal", "the-missing wagons", "the-atlas lesson"],
+    "title_patterns": [
+      "The Mountain Pass That Taxed Three Empires at Once",
+      "The Supply Wagons That Never Arrived — A Logistics Mystery, Solved",
+      "Border Lines Are Supply Lines Wearing Costumes"
+    ],
+    "payoff_rule": "the closing zooms the atlas out — geography explains what chroniclers dramatize"
+  },
+  "variation_rules": [
+    "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+    "no recycled example set against the last 5 videos (enforced: the variation gate similarity)",
+    "no repeated hook across the channel's last 5 videos (enforced: the variation gate similarity)",
+    "every figure and fact is a cited source (prose for the author and the review desk — spec Honest Limits)"
+  ],
+  "review_thumb_pick": true,
+  "safety": {
+    "required_sources": true,
+    "review_required": [],
+    "disclaimers": [
+      "History retold from cited sources — interpretations vary and historians debate the details."
+    ]
+  },
+  "deprecated": false,
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-11-09",
+      "note": "family F6 map-atlas draft — staged, awaiting owner approval (--approve)"
+    }
+  ]
+}

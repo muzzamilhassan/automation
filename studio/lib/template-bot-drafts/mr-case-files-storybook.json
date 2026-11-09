@@ -1,0 +1,59 @@
+{
+  "version": "1.0.0",
+  "template_id": "mr-case-files-storybook",
+  "family": "documentary-frames",
+  "niches": ["Personal finance rules & money habits"],
+  "formats": ["long", "short"],
+  "renderer": "remotion",
+  "required_capabilities": ["script-gen", "tts", "captions"],
+  "doc_presentation": {
+    "style": "statement-receipt",
+    "theme": "signal",
+    "voice": "en-US-BrianNeural",
+    "music_mood": "driving",
+    "doc_layouts": ["quote", "stat", "quote", "versus", "quote", "split"],
+    "brand": "LEDGER PROOF",
+    "badge": "LP",
+    "eyebrow": "CASE FILES // LP"
+  },
+  "story_structure": {
+    "doc_render": "storybook",
+    "sections": ["cold_open", "chapters:10", "exhibits", "outro"],
+    "chapter_min_words": 170,
+    "beats": [
+      "Opening: A family's grocery receipt shows $412 in a normal week — the audit finds $186 of it was pure friction, not food.",
+      "Evidence: The bank statement line nobody reads — the $11.99 subscription that renewed 34 times, circled in red on the exhibit.",
+      "Mechanism: The receipt audit ritual: every purchase gets a category, a verdict stamp, and a rule that stops the leak.",
+      "Payoff: The closed case — $2,910 redirected to savings in one year, stamped VERIFIED."
+    ],
+    "hook_classes": ["the-exhibit reveal", "the-leaked line", "the-verdict close"],
+    "title_patterns": [
+      "The $186 Grocery Lie: What a 30-Day Receipt Audit Really Finds",
+      "Exhibit A: The $11.99 Charge That Renewed 34 Times",
+      "Case Closed: $2,910 Redirected to Savings in One Year"
+    ],
+    "payoff_rule": "the closing stamps the verdict and hands the viewer the audit rule"
+  },
+  "variation_rules": [
+    "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+    "no recycled example set against the last 5 videos (enforced: the variation gate similarity)",
+    "no repeated hook across the channel's last 5 videos (enforced: the variation gate similarity)",
+    "every figure and fact is a cited source (prose for the author and the review desk — spec Honest Limits)"
+  ],
+  "review_thumb_pick": true,
+  "safety": {
+    "required_sources": true,
+    "review_required": [],
+    "disclaimers": [
+      "Educational money audits with cited sources — not financial advice."
+    ]
+  },
+  "deprecated": false,
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-11-09",
+      "note": "family F1 statement-receipt draft (MR pilot) — staged, awaiting owner approval (--approve)"
+    }
+  ]
+}

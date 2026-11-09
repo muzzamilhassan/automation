@@ -1,0 +1,59 @@
+{
+  "version": "1.0.0",
+  "template_id": "night-signal-storybook",
+  "family": "documentary-frames",
+  "niches": ["Sleep & recovery science"],
+  "formats": ["long", "short"],
+  "renderer": "remotion",
+  "required_capabilities": ["script-gen", "tts", "captions"],
+  "doc_presentation": {
+    "style": "dark-doc",
+    "theme": "midnight",
+    "voice": "en-US-AriaNeural",
+    "music_mood": "calming",
+    "doc_layouts": ["split", "quote", "split", "stat", "split", "quote"],
+    "brand": "NIGHT SIGNAL",
+    "badge": "NS",
+    "eyebrow": "NIGHT SCIENCE // NS"
+  },
+  "story_structure": {
+    "doc_render": "storybook",
+    "sections": ["cold_open", "chapters:10", "exhibits", "outro"],
+    "chapter_min_words": 170,
+    "beats": [
+      "Opening: One glowing fact — a single night of 5-hour sleep cuts memory consolidation by 40 percent.",
+      "Evidence: The lab record: two groups, one task, eight hours versus five — the gap shows by morning.",
+      "Mechanism: Adenosine wash and the glymphatic rinse — the brain's cleanup crew only runs at depth.",
+      "Payoff: The one change that survives every study — a fixed wake time, held for 21 nights."
+    ],
+    "hook_classes": ["the-single fact", "the-lab record", "the-one change"],
+    "title_patterns": [
+      "5 Hours of Sleep Erases 40% of Your Memory — The Overnight Evidence",
+      "The Brain's Cleanup Crew Only Runs at Depth",
+      "The One Sleep Change That Survives Every Study"
+    ],
+    "payoff_rule": "the closing leaves ONE fact glowing — the viewer keeps a single change"
+  },
+  "variation_rules": [
+    "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+    "no recycled example set against the last 5 videos (enforced: the variation gate similarity)",
+    "no repeated hook across the channel's last 5 videos (enforced: the variation gate similarity)",
+    "every figure and fact is a cited source (prose for the author and the review desk — spec Honest Limits)"
+  ],
+  "review_thumb_pick": true,
+  "safety": {
+    "required_sources": true,
+    "review_required": [],
+    "disclaimers": [
+      "Sleep science education from cited sources — not medical advice; see a clinician for persistent sleep disorders."
+    ]
+  },
+  "deprecated": false,
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-11-09",
+      "note": "family F2 dark-doc draft — staged, awaiting owner approval (--approve)"
+    }
+  ]
+}

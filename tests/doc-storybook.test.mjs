@@ -54,7 +54,7 @@ describe('SB-2 — docPresentation: template block wins, kit falls back, initial
   test('the doc_presentation block carries the reference strings verbatim', () => {
     assert.deepEqual(
       docPresentation({ doc_presentation: { brand: 'MONEY RULEBOOK', eyebrow: 'BUSINESS STORIES // MR', badge: 'MR' } }, kit),
-      { brand: 'MONEY RULEBOOK', eyebrow: 'BUSINESS STORIES // MR', badge: 'MR', theme: undefined, docLayouts: undefined , voice: undefined, musicMood: undefined },
+      { brand: 'MONEY RULEBOOK', eyebrow: 'BUSINESS STORIES // MR', badge: 'MR', theme: undefined, docLayouts: undefined , voice: undefined, musicMood: undefined, style: undefined },
     );
   });
   test('step 3/5 seams: theme + doc_layouts ride the presentation block; absent = undefined', () => {
@@ -69,17 +69,17 @@ describe('SB-2 — docPresentation: template block wins, kit falls back, initial
     assert.equal(voiced.musicMood, 'epic', 'P4: the template music mood rides through');
   });
   test('no block: kit label/eyebrow + derived initials', () => {
-    assert.deepEqual(docPresentation(null, kit), { brand: 'THE MONEY RULEBOOK', eyebrow: 'MONEY RULES // THE MONEY RULEBOOK', badge: 'TMR', theme: undefined, docLayouts: undefined , voice: undefined, musicMood: undefined });
-    assert.deepEqual(docPresentation({}, { label: 'Quote Quarry' }), { brand: 'Quote Quarry', eyebrow: '', badge: 'QQ', theme: undefined, docLayouts: undefined , voice: undefined, musicMood: undefined });
+    assert.deepEqual(docPresentation(null, kit), { brand: 'THE MONEY RULEBOOK', eyebrow: 'MONEY RULES // THE MONEY RULEBOOK', badge: 'TMR', theme: undefined, docLayouts: undefined , voice: undefined, musicMood: undefined, style: undefined });
+    assert.deepEqual(docPresentation({}, { label: 'Quote Quarry' }), { brand: 'Quote Quarry', eyebrow: '', badge: 'QQ', theme: undefined, docLayouts: undefined , voice: undefined, musicMood: undefined, style: undefined });
   });
   test('partial block: per-field fallback (blank brand string falls back too)', () => {
     assert.deepEqual(
       docPresentation({ doc_presentation: { badge: 'MR' } }, kit),
-      { brand: 'THE MONEY RULEBOOK', eyebrow: 'MONEY RULES // THE MONEY RULEBOOK', badge: 'MR', theme: undefined, docLayouts: undefined , voice: undefined, musicMood: undefined },
+      { brand: 'THE MONEY RULEBOOK', eyebrow: 'MONEY RULES // THE MONEY RULEBOOK', badge: 'MR', theme: undefined, docLayouts: undefined , voice: undefined, musicMood: undefined, style: undefined },
     );
   });
   test('the real pilot entry carries the reference presentation', () => {
-    assert.deepEqual(docPresentation(REGISTRY_META['red-flags-explained'], kit), { brand: 'MONEY RULEBOOK', eyebrow: 'BUSINESS STORIES // MR', badge: 'MR', theme: undefined, docLayouts: undefined , voice: undefined, musicMood: undefined });
+    assert.deepEqual(docPresentation(REGISTRY_META['red-flags-explained'], kit), { brand: 'MONEY RULEBOOK', eyebrow: 'BUSINESS STORIES // MR', badge: 'MR', theme: undefined, docLayouts: undefined , voice: undefined, musicMood: undefined, style: undefined });
   });
 });
 
@@ -187,7 +187,7 @@ describe('SB-5/SB-6 — timeBeats: make-longform pacing + ms word mapping', () =
 
 describe('buildStorybookDoc — the DocV2 json', () => {
   test('vox theme + presentation + progressParts + music', () => {
-    const doc = buildStorybookDoc({ title: 'T', presentation: { brand: 'MONEY RULEBOOK', eyebrow: 'BUSINESS STORIES // MR', badge: 'MR' , voice: undefined, musicMood: undefined }, beats: [{ i: 0 }], totalMs: 60000, music: 'lf-audio/x/music.mp3', progressParts: 10 });
+    const doc = buildStorybookDoc({ title: 'T', presentation: { brand: 'MONEY RULEBOOK', eyebrow: 'BUSINESS STORIES // MR', badge: 'MR' , voice: undefined, musicMood: undefined, style: undefined }, beats: [{ i: 0 }], totalMs: 60000, music: 'lf-audio/x/music.mp3', progressParts: 10 });
     assert.equal(doc.theme, 'vox');
     assert.equal(doc.brand, 'MONEY RULEBOOK');
     assert.equal(doc.badge, 'MR');
@@ -198,7 +198,7 @@ describe('buildStorybookDoc — the DocV2 json', () => {
     assert.equal(doc.fps, 24);
   });
   test('no music = key omitted (DocV2 renders silent-bed)', () => {
-    const doc = buildStorybookDoc({ title: 'T', presentation: { brand: 'B', eyebrow: 'E', badge: 'X' , voice: undefined, musicMood: undefined }, beats: [], totalMs: 1000 });
+    const doc = buildStorybookDoc({ title: 'T', presentation: { brand: 'B', eyebrow: 'E', badge: 'X' , voice: undefined, musicMood: undefined, style: undefined }, beats: [], totalMs: 1000 });
     assert.equal('music' in doc, false);
   });
 });
@@ -345,7 +345,7 @@ describe('doc_presentation.theme — palette selection is DATA, default-inert', 
   });
 
   test('absent theme = vox byte-identically (the default-inert rule)', () => {
-    const doc = buildStorybookDoc({ title: 'T', presentation: { brand: 'B', eyebrow: 'E', badge: 'B' , voice: undefined, musicMood: undefined }, beats: [], totalMs: 1000 });
+    const doc = buildStorybookDoc({ title: 'T', presentation: { brand: 'B', eyebrow: 'E', badge: 'B' , voice: undefined, musicMood: undefined, style: undefined }, beats: [], totalMs: 1000 });
     assert.equal(doc.theme, 'vox', 'templates without the field keep the original palette');
     assert.equal(buildStorybookDoc({ title: 'T', presentation: {}, beats: [], totalMs: 1 }).theme, 'vox', 'empty presentation too');
   });

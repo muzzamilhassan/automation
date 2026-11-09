@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { useSteppedFrame } from "./stylepacks";
+import { FAMILIES } from "./families";
 import { AbsoluteFill, Audio, Img, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig, continueRender, delayRender } from "remotion";
 
 // ============ DOCUMENTARY V2 — themed layout engine with safe zones ============
@@ -201,14 +202,14 @@ export const THEMES: Record<string, Theme> = {
   },
 };
 
-const ThemeCtx = React.createContext<Theme>(THEMES.investing);
-const useT = () => React.useContext(ThemeCtx);
+export const ThemeCtx = React.createContext<Theme>(THEMES.investing);
+export const useT = () => React.useContext(ThemeCtx);
 
 // P2 motion grammar — the theme-aware entrance. With no motion profile the
 // math is IDENTICAL to the original spring (default-inert); stepped themes
 // quantize the frame (the "on Ns" feel), typewriter themes hard-reveal on a
 // quantized ticker (the typed pacing).
-const useMotion = (delay: number): number => {
+export const useMotion = (delay: number): number => {
   const T = useT();
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -242,7 +243,7 @@ export type V2Beat = {
 // progressParts  ONE dash per part (capped 16) instead of one per beat, filled
 //                by the beat's chapter progress (beat.n) — the reference's
 //                10-dash chapter track
-export type V2Doc = { title: string; theme?: string; brand?: string; eyebrow?: string; badge?: string; progressParts?: number; beats: V2Beat[]; totalMs: number; fps: number };
+export type V2Doc = { title: string; theme?: string; style?: string; brand?: string; eyebrow?: string; badge?: string; progressParts?: number; beats: V2Beat[]; totalMs: number; fps: number };
 
 const loadFonts = () => {
   const h = delayRender("lv2 fonts");
@@ -265,7 +266,7 @@ const usePop = (delay = 0) => {
 };
 
 // clamp on-screen text: max ~2 lines at the chosen size, ellipsis at word boundary
-function fitText(text: string, maxChars: number) {
+export function fitText(text: string, maxChars: number) {
   const t = (text || "").trim();
   if (t.length <= maxChars) return t;
   const cut = t.slice(0, maxChars);
@@ -273,9 +274,9 @@ function fitText(text: string, maxChars: number) {
 }
 
 // content frame: everything renders inside these safe bounds
-const SAFE = { top: 130, bottom: 150, x: 150 };
+export const SAFE = { top: 130, bottom: 150, x: 150 };
 
-const Content: React.FC<{ children: React.ReactNode; beat: V2Beat }> = ({ children, beat }) => {
+export const Content: React.FC<{ children: React.ReactNode; beat: V2Beat }> = ({ children, beat }) => {
   const f = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
   const fade = durationInFrames > 24
@@ -327,7 +328,7 @@ const Furniture: React.FC<{ beat: V2Beat; total: number; kicker: string; showBad
 };
 
 // paper grain for the vox look — deterministic feTurbulence, multiply blend
-const Grain: React.FC = () => (
+export const Grain: React.FC = () => (
   <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.05, mixBlendMode: "multiply", pointerEvents: "none" }}>
     <filter id="grain">
       <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" stitchTiles="stitch" />
@@ -336,7 +337,7 @@ const Grain: React.FC = () => (
   </svg>
 );
 
-const Photo: React.FC<{ file: string; side: "left" | "right"; width: string }> = ({ file, side, width }) => {
+export const Photo: React.FC<{ file: string; side: "left" | "right"; width: string }> = ({ file, side, width }) => {
   const T = useT();
   return (
     <div style={{ position: "absolute", top: 170, bottom: 320, [side]: SAFE.x, width, overflow: "hidden", borderRadius: 22, boxShadow: "0 26px 60px rgba(0,0,0,0.45)" }}>
@@ -346,7 +347,7 @@ const Photo: React.FC<{ file: string; side: "left" | "right"; width: string }> =
   );
 };
 
-const Kicker: React.FC<{ text: string; center?: boolean }> = ({ text, center }) => {
+export const Kicker: React.FC<{ text: string; center?: boolean }> = ({ text, center }) => {
   const T = useT();
   return (
     <div style={{ fontFamily: T.mono, fontWeight: 700, fontSize: 26, letterSpacing: center ? "0.32em" : "0.22em", color: T.accent, textTransform: T.upper ? "uppercase" : "none" }}>
@@ -355,7 +356,7 @@ const Kicker: React.FC<{ text: string; center?: boolean }> = ({ text, center }) 
   );
 };
 
-const Headline: React.FC<{ text: string; size: number }> = ({ text, size }) => {
+export const Headline: React.FC<{ text: string; size: number }> = ({ text, size }) => {
   const T = useT();
   return (
     <div style={{ fontFamily: T.display, fontWeight: T.displayWeight, fontSize: size, lineHeight: 1.18, letterSpacing: T.upper ? "0.01em" : "-0.01em", color: T.ink, textTransform: T.upper ? "uppercase" : "none" }}>
@@ -364,7 +365,7 @@ const Headline: React.FC<{ text: string; size: number }> = ({ text, size }) => {
   );
 };
 
-const Sub: React.FC<{ text: string; align?: string; size?: number }> = ({ text, align, size = 36 }) => {
+export const Sub: React.FC<{ text: string; align?: string; size?: number }> = ({ text, align, size = 36 }) => {
   const T = useT();
   const base: React.CSSProperties = {
     marginTop: 34, fontFamily: T.body, fontWeight: 600, fontSize: size, lineHeight: 1.4,
@@ -796,11 +797,21 @@ export const DocV2: React.FC<any> = (input) => {
   const T: Theme = { ...base, brand: doc?.brand || base.brand, eyebrow: doc?.eyebrow || base.eyebrow, badge: doc?.badge || base.badge };
   if (!doc) return <AbsoluteFill style={{ background: T.bg }} />;
   const total = doc.beats.length;
+  // The template FAMILY (doc_presentation.style — research/full-template-
+  // families-2026-11-09.md): a scene system with its own renderers. Absent or
+  // unknown = the original layout engine, byte-identically (default-inert).
+  // A family may cover any subset of layouts; the rest fall through to the
+  // engine's own layouts below.
+  const fam = doc?.style ? FAMILIES[doc.style] : undefined;
 
   const vw = doc.width || 1920;
   const vh = doc.height || 1080;
   const sc = vw / 1920;
   const stage = sc === 1 ? null : { width: 1920, height: 1080, transform: `scale(${sc})`, transformOrigin: "top left" as const };
+  const defaultComp = (b: V2Beat, i: number) => b.layout === "hero" ? <HeroLayout b={b} /> : b.layout === "chapter" ? <ChapterLayout b={b} /> : b.layout === "stat" ? <StatLayout b={b} /> : b.layout === "end" ? <EndLayout b={b} />
+    : b.layout === "quote" ? <QuoteLayout b={b} /> : b.layout === "process" ? <ProcessLayout b={b} /> : b.layout === "versus" ? <VersusLayout b={b} />
+    : b.layout === "timeline" ? <TimelineLayout b={b} /> : b.layout === "map" ? <MapLayout b={b} /> : b.layout === "terminal" ? <TerminalLayout b={b} />
+    : <SplitLayout b={b} side={(b.photoSide || (i % 2 === 0 ? "left" : "right")) as "left" | "right"} />;
   return (
     <ThemeCtx.Provider value={T}>
       <AbsoluteFill style={{ background: T.bg }}>
@@ -809,10 +820,8 @@ export const DocV2: React.FC<any> = (input) => {
         {doc.beats.map((b: V2Beat, i: number) => {
           const from = Math.round((b.startMs / 1000) * fps);
           const dur = Math.max(Math.ceil((b.ms / 1000) * fps), 2);
-          const comp = b.layout === "hero" ? <HeroLayout b={b} /> : b.layout === "chapter" ? <ChapterLayout b={b} /> : b.layout === "stat" ? <StatLayout b={b} /> : b.layout === "end" ? <EndLayout b={b} />
-            : b.layout === "quote" ? <QuoteLayout b={b} /> : b.layout === "process" ? <ProcessLayout b={b} /> : b.layout === "versus" ? <VersusLayout b={b} />
-            : b.layout === "timeline" ? <TimelineLayout b={b} /> : b.layout === "map" ? <MapLayout b={b} /> : b.layout === "terminal" ? <TerminalLayout b={b} />
-            : <SplitLayout b={b} side={(b.photoSide || (i % 2 === 0 ? "left" : "right")) as "left" | "right"} />;
+          const FamScene = fam ? fam.scenes[b.layout] : null;
+          const comp = FamScene ? <FamScene b={b} /> : defaultComp(b, i);
           return (
             <Sequence key={`${b.layout}-${b.i}`} from={from} durationInFrames={dur} name={`b${b.i}-${b.layout}`}>
               {comp}

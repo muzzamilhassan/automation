@@ -51,8 +51,10 @@ const photoDir = path.join(PUB, 'lf-photos', `preview-${id}`);
 fs.mkdirSync(photoDir, { recursive: true });
 const sOpts = { stdio: 'inherit', shell: process.platform === 'win32' };
 const sh = (args) => { const r = spawnSync(args[0], args.slice(1), sOpts); if (r.status !== 0) throw new Error(`${args[0]} failed (${r.status})`); };
-// remotion runs INSIDE explainer (Root.tsx + public live there — the lane's invocation)
-const shEx = (args) => { const r = spawnSync('npx', ['remotion', ...args], { cwd: EXPL, stdio: 'inherit', shell: process.platform === 'win32' }); if (r.status !== 0) throw new Error(`remotion ${args[0]} failed (${r.status})`); };
+// remotion runs INSIDE explainer (Root.tsx + public live there — the lane's invocation).
+// render/still get a pid-derived --port: port 3000 is often taken by a dev
+// server (a foreign page there poisons the bundle check with a cryptic error).
+const shEx = (args) => { const extra = (args[0] === 'render' || args[0] === 'still') ? ['--port=' + (3700 + (process.pid % 250))] : []; const r = spawnSync('npx', ['remotion', ...args, ...extra], { cwd: EXPL, stdio: 'inherit', shell: process.platform === 'win32' }); if (r.status !== 0) throw new Error(`remotion ${args[0]} failed (${r.status})`); };
 
 // 1. beats — the template's own layout cycle over a one-chapter sample
 const line = previewLine(meta);
