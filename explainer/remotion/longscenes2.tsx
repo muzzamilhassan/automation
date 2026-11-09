@@ -110,6 +110,95 @@ export const THEMES: Record<string, Theme> = {
     motion: { kind: "stepped", step: 2 }, // measured, on 2s
     brand: "SCIENCE EXPLAINED", eyebrow: "SCIENCE STORIES // SE", badge: "SE",
   },
+  // Style-catalog batch (2026-11-09, research/video-style-catalog-2026-11-09.md) —
+  // eight popular faceless looks as pure token themes. Drafts carry their own
+  // brand/eyebrow/badge (these theme defaults are placeholders — longscenes2
+  // line ~707 lets doc_presentation override them).
+  brief: {
+    // Modern MBA / How Money Works — clean corporate diagram deck
+    bg: "#F6F8FA", ink: "#10202E", sub: "#5B6B7A", accent: "#0F62FE", accent2: "#DA1E28",
+    line: "rgba(16,32,46,0.14)", dot: "rgba(16,32,46,0.2)", furn: "rgba(16,32,46,0.55)",
+    ghost: "rgba(15,98,254,0.32)", photoTint: "rgba(16,32,46,0.16)",
+    display: GROT, body: GROT, mono: MONO,
+    displayWeight: 900, upper: true, grain: false,
+    subStyle: "bar", highlight: "rgba(15,98,254,0.18)", capColor: "#0F62FE",
+    brand: "STRAIGHT BOOK", eyebrow: "BUSINESS BRIEFS // SB", badge: "SB",
+  },
+  stoic: {
+    // Einzelgänger-class dark discipline — charcoal, bone ink, gold, Cinzel
+    bg: "#0D0B08", ink: "#E8DCC8", sub: "#8A7D68", accent: "#C9A227", accent2: "#7A1F2B",
+    line: "rgba(232,220,200,0.14)", dot: "rgba(232,220,200,0.2)", furn: "rgba(232,220,200,0.55)",
+    ghost: "rgba(201,162,39,0.4)", photoTint: "rgba(13,11,8,0.35)",
+    display: "'Cinzel', 'Playfair Display', Georgia, serif", body: GROT, mono: MONO,
+    displayWeight: 700, upper: true, grain: true,
+    subStyle: "bar", highlight: "rgba(201,162,39,0.32)", capColor: "#C9A227",
+    motion: { kind: "stepped", step: 4 }, // carved on cue, not animated in
+    brand: "IRON CODE", eyebrow: "DISCIPLINE STORIES // IC", badge: "IC",
+  },
+  legacy: {
+    // Old-money quiet luxury — ivory, deep navy, burgundy, serif
+    bg: "#F4EFE6", ink: "#1B2A4A", sub: "#6E6255", accent: "#7A1F2B", accent2: "#8C6D3F",
+    line: "rgba(27,42,74,0.14)", dot: "rgba(27,42,74,0.2)", furn: "rgba(27,42,74,0.55)",
+    ghost: "rgba(122,31,43,0.3)", photoTint: "rgba(27,42,74,0.18)",
+    display: SERIF, body: GROT, mono: MONO,
+    displayWeight: 800, upper: false, grain: true,
+    subStyle: "marker", highlight: "rgba(140,109,63,0.35)", capColor: "#7A1F2B",
+    brand: "HEIRLOOM", eyebrow: "OLD MONEY STORIES // HL", badge: "HL",
+  },
+  midnight: {
+    // LEMMiNO/Fern minimal dark essay — near-black navy, one cool glow
+    bg: "#0A0E1A", ink: "#E8EAF0", sub: "#7C8AA5", accent: "#4F8CFF", accent2: "#3FBFAD",
+    line: "rgba(232,234,240,0.13)", dot: "rgba(232,234,240,0.18)", furn: "rgba(232,234,240,0.5)",
+    ghost: "rgba(79,140,255,0.4)", photoTint: "rgba(10,14,26,0.4)",
+    display: SERIF, body: GROT, mono: MONO,
+    displayWeight: 800, upper: false, grain: false,
+    subStyle: "bar", highlight: "rgba(79,140,255,0.3)", capColor: "#9CC3FF",
+    brand: "NIGHT ARCHIVE", eyebrow: "SLEEP & NIGHT SCIENCE // NA", badge: "NA",
+  },
+  signal: {
+    // Coffeezilla evidence desk — dark board, red flag / verified green
+    bg: "#101214", ink: "#E6E8EA", sub: "#8A9199", accent: "#FF4747", accent2: "#37C871",
+    line: "rgba(230,232,234,0.14)", dot: "rgba(230,232,234,0.2)", furn: "rgba(230,232,234,0.5)",
+    ghost: "rgba(255,71,71,0.35)", photoTint: "rgba(16,18,20,0.4)",
+    display: GROT, body: GROT, mono: MONO,
+    displayWeight: 800, upper: true, grain: false,
+    subStyle: "marker", highlight: "rgba(255,71,71,0.25)", capColor: "#FF8A8A",
+    motion: { kind: "typewriter", step: 2 }, // the record types itself
+    brand: "EVIDENCE ROOM", eyebrow: "AI & TECH DECODED // ER", badge: "ER",
+  },
+  volt: {
+    // ColdFusion / Jikh sleek tech — pure black glass, cyan glow, mono labels
+    bg: "#050607", ink: "#F5F6F7", sub: "#6E747C", accent: "#00E5FF", accent2: "#7C4DFF",
+    line: "rgba(245,246,247,0.12)", dot: "rgba(245,246,247,0.18)", furn: "rgba(245,246,247,0.45)",
+    ghost: "rgba(0,229,255,0.35)", photoTint: "rgba(5,6,7,0.45)",
+    display: GROT, body: GROT, mono: MONO,
+    displayWeight: 700, upper: false, grain: false,
+    subStyle: "bar", highlight: "rgba(0,229,255,0.22)", capColor: "#66F0FF",
+    motion: { kind: "typewriter", step: 1 }, // electric tick
+    brand: "FULL CURRENT", eyebrow: "FOCUS SYSTEMS // FC", badge: "FC",
+  },
+  frontier: {
+    // History war-room — parchment on dark wood, crimson wax, map/timeline heroes
+    bg: "#14100A", ink: "#EAD9A2", sub: "#9C8B6C", accent: "#B8332A", accent2: "#3E6B4F",
+    line: "rgba(234,217,162,0.15)", dot: "rgba(234,217,162,0.22)", furn: "rgba(234,217,162,0.55)",
+    ghost: "rgba(184,51,42,0.4)", photoTint: "rgba(20,16,10,0.35)",
+    display: SERIF, body: GROT, mono: MONO,
+    displayWeight: 800, upper: false, grain: true,
+    subStyle: "marker", highlight: "rgba(184,51,42,0.3)", capColor: "#E8B04B",
+    motion: { kind: "typewriter", step: 3 }, // the chronicle unfolds line by line
+    brand: "SALT & IRON", eyebrow: "HISTORY STORIES // SI", badge: "SI",
+  },
+  letterpress: {
+    // Monumental quote cards — warm paper, ink black, deep red, giant serif
+    bg: "#EFEAE2", ink: "#171310", sub: "#6B625A", accent: "#8C1D18", accent2: "#2F4A3C",
+    line: "rgba(23,19,16,0.16)", dot: "rgba(23,19,16,0.22)", furn: "rgba(23,19,16,0.6)",
+    ghost: "rgba(140,29,24,0.32)", photoTint: "rgba(23,19,16,0.2)",
+    display: SERIF, body: GROT, mono: MONO,
+    displayWeight: 900, upper: false, grain: true,
+    subStyle: "marker", highlight: "rgba(140,29,24,0.18)", capColor: "#8C1D18",
+    motion: { kind: "stepped", step: 3 }, // pressed, on 3s
+    brand: "MARBLE QUILL", eyebrow: "TIMELESS WISDOM // MQ", badge: "MQ",
+  },
 };
 
 const ThemeCtx = React.createContext<Theme>(THEMES.investing);

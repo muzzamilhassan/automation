@@ -1,0 +1,58 @@
+{
+  "version": "1.0.0",
+  "template_id": "deep-reset-storybook",
+  "family": "documentary-frames",
+  "niches": ["Sleep & recovery science"],
+  "formats": ["long", "short"],
+  "renderer": "remotion",
+  "required_capabilities": ["script-gen", "tts", "captions"],
+  "doc_presentation": {
+    "theme": "midnight",
+    "voice": "en-US-AriaNeural",
+    "music_mood": "calming",
+    "doc_layouts": ["split", "stat", "quote", "split", "process", "split"],
+    "brand": "DEEP RESET",
+    "badge": "DR",
+    "eyebrow": "SLEEP & RECOVERY // DR"
+  },
+  "story_structure": {
+    "doc_render": "storybook",
+    "sections": ["cold_open", "chapters:10", "exhibits", "outro"],
+    "chapter_min_words": 170,
+    "beats": [
+      "Opening: Your brain runs its cleaning crew at 3AM — the glymphatic system flushes the day's waste while you sleep.",
+      "Evidence: A shift worker rebuilds her sleep in 30 days with one change: fixed wake time, every day, no exceptions.",
+      "Mechanism: The 90-minute cycle explained — why waking mid-cycle wrecks the day and how to time your alarm.",
+      "Payoff: The wind-down stack: light, temperature, and the paper list that closes tomorrow's loops tonight."
+    ],
+    "hook_classes": ["the-hidden mechanism", "the-case rebuild", "the-ritual promise"],
+    "title_patterns": [
+      "The 90-Minute Rule That Fixes Broken Sleep",
+      "Your Brain Cleans Itself at 3AM — The Glymphatic Story",
+      "How One Shift Worker Rebuilt Her Sleep in 30 Days"
+    ],
+    "payoff_rule": "the closing sets ONE change for tonight — the viewer starts the protocol in hours, not weeks"
+  },
+  "variation_rules": [
+    "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+    "no recycled example set against the last 5 videos (enforced: the variation gate similarity)",
+    "no repeated hook across the channel's last 5 videos (enforced: the variation gate similarity)",
+    "every figure and fact is a cited source (prose for the author and the review desk — spec Honest Limits)"
+  ],
+  "review_thumb_pick": true,
+  "safety": {
+    "required_sources": true,
+    "review_required": [],
+    "disclaimers": [
+      "Sleep science education from cited sources — not medical advice; consult a clinician for persistent sleep disorders."
+    ]
+  },
+  "deprecated": false,
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-11-09",
+      "note": "style-catalog batch draft (theme: midnight) — staged, awaiting owner approval (--approve)"
+    }
+  ]
+}
