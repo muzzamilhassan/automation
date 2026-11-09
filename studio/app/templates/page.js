@@ -14,6 +14,7 @@ import {
   Filter,
   CheckCircle2,
   SlidersHorizontal,
+  Inbox,
 } from 'lucide-react';
 import { PageHeader, Card, Chip } from '@/components/ui';
 import { TEMPLATES_DATA, TEMPLATE_CATEGORIES } from '@/lib/templates-catalog';
@@ -57,6 +58,9 @@ export default function TemplatesPage() {
         title="Video Templates Studio"
         sub="Browse 100+ modular broadcast video engines. Filter, preview live interactive animations, and pick styles for your channels."
       >
+        <Link className="btn btn-outline" href="/templates/drafts">
+          <Inbox size={14} className="text-amber-400" /> Drafts Inbox
+        </Link>
         <Link className="btn btn-outline" href="/create">
           <Sparkles size={14} className="text-sky-400" /> Create Custom Video
         </Link>
