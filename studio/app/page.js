@@ -125,7 +125,6 @@ function OverviewContent() {
         <TabNav
           tabs={OVERVIEW_TABS}
           activeTab={activeTab}
-          onChange={setActiveTab}
           paramName="tab"
         />
       </div>

@@ -95,7 +95,10 @@ function SettingsContent() {
   const [sessions, setSessions] = useState(null);
   const [secBusy, setSecBusy] = useState(false);
   const [secErr, setSecErr] = useState('');
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
   useEffect(() => {
     let alive = true;
     fetch('/api/team')
@@ -178,7 +181,6 @@ function SettingsContent() {
       <TabNav
         tabs={SETTINGS_TABS}
         activeTab={activeTab}
-        onChange={setActiveTab}
         paramName="tab"
       />
 
