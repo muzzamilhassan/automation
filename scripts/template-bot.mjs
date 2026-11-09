@@ -1,6 +1,8 @@
 // Phase B runner (docs/qa/template-bot-qa.md) — the template bot.
 //   node scripts/template-bot.mjs --niche "<canonical niche>" [--count 2] [--theme X] [--dry]
-//     → routeAndCall('script-gen') drafts → shape → validate → STAGE to
+//     → POST {niche, count, theme_hint} to the LangGraph brain sidecar
+//       (/bot/draft, services/ai/bot/graph.py — it drafts, self-reviews,
+//       repairs, and shapes) → validate (R2) → STAGE to
 //       studio/lib/template-bot-drafts/<id>.json → render each draft's
 //       preview (previews rows keyed draft-<id>) → print the review list.
 //   node scripts/template-bot.mjs --approve <draft-file>
@@ -43,21 +45,26 @@ const niche = arg('niche');
 const count = Math.max(1, Math.min(5, Number(arg('count')) || 1));
 const themeHint = arg('theme');
 const dry = flag('dry');
+// --bot-url overrides the brain sidecar location (default: env BOT_URL or
+// 127.0.0.1:8000) — lets a second instance run alongside a live one
+const BOT_URL = arg('bot-url') || process.env.BOT_URL || 'http://127.0.0.1:8000';
 
 // R1: canonical niche gate — BEFORE the LLM call
-const { canonicalNicheOrThrow, draftPrompt, parseDrafts, shapeDraft, validateDraft } = await import('../lib/template-bot.mjs');
-const { REGISTRY_META } = await import('../studio/lib/template-registry.data.js');
+const { canonicalNicheOrThrow, validateDraft } = await import('../lib/template-bot.mjs');
 const canon = canonicalNicheOrThrow(niche);
 
-// the shape model: a live registry entry (the wisdom exemplar)
-const exemplar = JSON.stringify(REGISTRY_META['wisdom-storybook'] || REGISTRY_META['science-storybook'], null, 2);
-const prompt = draftPrompt({ niche: canon, count, exemplar }) + (themeHint ? `\nPalette preference: "${themeHint}" (choose the closest allowed theme).` : '');
-if (dry) { console.log(prompt); process.exit(0); }
+// the drafting contract (pools, counts, JSON shape) lives in the brain:
+// services/ai/bot/graph.py (NICHE_SHAPE_RULES). --dry shows the payload this
+// script would POST to /bot/draft — not a phantom prompt.
+if (dry) {
+  console.log(JSON.stringify({ niche: canon, count, theme_hint: themeHint || null }, null, 2));
+  console.log('\n^ POSTs to /bot/draft; the drafting prompt itself lives in services/ai/bot/graph.py');
+  process.exit(0);
+}
 
 // R5: the LLM is required — the drafting brain is the Python LangGraph
 // sidecar (services/ai/bot: draft → self-review → repair → shape), reached
 // through the brain-sidecar pattern the doc lane proves.
-const BOT_URL = process.env.BOT_URL || 'http://127.0.0.1:8000';
 console.log(`[bot] drafting ${count} template(s) for "${canon}" via the LangGraph sidecar…`);
 let draftsRaw;
 try {
@@ -76,11 +83,15 @@ try {
   process.exit(1);
 }
 
-// shape + validate + stage (R2: the validator gate before staging)
+// validate + stage (R2: the validator gate before staging). The sidecar
+// returns SHAPED entries — the deterministic normalization is graph-tested
+// in services/ai/tests. Re-shaping here read top-level raw keys against a
+// nested payload and clobbered beats/titles/theme/mood with fallbacks (and
+// leaked "undefined" into the disclaimer), so the shaped entry is staged
+// verbatim; the registry validator stays the only quality gate on this side.
 fs.mkdirSync(STAGE_DIR, { recursive: true });
 const staged = [];
-for (const raw of draftsRaw) {
-  const draft = shapeDraft(raw, canon);
+for (const draft of draftsRaw) {
   const v = validateDraft(draft);
   if (!v.ok) {
     console.log(`[bot] ✗ ${draft.template_id} dropped — validator: ${JSON.stringify(v.errors).slice(0, 200)}`);
