@@ -1,0 +1,26 @@
+TOPIC: Why the stock market just crashed
+
+EVENT DAY: 2026-11-05 (market data fetched automatically from Yahoo Finance, daily bars + event-day intraday).
+
+- S&P 500 (^GSPC) closed at 7353.73 on the event day, from 7688.62 the day before — a -4.4% move. It sits -5.9% below its recent window high (7818.93).
+  - At 1:00 PM ET it was at 7389.67 (-2.3% from the open).
+  - At 2:00 PM ET it was at 7377.95 (-2.5% from the open).
+  - At 3:00 PM ET it was at 7374.71 (-2.5% from the open).
+  - At 3:30 PM ET it was at 7356.73 (-2.7% from the open).
+- Dow Jones (^DJI) closed at 51523.06 on the event day, from 53356.12 the day before — a -3.4% move. It sits -3.4% below its recent window high (53356.12).
+  - At 1:30 PM ET it was at 51765.68 (-2.3% from the open).
+  - At 2:00 PM ET it was at 51657.89 (-2.5% from the open).
+  - At 3:00 PM ET it was at 51588.75 (-2.6% from the open).
+  - At 3:30 PM ET it was at 51524.13 (-2.7% from the open).
+- Nasdaq (^IXIC) closed at 24315 on the event day, from 25736.51 the day before — a -5.5% move. It sits -11.9% below its recent window high (27599.79).
+  - At 1:00 PM ET it was at 24411.31 (-2.2% from the open).
+  - At 2:00 PM ET it was at 24404.5 (-2.3% from the open).
+  - At 3:00 PM ET it was at 24411.21 (-2.2% from the open).
+  - At 3:30 PM ET it was at 24327.37 (-2.6% from the open).
+- NVDA (NVDA) closed at 181.6 on the event day, from 200.13 the day before — a -9.3% move. It sits -24.1% below its recent window high (239.24).
+  - At 12:30 PM ET it was at 182.74 (-3.9% from the open).
+  - At 1:00 PM ET it was at 182.81 (-3.9% from the open).
+  - At 2:00 PM ET it was at 182.62 (-4% from the open).
+  - At 3:30 PM ET it was at 181.6 (-4.5% from the open).
+
+Only the numbers above are legal in the script (fact discipline).

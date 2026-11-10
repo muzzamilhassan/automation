@@ -69,6 +69,14 @@ class _BotDraftRequest(BaseModel):
     theme_hint: str | None = None
 
 
+class _BotScriptRequest(BaseModel):
+    """market-files P2 /bot/script body — topic + the operator's FACT SHEET
+    (the only legal source of numbers) + a duration target."""
+    topic: str
+    facts: str = ""
+    target_min: int = 12
+
+
 class _Chunk(BaseModel):
     """/embed chunk: chunk_kind is part of the unique storage key."""
     chunk_kind: str
@@ -196,6 +204,27 @@ def create_app() -> FastAPI:
         result = graph.invoke({"niche": req.niche, "count": max(1, min(req.count, 3)),
                                "theme_hint": req.theme_hint, "max_attempts": 2})
         return {"drafts": result.get("shaped", []), "issues": result.get("issues", []),
+                "attempts": result.get("attempts", 1)}
+
+    @app.post("/bot/script")
+    def bot_script(req: _BotScriptRequest):
+        """market-files P2 — the episode script brain (LangGraph
+        draft/review/repair over a topic + fact sheet). Same key gate as
+        /bot/draft; the fact sheet stays the only legal source of numbers."""
+        import os
+        api_key = os.environ.get("GROQ_API_KEY")
+        if not api_key:
+            return JSONResponse(status_code=503, content={"error": "bot key missing (GROQ_API_KEY) — the keyless endpoints are unaffected"})
+        from bot.script_graph import build_graph
+        from langchain_openai import ChatOpenAI
+        model = ChatOpenAI(model="openai/gpt-oss-120b", api_key=api_key,
+                           base_url="https://api.groq.com/openai/v1", temperature=0.6,
+                           max_tokens=16384)
+        graph = build_graph(model)
+        result = graph.invoke({"topic": req.topic, "facts": req.facts,
+                               "target_min": max(5, min(req.target_min, 25)),
+                               "max_attempts": 2})
+        return {"script": result.get("shaped", {}), "issues": result.get("issues", []),
                 "attempts": result.get("attempts", 1)}
 
     @app.get("/health")

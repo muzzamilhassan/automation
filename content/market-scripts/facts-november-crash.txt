@@ -1,0 +1,21 @@
+TOPIC: Why the US stock market crashed on Thursday 5 November 2026, and whether it was the AI bubble popping.
+
+MARKET NUMBERS (reported by CNBC, Yahoo Finance, Reuters, NBC News, figures as of 6 Nov 2026):
+- On Thursday the S&P 500 fell more than 4%; the Dow lost 1,833 points; the Nasdaq fell 5.5%, its biggest drop in 19 months, now in a correction (10% below its high).
+- Nvidia dropped 9%, losing more than $400 billion in a single morning; it closed at $181.
+- Across the S&P 500 more than $2 trillion vanished by mid-morning; more than $400 billion of it Nvidia alone.
+- The Nasdaq needed just 6 minutes to give back a rally that was 1 day old.
+- 10:35 AM ET: the Nasdaq was down 4% and the Dow 700 points. 11:17 AM ET: the VIX, Wall Street's fear gauge, was up 65%. 4:00 PM ET: the closing bell.
+- The month before: the 47 biggest AI and chip stocks lost about $5 trillion since the top; the dot-com crash took two and a half years to wipe out a similar amount, this took four weeks.
+- Nvidia closed October at its highest price ever, worth about $5.4 trillion, roughly 8 cents of every dollar in the S&P 500. The Magnificent Seven are about $35 of every 100 in an index fund.
+- The four biggest cloud companies plan to spend over $700 billion this year building data centers; next year more than a trillion.
+- Nvidia's last quarter brought in $96 billion, more than double the year before. By end of July Nvidia was owed about $63 billion for chips shipped but not paid for.
+- CoreWeave owed over $5 for every dollar of equity; Nvidia agreed to buy up to $6.3 billion of CoreWeave's unsold computing power.
+- About 600,000 Nvidia H200 chips are stuck in Hong Kong waiting for Beijing; Nvidia took a $400 million hit on unbought H200s.
+- Wednesday the Dow jumped 1,569 points (about 3%), the best day after a midterm since 1982; oil fell more than 9%.
+- Election: Democrats won the House and Senate. In 10 states, 41 local votes on data centers; voters went against them in 40; 21 of those were in Ohio. Goldman Sachs figures moratoriums could hit about 45% of planned data-center expansion. Elon Musk, the cycle's biggest donor at $474 million, lost both big Texas races.
+- About 70 million Americans save in a 401k, mostly index funds. Small investors sold a net $358 million of stock, the most since March 2020.
+- Northern Virginia data-center grid hookups wait about 7 years; households there pay an estimated $25-30 a month more than in 2024.
+- History: in the 1840s Britain poured about 7% of its economy into railways; railway shares lost nearly two-thirds; a third of approved lines were never built.
+- Microsoft cut its spending plan from $175 billion to $170 billion a week before the crash (less than 3%).
+- Both April 2025 tariff crash days were bigger and together erased a record $6.6 trillion.
