@@ -1,5 +1,6 @@
 import React from "react";
 import { AbsoluteFill, continueRender, delayRender, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { Lottie } from "@remotion/lottie";
 import { sceneForBeat, tickersFor, MOODS } from "../../../lib/market-scenes.mjs";
 
 // CARTOON KIT — the market-files family's drawing primitives (P1,
@@ -342,13 +343,23 @@ export const BigBoard: React.FC<{ title: string; big: string; mood: string; x?: 
   );
 };
 
-// ---- room shell (R5: mood gradient + floor) ------------------------------------
+// ---- room shell (R5: mood gradient + wall washes + a real FLOOR) ----------------
+// Owner fix 2026-11-11: the old rooms were near-black voids — the cast floated
+// in darkness and the dark captions vanished. Every mood now gets a rich
+// color-matched wall (crash = crimson, night = clear indigo, party = emerald,
+// data = steel teal) with an actual floor line at the cast's feet.
 export const Room: React.FC<{ mood: string; children?: React.ReactNode }> = ({ mood, children }) => {
   const p = paletteFor(mood);
   return (
     <AbsoluteFill style={{ background: `linear-gradient(180deg, ${p.room[0]}, ${p.room[1]})` }}>
       {/* soft center glow — the reference's lit-room feel */}
-      <AbsoluteFill style={{ background: `radial-gradient(ellipse 62% 48% at 50% 38%, ${p.accent}22, transparent 70%)` }} />
+      <AbsoluteFill style={{ background: `radial-gradient(ellipse 62% 48% at 50% 38%, ${p.accent}2e, transparent 70%)` }} />
+      {/* corner vignette keeps the frame edges rich, not flat */}
+      <AbsoluteFill style={{ background: "radial-gradient(ellipse 120% 90% at 50% 45%, transparent 60%, rgba(0,0,0,0.28) 100%)" }} />
+      {/* the floor: a horizon at the cast's feet — desks straddle it (tops
+          against the wall, legs on the ground), characters stand ON it */}
+      <div style={{ position: "absolute", left: 0, right: 0, top: 700, bottom: 0, background: "rgba(0,0,0,0.16)" }} />
+      <div style={{ position: "absolute", left: 0, right: 0, top: 698, height: 6, background: p.accent, opacity: 0.22 }} />
       {children}
     </AbsoluteFill>
   );
@@ -365,5 +376,146 @@ export const SceneShell: React.FC<{ children: React.ReactNode; beatIndex?: numbe
     <AbsoluteFill style={{ opacity: enter }}>
       <AbsoluteFill style={{ transform: `scale(${zoom}) translate(${drift}px, ${drift / 2}px)` }}>{children}</AbsoluteFill>
     </AbsoluteFill>
+  );
+};
+
+// =================================================================================
+// P1.5 — THE LIBRARY ART PASS (Route B+C, docs/qa/market-files-p1.5-qa.md).
+// The cast becomes real hand-drawn characters (Open Peeps, CC0) and stat/board
+// beats float glossy 3D props (3dicons, CC0). Everything is fetched ONCE by
+// scripts/market-art.mjs into public/assets/market/ and committed — the render
+// itself needs no network. Fail-soft: if the assets are missing (fresh clone
+// that skipped the fetcher) the P1 stick-figure rig below still draws every
+// scene, so a render never dies on art.
+// =================================================================================
+
+export type PeepEntry = { file: string; pose: "bust" | "standing" | "sitting"; url: string };
+type ToonArt = { ok: boolean; peeps: PeepEntry[] };
+
+let artPromise: Promise<ToonArt> | null = null;
+const loadArt = (): Promise<ToonArt> => {
+  if (!artPromise) {
+    artPromise = fetch(staticFile("assets/market/manifest.json"))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((m: { peeps: PeepEntry[] }) => ({ ok: true, peeps: m.peeps || [] }))
+      .catch(() => ({ ok: false, peeps: [] as PeepEntry[] }));
+  }
+  return artPromise;
+};
+
+// One fetch per browser session, gated by delayRender so frames wait for the
+// manifest (the fonts pattern); resolves ok:false when the fetcher never ran.
+export const useToonArt = (): ToonArt => {
+  const [art, setArt] = React.useState<ToonArt>(artPromise ? ({ ok: false, peeps: [] } as ToonArt) : ({ ok: false, peeps: [] } as ToonArt));
+  React.useEffect(() => {
+    const h = delayRender("market art manifest");
+    let alive = true;
+    loadArt().then((a) => {
+      if (alive) {
+        setArt(a);
+        continueRender(h);
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return art;
+};
+
+// deterministic cast pick — same seed+pose → same character every render
+export const peepFor = (peeps: PeepEntry[], seed: number, pose: PeepEntry["pose"]): PeepEntry | null => {
+  const pool = peeps.filter((p) => p.pose === pose);
+  if (!pool.length) return null;
+  const h = Math.abs(seed * 2654435761) % 4096; // Knuth hash — stable across episodes
+  return pool[h % pool.length];
+};
+
+// A hand-drawn character sprite (HTML layer, bottom-center anchored at
+// groundY): entrance pop + gentle breathe bob so nobody freezes.
+export const PeepSprite: React.FC<{
+  art: ToonArt; seed: number; pose: PeepEntry["pose"]; x: number; groundY: number;
+  h: number; flip?: boolean; delay?: number; bobAmp?: number; opacity?: number;
+}> = ({ art, seed, pose, x, groundY, h, flip = false, delay = 0, bobAmp = 3, opacity = 1 }) => {
+  const f = useCurrentFrame();
+  const peep = peepFor(art.peeps, seed, pose);
+  if (!art.ok || !peep) return null;
+  const enter = interpolate(f, [delay, delay + 9], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const bob = Math.sin(f / 26 + seed % 7) * bobAmp;
+  const pop = 0.92 + enter * 0.08;
+  return (
+    <img
+      src={staticFile(`assets/market/peeps/${peep.file}`)}
+      style={{
+        position: "absolute", left: x, top: groundY - h, height: h, width: "auto",
+        transform: `translateX(-50%) scaleX(${flip ? -1 : 1}) scale(${pop}) translateY(${(1 - enter) * 16 + bob}px)`,
+        transformOrigin: "50% 100%", opacity: enter * opacity,
+        filter: "drop-shadow(0 14px 22px rgba(0,0,0,0.35))",
+      }}
+    />
+  );
+};
+
+// mood → glossy 3D props (3dicons, CC0): crash drowns in red, party celebrates
+const MOOD_PROPS: Record<string, string[]> = {
+  crash: ["thumb-down", "fire", "money-bag", "chart"],
+  party: ["rocket", "star", "trophy", "medal"],
+  calm: ["chart", "3d-coin", "wallet", "card"],
+  data: ["computer", "chart", "calculator", "file-text"],
+  night: ["wallet", "lock", "file-text", "card"],
+};
+export const propsForMood = (mood: string): string[] => MOOD_PROPS[mood] || MOOD_PROPS.calm;
+
+// A glossy 3D prop (HTML layer, center-anchored): entrance pop, slow float,
+// optional drift direction (crash props sink, rally props rise).
+export const Prop3D: React.FC<{
+  icon: string; x: number; y: number; s: number; delay?: number; drift?: "up" | "down" | "flat"; tilt?: number; opacity?: number;
+}> = ({ icon, x, y, s, delay = 0, drift = "flat", tilt = 0, opacity = 1 }) => {
+  const f = useCurrentFrame();
+  const enter = interpolate(f, [delay, delay + 10], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const float = Math.sin(f / 30 + x % 13) * 6;
+  const sink = drift === "down" ? interpolate(f, [0, 120], [0, 90], { extrapolateLeft: "clamp" }) * (0.6 + (x % 5) / 10) : 0;
+  const rise = drift === "up" ? interpolate(f, [0, 120], [0, 90], { extrapolateLeft: "clamp" }) * (0.6 + (x % 5) / 10) : 0;
+  const rot = tilt ? Math.sin(f / 46) * tilt : 0;
+  return (
+    <img
+      src={staticFile(`assets/market/icons/${icon}.png`)}
+      style={{
+        position: "absolute", left: x, top: y + sink - rise, width: s, height: s,
+        transform: `translate(-50%, -50%) scale(${0.85 + enter * 0.15}) rotate(${rot}deg)`,
+        opacity: enter * opacity,
+        filter: "drop-shadow(0 16px 26px rgba(0,0,0,0.4))",
+      }}
+    />
+  );
+};
+
+// Route C — an animated accent through @remotion/lottie (fail-soft): a missing
+// or broken .json renders nothing; the render never dies on an accent.
+// Curated accents live in public/assets/market/lottie/<name>.json (any
+// community file MUST get a license note in manifest.json — CREDITS.md).
+export const LottieAccent: React.FC<{ name: string; x: number; y: number; s?: number; opacity?: number }> = ({ name, x, y, s = 200, opacity = 1 }) => {
+  const [data, setData] = React.useState<object | null>(null);
+  React.useEffect(() => {
+    let alive = true;
+    const h = delayRender(`lottie accent ${name}`);
+    fetch(staticFile(`assets/market/lottie/${name}.json`))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((j: object) => {
+        if (alive) {
+          setData(j);
+          continueRender(h);
+        }
+      })
+      .catch(() => continueRender(h));
+    return () => {
+      alive = false;
+    };
+  }, [name]);
+  if (!data) return null;
+  return (
+    <div style={{ position: "absolute", left: x, top: y, width: s, height: s, opacity }}>
+      <Lottie animationData={data} style={{ width: s, height: s }} loop />
+    </div>
   );
 };

@@ -9,4 +9,7 @@ export type FamilyScene = React.FC<{ b: V2Beat }>;
 export type Family = {
   name: string;
   scenes: Partial<Record<V2Beat["layout"], FamilyScene>>;
+  // Optional family-branded caption renderer (karaoke band). Absent = the
+  // engine's theme captions, byte-identically (default-inert).
+  captions?: FamilyScene;
 };

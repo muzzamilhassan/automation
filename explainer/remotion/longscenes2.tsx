@@ -832,7 +832,7 @@ export const DocV2: React.FC<any> = (input) => {
               {comp}
               <Furniture beat={{ ...b, i }} total={total} kicker={T.eyebrow} showBadge={Boolean(doc?.badge)} progressParts={doc?.progressParts} />
               {b.pop ? <BeatPop b={b} /> : null}
-              {b.words && b.words.length ? <Captions b={b} /> : null}
+              {b.words && b.words.length ? (fam?.captions ? <fam.captions b={b} /> : <Captions b={b} />) : null}
             </Sequence>
           );
         })}

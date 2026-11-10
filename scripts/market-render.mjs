@@ -86,8 +86,10 @@ const { pickApprovedTrack } = await import('../music-engine.mjs');
 const APPROVED_MUSIC = JSON.parse(fs.readFileSync(path.resolve('yt-brands', 'approved-music.json'), 'utf8'));
 let musicRel = null;
 try {
-  const moods = beats.map((b) => b.scene?.mood).filter(Boolean);
-  const mood = moods.includes('crash') ? 'driving' : moods.includes('party') ? 'bright' : 'calming';
+  // P4 tuning debt paid (2026-11-11): one 'party' word anywhere made a crash
+  // documentary UPLIFTING. Pick by the episode's DOMINANT explicit mood —
+  // somber dominance (crash/night) maps to a tense/driving entry.
+  const mood = dominant === 'crash' || dominant === 'night' ? 'driving' : dominant === 'party' ? 'bright' : 'calming';
   const track = await pickApprovedTrack(APPROVED_MUSIC[slug] || [], mood);
   if (track) {
     musicRel = `lf-audio/market-${id}-music.mp3`;
