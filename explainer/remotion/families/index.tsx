@@ -6,6 +6,7 @@ import { glassNumber } from "./glassNumber";
 import { mapAtlas } from "./mapAtlas";
 import { collageArchive } from "./collageArchive";
 import { boardSystem } from "./boardSystem";
+import { marketFiles } from "./marketFiles";
 import type { Family } from "./types";
 
 // The FAMILY registry (research/full-template-families-2026-11-09.md): a
@@ -22,6 +23,7 @@ export const FAMILIES: Record<string, Family> = {
   "map-atlas": mapAtlas,
   "collage-archive": collageArchive,
   "board-system": boardSystem,
+  "market-files": marketFiles, // F9 — the Paper Billions cartoon grammar (P1, 2026-11-10)
 };
 
 export type { Family, FamilyScene } from "./types";
