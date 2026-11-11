@@ -6,7 +6,7 @@ import type { Family } from "./types";
 import {
   BigBoard, Chip, ClockBadge, Confetti, Desk, HandText, INK, Monitor, Room, ScatterPaper,
   SceneShell, StickyNote, TickerWall, Character, ensureToonFonts, paletteFor, type ToonMood,
-  useToonArt, PeepSprite, Prop3D, propsForMood, LottieAccent, type ToonArt, type PeepEntry,
+  useToonArt, PeepSprite, Prop3D, propsForMood, LottieAccent, SceneImage, type ToonArt, type PeepEntry,
 } from "./cartoonKit";
 
 // F9 MARKET FILES — the Paper Billions grammar as a family (P1 spec + P1.5
@@ -213,19 +213,23 @@ const HeroScene: React.FC<{ b: V2Beat }> = ({ b }) => {
   const s = sceneForBeat(b);
   const art = useToonArt();
   const headIn = useMotion(8);
-  const props = propsForMood(s.mood);
+  const hasScenes = art.ok && art.scenes.length > 0;
   return (
     <SceneShell beatIndex={b.i}>
-      {s.location === "office" ? <Office mood={s.mood} seed={b.i + 1} art={art} /> : <TradingFloor mood={s.mood} seed={b.i + 1} art={art} seats="right" />}
+      {hasScenes ? (
+        <Room mood={s.mood}>
+          <SceneImage art={art} mood={s.mood} beatIndex={b.i} height={720} dim={0.12} />
+        </Room>
+      ) : s.location === "office" ? <Office mood={s.mood} seed={b.i + 1} art={art} /> : <TradingFloor mood={s.mood} seed={b.i + 1} art={art} seats="right" />}
       {s.day && <Chip text={s.day} bg={paletteFor(s.mood).chip} color={paletteFor(s.mood).chipText} x={60} y={620} />}
       <ClockBadge time={s.time} x={170} y={470} s={0.9} />
       <div style={{ position: "absolute", left: 160, right: 160, top: 165, opacity: headIn }}>
         <HandText text={fitText(b.headline || "", 46)} size={104} color="#f8f5ec" glow="rgba(0,0,0,0.55)" rotate={-1.2} />
       </div>
-      {art.ok && (
+      {!hasScenes && art.ok && (
         <>
           <PeepSprite art={art} seed={b.i + 7} pose="standing" x={430} groundY={935} h={600} delay={5} bobAmp={4} />
-          <Prop3D icon={props[b.i % props.length]} x={175} y={805} s={150} delay={16} drift={s.mood === "crash" ? "down" : s.mood === "party" ? "up" : "flat"} tilt={5} />
+          <Prop3D icon={propsForMood(s.mood)[b.i % propsForMood(s.mood).length]} x={175} y={805} s={150} delay={16} drift={s.mood === "crash" ? "down" : s.mood === "party" ? "up" : "flat"} tilt={5} />
         </>
       )}
     </SceneShell>
@@ -238,12 +242,19 @@ const ChapterScene: React.FC<{ b: V2Beat }> = ({ b }) => {
   const art = useToonArt();
   const tIn = useMotion(6);
   const f = useCurrentFrame();
+  const hasScenes = art.ok && art.scenes.length > 0;
   return (
     <SceneShell beatIndex={b.i}>
-      <div style={{ position: "absolute", inset: 0, opacity: 0.55 }}>
-        {s.location === "datacenter" ? <DataCenter mood={s.mood} seed={b.i + 1} art={art} /> : s.location === "office" ? <Office mood={s.mood} seed={b.i + 1} art={art} /> : s.location === "stage" ? <Stage mood={s.mood} seed={b.i + 1} art={art} /> : <TradingFloor mood={s.mood} seed={b.i + 1} art={art} />}
-      </div>
-      <AbsoluteFill style={{ background: "rgba(12,10,14,0.45)" }} />
+      {hasScenes ? (
+        <Room mood={s.mood}>
+          <SceneImage art={art} mood={s.mood} beatIndex={b.i} height={740} dim={0.34} />
+        </Room>
+      ) : (
+        <div style={{ position: "absolute", inset: 0, opacity: 0.55 }}>
+          {s.location === "datacenter" ? <DataCenter mood={s.mood} seed={b.i + 1} art={art} /> : s.location === "office" ? <Office mood={s.mood} seed={b.i + 1} art={art} /> : s.location === "stage" ? <Stage mood={s.mood} seed={b.i + 1} art={art} /> : <TradingFloor mood={s.mood} seed={b.i + 1} art={art} />}
+        </div>
+      )}
+      {!hasScenes && <AbsoluteFill style={{ background: "rgba(12,10,14,0.45)" }} />}
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", opacity: tIn }}>
         <HandText text={String(b.n || 1).padStart(2, "0")} size={190} color={paletteFor(s.mood).accent} glow={paletteFor(s.mood).accent} />
         <HandText text={fitText(b.chapterTitle || "", 40)} size={88} color="#f8f5ec" glow="rgba(0,0,0,0.5)" />
@@ -261,12 +272,17 @@ const SplitScene: React.FC<{ b: V2Beat }> = ({ b }) => {
   const art = useToonArt();
   const tIn = useMotion(10);
   const side = (b.photoSide || (b.i % 2 === 0 ? "left" : "right")) as "left" | "right";
-  const set = s.location === "office" ? <Office mood={s.mood} seed={b.i + 1} art={art} /> : s.location === "datacenter" ? <DataCenter mood={s.mood} seed={b.i + 1} art={art} /> : s.location === "stage" ? <Stage mood={s.mood} seed={b.i + 1} art={art} solo side={side} /> : <TradingFloor mood={s.mood} seed={b.i + 1} art={art} seats={side === "left" ? "right" : "left"} />;
+  const hasScenes = art.ok && art.scenes.length > 0;
+  const set = hasScenes ? (
+    <Room mood={s.mood}>
+      <SceneImage art={art} mood={s.mood} beatIndex={b.i} height={700} dim={0.08} />
+    </Room>
+  ) : s.location === "office" ? <Office mood={s.mood} seed={b.i + 1} art={art} /> : s.location === "datacenter" ? <DataCenter mood={s.mood} seed={b.i + 1} art={art} /> : s.location === "stage" ? <Stage mood={s.mood} seed={b.i + 1} art={art} solo side={side} /> : <TradingFloor mood={s.mood} seed={b.i + 1} art={art} seats={side === "left" ? "right" : "left"} />;
   const props = propsForMood(s.mood);
   return (
     <SceneShell beatIndex={b.i}>
       {set}
-      {art.ok && s.location !== "stage" && (
+      {!hasScenes && art.ok && s.location !== "stage" && (
         <>
           <PeepSprite art={art} seed={b.i + 5} pose="sitting" x={side === "left" ? 1580 : 340} groundY={920} h={480} delay={6} bobAmp={2} />
           <Prop3D icon={props[(b.i + 2) % props.length]} x={side === "left" ? 1830 : 95} y={500} s={130} delay={14} tilt={6} />
@@ -293,18 +309,28 @@ const StatScene: React.FC<{ b: V2Beat }> = ({ b }) => {
   const art = useToonArt();
   const props = propsForMood(s.mood);
   const drift = s.mood === "crash" ? "down" : s.mood === "party" ? "up" : "flat";
+  const hasScenes = art.ok && art.scenes.length > 0;
   return (
     <SceneShell beatIndex={b.i}>
-      <TradingFloor mood={s.mood} seed={b.i + 1} art={art} showBoard seats="none" boardTitle={(b.headline || "THE MARKET").toUpperCase().slice(0, 24)} boardBig={b.big || "-1%"} />
+      {hasScenes ? (
+        <Room mood={s.mood}>
+          <div style={{ position: "absolute", inset: 0, left: "24%" }}>
+            <SceneImage art={art} mood={s.mood} beatIndex={b.i} height={660} dim={0.12} />
+          </div>
+          <BigBoard title={(b.headline || "THE MARKET").toUpperCase().slice(0, 24)} big={b.big || "-1%"} mood={s.mood} x={150} y={330} w={600} />
+        </Room>
+      ) : (
+        <TradingFloor mood={s.mood} seed={b.i + 1} art={art} showBoard seats="none" boardTitle={(b.headline || "THE MARKET").toUpperCase().slice(0, 24)} boardBig={b.big || "-1%"} />
+      )}
       {s.day && <Chip text={s.day} bg={paletteFor(s.mood).chip} color={paletteFor(s.mood).chipText} x={60} y={620} />}
       <ClockBadge time={s.time} x={170} y={430} s={0.9} />
       {art.ok && (
         <>
-          <Prop3D icon={props[b.i % props.length]} x={330} y={600} s={230} delay={6} drift={drift} tilt={6} />
-          <Prop3D icon={props[(b.i + 1) % props.length]} x={1590} y={600} s={230} delay={12} drift={drift} tilt={-6} />
+          <Prop3D icon={props[b.i % props.length]} x={300} y={660} s={200} delay={6} drift={drift} tilt={6} />
+          <Prop3D icon={props[(b.i + 1) % props.length]} x={1620} y={660} s={200} delay={12} drift={drift} tilt={-6} />
           {/* the live pulse ring on the board's corner — Route C accent */}
-          <LottieAccent name="pulse" x={1215} y={168} s={130} opacity={0.9} />
-          <PeepSprite art={art} seed={b.i + 11} pose="bust" x={285} groundY={1030} h={340} delay={9} bobAmp={2} />
+          {hasScenes ? <LottieAccent name="pulse" x={700} y={270} s={130} opacity={0.9} /> : <LottieAccent name="pulse" x={1215} y={168} s={130} opacity={0.9} />}
+          {!hasScenes && <PeepSprite art={art} seed={b.i + 11} pose="bust" x={285} groundY={1030} h={340} delay={9} bobAmp={2} />}
         </>
       )}
       {b.label ? (
@@ -322,10 +348,17 @@ const QuoteScene: React.FC<{ b: V2Beat }> = ({ b }) => {
   const art = useToonArt();
   const qIn = useMotion(8);
   const who = s.mood === "crash" ? "shocked" : s.mood === "party" ? "happy" : "calm";
+  const hasScenes = art.ok && art.scenes.length > 0;
   return (
     <SceneShell beatIndex={b.i}>
-      <Stage mood={s.mood} seed={b.i + 1} art={art} quoteMood={who as ToonMood} solo side="left" bust={art.ok} />
-      {art.ok && <PeepSprite art={art} seed={b.i + 13} pose="bust" x={520} groundY={1035} h={620} delay={4} bobAmp={3} />}
+      {hasScenes ? (
+        <Room mood={s.mood}>
+          <SceneImage art={art} mood={s.mood} beatIndex={b.i} height={700} dim={0.22} />
+        </Room>
+      ) : (
+        <Stage mood={s.mood} seed={b.i + 1} art={art} quoteMood={who as ToonMood} solo side="left" bust={art.ok} />
+      )}
+      {!hasScenes && art.ok && <PeepSprite art={art} seed={b.i + 13} pose="bust" x={520} groundY={1035} h={620} delay={4} bobAmp={3} />}
       <div style={{ position: "absolute", left: 560, right: 180, top: 140, opacity: qIn }}>
         <div style={{ background: "#f8f5ec", borderRadius: 26, border: `6px solid #1f1d1a`, padding: "44px 60px", transform: "rotate(-1deg)", boxShadow: "0 24px 70px rgba(0,0,0,0.35)", position: "relative" }}>
           <div style={{ position: "absolute", left: 90, top: -34, width: 64, height: 64, background: "#f8f5ec", border: `6px solid #1f1d1a`, borderRadius: "50% 50% 50% 0", transform: "rotate(45deg)" }} />
@@ -343,12 +376,19 @@ const ProcessScene: React.FC<{ b: V2Beat }> = ({ b }) => {
   const art = useToonArt();
   const steps = (b.lines && b.lines.length ? b.lines : [b.headline || ""]).slice(0, 4);
   const tIn = useMotion(10);
+  const hasScenes = art.ok && art.scenes.length > 0;
   return (
     <SceneShell beatIndex={b.i}>
-      <div style={{ position: "absolute", inset: 0, opacity: 0.9 }}>
-        {s.location === "datacenter" ? <DataCenter mood={s.mood} seed={b.i + 1} art={art} noPeep /> : <Office mood={s.mood} seed={b.i + 1} art={art} />}
-      </div>
-      {art.ok && <PeepSprite art={art} seed={b.i + 17} pose="standing" x={1650} groundY={940} h={580} delay={4} bobAmp={4} />}
+      {hasScenes ? (
+        <Room mood={s.mood}>
+          <SceneImage art={art} mood={s.mood} beatIndex={b.i} height={700} dim={0.3} />
+        </Room>
+      ) : (
+        <div style={{ position: "absolute", inset: 0, opacity: 0.9 }}>
+          {s.location === "datacenter" ? <DataCenter mood={s.mood} seed={b.i + 1} art={art} noPeep /> : <Office mood={s.mood} seed={b.i + 1} art={art} />}
+        </div>
+      )}
+      {!hasScenes && art.ok && <PeepSprite art={art} seed={b.i + 17} pose="standing" x={1650} groundY={940} h={580} delay={4} bobAmp={4} />}
       <div style={{ position: "absolute", left: 150, top: 150, opacity: tIn }}>
         {b.kicker ? <HandText text={b.kicker.toUpperCase()} size={40} color={paletteFor(s.mood).accent} rotate={0} style={{ textAlign: "left", letterSpacing: "0.04em" }} /> : null}
         <HandText text={fitText(b.headline || "", 40)} size={70} color="#f8f5ec" glow="rgba(0,0,0,0.55)" rotate={0} style={{ textAlign: "left", marginTop: 10 }} />
@@ -375,9 +415,16 @@ const TimelineScene: React.FC<{ b: V2Beat }> = ({ b }) => {
   const rail = ticks.length ? ticks : (b.steps || []).slice(0, 5);
   const headIn = useMotion(8);
   const props = propsForMood(s.mood);
+  const hasScenes = art.ok && art.scenes.length > 0;
   return (
     <SceneShell beatIndex={b.i}>
-      <TradingFloor mood={s.mood} seed={b.i + 1} art={art} seats="right" />
+      {hasScenes ? (
+        <Room mood={s.mood}>
+          <SceneImage art={art} mood={s.mood} beatIndex={b.i} height={720} dim={0.3} />
+        </Room>
+      ) : (
+        <TradingFloor mood={s.mood} seed={b.i + 1} art={art} seats="right" />
+      )}
       <ClockBadge time={s.time} x={960} y={415} s={1.55} />
       {s.day && <Chip text={s.day} bg={paletteFor(s.mood).chip} color={paletteFor(s.mood).chipText} x={60} y={140} />}
       {art.ok && (
@@ -409,14 +456,21 @@ const EndScene: React.FC<{ b: V2Beat }> = ({ b }) => {
   const art = useToonArt();
   const tIn = useMotion(6);
   const cheerful = s.mood !== "crash";
+  const hasScenes = art.ok && art.scenes.length > 0;
   return (
     <SceneShell beatIndex={b.i}>
-      <TradingFloor mood={cheerful ? s.mood : "calm"} seed={b.i + 1} art={art} />
-      <AbsoluteFill style={{ background: "rgba(12,10,14,0.4)" }} />
+      {hasScenes ? (
+        <Room mood={cheerful ? s.mood : "calm"}>
+          <SceneImage art={art} mood={cheerful ? s.mood : "calm"} beatIndex={b.i} height={720} dim={0.4} />
+        </Room>
+      ) : (
+        <TradingFloor mood={cheerful ? s.mood : "calm"} seed={b.i + 1} art={art} />
+      )}
+      {!hasScenes && <AbsoluteFill style={{ background: "rgba(12,10,14,0.4)" }} />}
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 26, opacity: tIn, paddingBottom: 260 }}>
         <HandText text={fitText(b.headline || b.text || "FOLLOW FOR MORE", 30).toUpperCase()} size={110} color="#f8f5ec" glow="rgba(0,0,0,0.55)" />
       </div>
-      {art.ok ? (
+      {!hasScenes && art.ok ? (
         <>
           <PeepSprite art={art} seed={b.i % 13} pose="standing" x={1660} groundY={940} h={560} bobAmp={5} />
           {cheerful && (

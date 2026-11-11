@@ -2,7 +2,8 @@
  "generated": "2026-11-11",
  "sources": {
   "peeps": "openpeeps.com (CC0, Pablo Stanley)",
-  "icons": "3dicons.co (CC0-1.0, realvjy)"
+  "icons": "3dicons.co (CC0-1.0, realvjy)",
+  "storyset": "storyset.com (free license w/ attribution — Illustrations by Storyset/Freepik), Pana style"
  },
  "peeps": [
   {
@@ -579,6 +580,345 @@
   {
    "file": "file-text.png",
    "url": "https://3dicons.sgp1.cdn.digitaloceanspaces.com/v1/dynamic/color/file-text-dynamic-color.png"
+  }
+ ],
+ "scenes": [
+  {
+   "file": "analytics-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/1259/Analytics-01.svg",
+   "tags": [
+    "analytics"
+   ],
+   "moods": [
+    "data",
+    "stat"
+   ]
+  },
+  {
+   "file": "business-decisions-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/31684/Business-decisions-01.svg",
+   "tags": [
+    "business decisions"
+   ],
+   "moods": [
+    "crash",
+    "calm",
+    "split"
+   ]
+  },
+  {
+   "file": "business-plan-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/4558/Business-plan-01.svg",
+   "tags": [
+    "business plan"
+   ],
+   "moods": [
+    "calm",
+    "process"
+   ]
+  },
+  {
+   "file": "businessman-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/2459/Businessman-01.svg",
+   "tags": [
+    "businessman"
+   ],
+   "moods": [
+    "crash",
+    "calm",
+    "quote"
+   ]
+  },
+  {
+   "file": "chat-bot-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/39070/Chat-bot-01.svg",
+   "tags": [
+    "chat bot"
+   ],
+   "moods": [
+    "data"
+   ]
+  },
+  {
+   "file": "coins-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/39087/Coins-01.svg",
+   "tags": [
+    "coins"
+   ],
+   "moods": [
+    "party",
+    "stat"
+   ]
+  },
+  {
+   "file": "company-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/16093/Company-01.svg",
+   "tags": [
+    "company"
+   ],
+   "moods": [
+    "calm",
+    "hero"
+   ]
+  },
+  {
+   "file": "consulting-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/15516/Consulting-01.svg",
+   "tags": [
+    "consulting"
+   ],
+   "moods": [
+    "crash",
+    "calm",
+    "quote"
+   ]
+  },
+  {
+   "file": "credit-card-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/54544/Credit-card-pana-01.svg",
+   "tags": [
+    "credit card"
+   ],
+   "moods": [
+    "night",
+    "split"
+   ]
+  },
+  {
+   "file": "data-extraction-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/34566/Data-extraction-01.svg",
+   "tags": [
+    "data extraction"
+   ],
+   "moods": [
+    "data",
+    "timeline"
+   ]
+  },
+  {
+   "file": "devices-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/1288/Devices-01.svg",
+   "tags": [
+    "devices"
+   ],
+   "moods": [
+    "data",
+    "split"
+   ]
+  },
+  {
+   "file": "finance-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/1799/Finance-01.svg",
+   "tags": [
+    "finance"
+   ],
+   "moods": [
+    "calm",
+    "hero",
+    "stat"
+   ]
+  },
+  {
+   "file": "innovation-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/41059/Innovation-01.svg",
+   "tags": [
+    "innovation"
+   ],
+   "moods": [
+    "party",
+    "process"
+   ]
+  },
+  {
+   "file": "investment-data-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/35991/Investment-data-01.svg",
+   "tags": [
+    "investment data"
+   ],
+   "moods": [
+    "data",
+    "stat",
+    "timeline"
+   ]
+  },
+  {
+   "file": "learning-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/28383/Learning-01.svg",
+   "tags": [
+    "learning"
+   ],
+   "moods": [
+    "calm",
+    "chapter"
+   ]
+  },
+  {
+   "file": "manage-money-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/54191/Manage-money-(1)-01.svg",
+   "tags": [
+    "manage money"
+   ],
+   "moods": [
+    "night",
+    "split",
+    "stat"
+   ]
+  },
+  {
+   "file": "mobile-marketing-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/4679/Mobile-marketing-01.svg",
+   "tags": [
+    "mobile marketing"
+   ],
+   "moods": [
+    "calm",
+    "process"
+   ]
+  },
+  {
+   "file": "on-the-office-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/2458/On-the-office-01.svg",
+   "tags": [
+    "on the office"
+   ],
+   "moods": [
+    "calm",
+    "split",
+    "quote"
+   ]
+  },
+  {
+   "file": "online-world-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/4281/Online-world-01.svg",
+   "tags": [
+    "online world"
+   ],
+   "moods": [
+    "data",
+    "chapter"
+   ]
+  },
+  {
+   "file": "payment-information-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/15464/Payment-Information-01.svg",
+   "tags": [
+    "payment information"
+   ],
+   "moods": [
+    "night",
+    "split"
+   ]
+  },
+  {
+   "file": "programming-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/15925/Programming-01.svg",
+   "tags": [
+    "programming"
+   ],
+   "moods": [
+    "data"
+   ]
+  },
+  {
+   "file": "questions-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/4686/Questions-01.svg",
+   "tags": [
+    "questions"
+   ],
+   "moods": [
+    "crash",
+    "quote"
+   ]
+  },
+  {
+   "file": "revenue-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/16604/Revenue-01.svg",
+   "tags": [
+    "revenue"
+   ],
+   "moods": [
+    "party",
+    "stat"
+   ]
+  },
+  {
+   "file": "server-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/1362/Server-01.svg",
+   "tags": [
+    "server"
+   ],
+   "moods": [
+    "data"
+   ]
+  },
+  {
+   "file": "team-goals-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/36874/Team-goals-01.svg",
+   "tags": [
+    "team goals"
+   ],
+   "moods": [
+    "party",
+    "end"
+   ]
+  },
+  {
+   "file": "team-spirit-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/4620/Team-spirit-01.svg",
+   "tags": [
+    "team spirit"
+   ],
+   "moods": [
+    "party",
+    "end"
+   ]
+  },
+  {
+   "file": "team-work-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/28377/Team-work-01.svg",
+   "tags": [
+    "team work"
+   ],
+   "moods": [
+    "party",
+    "end"
+   ]
+  },
+  {
+   "file": "time-flies-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/63283/Time-flies-01.svg",
+   "tags": [
+    "time flies"
+   ],
+   "moods": [
+    "crash",
+    "night",
+    "timeline"
+   ]
+  },
+  {
+   "file": "wallet-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/6258/Wallet-01.svg",
+   "tags": [
+    "wallet"
+   ],
+   "moods": [
+    "night",
+    "split",
+    "stat"
+   ]
+  },
+  {
+   "file": "webinar-pana.svg",
+   "url": "https://stories.freepiklabs.com/storage/34564/Webinar-01.svg",
+   "tags": [
+    "webinar"
+   ],
+   "moods": [
+    "calm",
+    "chapter",
+    "quote"
+   ]
   }
  ]
 }

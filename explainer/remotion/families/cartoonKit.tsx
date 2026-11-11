@@ -390,15 +390,16 @@ export const SceneShell: React.FC<{ children: React.ReactNode; beatIndex?: numbe
 // =================================================================================
 
 export type PeepEntry = { file: string; pose: "bust" | "standing" | "sitting"; url: string };
-type ToonArt = { ok: boolean; peeps: PeepEntry[] };
+export type SceneEntry = { file: string; url: string; tags: string[]; moods: string[] };
+type ToonArt = { ok: boolean; peeps: PeepEntry[]; scenes: SceneEntry[] };
 
 let artPromise: Promise<ToonArt> | null = null;
 const loadArt = (): Promise<ToonArt> => {
   if (!artPromise) {
     artPromise = fetch(staticFile("assets/market/manifest.json"))
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((m: { peeps: PeepEntry[] }) => ({ ok: true, peeps: m.peeps || [] }))
-      .catch(() => ({ ok: false, peeps: [] as PeepEntry[] }));
+      .then((m: { peeps: PeepEntry[]; scenes?: SceneEntry[] }) => ({ ok: true, peeps: m.peeps || [], scenes: m.scenes || [] }))
+      .catch(() => ({ ok: false, peeps: [] as PeepEntry[], scenes: [] as SceneEntry[] }));
   }
   return artPromise;
 };
@@ -406,7 +407,7 @@ const loadArt = (): Promise<ToonArt> => {
 // One fetch per browser session, gated by delayRender so frames wait for the
 // manifest (the fonts pattern); resolves ok:false when the fetcher never ran.
 export const useToonArt = (): ToonArt => {
-  const [art, setArt] = React.useState<ToonArt>(artPromise ? ({ ok: false, peeps: [] } as ToonArt) : ({ ok: false, peeps: [] } as ToonArt));
+  const [art, setArt] = React.useState<ToonArt>({ ok: false, peeps: [], scenes: [] });
   React.useEffect(() => {
     const h = delayRender("market art manifest");
     let alive = true;
@@ -421,6 +422,42 @@ export const useToonArt = (): ToonArt => {
     };
   }, []);
   return art;
+};
+
+// mood-matched deterministic scene pick (P1.7) — filters by the beat's mood
+// first, then rotates; if the previous beat's pick (same pool) collides, the
+// very next candidate is taken so two beats never show the same image twice.
+export const pickScene = (scenes: SceneEntry[], mood: string, beatIndex: number): SceneEntry | null => {
+  if (!scenes.length) return null;
+  const matched = scenes.filter((s) => s.moods?.includes(mood));
+  const pool = matched.length ? matched : scenes;
+  const pickAt = (i: number) => pool[Math.abs((i + 1) * 2654435761) % 4096 % pool.length];
+  const first = pickAt(beatIndex);
+  if (pool.length > 1 && beatIndex > 0 && first.file === pickAt(beatIndex - 1)) return pool[(Math.abs((beatIndex + 1) * 2654435761) % 4096 + 1) % pool.length];
+  return first;
+};
+
+// A full-screen Storyset scene image (the P1.7 "image to image" layer):
+// the beat's professional cartoon illustration, slow-zoomed by the scene
+// shell, on the mood backdrop. Ken Burns lives in SceneShell — the image
+// itself only breathes.
+export const SceneImage: React.FC<{ art: ToonArt; mood: string; beatIndex: number; height?: number; dim?: number }> = ({ art, mood, beatIndex, height = 760, dim = 0 }) => {
+  const scene = pickScene(art.scenes, mood, beatIndex);
+  if (!art.ok || !scene) return null;
+  const f = useCurrentFrame();
+  const enter = interpolate(f, [0, 12], [0.96, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  return (
+    <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <img
+        src={staticFile(`assets/market/scenes/${scene.file}`)}
+        style={{
+          height, width: "auto", maxWidth: "92%", transform: `scale(${enter}) translateY(${Math.sin(f / 50) * 4}px)`,
+          filter: "drop-shadow(0 30px 60px rgba(0,0,0,0.35))",
+        }}
+      />
+      {dim > 0 ? <AbsoluteFill style={{ background: `rgba(10,10,16,${dim})` }} /> : null}
+    </div>
+  );
 };
 
 // deterministic cast pick — same seed+pose → same character every render
