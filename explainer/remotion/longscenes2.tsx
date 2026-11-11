@@ -230,11 +230,6 @@ export type V2Beat = {
   n?: number; chapterTitle?: string; chapterCount?: number; total?: number;
   photo?: string; photoSide?: "left" | "right";
   words?: Array<{ w: string; t0: number; t1: number; key?: boolean }>;
-  // P1 market-files family (2026-11-10): OPTIONAL cartoon-scene directions —
-  // location/mood/time/day. Absent = the family derives the scene from the
-  // beat itself (lib/market-scenes.mjs); docs without the field (every
-  // existing template) render byte-identically (default-inert).
-  scene?: { location?: string; mood?: string; time?: string; day?: string };
   pop?: { kind: string; text: string; w: number; logo?: string };
   cues?: Array<{ t0: number; t1: number; text: string }>;
   startMs: number; ms: number; audio: string | null; i: number;
@@ -832,7 +827,7 @@ export const DocV2: React.FC<any> = (input) => {
               {comp}
               <Furniture beat={{ ...b, i }} total={total} kicker={T.eyebrow} showBadge={Boolean(doc?.badge)} progressParts={doc?.progressParts} />
               {b.pop ? <BeatPop b={b} /> : null}
-              {b.words && b.words.length ? (fam?.captions ? <fam.captions b={b} /> : <Captions b={b} />) : null}
+              {b.words && b.words.length ? <Captions b={b} /> : null}
             </Sequence>
           );
         })}
