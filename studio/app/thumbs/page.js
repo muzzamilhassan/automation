@@ -23,10 +23,10 @@ export default function ThumbsPage() {
   const [videos, setVideos] = useState(null);
   const [video, setVideo] = useState(null); // {videoId,title}
   const [template, setTemplate] = useState('poster');
-  const [title, setTitle] = useState('');
-  const [accentWord, setAccentWord] = useState('');
-  const [chip, setChip] = useState('');
-  const [eyebrow, setEyebrow] = useState('');
+  const [title, setTitle] = useState('Why Your Budget Is Secretly Killing Your Wealth');
+  const [accentWord, setAccentWord] = useState('Killing');
+  const [chip, setChip] = useState('RULES');
+  const [eyebrow, setEyebrow] = useState('MONEY HABITS');
   const [shade, setShade] = useState('#0A1128');
   const [photoUrl, setPhotoUrl] = useState('');
   const [photoDataUrl, setPhotoDataUrl] = useState('');
@@ -95,7 +95,12 @@ export default function ThumbsPage() {
     setVideos(null);
     fetch(`/api/thumbs/videos?slug=${encodeURIComponent(c.slug)}`)
       .then((r) => r.json())
-      .then((d) => { if (mine === pickSeqRef.current) setVideos(d.videos || []); })
+      .then((d) => {
+        if (mine !== pickSeqRef.current) return;
+        const vids = d.videos || [];
+        setVideos(vids);
+        if (vids.length > 0) pickVideo(vids[0]);
+      })
       .catch(() => { if (mine === pickSeqRef.current) setVideos([]); });
     setSelected([]);
     setSelMode(false);
@@ -235,7 +240,7 @@ export default function ThumbsPage() {
 
   useEffect(() => {
     clearTimeout(debounce.current);
-    debounce.current = setTimeout(renderPreview, 650);
+    debounce.current = setTimeout(renderPreview, 250);
     return () => clearTimeout(debounce.current);
   }, [template, title, accentWord, accent, chip, eyebrow, shade, photoUrl, photoDataUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -394,7 +399,14 @@ export default function ThumbsPage() {
     fetch('/api/overview')
       .then((r) => r.json())
       .then((d) => {
-        const list = (d.channels || []).map((c) => ({ slug: c.slug, label: c.label, accent: c.accent, tags: c.todayTopics ? undefined : undefined, brand: c.label }));
+        const source = (d.controlChannels?.length ? d.controlChannels : d.channels) || [];
+        const list = source.map((c) => ({
+          slug: c.slug,
+          label: c.label || c.slug,
+          accent: c.accent || '#E8C15A',
+          tags: c.todayTopics ? undefined : undefined,
+          brand: c.label || c.slug,
+        }));
         setChannels(list);
         if (list.length) pickChannel(list[0]);
       })
@@ -440,21 +452,35 @@ export default function ThumbsPage() {
                     <button key={v.videoId}
                       onClick={() => setSelected((s) => (s.includes(v.videoId) ? s.filter((x) => x !== v.videoId) : [...s, v.videoId]))}
                       className={`relative text-left rounded-lg overflow-hidden border ${selected.includes(v.videoId) ? 'border-accent ring-1' : 'border-line hover:border-line-strong'}`}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={v.thumb} alt="" className="w-full aspect-video object-cover opacity-70" />
+                      {v.thumb ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={v.thumb} alt="" className="w-full aspect-video object-cover opacity-70" />
+                      ) : (
+                        <div className="w-full aspect-video bg-neutral-900 flex items-center justify-center text-muted"><ImageIcon size={18} className="opacity-40" /></div>
+                      )}
                       {selected.includes(v.videoId) ? <span className="absolute top-1 right-1"><CheckCircle2 size={14} style={{ color: 'var(--accent)' }} /></span> : null}
                       <div className="p-1.5 text-[10.5px] text-muted leading-tight line-clamp-2">{v.title}</div>
                     </button>
                   ) : (
                     <button key={v.videoId} onClick={() => pickVideo(v)}
-                      className={`text-left rounded-lg overflow-hidden border transition-colors ${video?.videoId === v.videoId ? 'border-accent' : 'border-line hover:border-line-strong'}`}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={v.thumb} alt="" className="w-full aspect-video object-cover" />
+                      className={`text-left rounded-lg overflow-hidden border transition-colors ${video?.videoId === v.videoId ? 'border-accent ring-1 ring-accent/40' : 'border-line hover:border-line-strong'}`}>
+                      {v.thumb ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={v.thumb} alt="" className="w-full aspect-video object-cover" />
+                      ) : (
+                        <div className="w-full aspect-video bg-neutral-900 flex items-center justify-center text-muted"><ImageIcon size={18} className="opacity-40" /></div>
+                      )}
                       <div className="p-1.5 text-[10.5px] text-muted leading-tight line-clamp-2">{v.title}</div>
                     </button>
                   )
                 ))}
               </div>
+              {videos && videos.length === 0 ? (
+                <div className="text-center py-4 px-3 border border-dashed border-line rounded-lg text-muted">
+                  <p className="text-[12px] font-medium text-ink">No published YouTube videos yet</p>
+                  <p className="text-[11px] text-muted mt-1">Type your custom headline in Step 2 to design and preview thumbnails.</p>
+                </div>
+              ) : null}
               {bulkMsg ? <p className="text-[11.5px] mt-2" style={{ color: bulkMsg.ok ? 'var(--ok)' : 'var(--bad)' }}>{bulkMsg.text}</p> : null}
               </>
             )}
@@ -470,19 +496,38 @@ export default function ThumbsPage() {
                 </button>
               ))}
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[240px] overflow-y-auto pr-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[380px] overflow-y-auto pr-1">
               {tpls.filter((t) => catTab === 'all' || t.category === catTab).map((t) => (
                 <button key={t.id} onClick={() => pickTemplate(t)}
-                  className={`relative text-left p-2.5 rounded-lg border ${template === t.id ? 'border-accent bg-bg-soft' : 'border-line hover:border-line-strong'}`}>
-                  <span
-                    onClick={(e) => { e.stopPropagation(); addToRotation(t.id); }}
-                    title="add to this channel's thumbnail rotation"
-                    className="absolute top-1.5 left-1.5 z-10 text-[9px] px-1.5 py-0.5 rounded-full border border-line text-muted hover:text-ink hover:border-line-strong cursor-pointer">
-                    + rotation
-                  </span>
-                  {t.aiPreset ? <span className="absolute top-1.5 right-1.5 text-[9px] px-1.5 py-0.5 rounded-full border border-line text-muted">AI</span> : null}
-                  <div className="text-[12px] font-semibold pr-7">{t.label}</div>
-                  <div className="text-[10px] text-muted leading-snug mt-0.5 line-clamp-2">{t.desc}</div>
+                  className={`group relative text-left p-2 rounded-xl border transition-all ${template === t.id ? 'border-accent bg-surface-2 ring-2 ring-accent/30 shadow-md' : 'border-line hover:border-line-strong bg-surface hover:bg-surface-2'}`}>
+                  <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-neutral-950 mb-2 border border-line">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/api/thumbs/demo?id=${encodeURIComponent(t.id)}&accent=${encodeURIComponent(accent)}`}
+                      alt={t.label}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+                    <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/75 backdrop-blur-sm text-[8.5px] font-mono text-white/90 uppercase tracking-wider">
+                      {t.category}
+                    </span>
+                    {template === t.id ? (
+                      <span className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-accent text-accent-ink flex items-center justify-center shadow">
+                        <CheckCircle2 size={13} className="fill-current" />
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center justify-between gap-1 mb-0.5">
+                    <span className="text-[12px] font-bold text-ink truncate">{t.label}</span>
+                    <span
+                      onClick={(e) => { e.stopPropagation(); addToRotation(t.id); }}
+                      title="add to this channel's thumbnail rotation"
+                      className="shrink-0 text-[8.5px] px-1.5 py-0.5 rounded-full border border-line text-muted hover:text-ink hover:border-line-strong cursor-pointer bg-surface/80">
+                      + rot
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-muted leading-tight line-clamp-1">{t.desc}</div>
                 </button>
               ))}
             </div>

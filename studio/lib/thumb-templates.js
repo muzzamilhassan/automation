@@ -8,9 +8,15 @@
 // background arrives through the same photo channel via /api/thumbs/ai-bg.
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import opentype from 'opentype.js';
 
-const FONT_DIR = path.join(process.cwd(), 'lib', 'fonts');
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const FONT_DIR = fs.existsSync(path.join(HERE, 'fonts'))
+  ? path.join(HERE, 'fonts')
+  : (fs.existsSync(path.join(process.cwd(), 'lib', 'fonts'))
+    ? path.join(process.cwd(), 'lib', 'fonts')
+    : path.join(process.cwd(), 'studio', 'lib', 'fonts'));
 const TTF = {
   anton: 'Anton-Regular.ttf',
   oswald500: 'Oswald-500.ttf',

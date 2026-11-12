@@ -30,8 +30,6 @@ export async function POST(req) {
       const buf = Buffer.from(await r.arrayBuffer());
       if (buf.length > 12 * 1024 * 1024) return Response.json({ error: 'photo too large' }, { status: 400 });
       photoHref = `data:image/jpeg;base64,${buf.toString('base64')}`;
-    } else if (TEMPLATES[template]?.needsPhoto || (isV2Template(template) && v2NeedsPhoto(template))) {
-      return Response.json({ error: 'this template needs a photo' }, { status: 400 });
     }
 
     const svg = isV2Template(template)
@@ -39,6 +37,7 @@ export async function POST(req) {
       : buildThumbSvg(template, { title, accentWord, accent, chip, eyebrow, shade, brand, photoHref });
     const jpeg = await sharp(Buffer.from(svg)).jpeg({ quality: 90 }).toBuffer();
     const words = String(title || '').trim().split(/\s+/).filter(Boolean).length;
+    const reqPhoto = Boolean(TEMPLATES[template]?.needsPhoto || (isV2Template(template) && v2NeedsPhoto(template)));
     return Response.json({
       image: `data:image/jpeg;base64,${jpeg.toString('base64')}`,
       bytes: jpeg.length,
@@ -47,7 +46,7 @@ export async function POST(req) {
       accentWordSuggested: pickAccentWord(title),
       checklist: {
         wordsOk: words > 0 && words <= 7,
-        photoOk: Boolean(photoHref) || template === 'poster',
+        photoOk: Boolean(photoHref) || !reqPhoto,
         sizeOk: jpeg.length < 2 * 1024 * 1024,
       },
     });
