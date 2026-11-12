@@ -1,6 +1,6 @@
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
-import { Content, fitText, useT, type V2Beat } from "../longscenes2";
+import { Content, fitText, useT, BeatBackdrop, type V2Beat } from "../longscenes2";
 import { Letterbox, PanPhoto, usePan } from "../kits";
 import type { Family } from "./types";
 
@@ -20,9 +20,11 @@ const GradientField: React.FC<{ seed?: number }> = ({ seed = 0 }) => {
   );
 };
 
-const Backdrop: React.FC<{ b: V2Beat; iSeed?: number }> = ({ b, iSeed = 0 }) => (
-  b.photo ? <PanPhoto file={b.photo} seed={iSeed} tint="rgba(6,8,12,0.45)" /> : <GradientField seed={iSeed} />
-);
+const Backdrop: React.FC<{ b: V2Beat; iSeed?: number }> = ({ b, iSeed = 0 }) => {
+  const vid = b.broll || b.video;
+  if (vid) return <BeatBackdrop file={vid} />;
+  return b.photo ? <PanPhoto file={b.photo} seed={iSeed} tint="rgba(6,8,12,0.45)" /> : <GradientField seed={iSeed} />;
+};
 
 const PanScene: React.FC<{ b: V2Beat; size?: number }> = ({ b, size }) => {
   const T = useT();

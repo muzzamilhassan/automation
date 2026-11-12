@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { useSteppedFrame } from "./stylepacks";
 import { FAMILIES } from "./families";
-import { AbsoluteFill, Audio, Img, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig, continueRender, delayRender } from "remotion";
+import { AbsoluteFill, Audio, Img, OffthreadVideo, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig, continueRender, delayRender } from "remotion";
 
 // ============ DOCUMENTARY V2 — themed layout engine with safe zones ============
 // Rules baked in:
@@ -229,6 +229,7 @@ export type V2Beat = {
   kicker?: string; headline?: string; sub?: string; big?: string; label?: string;
   n?: number; chapterTitle?: string; chapterCount?: number; total?: number;
   photo?: string; photoSide?: "left" | "right";
+  broll?: string; video?: string;
   words?: Array<{ w: string; t0: number; t1: number; key?: boolean }>;
   pop?: { kind: string; text: string; w: number; logo?: string };
   cues?: Array<{ t0: number; t1: number; text: string }>;
@@ -337,12 +338,39 @@ export const Grain: React.FC = () => (
   </svg>
 );
 
-export const Photo: React.FC<{ file: string; side: "left" | "right"; width: string }> = ({ file, side, width }) => {
-  const T = useT();
+export const BeatBackdrop: React.FC<{ file: string }> = ({ file }) => {
+  const f = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  const isVid = file && (file.endsWith(".mp4") || file.endsWith(".webm"));
+  const zoom = interpolate(f, [0, Math.max(durationInFrames, 1)], [1, 1.05], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
   return (
-    <div style={{ position: "absolute", top: 170, bottom: 320, [side]: SAFE.x, width, overflow: "hidden", borderRadius: 22, boxShadow: "0 26px 60px rgba(0,0,0,0.45)" }}>
-      <Img src={staticFile(file)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-      <div style={{ position: "absolute", inset: 0, background: `linear-gradient(180deg, transparent, ${T.photoTint})` }} />
+    <AbsoluteFill style={{ overflow: "hidden", zIndex: 0 }}>
+      <div style={{ width: "100%", height: "100%", transform: `scale(${zoom})`, transformOrigin: "center center" }}>
+        {isVid ? (
+          <OffthreadVideo src={staticFile(file)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : (
+          <Img src={staticFile(file)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        )}
+      </div>
+      <AbsoluteFill style={{ background: "rgba(8, 10, 20, 0.58)" }} />
+    </AbsoluteFill>
+  );
+};
+
+export const Photo: React.FC<{ file: string; side: "left" | "right"; width: string | number }> = ({ file, side, width }) => {
+  const T = useT();
+  const isVid = file && (file.endsWith(".mp4") || file.endsWith(".webm"));
+  return (
+    <div style={{ position: "absolute", top: 170, bottom: 320, [side]: SAFE.x, width, overflow: "hidden", borderRadius: 22, boxShadow: "0 26px 60px rgba(0,0,0,0.45)", border: `1px solid ${T.line}` }}>
+      {isVid ? (
+        <OffthreadVideo src={staticFile(file)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      ) : (
+        <Img src={staticFile(file)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      )}
+      <div style={{ position: "absolute", inset: 0, background: `linear-gradient(180deg, transparent 40%, ${T.photoTint || "rgba(0,0,0,0.5)"})` }} />
     </div>
   );
 };
@@ -453,18 +481,25 @@ const ChapterLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
   const { fps } = useVideoConfig();
   const numS = useMotion(0);
   const tS = useMotion(8);
+  const kickerText = b.kicker || (b.n ? `CHAPTER ${String(b.n).padStart(2, "0")}` : "");
   return (
     <Content beat={b}>
       <AbsoluteFill style={{ alignItems: "center", justifyContent: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 60 }}>
-          <div style={{ fontFamily: T.display, fontWeight: T.displayWeight, fontSize: 340, color: "transparent", WebkitTextStroke: `4px ${T.ghost}`, lineHeight: 1, transform: `translateX(${(1 - numS) * -140}px)` }}>
-            {String(b.n || 1).padStart(2, "0")}
-          </div>
-          <div style={{ width: 4, alignSelf: "stretch", background: T.line, margin: "60px 0" }} />
+          {b.n ? (
+            <>
+              <div style={{ fontFamily: T.display, fontWeight: T.displayWeight, fontSize: 340, color: "transparent", WebkitTextStroke: `4px ${T.ghost}`, lineHeight: 1, transform: `translateX(${(1 - numS) * -140}px)` }}>
+                {String(b.n).padStart(2, "0")}
+              </div>
+              <div style={{ width: 4, alignSelf: "stretch", background: T.line, margin: "60px 0" }} />
+            </>
+          ) : null}
           <div style={{ maxWidth: 850, opacity: tS, transform: `translateX(${(1 - tS) * 50}px)` }}>
-            <div style={{ fontFamily: T.mono, fontWeight: 700, fontSize: 26, letterSpacing: "0.3em", color: T.accent, marginBottom: 26 }}>
-              CHAPTER {String(b.n || 1).padStart(2, "0")}
-            </div>
+            {kickerText ? (
+              <div style={{ fontFamily: T.mono, fontWeight: 700, fontSize: 26, letterSpacing: "0.3em", color: T.accent, marginBottom: 26 }}>
+                {kickerText}
+              </div>
+            ) : null}
             <div style={{ fontFamily: T.display, fontWeight: T.displayWeight, fontSize: 88, lineHeight: 1.15, color: T.ink, textTransform: T.upper ? "uppercase" : "none" }}>
               {b.chapterTitle}
             </div>
@@ -824,8 +859,10 @@ export const DocV2: React.FC<any> = (input) => {
           const dur = Math.max(Math.ceil((b.ms / 1000) * fps), 2);
           const FamScene = fam ? fam.scenes[b.layout] : null;
           const comp = FamScene ? <FamScene b={b} /> : defaultComp(b, i);
+          const bgFile = b.broll || b.video || (b.layout !== "split" && b.photo ? b.photo : null);
           return (
             <Sequence key={`${b.layout}-${b.i}`} from={from} durationInFrames={dur} name={`b${b.i}-${b.layout}`}>
+              {bgFile ? <BeatBackdrop file={bgFile} /> : null}
               {comp}
               <Furniture beat={{ ...b, i }} total={total} kicker={T.eyebrow} showBadge={Boolean(doc?.badge)} progressParts={doc?.progressParts} />
               {b.pop ? <BeatPop b={b} /> : null}

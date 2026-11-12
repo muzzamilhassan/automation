@@ -116,8 +116,9 @@ export async function fetchBestBroll({ query, minDurationSec = 10, outPath, pixa
     if (!ok) throw new Error("download failed");
     // display version: 1080p, pre-extended — the renderer-decodes-cheap version
     const displayPath = outPath.replace(/\.mp4$/, "-display.mp4");
-    if (prepForRender(outPath, displayPath)) {
-      return { file: path.resolve(displayPath), url: best.url, provider: best.provider, width: 1920, height: 1080, duration: Math.min(best.duration, 150), relevance: best.relevance };
+    const prepSeconds = Math.min(Math.max((minDurationSec || 10) * 2, 20), 150);
+    if (prepForRender(outPath, displayPath, prepSeconds)) {
+      return { file: path.resolve(displayPath), url: best.url, provider: best.provider, width: 1920, height: 1080, duration: Math.min(best.duration, prepSeconds), relevance: best.relevance };
     }
     return { file: path.resolve(outPath), url: best.url, provider: best.provider, width: best.width, height: best.height, duration: best.duration, relevance: best.relevance };
   } catch (e) {

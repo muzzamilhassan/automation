@@ -141,6 +141,11 @@ describe('SB-4 — buildStorybookBeats: the reference structure', () => {
     assert.deepEqual(sentences('  '), []);
     assert.deepEqual(sentences(null), []);
   });
+  test('hasChapters: false skips standalone chapter divider slides (quotes, listicles, challenges)', () => {
+    const nonChapterBeats = buildStorybookBeats(script, { hasChapters: false, followLine: 'Follow for more.' });
+    assert.equal(nonChapterBeats.some((b) => b.layout === 'chapter'), false, 'no chapter layout beats present');
+    assert.deepEqual(nonChapterBeats.map((b) => b.layout), ['hero', 'split', 'split', 'split', 'split', 'end']);
+  });
   test('degenerate scripts still produce a valid sequence', () => {
     const b2 = buildStorybookBeats({ title: 'T', intro: 'I.', chapters: [], outro: 'O.' });
     assert.deepEqual(b2.map((b) => b.layout), ['hero', 'end']);

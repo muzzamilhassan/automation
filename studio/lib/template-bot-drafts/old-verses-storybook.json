@@ -2,23 +2,44 @@
   "version": "1.0.0",
   "template_id": "old-verses-storybook",
   "family": "documentary-frames",
-  "niches": ["Timeless wisdom, self-mastery & human psychology"],
-  "formats": ["long", "short"],
+  "niches": [
+    "Timeless wisdom, self-mastery & human psychology"
+  ],
+  "formats": [
+    "long",
+    "short"
+  ],
   "renderer": "remotion",
-  "required_capabilities": ["script-gen", "tts", "captions"],
+  "required_capabilities": [
+    "script-gen",
+    "tts",
+    "captions"
+  ],
   "doc_presentation": {
     "style": "landscape-quote",
     "theme": "letterpress",
     "voice": "en-US-EmmaNeural",
     "music_mood": "mystical",
-    "doc_layouts": ["quote", "split", "quote", "stat", "quote", "split"],
+    "doc_layouts": [
+      "quote",
+      "split",
+      "quote",
+      "stat",
+      "quote",
+      "split"
+    ],
     "brand": "OLD VERSES",
     "badge": "OV",
     "eyebrow": "TIMELESS VERSES // OV"
   },
   "story_structure": {
     "doc_render": "storybook",
-    "sections": ["cold_open", "chapters:10", "exhibits", "outro"],
+    "sections": [
+      "cold_open",
+      "chapters:10",
+      "exhibits",
+      "outro"
+    ],
     "chapter_min_words": 170,
     "beats": [
       "Opening: Marcus Aurelius wrote to himself at dawn, never for an audience — the Meditations were private notes that survived an empire.",
@@ -26,13 +47,18 @@
       "Mechanism: Why the verses endure: they compress a rule into rhythm, and rhythm survives translation after translation.",
       "Payoff: The evening verse practice — one line, read slowly, before the lamp goes out."
     ],
-    "hook_classes": ["the-private note", "the-letter", "the-evening practice"],
+    "hook_classes": [
+      "the-private note",
+      "the-letter",
+      "the-evening practice"
+    ],
     "title_patterns": [
       "Marcus Aurelius Never Meant for You to Read This",
       "The 3AM Letter That Taught Rome to Examine a Day",
       "One Verse a Night: The Oldest Evening Practice on Record"
     ],
-    "payoff_rule": "the closing leaves one verse held in silence — the viewer reads it nightly"
+    "payoff_rule": "the closing leaves one verse held in silence — the viewer reads it nightly",
+    "has_chapters": false
   },
   "variation_rules": [
     "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",

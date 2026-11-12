@@ -2,22 +2,43 @@
   "version": "1.0.0",
   "template_id": "marble-quill-storybook",
   "family": "documentary-frames",
-  "niches": ["Timeless wisdom, self-mastery & human psychology"],
-  "formats": ["long", "short"],
+  "niches": [
+    "Timeless wisdom, self-mastery & human psychology"
+  ],
+  "formats": [
+    "long",
+    "short"
+  ],
   "renderer": "remotion",
-  "required_capabilities": ["script-gen", "tts", "captions"],
+  "required_capabilities": [
+    "script-gen",
+    "tts",
+    "captions"
+  ],
   "doc_presentation": {
     "theme": "letterpress",
     "voice": "en-US-EmmaNeural",
     "music_mood": "mystical",
-    "doc_layouts": ["quote", "split", "quote", "stat", "quote", "split"],
+    "doc_layouts": [
+      "quote",
+      "split",
+      "quote",
+      "stat",
+      "quote",
+      "split"
+    ],
     "brand": "MARBLE QUILL",
     "badge": "MQ",
     "eyebrow": "TIMELESS WISDOM // MQ"
   },
   "story_structure": {
     "doc_render": "storybook",
-    "sections": ["cold_open", "chapters:10", "exhibits", "outro"],
+    "sections": [
+      "cold_open",
+      "chapters:10",
+      "exhibits",
+      "outro"
+    ],
     "chapter_min_words": 170,
     "beats": [
       "Opening: Seneca writes at 3AM — the evening letter that turns an ordinary day into an examination.",
@@ -25,13 +46,18 @@
       "Mechanism: The shadow, in Jung's words — the trait you refuse to see is the one running your reactions.",
       "Payoff: The three-line prompt: what did I do well, what did I avoid, whom did I serve — answered nightly."
     ],
-    "hook_classes": ["the-letter opening", "the-study bridge", "the-prompt close"],
+    "hook_classes": [
+      "the-letter opening",
+      "the-study bridge",
+      "the-prompt close"
+    ],
     "title_patterns": [
       "Seneca's 3AM Letter: The Prompt That Rebuilds a Day",
       "The Silence Rule: Why the Strongest Voice in the Room Speaks Last",
       "Jung Knew: The Shadow You Hide Is Running Your Life"
     ],
-    "payoff_rule": "the closing hands the viewer the exact prompt to write tonight"
+    "payoff_rule": "the closing hands the viewer the exact prompt to write tonight",
+    "has_chapters": false
   },
   "variation_rules": [
     "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",

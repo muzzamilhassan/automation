@@ -2,22 +2,43 @@
   "version": "1.0.0",
   "template_id": "grit-code-storybook",
   "family": "documentary-frames",
-  "niches": ["Gym & training motivation"],
-  "formats": ["long", "short"],
+  "niches": [
+    "Gym & training motivation"
+  ],
+  "formats": [
+    "long",
+    "short"
+  ],
   "renderer": "remotion",
-  "required_capabilities": ["script-gen", "tts", "captions"],
+  "required_capabilities": [
+    "script-gen",
+    "tts",
+    "captions"
+  ],
   "doc_presentation": {
     "theme": "stoic",
     "voice": "en-US-ChristopherNeural",
     "music_mood": "heroic",
-    "doc_layouts": ["split", "quote", "versus", "split", "stat", "split"],
+    "doc_layouts": [
+      "split",
+      "quote",
+      "versus",
+      "split",
+      "stat",
+      "split"
+    ],
     "brand": "GRIT CODE",
     "badge": "GC",
     "eyebrow": "TRAINING DISCIPLINE // GC"
   },
   "story_structure": {
     "doc_render": "storybook",
-    "sections": ["cold_open", "chapters:10", "exhibits", "outro"],
+    "sections": [
+      "cold_open",
+      "chapters:10",
+      "exhibits",
+      "outro"
+    ],
     "chapter_min_words": 170,
     "beats": [
       "Opening: A lifter adds 100lb to his total in one year by cutting volume in half — the program did less, on purpose.",
@@ -25,13 +46,18 @@
       "Mechanism: Progressive overload explained as a system: add reps, then load, then sets — never all three at once.",
       "Payoff: The 6AM rule — why the appointment with yourself beats motivation every single day."
     ],
-    "hook_classes": ["the-cost reveal", "the two-paths compare", "the-system promise"],
+    "hook_classes": [
+      "the-cost reveal",
+      "the two-paths compare",
+      "the-system promise"
+    ],
     "title_patterns": [
       "The 5x5 Rule That Added 100lb to My Total in 12 Months",
       "Why the Strongest Guys in Your Gym Train Only 4 Days a Week",
       "Discipline Is a System: The 6AM Rule, Explained"
     ],
-    "payoff_rule": "the closing leaves ONE rule the viewer runs at their very next session"
+    "payoff_rule": "the closing leaves ONE rule the viewer runs at their very next session",
+    "has_chapters": false
   },
   "variation_rules": [
     "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",

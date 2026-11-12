@@ -56,15 +56,88 @@ const sh = (args) => { const r = spawnSync(args[0], args.slice(1), sOpts); if (r
 // server (a foreign page there poisons the bundle check with a cryptic error).
 const shEx = (args) => { const extra = (args[0] === 'render' || args[0] === 'still') ? ['--port=' + (3700 + (process.pid % 250))] : []; const r = spawnSync('npx', ['remotion', ...args, ...extra], { cwd: EXPL, stdio: 'inherit', shell: process.platform === 'win32' }); if (r.status !== 0) throw new Error(`remotion ${args[0]} failed (${r.status})`); };
 
-// 1. beats — the template's own layout cycle over a one-chapter sample
-const line = previewLine(meta);
-const beats = buildStorybookBeats(
-  { title: previewTitle(meta), intro: line, chapters: [{ title: niche.split(/[,&]/)[0].trim(), text: line }], outro: '' },
-  { docLayouts: pres.doc_layouts },
-);
+// 1. Media sourcing — fetch BOTH a high-res photo AND a real b-roll video clip
+const { fetchPhoto } = await import('../explainer/assets-photos.mjs');
+const { fetchBestBroll } = await import('../explainer/broll-fetch.mjs');
+
+const queryBase = (niche.split(/[,&]/)[0] || 'cinematic').trim().toLowerCase();
+let photo = null;
+try {
+  const r = await fetchPhoto({
+    key: process.env.PEXELS_API_KEY,
+    query: queryBase,
+    outPath: path.join(photoDir, 't-photo.jpg'),
+    orientation: 'portrait',
+  });
+  photo = r ? path.relative(PUB, r.file).split(path.sep).join('/') : null;
+} catch (e) {
+  console.warn(`[preview] photo fetch error: ${e.message}`);
+}
+console.log(`[preview] photo: ${photo || 'none'}`);
+
+let broll = null;
+try {
+  const r = await fetchBestBroll({
+    query: queryBase,
+    outPath: path.join(photoDir, 't-broll.mp4'),
+    pexelsKey: process.env.PEXELS_API_KEY,
+    minDurationSec: 8,
+  });
+  broll = r ? path.relative(PUB, r.file).split(path.sep).join('/') : null;
+} catch (e) {
+  console.warn(`[preview] broll fetch error: ${e.message}`);
+}
+console.log(`[preview] broll: ${broll || 'none'}`);
+
+// 2. Beats — construct an engaging 4-beat showcase with real photo and video, no forced chapter divider
+const title = previewTitle(meta);
+const rawBeats = meta.story_structure?.beats || [];
+const clean = (s) => String(s || '').replace(/^(Opening|Evidence|Mechanism|Payoff|Rule \w+|Exhibit \w+):\s*/i, '').trim();
+
+const hookLine = clean(rawBeats[0]) || previewLine(meta);
+const photoLine = clean(rawBeats[1]) || 'Every principle is backed by documented evidence and real practice.';
+const videoLine = clean(rawBeats[2]) || clean(rawBeats[3]) || 'Consistency and disciplined execution create compounding results.';
+
+const dynamicLayout = pres.doc_layouts?.find((l) => !['hero', 'chapter', 'split', 'end'].includes(l)) || 'quote';
+
+const beats = [
+  {
+    i: 0,
+    layout: 'hero',
+    headline: title,
+    sub: hookLine,
+    text: title,
+    kicker: pres.eyebrow || '',
+  },
+  {
+    i: 1,
+    layout: 'split',
+    kicker: pres.eyebrow ? `${pres.eyebrow.split('//')[0].trim()} · EVIDENCE` : 'THE BREAKDOWN',
+    headline: photoLine,
+    sub: clean(rawBeats[2]) || undefined,
+    text: photoLine,
+    photo: photo || undefined,
+  },
+  {
+    i: 2,
+    layout: dynamicLayout,
+    kicker: 'KEY TAKEAWAY',
+    headline: videoLine,
+    text: videoLine,
+    broll: broll || undefined,
+    big: '87%',
+    label: videoLine,
+  },
+  {
+    i: 3,
+    layout: 'end',
+    headline: `Follow ${pres.brand || 'for daily breakdowns'}.`,
+    text: `Follow ${pres.brand || 'for daily breakdowns'}.`,
+  },
+];
 console.log(`[preview] ${beats.length} beats (layouts: ${beats.map((b) => b.layout).join(' → ')})`);
 
-// 2. TTS — the spoken beats, the template's voice (Edge WordBoundary timings
+// 3. TTS — the spoken beats, the template's voice (Edge WordBoundary timings
 //    → the preview karaoke works too)
 const spoken = beats.filter((x) => (x.text || '').trim()).map((x) => ({ i: x.i, text: x.text }));
 const voice = edgeVoiceFor(pres.voice);
@@ -80,15 +153,6 @@ const audioFor = (i) => {
   const abs = path.join(PUB, rel);
   return fs.existsSync(abs) && fs.statSync(abs).size > 2048 ? rel.split(path.sep).join('/') : null;
 };
-
-// 3. one landscape photo for a mid slide (premium fetcher, niche query)
-const { fetchPhoto } = await import('../explainer/assets-photos.mjs');
-let photo = null;
-try {
-  const r = await fetchPhoto({ key: process.env.PEXELS_API_KEY, query: niche.split(/[,&]/)[0].trim().toLowerCase(), outPath: path.join(photoDir, 't-1.jpg'), orientation: 'landscape' });
-  photo = r ? path.relative(PUB, r.file).split(path.sep).join('/') : null;
-} catch { }
-console.log(`[preview] photo: ${photo || 'none (text slide fallback)'}`);
 
 // 4. doc json — the template's presentation over the timed beats
 const { totalMs } = timeBeats(beats, durs, audioFor);
