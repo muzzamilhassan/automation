@@ -66,11 +66,12 @@ jobs:
             import { pathToFileURL } from 'node:url';
             let toDiscoverChannels = null;
             let selectChannelsForSlot = null;
+            let selectChannelsDueOrMissed = null;
             try {
               // T4a: the discovery mapping + slot-gating pure functions live in
               // lib/ (tested there); this eval script imports them by file path
               // from the repo root.
-              ({ toDiscoverChannels, selectChannelsForSlot } = await import(pathToFileURL(process.cwd() + '/lib/schedule-slot.mjs')));
+              ({ toDiscoverChannels, selectChannelsForSlot, selectChannelsDueOrMissed } = await import(pathToFileURL(process.cwd() + '/lib/schedule-slot.mjs')));
             } catch (e) {
               console.log('::error::slot-gate module unreadable: ' + (e.message || e));
             }
@@ -83,8 +84,14 @@ jobs:
               if (target) {
                 chans = all.filter(c => c.slug === target);
               } else if (sched) {
-                // heartbeat fired: gate each channel on its own registry cron
-                chans = selectChannelsForSlot ? selectChannelsForSlot(all, new Date()) : [];
+                // heartbeat fired: gate each channel on its own registry cron (with catch-up for missed slots)
+                const statesBySlug = {};
+                for (const c of all) {
+                  try { statesBySlug[c.slug] = JSON.parse(fs.readFileSync('yt-mcp/state/' + c.slug + '.json', 'utf8')); } catch {}
+                }
+                chans = selectChannelsDueOrMissed
+                  ? selectChannelsDueOrMissed(all, statesBySlug, new Date())
+                  : (selectChannelsForSlot ? selectChannelsForSlot(all, new Date()) : []);
               } else {
                 chans = all;
               }

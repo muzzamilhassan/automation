@@ -51,9 +51,11 @@ const warnings = [];
 // state rides the committed logs).
 const LEGACY_SET = new Set(LEGACY_SLUGS);
 const HEAL_DISPATCH_FILE = path.join('yt-mcp', 'state', 'heal-dispatches.json');
-async function dispatchAutopilotHeal(slug) {
+async function dispatchAutopilotHeal(slug, { withTopup = true, reason = 'no env token' } = {}) {
+  const inputs = withTopup ? { channel: slug, topup: '1' } : { channel: slug };
+  const detail = withTopup ? `channel=${slug} topup=1` : `channel=${slug}`;
   if (DRY) {
-    log(`(dry-run) would dispatch channel-autopilot.yml channel=${slug} topup=1 (no env token)`);
+    log(`(dry-run) would dispatch channel-autopilot.yml ${detail} (${reason})`);
     return true;
   }
   let seen = {};
@@ -65,15 +67,15 @@ async function dispatchAutopilotHeal(slug) {
   const token = envOf('GITHUB_PAT') || envOf('SECRET_WRITER_PAT');
   const repo = process.env.GITHUB_REPOSITORY || 'muzzamilhassan/automation';
   if (!token) {
-    log(`✗ [${slug}] no local token and no GITHUB_PAT — cannot dispatch a heal`);
+    log(`✗ [${slug}] cannot dispatch heal (${reason}) — no GITHUB_PAT`);
     return false;
   }
-  log(`⚠ [${slug}] no env token — dispatching channel-autopilot.yml (channel=${slug}, topup=1)...`);
+  log(`⚠ [${slug}] ${reason} — dispatching channel-autopilot.yml (${detail})...`);
   try {
     execFileSync('curl', ['-s', '-X', 'POST',
       '-H', `Authorization: token ${token}`,
       `https://api.github.com/repos/${repo}/actions/workflows/channel-autopilot.yml/dispatches`,
-      '-d', JSON.stringify({ ref: 'main', inputs: { channel: slug, topup: '1' } })], { timeout: 30000 });
+      '-d', JSON.stringify({ ref: 'main', inputs })], { timeout: 30000 });
     seen[slug] = todayUTC;
     fs.mkdirSync(path.dirname(HEAL_DISPATCH_FILE), { recursive: true });
     fs.writeFileSync(HEAL_DISPATCH_FILE, JSON.stringify(seen, null, 2));
@@ -167,9 +169,16 @@ for (const slug of CHANNEL_SLUGS) {
     }
     // #98 clips lane: flipped channels are healed by the clips publisher, not
     // yt-daily topups (a topup here would double-produce generated Shorts)
-    const kit = await resolveBrand(slug).catch(() => null);
-    if (kit?.shortsSource === 'clips') {
-      log(`↷ [${slug}] shortsSource=clips — healing belongs to the clips lane, skipped`);
+    let kit = null;
+    try { kit = resolveBrand(slug); } catch { }
+    if (kit?.shortsSource === 'clips' || kit?.shortsSource === 'external-episodic') {
+      if (count === 0) {
+        if (await dispatchAutopilotHeal(slug, { withTopup: false, reason: `shortsSource=${kit.shortsSource}, 0/${want} live today` })) {
+          warnings.push(`${slug}: ${kit.shortsSource} 0/${want} live — dispatched channel-autopilot.yml`);
+        }
+      } else {
+        log(`↷ [${slug}] shortsSource=${kit.shortsSource} (${count}/${want} live today) — skipping yt-daily topup`);
+      }
       continue;
     }
     if (DRY) {

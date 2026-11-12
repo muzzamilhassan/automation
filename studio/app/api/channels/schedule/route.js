@@ -123,8 +123,25 @@ export async function GET(req) {
   if (!(await canAccessChannelSlug(user, slug))) return Response.json({ error: 'this channel is not linked to your account' }, { status: 403 });
   const e = (await loadFile())[slug] || {};
   const { docDays = [], shortDays = [], shortsSource = 'generated' } = e;
+  let gateCron = null;
+  try {
+    const reg = await readRegistry();
+    const entry = (reg.channels || []).find((c) => c.slug === slug);
+    gateCron = entry?.cron || entry?.kit?.gateCron || null;
+  } catch { }
   const { proj } = await scheduleProjection({ docDays, shortDays });
-  return Response.json({ slug, schedule: { docDays, shortDays, shortsSource }, projection: proj });
+  return Response.json({ slug, schedule: { docDays, shortDays, shortsSource }, gateCron, projection: proj });
+}
+
+const DAILY_CRON_RE = /^(\d{1,2}) (\d{1,2}) \* \* \*$/;
+function validGateCron(raw) {
+  if (raw == null || String(raw).trim() === '') return null;
+  const s = String(raw).trim();
+  const m = DAILY_CRON_RE.exec(s);
+  if (!m) return false;
+  const min = Number(m[1]), hr = Number(m[2]);
+  if (min > 59 || hr > 23) return false;
+  return `${min} ${hr} * * *`;
 }
 
 export async function POST(req) {
@@ -135,8 +152,13 @@ export async function POST(req) {
     return Response.json({ error: 'only owner and staff can change scheduling' }, { status: 403 });
   }
   const body = await req.json().catch(() => ({}));
-  const { slug, ...schedule } = body || {};
+  const { slug, gateCron: rawGateCron, ...schedule } = body || {};
   if (!(await canAccessChannelSlug(user, slug))) return Response.json({ error: 'this channel is not linked to your account' }, { status: 403 });
+
+  const explicitCron = validGateCron(rawGateCron);
+  if (explicitCron === false) {
+    return Response.json({ error: 'gateCron must be daily UTC cron "M H * * *" (e.g. "13 2 * * *")' }, { status: 400 });
+  }
 
   const v = validateSchedule(schedule);
   if (!v.ok) return Response.json({ error: v.errors.join('; ') }, { status: 400 });
@@ -158,37 +180,31 @@ export async function POST(req) {
   await writeRepoJSON(FILE, file, `schedule: ${slug} cadence updated (#100)`);
 
   // T4a (round 1): re-derive the registry gate cron on every save from the
-  // channel's SHORT slots only — no slots (the legacy 4's shape) = KEEP the
-  // existing cron, never a kit.longSlot fallback (that would silently re-time
-  // the hand-tuned 02:13-03:53 gates to longSlot's afternoon peak). The cron
-  // ('M H * * *', UTC) is what the autopilot's slot-gating discover step
-  // (channel-autopilot.yml → lib/schedule-slot.mjs) reads; slot times are
-  // re-parsed here, never trusted from the client. Fail-soft: a cron-sync
-  // failure must not fail the cadence save (same belt as the quota store
-  // above).
+  // channel's SHORT slots only when no gateCron is set yet (never overwrite an
+  // existing hand-tuned 02:13-03:53 gate cron unless explicit gateCron is sent).
   let gateNote = '';
+  let resolvedCron = null;
   try {
     const reg = await readRegistry();
     const entry = (reg.channels || []).find((c) => c.slug === slug);
     const oldCron = entry?.cron || entry?.kit?.gateCron || '';
-    const cron = entry?.slots?.length ? cronFromSlots(entry.slots) : null;
-    if (cron) {
+    resolvedCron = oldCron || null;
+    const cron = explicitCron || (!oldCron && entry?.slots?.length ? cronFromSlots(entry.slots) : null);
+    if (cron && cron !== oldCron) {
       const res = await setChannelCron(slug, cron, `schedule: gate cron ${cron} for ${slug} (T4a slot gating)`);
       if (!res.ok) {
         gateNote = `Gate time not updated: the channel is not in the engine registry yet (yt-mcp/studio-channels.json).`;
       } else {
+        resolvedCron = cron;
         const [cronMinute, cronHour] = cron.split(' ');
         const hhmm = `${cronHour}:${String(cronMinute).padStart(2, '0')}`;
         gateNote = `Gate time set to ${hhmm} UTC${oldCron && oldCron !== cron ? ` (was ${oldCron})` : ''}`;
       }
-    } else if (entry?.slots?.length) {
-      gateNote = 'No valid HH:MM short slot on this channel — the autopilot gate time (cron) was left unchanged.';
     }
-    // no slots at all: the existing cron stays, silently (the legacy channels' shape)
   } catch (e) {
     gateNote = `cron sync failed (${String(e?.message || e).slice(0, 120)}) — the gate time keeps its previous value`;
   }
 
   try { await appendAudit(user.email, 'channel schedule set', slug); } catch { }
-  return Response.json({ ok: true, slug, schedule: v.clean, projection: proj, warnings: [...(v.warnings || []), ...advisories, ...(gateNote ? [gateNote] : [])] });
+  return Response.json({ ok: true, slug, schedule: v.clean, gateCron: resolvedCron, projection: proj, warnings: [...(v.warnings || []), ...advisories, ...(gateNote ? [gateNote] : [])] });
 }

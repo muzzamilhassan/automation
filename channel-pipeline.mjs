@@ -547,6 +547,30 @@ if (RESUME_ARG) process.env.PIPELINE_RESUME_JOB_ID = RESUME_JOB_ID || jobCtl?.pa
 // vocabulary as a 'review' step + the 'held' job terminal, and approval later
 // resumes at render via the /review dispatch (channel + resume=job_id).
 const REVIEW_QUEUE_ENABLED = flagOn(process.env.REVIEW_QUEUE_ENABLED);
+async function runClipsPhase1() {
+  if (jobCtl?.isSkipped(SHORTS_STEP)) {
+    log(`resume: skip ${SHORTS_STEP} (artifact verified)`);
+    results.shorts = true;
+    return;
+  }
+  log(`Phase 1 — Clips lane (shortsSource=clips) for ${b.label}...`);
+  if (await quotaGate('Shorts (clips)')) {
+    await jobCtl?.startStep(SHORTS_STEP);
+    if (run('longvideo/shorts-clips.mjs', ['post-next', slug])) {
+      results.shorts = true;
+      log(`✓ Clip Short processed`);
+      await jobCtl?.finishStep(SHORTS_STEP, 'succeeded');
+    } else {
+      errors.push('Clip Short posting failed');
+      log(`✗ Clip posting failed`);
+      await jobCtl?.finishStep(SHORTS_STEP, 'failed', 'Clip Short posting failed');
+    }
+  } else {
+    errors.push('Shorts skipped — daily quota budget');
+    await jobCtl?.finishStep(SHORTS_STEP, 'skipped', 'daily quota budget');
+  }
+}
+
 if (REVIEW_QUEUE_ENABLED) {
   let gate = null;
   let REGISTRY_META = null;
@@ -605,6 +629,14 @@ if (REVIEW_QUEUE_ENABLED) {
     } catch { }
   }
   if (gate && gate.ok && gate.action === 'hold') {
+    // Clips-lane Shorts come from an already-published/approved documentary, so
+    // a doc-review hold (no_approved_script / awaiting_review / rejected)
+    // applies only to the NEXT documentary and must not block posting today's
+    // queued Short. Fail-closed conditions (unreadable_*, drift,
+    // script_store_unavailable) still hold everything.
+    if (shortsSource === 'clips' && ['no_approved_script', 'awaiting_review', 'rejected'].includes(gate.reason)) {
+      await runClipsPhase1();
+    }
     // #106 T5b/T5c SEAM 1 (generate-only): the gate held because NO script
     // exists for today's slot — the channel's SCRIPT LANE generates + persists
     // the survivor awaiting_review and STOPS: no TTS, no render, no upload
@@ -662,16 +694,11 @@ if (REVIEW_QUEUE_ENABLED) {
   }
 }
 
-if (jobCtl?.isSkipped(SHORTS_STEP)) {
+if (shortsSource === 'clips') {
+  await runClipsPhase1();
+} else if (jobCtl?.isSkipped(SHORTS_STEP)) {
   log(`resume: skip ${SHORTS_STEP} (artifact verified)`);
   results.shorts = true;
-} else if (shortsSource === 'clips') {
-  log(`Phase 1 — Clips lane (shortsSource=clips) for ${b.label}...`);
-  if (await quotaGate('Shorts (clips)')) {
-    await jobCtl?.startStep(SHORTS_STEP);
-    if (run('longvideo/shorts-clips.mjs', ['post-next', slug])) { results.shorts = true; log(`✓ Clip Short processed`); await jobCtl?.finishStep(SHORTS_STEP, 'succeeded'); }
-    else { errors.push('Clip Short posting failed'); log(`✗ Clip posting failed`); await jobCtl?.finishStep(SHORTS_STEP, 'failed', 'Clip Short posting failed'); }
-  } else { errors.push('Shorts skipped — daily quota budget'); await jobCtl?.finishStep(SHORTS_STEP, 'skipped', 'daily quota budget'); }
 } else if ((!shortsDone || FORCE || TOPUP_N > 0) && (await quotaGate('Shorts production'))) {
   // #98 REGRESSION FIX (2026-10-23 audit): the #98 restructure dropped this
   // produce body — generated channels logged the skip text and produced

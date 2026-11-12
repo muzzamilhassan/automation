@@ -32,7 +32,7 @@ Quote headline: "${postData?.headline || ''}"
 Quote text: "${(postData?.insight_body || '').slice(0, 160)}" (${brandQueryHint} theme)
 Reply with ONLY a JSON object: {"clip_query": "<2-3 word cinematic b-roll search phrase, concrete and visual, e.g. 'foggy mountain sunrise'>"}`;
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${GEMINI_API_KEY}`;
     const res = await fetch(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4, responseMimeType: 'application/json' } })

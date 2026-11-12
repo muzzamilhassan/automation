@@ -93,7 +93,7 @@ function rowToEntry(r) {
     consent: r.consent || null,
     autopilotStartedAt: r.autopilot_started_at ? new Date(r.autopilot_started_at).toISOString() : null,
     status: r.status || '',
-    active: true,
+    active: r.status !== 'parked' && r.status !== 'paused' && Boolean(r.token_secret || r.token_enc),
     fromRegistry: true,
   };
 }

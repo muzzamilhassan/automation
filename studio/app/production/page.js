@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Zap,
   Clapperboard,
@@ -21,14 +21,51 @@ import { Button } from '@/components/untitledui/base/buttons/button';
 
 const ICONS = { clapperboard: Clapperboard, film: Film, music2: Music2, share2: Share2, image: ImageIcon, 'at-sign': AtSign };
 
+function mapOverviewChannels(channels) {
+  return (channels || []).map((c) => ({
+    slug: c.slug,
+    label: c.label || c.slug,
+    fromRegistry: Boolean(c.fromRegistry),
+    shortsSource: c.shortsSource || 'generated',
+    docDays: Array.isArray(c.docDays) ? c.docDays : [],
+    clipQueue: c.clipQueue || null,
+    flowPaused: Boolean(c.flowPaused),
+  }));
+}
+
+function ClipQueueChips({ clipQueue }) {
+  const broken = Number(clipQueue?.broken) || 0;
+  const remaining = Number(clipQueue?.remaining) || 0;
+  if (broken > 0) {
+    return (
+      <>
+        <Chip tone="bad">{broken} broken {broken === 1 ? 'clip' : 'clips'}</Chip>
+        {remaining > 0 ? <Chip tone="ok">{remaining} {remaining === 1 ? 'clip' : 'clips'} ready</Chip> : null}
+      </>
+    );
+  }
+  if (remaining > 0) {
+    return <Chip tone="ok">{remaining} {remaining === 1 ? 'clip' : 'clips'} ready</Chip>;
+  }
+  return <Chip tone="warn">queue empty</Chip>;
+}
+
 export default function Production() {
   // 10-08 FLOW CONTROL — network master switch (Hootsuite-style suspend):
   // one button pauses/resumes EVERY channel's autopilot at once.
-  const [chans, setChans] = useState([]); // {slug, label, fromRegistry}
+  const [chans, setChans] = useState([]); // {slug, label, fromRegistry, shortsSource, docDays, clipQueue, flowPaused}
   const [netPaused, setNetPaused] = useState(null); // null = unknown yet
   const [netBusy, setNetBusy] = useState(false);
   const [netError, setNetError] = useState('');
   const [runs, setRuns] = useState({});
+
+  const loadOverview = useCallback(async () => {
+    const d = await fetch('/api/overview').then((r) => r.json()).catch(() => null);
+    if (!d?.channels?.length) return null;
+    setChans(mapOverviewChannels(d.channels));
+    setNetPaused(d.channels.every((c) => c.flowPaused));
+    return d;
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -36,7 +73,7 @@ export default function Production() {
       await Promise.resolve();
       const d = await fetch('/api/overview').then((r) => r.json()).catch(() => null);
       if (!alive || !d?.channels?.length) return;
-      setChans(d.channels.map((c) => ({ slug: c.slug, label: c.label || c.slug, fromRegistry: Boolean(c.fromRegistry) })));
+      setChans(mapOverviewChannels(d.channels));
       setNetPaused(d.channels.every((c) => c.flowPaused));
     })();
     return () => { alive = false; };
@@ -58,23 +95,50 @@ export default function Production() {
     }
     setNetPaused(on ? false : true);
     if (fails) setNetError(`${fails} channel(s) failed — try again or check the logs.`);
+    await loadOverview();
     setNetBusy(false);
   };
 
-  // 10-08 P1: "produce now" for ANY channel — legacy dispatch their own
-  // workflow, wizard channels dispatch the autopilot with their slug
-  const produce = async (slug) => {
-    setRuns((r) => ({ ...r, [slug]: 'busy' }));
+  const runKey = (slug, key) => `${slug}:${key}`;
+
+  // 10-08 P1: "produce now" / "force doc + clips" for ANY channel
+  const dispatchAction = async (slug, action, extra = {}) => {
+    const key = runKey(slug, action);
+    setRuns((r) => ({ ...r, [key]: 'busy' }));
     try {
       const r = await fetch('/api/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'yt-daily', slug }),
+        body: JSON.stringify({ action, slug, ...extra }),
       });
       const d = await r.json().catch(() => ({}));
-      setRuns((x) => ({ ...x, [slug]: r.ok && d.started ? 'started' : 'error' }));
+      setRuns((x) => ({ ...x, [key]: r.ok && d.started ? 'started' : 'error' }));
     } catch {
-      setRuns((x) => ({ ...x, [slug]: 'error' }));
+      setRuns((x) => ({ ...x, [key]: 'error' }));
+    }
+  };
+
+  const clearBrokenQueue = async (slug) => {
+    const key = runKey(slug, 'clear-queue');
+    setRuns((r) => ({ ...r, [key]: 'busy' }));
+    try {
+      const r = await fetch('/api/channels/clip-queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug, action: 'clear' }),
+      });
+      if (!r.ok) {
+        setRuns((x) => ({ ...x, [key]: 'error' }));
+        return;
+      }
+      await loadOverview();
+      setRuns((x) => {
+        const next = { ...x };
+        delete next[key];
+        return next;
+      });
+    } catch {
+      setRuns((x) => ({ ...x, [key]: 'error' }));
     }
   };
 
@@ -108,31 +172,65 @@ export default function Production() {
           <Button
             color={netPaused ? 'primary' : 'secondary'}
             onClick={() => setAll(!netPaused)}
-            disabled={netBusy}
+            isDisabled={netBusy}
           >
             {netBusy ? 'Working…' : netPaused ? (<><Play size={14} /> Resume everything</>) : (<><Pause size={14} /> Pause everything</>)}
           </Button>
         </Card>
       ) : null}
 
-      {/* channel runs — produce now for ANY channel */}
+      {/* channel runs — produce now / force doc + clips for ANY channel */}
       {chans.length ? (
         <Card className="p-4 mb-5 overflow-hidden">
           <CardHead title="Channel runs" sub="Run the nightly pipeline now for any channel — research, script, voice, render, upload (all gates apply). Already-done steps skip automatically." />
           <div className="px-2 pb-2 space-y-1.5">
-            {chans.map((c) => (
-              <div key={c.slug} className="flex items-center gap-3 inset-tile px-3 py-2.5">
-                <span className="text-[12.5px] font-semibold text-ink truncate flex-1">{c.label}</span>
-                <Chip>{c.fromRegistry ? 'wizard' : 'legacy'}</Chip>
-                <Button
-                  color="secondary"
-                  onClick={() => produce(c.slug)}
-                  isDisabled={runs[c.slug] === 'busy' || runs[c.slug] === 'started'}
-                >
-                  {runs[c.slug] === 'busy' ? 'Starting…' : runs[c.slug] === 'started' ? 'Started ✓' : runs[c.slug] === 'error' ? 'Failed — retry' : 'Produce now'}
-                </Button>
-              </div>
-            ))}
+            {chans.map((c) => {
+              const produceState = runs[runKey(c.slug, 'yt-daily')];
+              const forceDocState = runs[runKey(c.slug, 'force-doc')];
+              const clearState = runs[runKey(c.slug, 'clear-queue')];
+              const hasBrokenClips = (c.clipQueue?.broken || 0) > 0;
+              return (
+                <div key={c.slug} className="flex flex-wrap items-center justify-between gap-2.5 inset-tile px-3 py-2.5">
+                  <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
+                    <span className="text-[12.5px] font-semibold text-ink truncate">{c.label}</span>
+                    <Chip>{c.fromRegistry ? 'wizard' : 'legacy'}</Chip>
+                    <Chip tone={c.shortsSource === 'clips' ? 'accent' : c.shortsSource === 'external-episodic' ? 'info' : 'plain'}>
+                      {c.shortsSource}
+                    </Chip>
+                    {c.flowPaused ? <Chip tone="warn">PAUSED</Chip> : null}
+                    {c.shortsSource === 'clips' ? <ClipQueueChips clipQueue={c.clipQueue} /> : null}
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap shrink-0">
+                    <Button
+                      size="xs"
+                      color="secondary"
+                      onClick={() => dispatchAction(c.slug, 'yt-daily')}
+                      isDisabled={produceState === 'busy' || produceState === 'started'}
+                    >
+                      {produceState === 'busy' ? 'Starting…' : produceState === 'started' ? 'Started ✓' : produceState === 'error' ? 'Failed — retry' : 'Produce now'}
+                    </Button>
+                    <Button
+                      size="xs"
+                      color="secondary"
+                      onClick={() => dispatchAction(c.slug, 'force-doc', { forceDoc: true })}
+                      isDisabled={forceDocState === 'busy' || forceDocState === 'started'}
+                    >
+                      {forceDocState === 'busy' ? 'Starting…' : forceDocState === 'started' ? 'Started ✓' : forceDocState === 'error' ? 'Failed — retry' : 'Force Doc + Clips'}
+                    </Button>
+                    {hasBrokenClips ? (
+                      <Button
+                        size="xs"
+                        color="secondary-destructive"
+                        onClick={() => clearBrokenQueue(c.slug)}
+                        isDisabled={clearState === 'busy'}
+                      >
+                        {clearState === 'busy' ? 'Clearing…' : clearState === 'error' ? 'Failed — retry' : 'Clear broken queue'}
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </Card>
       ) : null}
@@ -194,13 +292,12 @@ export default function Production() {
         <div className="flex items-start gap-3">
           <FileText size={16} className="text-faint mt-0.5 shrink-0" />
           <div className="text-[12.5px] text-muted leading-relaxed">
-            <span className="font-semibold text-ink">How runs report back.</span> Every button spawns the real script
-            (same ones GitHub Actions uses) and writes output to <code className="font-mono text-accent">studio-logs/</code> in the
-            repo. The{' '}
-            <a href="/logs" className="text-accent hover:underline">
-              Logs page
+            <span className="font-semibold text-ink">How runs report back.</span> Every button dispatches the channel workflow on{' '}
+            <span className="font-semibold text-ink">GitHub Actions</span>. Run history, upload status, and failures appear in{' '}
+            <a href="/operations?tab=logs" className="text-accent hover:underline">
+              Execution Logs
             </a>{' '}
-            shows what actually got published. If a job fails, it fails closed — nothing broken goes public.
+            as jobs run and complete. If a job fails, it fails closed — nothing broken goes public.
           </div>
         </div>
       </Card>

@@ -37,8 +37,33 @@ function DayPicker({ label, days, onToggle }) {
   );
 }
 
+const DAILY_CRON_RE = /^(\d{1,2}) (\d{1,2}) \* \* \*$/;
+function parseGateCron(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return { valid: true, label: '' };
+  const m = DAILY_CRON_RE.exec(s);
+  if (!m) return { valid: false, label: '' };
+  const min = Number(m[1]), hr = Number(m[2]);
+  if (min > 59 || hr > 23) return { valid: false, label: '' };
+  return { valid: true, label: `${String(hr).padStart(2, '0')}:${String(min).padStart(2, '0')} UTC` };
+}
+
+function deriveModelParams(serverProj) {
+  if (!serverProj) return {};
+  const out = {};
+  if (Number.isFinite(serverProj.budget)) out.dailyLimit = serverProj.budget + 100;
+  if (Number.isFinite(serverProj.model?.insertCostUnits)) {
+    out.perUpload = serverProj.model.insertCostUnits;
+  } else if (serverProj.worstDayUploads > 0 && Number.isFinite(serverProj.worstDayUnits)) {
+    out.perUpload = Math.round(serverProj.worstDayUnits / serverProj.worstDayUploads);
+  }
+  return out;
+}
+
 export default function SchedulePanel({ slug, accent }) {
   const [schedule, setSchedule] = useState(null);
+  const [serverProj, setServerProj] = useState(null);
+  const [gateCron, setGateCron] = useState('');
   const [modelWarnings, setModelWarnings] = useState([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -48,15 +73,16 @@ export default function SchedulePanel({ slug, accent }) {
       .then((r) => r.json())
       .then((d) => {
         setSchedule(d.schedule || { docDays: [], shortDays: [], shortsSource: 'generated' });
-        // #104 I-1: surface the server's model-aware projection warnings (quota-model
-        // advisory + insert-bucket notes) — the client-side projection() below is legacy math.
+        setServerProj(d.projection || null);
+        setGateCron(d.gateCron || '');
         setModelWarnings(d.projection?.warnings || []);
       })
       .catch(() => setSchedule({ docDays: [], shortDays: [], shortsSource: 'generated' }));
   }, [slug]);
 
   const draft = schedule || { docDays: [], shortDays: [], shortsSource: 'generated' };
-  const proj = projection(draft);
+  const proj = projection({ ...draft, ...deriveModelParams(serverProj) });
+  const cronState = parseGateCron(gateCron);
 
   const toggleDay = (field) => (d) =>
     setSchedule((s) => ({
@@ -68,14 +94,17 @@ export default function SchedulePanel({ slug, accent }) {
     setSaving(true);
     setMsg(null);
     try {
+      const payload = { slug, ...draft, ...(gateCron.trim() ? { gateCron: gateCron.trim() } : {}) };
       const r = await fetch('/api/channels/schedule', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug, ...draft }),
+        body: JSON.stringify(payload),
       });
       const j = await r.json();
       if (!r.ok) setMsg({ tone: 'error', text: j.error || 'save failed' });
       else {
+        if (j.projection) setServerProj(j.projection);
+        if (j.gateCron) setGateCron(j.gateCron);
         setMsg({ tone: 'ok', text: 'saved — next runs pick this up' });
         const saveWarnings = [...new Set([...(j.projection?.warnings || []), ...(j.warnings || [])])];
         if (saveWarnings.length) setMsg({ tone: 'warn', text: saveWarnings.join(' ') });
@@ -93,7 +122,7 @@ export default function SchedulePanel({ slug, accent }) {
     <div className="inset-tile p-4 mt-1">
       <div className="flex items-center gap-2 overline mb-3">
         <CalendarDays size={12} /> Production scheduling
-        <Chip tone={proj.tone === 'over' ? 'crit' : proj.tone === 'warn' ? 'warn' : 'ok'}>
+        <Chip tone={proj.tone === 'over' ? 'bad' : proj.tone === 'warn' ? 'warn' : 'ok'}>
           {proj.worstDayUnits}/{proj.budget} units worst day ({proj.pct}%)
         </Chip>
       </div>
@@ -118,6 +147,22 @@ export default function SchedulePanel({ slug, accent }) {
             {s === 'clips' ? 'Clips from long-forms' : 'Generated daily'}
           </button>
         ))}
+      </div>
+
+      <div className="mb-3 flex items-center gap-2 flex-wrap">
+        <span className="overline">Autopilot gate cron (UTC):</span>
+        <input
+          type="text"
+          value={gateCron}
+          onChange={(e) => setGateCron(e.target.value)}
+          placeholder="e.g. 13 2 * * *"
+          className="px-2.5 py-1 rounded-md border border-[--border] bg-black/20 font-mono text-[11.5px] text-ink w-36"
+        />
+        {cronState.valid && cronState.label ? (
+          <span className="text-[11px] text-muted font-mono">{cronState.label}</span>
+        ) : !cronState.valid ? (
+          <span className="text-[11px] text-red-400">Use M H * * * (0-59, 0-23)</span>
+        ) : null}
       </div>
 
       <div className="mb-3">
@@ -149,7 +194,7 @@ export default function SchedulePanel({ slug, accent }) {
         </p>
       ) : null}
 
-      <Button color="primary" onClick={save} disabled={saving || proj.blocked}>
+      <Button color="primary" onClick={save} isDisabled={saving || proj.blocked || !cronState.valid}>
         {saving ? 'Saving…' : 'Save scheduling'}
       </Button>
     </div>

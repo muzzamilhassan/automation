@@ -18,6 +18,7 @@ const TOKEN = ENV.GITHUB_TOKEN || ENV.GITHUB_PAT || '';
 const MAP = {
   'yt-daily': (slug) => ({ workflow: 'channel-autopilot.yml', inputs: { channel: slug }, channelRun: true }),
   'deepdive': (slug) => ({ workflow: 'channel-autopilot.yml', inputs: { channel: slug }, channelRun: true }), // episodes follow docDay inside the channel run; legacy uploader disabled 10-05
+  'force-doc': (slug) => ({ workflow: 'channel-autopilot.yml', inputs: { channel: slug, force_doc: '1' }, channelRun: true }),
   'ig-crosspost': () => ({ workflow: 'ig-slot-poster.yml', inputs: {} }),
   'tiktok': () => ({ retired: true }), // the workflow was deleted; the button answers a clean 400 instead of a GitHub 404
   'fb-crosspost': () => ({ workflow: 'fb-now.yml', inputs: { job: 'reels' } }),
@@ -65,6 +66,9 @@ export async function POST(req) {
         return Response.json({ error: 'topup must be a positive integer' }, { status: 400 });
       }
       spec.inputs.topup = String(body.topup);
+    }
+    if (['yt-daily', 'deepdive'].includes(body.action) && (body.forceDoc === true || body.forceDoc === '1' || body.force_doc === '1')) {
+      spec.inputs.force_doc = '1';
     }
   }
   const { workflow, inputs } = spec;

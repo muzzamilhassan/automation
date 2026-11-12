@@ -116,7 +116,7 @@ async function llm(prompt) {
   };
   let t = null;
   if (process.env.GEMINI_API_KEY) {
-    t = await call(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    t = await call(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       { 'Content-Type': 'application/json' },
       { contents: [{ parts: [{ text: prompt }] }] },
       (j) => j?.candidates?.[0]?.content?.parts?.[0]?.text);
@@ -385,8 +385,19 @@ async function postNext() {
     log(`${todayName} is not a short day (${shortDays.join('/')}) — skipped`);
     process.exit(0);
   }
-  // #99 shared-pool ledger: the publisher respects the daily budget too
-  const q = (await import('../lib/quota-ledger.mjs')).evaluate(loadAllStates());
+  // #99/#104 shared-pool ledger: use the active quota model (100 units/upload
+  // default) so the legacy 1,700/upload cap doesn't block multi-channel days.
+  const { evaluate, loadQuotaModel } = await import('../lib/quota-ledger.mjs');
+  let quotaModel = null;
+  try {
+    const { db, dbReady } = await import('../studio/lib/db.mjs');
+    if (dbReady && db) {
+      const { adaptPostgres } = await import('../studio/lib/provider-routing.js');
+      quotaModel = await loadQuotaModel(process.env.YT_GCP_PROJECT_ID || 'workspace-default', adaptPostgres(db));
+    }
+  } catch { quotaModel = null; }
+  if (!quotaModel) quotaModel = await loadQuotaModel(process.env.YT_GCP_PROJECT_ID || 'workspace-default', null);
+  const q = evaluate(loadAllStates(), { model: quotaModel });
   if (!q.allowed) {
     log(`[quota] upload skipped — shared pool ${q.usedUnits}/${q.dailyLimit} units today (${q.uploadsToday} uploads) — resets midnight PT`);
     await sendAlert({ text: `${slug}: clip upload skipped — YouTube API daily budget reached (${q.usedUnits}/${q.dailyLimit} units). Resets midnight PT.`, title: `[${slug}] clip upload blocked by quota` });

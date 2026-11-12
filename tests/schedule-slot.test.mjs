@@ -29,6 +29,7 @@ import {
   cronMatchesSlot,
   toDiscoverChannels,
   selectChannelsForSlot,
+  selectChannelsDueOrMissed,
 } from '../lib/schedule-slot.mjs';
 import { parseHHMM, cronFromSlots } from '../studio/lib/schedule-projection.js';
 
@@ -336,4 +337,39 @@ test('discover script (extracted from the workflow): schedule event slot-gates v
   for (const c of channels) {
     assert.ok(cronMatchesSlot(c.cron, now), `${c.slug} (cron ${c.cron}) must be inside its gate window at the run time`);
   }
+});
+
+// ---------- catch-up gating (selectChannelsDueOrMissed) ----------
+
+test('selectChannelsDueOrMissed: in-slot always selects even if already posted today', () => {
+  const chans = [{ slug: 'mr', cron: '21 3 * * *' }];
+  const states = { mr: { lastRunDate: '2026-11-01', clipLastPostDate: '2026-11-01', healedDate: '2026-11-01' } };
+  assert.deepEqual(selectChannelsDueOrMissed(chans, states, at(3, 35)).map((c) => c.slug), ['mr']);
+});
+
+test('selectChannelsDueOrMissed: catch-up selects missed channel within catchUpMinutes when not posted today', () => {
+  const chans = [
+    { slug: 'missed', cron: '21 3 * * *' },       // 03:21 -> catch-up [03:21, 07:21)
+    { slug: 'ran', cron: '13 2 * * *' },          // 02:13 -> catch-up [02:13, 06:13), posted via lastRunDate
+    { slug: 'clipped', cron: '47 2 * * *' },      // 02:47 -> catch-up [02:47, 06:47), posted via clipLastPostDate
+    { slug: 'healed', cron: '53 3 * * *' },       // 03:53 -> catch-up [03:53, 07:53), posted via healedDate
+    { slug: 'too-late', cron: '0 0 * * *' },      // 00:00 -> catch-up [00:00, 04:00), expired by 05:05
+  ];
+  const states = {
+    missed: { lastRunDate: '2026-10-31' },
+    ran: { lastRunDate: '2026-11-01' },
+    clipped: { clipLastPostDate: '2026-11-01' },
+    healed: { healedDate: '2026-11-01' },
+    'too-late': {},
+  };
+  assert.deepEqual(selectChannelsDueOrMissed(chans, states, at(5, 5)).map((c) => c.slug), ['missed']);
+});
+
+test('selectChannelsDueOrMissed: catch-up window wraps modulo 1440 past midnight and honors boundary', () => {
+  const chans = [{ slug: 'late', cron: '51 23 * * *' }]; // 23:51 -> 240 min ends at 03:51 UTC
+  const states = { late: { lastRunDate: '2026-11-01' } }; // posted yesterday (Nov 1) — on Nov 2 it is unposted
+  const nov2 = (h, m) => new Date(Date.UTC(2026, 10, 2, h, m));
+  assert.deepEqual(selectChannelsDueOrMissed(chans, states, nov2(3, 50)).map((c) => c.slug), ['late'], '1 min before catch-up end selects');
+  assert.deepEqual(selectChannelsDueOrMissed(chans, states, nov2(3, 51)), [], 'exact catch-up boundary is excluded');
+  assert.deepEqual(selectChannelsDueOrMissed(chans, { late: { lastRunDate: '2026-11-02' } }, nov2(3, 50)), [], 'already ran today UTC is excluded');
 });

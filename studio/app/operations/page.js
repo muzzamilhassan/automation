@@ -1,5 +1,5 @@
 'use client';
-import { Suspense } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Zap, ScrollText, TriangleAlert } from 'lucide-react';
 import { PageHeader } from '@/components/ui';
@@ -11,13 +11,37 @@ import WarningsPage from '@/app/warnings/page';
 const OPERATIONS_TABS = [
   { id: 'pipelines', label: 'Pipelines', icon: Zap },
   { id: 'logs', label: 'Execution Logs', icon: ScrollText },
-  { id: 'warnings', label: 'Warnings & Alerts', icon: TriangleAlert, badge: '1', badgeTone: 'bad' },
+  { id: 'warnings', label: 'Warnings & Alerts', icon: TriangleAlert, badgeTone: 'bad' },
 ];
 
 function OperationsContent() {
   const searchParams = useSearchParams();
   const tabFromQuery = searchParams.get('tab');
   const activeTab = tabFromQuery && OPERATIONS_TABS.some((tab) => tab.id === tabFromQuery) ? tabFromQuery : 'pipelines';
+  const [openWarnings, setOpenWarnings] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/overview')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!alive || !d) return;
+        const count = Number(d.openWarnings);
+        setOpenWarnings(Number.isFinite(count) && count > 0 ? count : 0);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [activeTab]);
+
+  const tabs = useMemo(
+    () =>
+      OPERATIONS_TABS.map((tab) =>
+        tab.id === 'warnings'
+          ? { ...tab, badge: openWarnings > 0 ? String(openWarnings) : undefined }
+          : tab
+      ),
+    [openWarnings]
+  );
 
   return (
     <div className="space-y-6">
@@ -28,7 +52,7 @@ function OperationsContent() {
       />
 
       <TabNav
-        tabs={OPERATIONS_TABS}
+        tabs={tabs}
         activeTab={activeTab}
         paramName="tab"
       />

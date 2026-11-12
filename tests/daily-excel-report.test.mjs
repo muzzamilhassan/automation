@@ -26,17 +26,22 @@ function tmpDir(t, name) {
 test('T4b reportChannels: the legacy 4 keep byte-identical labels/handles/fbPageIds (same report rows as the hardcoded array)', () => {
   const chans = reportChannels();
   const bySlug = Object.fromEntries(chans.map((c) => [c.slug, c]));
-  // MR-only mode (owner directive 2026-11-03): only the ACTIVE registry
-  // channels report — the paused three must NOT appear.
-  assert.deepEqual(chans.map((c) => c.slug), ['money-rulebook'], 'the active set is the MR-only pause');
+  assert.deepEqual(
+    chans.map((c) => c.slug),
+    ['quotequarry', 'investors-compass', 'money-rulebook', 'debt-free-doctrine'],
+    'all 4 live fleet channels report in registry order',
+  );
+  assert.deepEqual([bySlug['quotequarry'].label, bySlug['quotequarry'].handle, bySlug['quotequarry'].fbPageId], ['Quote Quarry', '@quotequarry302', '114550268199751']);
+  assert.deepEqual([bySlug['investors-compass'].label, bySlug['investors-compass'].handle, bySlug['investors-compass'].fbPageId], ["Investor's Compass", '@investorscompasshq', '116157974886564']);
   assert.deepEqual([bySlug['money-rulebook'].label, bySlug['money-rulebook'].handle, bySlug['money-rulebook'].fbPageId], ['The Money Rulebook', '@themoneyrulebook-p4y', '1077306835630491']);
-  // The four legacy tuples stay pinned against the REGISTRY FILE itself
-  // (state-independent — reactivation restores the rows with zero test edits).
-  const reg = JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8'));
-  const fileBySlug = Object.fromEntries(reg.channels.map((c) => [c.slug, c]));
-  assert.deepEqual([fileBySlug['quotequarry'].label, fileBySlug['quotequarry'].handle, registryFbPageId('quotequarry')], ['Quote Quarry', '@quotequarry302', '114550268199751']);
-  assert.deepEqual([fileBySlug['investors-compass'].label, fileBySlug['investors-compass'].handle, registryFbPageId('investors-compass')], ["Investor's Compass", '@investorscompasshq', '116157974886564']);
-  assert.deepEqual([fileBySlug['debt-free-doctrine'].label, fileBySlug['debt-free-doctrine'].handle, registryFbPageId('debt-free-doctrine')], ['Debt-Free Doctrine', '@debtfreedoctrine', '106473735839651']);
+  assert.deepEqual([bySlug['debt-free-doctrine'].label, bySlug['debt-free-doctrine'].handle, bySlug['debt-free-doctrine'].fbPageId], ['Debt-Free Doctrine', '@debtfreedoctrine', '106473735839651']);
+
+  // An inactive/paused channel in a synthetic fixture stays excluded from reporting:
+  const filtered = activeRegistryChannels([
+    { slug: 'quotequarry', label: 'Quote Quarry', handle: '@quotequarry302', active: true },
+    { slug: 'paused-channel', label: 'Paused Channel', handle: '@paused', active: false },
+  ]);
+  assert.deepEqual(filtered.map((c) => c.slug), ['quotequarry'], 'inactive/paused channels stay excluded');
 });
 
 test('T4b reportChannels: derived from the live registry — a new active channel joins without a code change', () => {

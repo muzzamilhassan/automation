@@ -299,12 +299,13 @@ test('T4c round 1: the daily LOOP accumulates state across targets — B never e
 
 test('T4c reportChannels: every channel carries its resolved destinations', () => {
   const bySlug = Object.fromEntries(reportChannels().map((c) => [c.slug, c]));
-  // MR-only mode (owner directive 2026-11-03): the report covers the ACTIVE
-  // set only; destination RESOLUTION is a registry lookup and stays correct
-  // for the paused channels (reactivation restores their rows, zero edits).
-  assert.equal(bySlug['money-rulebook'].fbPageId, '1077306835630491', 'the active channel resolves via the oracle');
-  assert.equal(bySlug['quotequarry'], undefined, 'paused channels stay out of the report');
-  assert.equal(destinationsFor('quotequarry')?.threadsHandle, 'quotequarry8', 'the seeded Threads handle still resolves from the registry');
+  assert.equal(bySlug['quotequarry'].fbPageId, '114550268199751', 'quotequarry resolves via the oracle');
+  assert.equal(bySlug['quotequarry'].threadsHandle, 'quotequarry8', 'the seeded Threads handle carries onto reportChannels');
+  assert.equal(bySlug['investors-compass'].fbPageId, '116157974886564', "Investor's Compass resolves via the oracle");
+  assert.equal(bySlug['money-rulebook'].fbPageId, '1077306835630491', 'The Money Rulebook resolves via the oracle');
+  assert.equal(bySlug['debt-free-doctrine'].fbPageId, '106473735839651', 'Debt-Free Doctrine resolves via the oracle');
+  assert.equal(bySlug['debt-free-doctrine'].tiktokHandle, undefined, 'absent destinations stay absent');
+  assert.equal(destinationsFor('quotequarry')?.threadsHandle, 'quotequarry8', 'the seeded Threads handle resolves from the registry');
   assert.equal(destinationsFor('debt-free-doctrine')?.tiktokHandle, undefined, 'absent destinations stay absent');
 });
 
