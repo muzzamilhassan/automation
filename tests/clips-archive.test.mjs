@@ -326,4 +326,11 @@ describe('#96 review r1: load-bearing expressions pinned in shorts-clips.mjs', (
     const saveAt = src.indexOf('saveChannelState(slug, st);', guardAt);
     assert.ok(saveAt > guardAt, 'saveChannelState must run after the all-fail guard');
   });
+
+  test('release asset download requests application/octet-stream and validates MP4 size and magic bytes', () => {
+    const src = fs.readFileSync(new URL('../longvideo/shorts-clips.mjs', import.meta.url), 'utf8');
+    assert.match(src, /Accept:\s*'application\/octet-stream'/, 'requests binary octet-stream so GitHub returns MP4 bytes, not JSON metadata');
+    assert.match(src, /buf\.length\s*<\s*50000/, 'guards against corrupted / tiny payload before saving or uploading');
+    assert.match(src, /magic\s*!==\s*'ftyp'/, 'verifies MP4 ftyp container signature before uploading to YouTube');
+  });
 });

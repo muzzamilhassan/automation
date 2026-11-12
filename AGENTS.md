@@ -7,7 +7,7 @@
 - **Owner & Personal Account**: `muzzamilhassan` (Email: `muzzamilhassan302@gmail.com`).
 - **Remote Origin**: `muzzamilhassan/automation` (`git@github-personal:muzzamilhassan/automation.git` using personal SSH key `~/.ssh/id_ed25519_github_personal`).
 - **NEVER use work account**: This repository must NEVER be associated with, pushed to, or operated under the work account `muzzamil-rx`.
-- **GitHub CLI (`gh`)**: Always ensure active account is `muzzamilhassan` (`gh auth switch --user muzzamilhassan`).
+- **GitHub CLI (`gh`)**: NEVER run `gh auth switch` — the global active account stays `muzzamil-rx` (work) permanently. To run `gh` as the personal account in this repo, use `bash scripts/gh-personal <args>` (injects `GH_TOKEN` from `.env` `GITHUB_PAT`, which belongs to `muzzamilhassan`).
 - **Git Author**: Commits must always use `user.name = "Muzzamil Hassan"` and `user.email = "muzzamilhassan302@gmail.com"`.
 
 ### Issue tracker

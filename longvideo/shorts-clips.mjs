@@ -509,11 +509,27 @@ async function postNext() {
     }
     if (!TOK) await fail('GITHUB_TOKEN/GITHUB_PAT missing — cannot download the clip asset');
     log(`downloading ${clip.asset}...`);
-    const r = await fetch(clip.url, { headers: { Authorization: `Bearer ${TOK}`, 'User-Agent': 'quarry-clips' } });
+    const r = await fetch(clip.url, {
+      headers: {
+        Authorization: `Bearer ${TOK}`,
+        Accept: 'application/octet-stream',
+        'User-Agent': 'quarry-clips',
+      },
+    });
     if (!r.ok) await fail(`asset download HTTP ${r.status}`);
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (buf.length < 50000) {
+      const preview = buf.subarray(0, 200).toString('utf8');
+      await fail(`downloaded asset ${clip.asset} is too small (${buf.length} bytes): ${preview}`);
+    }
+    const magic = buf.subarray(4, 8).toString('utf8');
+    if (magic !== 'ftyp' && buf.subarray(0, 4).toString('utf8') !== 'ftyp') {
+      const preview = buf.subarray(0, 200).toString('utf8');
+      await fail(`downloaded asset ${clip.asset} is not a valid MP4 (magic='${magic}'): ${preview}`);
+    }
     fs.mkdirSync(`longvideo/sc-tmp-${slug}`, { recursive: true });
     file = path.join(`longvideo/sc-tmp-${slug}`, clip.asset || `clip-${clip.part}.mp4`);
-    fs.writeFileSync(file, Buffer.from(await r.arrayBuffer()));
+    fs.writeFileSync(file, buf);
   }
 
   const publishAt = nextSlotISO((b.slots && b.slots[0]) || '22:35');

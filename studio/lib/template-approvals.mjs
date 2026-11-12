@@ -60,14 +60,18 @@ export async function listDrafts(sql) {
   let samples = {};
   let actions = {};
   try {
-    const pv = await sql`SELECT template_id, mp4_url, poster_url, rendered_at FROM template_previews WHERE template_id LIKE 'draft-%'`;
+    const pv = await sql`SELECT template_id, mp4_url, poster_url, rendered_at FROM template_previews`;
     for (const r of pv) {
       const enc = encodeURIComponent(r.template_id);
-      samples[r.template_id] = {
+      const media = {
         mp4: r.mp4_url ? `/api/template-previews/media?id=${enc}&kind=mp4` : null,
         poster: r.poster_url ? `/api/template-previews/media?id=${enc}&kind=poster` : null,
         renderedAt: r.rendered_at,
       };
+      samples[r.template_id] = media;
+      const bare = r.template_id.replace(/^draft-/, '');
+      if (!samples[bare]) samples[bare] = media;
+      if (!samples[`draft-${bare}`]) samples[`draft-${bare}`] = media;
     }
   } catch { /* db unavailable — drafts still list, previews just absent */ }
   try {
@@ -95,7 +99,7 @@ export async function listDrafts(sql) {
         eyebrow: pres.eyebrow || null,
         titles: d.story_structure?.title_patterns || [],
         disclaimer: d.safety?.disclaimers?.[0] || null,
-        preview: samples[`draft-${d.template_id}`] || null,
+        preview: samples[`draft-${d.template_id}`] || samples[d.template_id] || null,
         approval: act || null,
       });
     } catch { /* a malformed file never breaks the inbox */ }

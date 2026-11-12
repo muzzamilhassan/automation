@@ -994,3 +994,24 @@ describe('quota-model wiring (D24/AC-P4-32)', () => {
     assert.match(gate, /dbReady && db/, 'legacy constants survive ONLY the no-DB path');
   });
 });
+
+describe('uploadWithIntent payload validation (sanity checks against corrupted/JSON payloads)', () => {
+  test('rejects missing or non-buffer bytes', async () => {
+    const r = await uploadWithIntent({ bytes: null });
+    assert.equal(r.ok, false);
+    assert.match(r.error, /upload payload missing or invalid type/);
+  });
+
+  test('rejects text/JSON payload (e.g. GitHub release API error response)', async () => {
+    const jsonPayload = Buffer.from('{"message": "Not Found", "documentation_url": "https://..."}');
+    const r = await uploadWithIntent({ bytes: jsonPayload });
+    assert.equal(r.ok, false);
+    assert.match(r.error, /appears to be text\/JSON error/);
+  });
+
+  test('rejects tiny payload (< 16 bytes in test mode)', async () => {
+    const r = await uploadWithIntent({ bytes: Buffer.from([1, 2, 3]) });
+    assert.equal(r.ok, false);
+    assert.match(r.error, /upload payload too small/);
+  });
+});

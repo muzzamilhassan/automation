@@ -45,10 +45,11 @@ export async function GET(req) {
   const sql = postgres(dbUrl, { max: 1, idle_timeout: 5 });
   let row = null;
   try {
+    const cleanId = id.replace(/^draft-/, '');
     const rows = await sql`
       SELECT mp4_url, poster_url
       FROM template_previews
-      WHERE template_id = ${id}
+      WHERE template_id = ${id} OR template_id = ${cleanId} OR template_id = ${`draft-${cleanId}`}
       LIMIT 1
     `;
     row = rows[0] || null;
