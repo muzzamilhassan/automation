@@ -149,5 +149,10 @@
       }
     ]
   },
-  "clipLastPostDate": "2026-10-28"
+  "clipLastPostDate": "2026-10-28",
+  "reviewGate": {
+    "assigned": false,
+    "gated": false,
+    "checkedAt": "2026-11-12T02:49:30.433Z"
+  }
 }
