@@ -19,7 +19,13 @@ export async function GET(req) {
     const familySamples = {}; // keyed by family — the family card's latest
     for (const r of rows) {
       if (r.mp4_url) {
-        samples[r.template_id] = { mp4: r.mp4_url, poster: r.poster_url, familyId: r.family_id, renderedAt: r.rendered_at };
+        const enc = encodeURIComponent(r.template_id);
+        samples[r.template_id] = {
+          mp4: `/api/template-previews/media?id=${enc}&kind=mp4`,
+          poster: r.poster_url ? `/api/template-previews/media?id=${enc}&kind=poster` : null,
+          familyId: r.family_id,
+          renderedAt: r.rendered_at,
+        };
         if (!familySamples[r.family_id]) familySamples[r.family_id] = samples[r.template_id];
       }
     }

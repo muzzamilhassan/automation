@@ -29,11 +29,13 @@ export default function TemplatesPage() {
   // Phase C: REAL sample renders (mp4 per template, CI-written). Absent = the
   // card renders today's interactive banner unchanged (default-inert).
   const [samples, setSamples] = useState({});
+  const [familySamples, setFamilySamples] = useState({});
   useEffect(() => {
     fetch('/api/template-previews').then(async (r) => {
       if (!r.ok) return;
       const d = await r.json();
       if (d.samples) setSamples(d.samples);
+      if (d.familySamples) setFamilySamples(d.familySamples);
     }).catch(() => { });
   }, []);
 
@@ -142,9 +144,10 @@ export default function TemplatesPage() {
                 onClick={() => setActivePreviewTemplate(t)}
               >
                 {/* Phase C: the REAL sample render when one exists (default-inert without) */}
-                {samples[t.id]?.mp4 ? (
+                {(samples[t.id] || familySamples[t.id])?.mp4 ? (
                   <video
-                    src={samples[t.id].mp4}
+                    src={(samples[t.id] || familySamples[t.id]).mp4}
+                    poster={(samples[t.id] || familySamples[t.id]).poster || undefined}
                     muted
                     loop
                     playsInline
@@ -193,7 +196,7 @@ export default function TemplatesPage() {
                 <div className="relative z-10 flex justify-between items-center pt-2 border-t border-white/10 text-[10px] text-zinc-400">
                   <span className="truncate max-w-[180px]">{t.variants.slice(0, 2).join(' · ')}...</span>
                   <span className="flex items-center gap-1 text-sky-400 font-semibold group-hover:underline">
-                    <Play size={10} /> {samples[t.id]?.mp4 ? 'Sample Episode' : 'Interactive Demo'}
+                    <Play size={10} /> {(samples[t.id] || familySamples[t.id])?.mp4 ? 'Sample Episode' : 'Interactive Demo'}
                   </span>
                 </div>
               </div>
@@ -231,7 +234,7 @@ export default function TemplatesPage() {
         <div className="text-center py-16 bg-white/[0.02] rounded-2xl border border-white/10">
           <SlidersHorizontal size={32} className="mx-auto text-muted mb-3 opacity-50" />
           <h3 className="font-semibold text-ink text-base">No templates found</h3>
-          <p className="text-xs text-muted mt-1">Try clearing your search query or selecting "All Templates".</p>
+          <p className="text-xs text-muted mt-1">Try clearing your search query or selecting &ldquo;All Templates&rdquo;.</p>
         </div>
       )}
 

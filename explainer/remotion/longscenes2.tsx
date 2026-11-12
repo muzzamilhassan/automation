@@ -720,8 +720,10 @@ const MapLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
 const TerminalLayout: React.FC<{ b: V2Beat }> = ({ b }) => {
   const T = useT();
   const f = useSteppedFrame(2);
-  const lines = (Array.isArray(b.lines) ? b.lines : []).slice(0, 9);
-  const shown = Math.max(1, Math.ceil(interpolate(f, [6, 6 + lines.length * 10], [1, lines.length], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })));
+  const lines = (Array.isArray(b.lines) ? b.lines : (b.text ? [b.text] : [])).slice(0, 9);
+  const shown = lines.length > 0
+    ? Math.max(1, Math.ceil(interpolate(f, [6, 6 + lines.length * 10], [1, lines.length], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })))
+    : 0;
   return (
     <Content beat={b}>
       {b.headline ? (

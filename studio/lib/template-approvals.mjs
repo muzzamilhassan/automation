@@ -14,7 +14,10 @@ import path from 'node:path';
 
 const REPO = process.env.GITHUB_REPO || 'muzzamilhassan/automation';
 const TOKEN = process.env.GITHUB_TOKEN || process.env.GITHUB_PAT || '';
-const DRAFTS_DIR = path.join(process.cwd(), 'lib', 'template-bot-drafts');
+const resolveDraftsDir = () => {
+  const direct = path.join(process.cwd(), 'lib', 'template-bot-drafts');
+  return fs.existsSync(direct) ? direct : path.join(process.cwd(), 'studio', 'lib', 'template-bot-drafts');
+};
 const REG_PATH = 'studio/lib/template-registry.data.js';
 // the SAME anchor the CLI --approve uses (scripts/template-bot.mjs) — entries
 // are inserted just above this marker line, so both paths interleave safely.
@@ -48,8 +51,9 @@ export async function ensureApprovalsTable(sql) {
  * their Neon preview renders + the latest approval action per id. */
 export async function listDrafts(sql) {
   let rows = [];
+  const draftsDir = resolveDraftsDir();
   try {
-    rows = fs.readdirSync(DRAFTS_DIR).filter((f) => f.endsWith('.json'));
+    rows = fs.readdirSync(draftsDir).filter((f) => f.endsWith('.json'));
   } catch {
     rows = [];
   }
@@ -57,7 +61,14 @@ export async function listDrafts(sql) {
   let actions = {};
   try {
     const pv = await sql`SELECT template_id, mp4_url, poster_url, rendered_at FROM template_previews WHERE template_id LIKE 'draft-%'`;
-    for (const r of pv) samples[r.template_id] = { mp4: r.mp4_url, poster: r.poster_url, renderedAt: r.rendered_at };
+    for (const r of pv) {
+      const enc = encodeURIComponent(r.template_id);
+      samples[r.template_id] = {
+        mp4: r.mp4_url ? `/api/template-previews/media?id=${enc}&kind=mp4` : null,
+        poster: r.poster_url ? `/api/template-previews/media?id=${enc}&kind=poster` : null,
+        renderedAt: r.rendered_at,
+      };
+    }
   } catch { /* db unavailable — drafts still list, previews just absent */ }
   try {
     const ap = await sql`SELECT DISTINCT ON (template_id) template_id, action, status, created_at
@@ -67,7 +78,7 @@ export async function listDrafts(sql) {
   const drafts = [];
   for (const f of rows) {
     try {
-      const d = JSON.parse(fs.readFileSync(path.join(DRAFTS_DIR, f), 'utf8'));
+      const d = JSON.parse(fs.readFileSync(path.join(draftsDir, f), 'utf8'));
       const pres = d.doc_presentation || {};
       const act = actions[d.template_id];
       if (act && act.action === 'reject') continue; // rejected drafts leave the inbox
