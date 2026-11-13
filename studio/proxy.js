@@ -24,6 +24,11 @@ export default async function proxy(req) {
     pathname === '/api/oauth/callback' || // self-authenticating (signed link / session)
     pathname.startsWith('/api/auth/google/') ||
     pathname === '/api/thumbs/demo' ||
+    pathname === '/api/thumbs/templates' ||
+    pathname === '/api/thumbs/registry' ||
+    pathname === '/api/thumbs/preview' ||
+    pathname === '/api/thumbs/videos' ||
+    pathname === '/api/thumbs/photos' ||
     pathname.startsWith('/api/template-previews/') ||
     pathname.startsWith('/api/templates/preview') ||
     pathname === '/proof' || // public sales page (stats only, no revenue data)

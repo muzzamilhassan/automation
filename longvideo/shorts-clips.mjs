@@ -144,7 +144,8 @@ function cutClip(videoFile, out, startSec, durSec, assFile, cardPng) {
     `[pc]format=yuv420p${capFilter}[v]`;
   const r = spawnSync(FFMPEG, ['-y', '-v', 'error', '-ss', String(startSec), '-t', String(durSec), '-i', videoFile,
     '-i', cardPng, '-filter_complex', `${vf}`, '-map', '[v]', '-map', '0:a?',
-    '-t', String(durSec), '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '21', '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', out],
+    '-t', String(durSec), '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '21', '-c:a', 'aac', '-b:a', '128k', '-ar', '44100',
+    '-avoid_negative_ts', 'make_zero', '-max_muxing_queue_size', '1024', '-movflags', '+faststart', out],
     { stdio: ['ignore', 'ignore', 'pipe'], timeout: 600000 });
   if (r.status !== 0 || !fs.existsSync(out) || fs.statSync(out).size < 50000) {
     throw new Error(`ffmpeg cut failed: ${String(r.stderr).slice(-200)}`);

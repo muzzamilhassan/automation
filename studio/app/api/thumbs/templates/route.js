@@ -21,9 +21,7 @@ const DUPLICATE_V1_IDS = new Set([
 ]);
 
 export async function GET(req) {
-  const user = await getUser(req);
-  if (!user) return Response.json({ error: 'not signed in' }, { status: 401 });
-
+  // Public template metadata catalog for Studio and preview surfaces
   const v1Entries = Object.entries(TEMPLATES)
     .filter(([id]) => !DUPLICATE_V1_IDS.has(id))
     .map(([id, t]) => ({

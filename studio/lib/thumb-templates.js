@@ -533,13 +533,13 @@ function rAnnotate(o) {
       <path d="M ${circCx + 260} ${circCy + 190} l -46 -6"/>
       <path d="M ${circCx + 260} ${circCy + 190} l -10 40"/>
     </g>
-    <g filter="url(#rough)">
+    <g>
       <rect x="70" y="${y0 - size - 26}" width="${Math.min(430, adv(marker, note, 26, 2) + 40).toFixed(0)}" height="${size + 44}" fill="none" stroke="${o.accent}" stroke-width="5" transform="rotate(-1 80 ${y0 - size})"/>
     </g>
     ${lines.map((l, i) => {
     return accentLinePath(f, l.split(' '), 72, y0 + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
   }).join('')}
-    <g filter="url(#rough)"><path d="${linePath(marker, note, 76, y0 - size - 34, 24, 2).d}" fill="${o.accent}"/></g>`;
+    <g><path d="${linePath(marker, note, 76, y0 - size - 34, 24, 2).d}" fill="${o.accent}"/></g>`;
 }
 
 function rBigNum(o) {
