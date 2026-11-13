@@ -1,0 +1,263 @@
+{
+  "title": "Marble Quill Storybook — PREVIEW",
+  "theme": "letterpress",
+  "brand": "MARBLE QUILL",
+  "eyebrow": "TIMELESS WISDOM // MQ",
+  "badge": "MQ",
+  "progressParts": 3,
+  "width": 1280,
+  "height": 720,
+  "fps": 24,
+  "beats": [
+    {
+      "i": 0,
+      "layout": "hero",
+      "headline": "Marble Quill Storybook",
+      "sub": "Seneca writes at 3AM — the evening letter that turns an ordinary day into an examination.",
+      "text": "Marble Quill Storybook",
+      "kicker": "TIMELESS WISDOM // MQ",
+      "ms": 3000,
+      "startMs": 800,
+      "audio": "lf-audio/preview-draft-marble-quill-storybook/audio/beat-00.mp3",
+      "words": [
+        {
+          "w": "Marble",
+          "t0": 89,
+          "t1": 434
+        },
+        {
+          "w": "Quill",
+          "t0": 446,
+          "t1": 689
+        },
+        {
+          "w": "Storybook",
+          "t0": 702,
+          "t1": 1492
+        }
+      ],
+      "broll": "lf-photos/preview-draft-marble-quill-storybook/t-broll.mp4"
+    },
+    {
+      "i": 1,
+      "layout": "split",
+      "kicker": "TIMELESS WISDOM · EVIDENCE",
+      "headline": "The psychology of the evening review: participants who journal three lines sleep sharper and decide faster.",
+      "sub": "The shadow, in Jung's words — the trait you refuse to see is the one running your reactions.",
+      "text": "The psychology of the evening review: participants who journal three lines sleep sharper and decide faster.",
+      "photo": "lf-photos/preview-draft-marble-quill-storybook/t-photo.jpg",
+      "ms": 6850,
+      "startMs": 3800,
+      "audio": "lf-audio/preview-draft-marble-quill-storybook/audio/beat-01.mp3",
+      "words": [
+        {
+          "w": "The",
+          "t0": 89,
+          "t1": 166
+        },
+        {
+          "w": "psychology",
+          "t0": 179,
+          "t1": 855
+        },
+        {
+          "w": "of",
+          "t0": 867,
+          "t1": 957
+        },
+        {
+          "w": "the",
+          "t0": 969,
+          "t1": 1046
+        },
+        {
+          "w": "evening",
+          "t0": 1059,
+          "t1": 1454
+        },
+        {
+          "w": "review",
+          "t0": 1467,
+          "t1": 1913
+        },
+        {
+          "w": "participants",
+          "t0": 2449,
+          "t1": 3163
+        },
+        {
+          "w": "who",
+          "t0": 3176,
+          "t1": 3291
+        },
+        {
+          "w": "journal",
+          "t0": 3304,
+          "t1": 3648
+        },
+        {
+          "w": "three",
+          "t0": 3661,
+          "t1": 3929
+        },
+        {
+          "w": "lines",
+          "t0": 3941,
+          "t1": 4286
+        },
+        {
+          "w": "sleep",
+          "t0": 4298,
+          "t1": 4554
+        },
+        {
+          "w": "sharper",
+          "t0": 4566,
+          "t1": 5077
+        },
+        {
+          "w": "and",
+          "t0": 5089,
+          "t1": 5179
+        },
+        {
+          "w": "decide",
+          "t0": 5191,
+          "t1": 5612
+        },
+        {
+          "w": "faster",
+          "t0": 5625,
+          "t1": 6250
+        }
+      ]
+    },
+    {
+      "i": 2,
+      "layout": "quote",
+      "kicker": "KEY TAKEAWAY",
+      "headline": "The shadow, in Jung's words — the trait you refuse to see is the one running your reactions.",
+      "text": "The shadow, in Jung's words — the trait you refuse to see is the one running your reactions.",
+      "broll": "lf-photos/preview-draft-marble-quill-storybook/t-broll-display.mp4",
+      "big": "87%",
+      "label": "The shadow, in Jung's words — the trait you refuse to see is the one running your reactions.",
+      "ms": 5358,
+      "startMs": 10650,
+      "audio": "lf-audio/preview-draft-marble-quill-storybook/audio/beat-02.mp3",
+      "words": [
+        {
+          "w": "The",
+          "t0": 77,
+          "t1": 140
+        },
+        {
+          "w": "shadow",
+          "t0": 153,
+          "t1": 625
+        },
+        {
+          "w": "in",
+          "t0": 651,
+          "t1": 816
+        },
+        {
+          "w": "Jung's",
+          "t0": 829,
+          "t1": 1161
+        },
+        {
+          "w": "words",
+          "t0": 1173,
+          "t1": 1569
+        },
+        {
+          "w": "the",
+          "t0": 1594,
+          "t1": 1696
+        },
+        {
+          "w": "trait",
+          "t0": 1709,
+          "t1": 2041
+        },
+        {
+          "w": "you",
+          "t0": 2054,
+          "t1": 2168
+        },
+        {
+          "w": "refuse",
+          "t0": 2181,
+          "t1": 2615
+        },
+        {
+          "w": "to",
+          "t0": 2628,
+          "t1": 2730
+        },
+        {
+          "w": "see",
+          "t0": 2742,
+          "t1": 2985
+        },
+        {
+          "w": "is",
+          "t0": 2997,
+          "t1": 3125
+        },
+        {
+          "w": "the",
+          "t0": 3138,
+          "t1": 3253
+        },
+        {
+          "w": "one",
+          "t0": 3265,
+          "t1": 3508
+        },
+        {
+          "w": "running",
+          "t0": 3520,
+          "t1": 3801
+        },
+        {
+          "w": "your",
+          "t0": 3814,
+          "t1": 3967
+        },
+        {
+          "w": "reactions",
+          "t0": 3980,
+          "t1": 4758
+        }
+      ]
+    },
+    {
+      "i": 3,
+      "layout": "end",
+      "headline": "Follow MARBLE QUILL.",
+      "text": "Follow MARBLE QUILL.",
+      "ms": 4000,
+      "startMs": 16008,
+      "audio": "lf-audio/preview-draft-marble-quill-storybook/audio/beat-03.mp3",
+      "words": [
+        {
+          "w": "Follow",
+          "t0": 77,
+          "t1": 408
+        },
+        {
+          "w": "MARBLE",
+          "t0": 421,
+          "t1": 842
+        },
+        {
+          "w": "QUILL",
+          "t0": 855,
+          "t1": 1403
+        }
+      ]
+    }
+  ],
+  "totalMs": 21508
+}

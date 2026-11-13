@@ -57,7 +57,10 @@
       "\"From $2K to $8K: The 3-Month Cash-Flow Stack That Works\""
     ],
     "payoff_rule": "Never spend more than you earn; automate the surplus and watch it compound.",
-    "has_chapters": false
+    "has_chapters": true,
+    "narrative_format": "chapters",
+    "format_label": "Chapter Breakdown (Numbered Parts)",
+    "format_description": "Structured 10-part chapter breakdown with numbered milestone cards and explicit section divides."
   },
   "variation_rules": [
     "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",

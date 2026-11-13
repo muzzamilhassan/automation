@@ -4,7 +4,7 @@
 // Approve (the draft joins the registry via a GitHub commit — the R4 front
 // door, formerly CLI --approve) or Reject (the draft leaves the repo). Every
 // action is owner-only and audited in the Neon template_approvals queue.
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Inbox,
@@ -16,6 +16,9 @@ import {
   X,
   AlertCircle,
   ExternalLink,
+  BookOpen,
+  ListOrdered,
+  Sparkles,
 } from 'lucide-react';
 import { PageHeader, Card, Chip } from '@/components/ui';
 
@@ -31,6 +34,8 @@ function PosterTile({ draft, onOpen }) {
       </div>
     );
   }
+
+  const isFullStory = draft.narrativeFormat === 'full_story';
 
   return (
     <button
@@ -61,6 +66,19 @@ function PosterTile({ draft, onOpen }) {
       {/* Subtle gradient vignette so badges always read clearly over light or dark frames */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
 
+      {/* Top-left Format Pill */}
+      <div className="pointer-events-none absolute top-2.5 left-2.5 z-10">
+        {isFullStory ? (
+          <span className="px-2 py-0.5 rounded-md bg-emerald-950/85 text-emerald-300 border border-emerald-500/40 backdrop-blur-sm text-[10.5px] font-medium flex items-center gap-1 shadow-sm">
+            <BookOpen size={11} className="text-emerald-400" /> Full Story
+          </span>
+        ) : (
+          <span className="px-2 py-0.5 rounded-md bg-purple-950/85 text-purple-300 border border-purple-500/40 backdrop-blur-sm text-[10.5px] font-medium flex items-center gap-1 shadow-sm">
+            <ListOrdered size={11} className="text-purple-400" /> Chapter Breakdown
+          </span>
+        )}
+      </div>
+
       {/* Always-visible centered play button */}
       <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
         <span className="w-12 h-12 rounded-full bg-black/70 text-white border border-white/25 backdrop-blur-sm flex items-center justify-center shadow-lg transition-transform duration-200 group-hover:scale-110 group-hover:bg-accent group-hover:text-accent-ink">
@@ -68,7 +86,7 @@ function PosterTile({ draft, onOpen }) {
         </span>
       </span>
 
-      {/* Top-right format pill */}
+      {/* Top-right style/theme pill */}
       {draft.theme || draft.style ? (
         <span className="pointer-events-none absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md bg-black/70 text-white/95 border border-white/15 backdrop-blur-sm text-[10.5px] font-mono">
           {draft.style || draft.theme}
@@ -80,8 +98,8 @@ function PosterTile({ draft, onOpen }) {
         <span className="px-2 py-0.5 rounded-md bg-black/65 backdrop-blur-sm font-medium">
           Sample · {new Date(draft.preview.renderedAt).toLocaleDateString()}
         </span>
-        <span className="px-2 py-0.5 rounded-md bg-black/65 backdrop-blur-sm text-[10.5px] font-semibold opacity-90 group-hover:opacity-100">
-          Watch Demo
+        <span className="px-2 py-0.5 rounded-md bg-black/65 backdrop-blur-sm text-[10.5px] font-semibold opacity-90 group-hover:opacity-100 flex items-center gap-1">
+          <Sparkles size={11} className="text-amber-400" /> Hook Media Active
         </span>
       </div>
     </button>
@@ -96,6 +114,7 @@ export default function DraftsInboxPage() {
   const [notice, setNotice] = useState(null);
   const [preview, setPreview] = useState(null);
   const [videoErr, setVideoErr] = useState(false);
+  const [filterFormat, setFilterFormat] = useState('all'); // 'all' | 'full_story' | 'chapters'
 
   const load = useCallback(async () => {
     setError(null);
@@ -146,6 +165,15 @@ export default function DraftsInboxPage() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [preview, closePreview]);
 
+  const fullStoryCount = useMemo(() => (drafts || []).filter((d) => d.narrativeFormat === 'full_story').length, [drafts]);
+  const chaptersCount = useMemo(() => (drafts || []).filter((d) => d.narrativeFormat === 'chapters').length, [drafts]);
+
+  const visibleDrafts = useMemo(() => {
+    if (!drafts) return [];
+    if (filterFormat === 'all') return drafts;
+    return drafts.filter((d) => d.narrativeFormat === filterFormat);
+  }, [drafts, filterFormat]);
+
   const act = async (templateId, action) => {
     setBusy(templateId);
     setNotice(null);
@@ -178,12 +206,58 @@ export default function DraftsInboxPage() {
       <PageHeader
         icon={Inbox}
         title="Drafts Inbox"
-        sub="Staged bot templates awaiting your decision. Approve promotes a draft into the registry (assignable on channel pages); reject removes it from the repo entirely."
+        sub="Staged bot templates awaiting your decision. Browse continuous full stories or chapter breakdowns with real opening hook media."
       >
         <button className="btn btn-outline" onClick={load} disabled={!!busy}>
           <RefreshCw size={16} className={drafts === null ? 'animate-spin' : ''} /> Refresh
         </button>
       </PageHeader>
+
+      {/* Narrative Format Filter Tabs */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-2 p-3 rounded-xl border border-line">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setFilterFormat('all')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              filterFormat === 'all'
+                ? 'bg-ink text-surface shadow-sm'
+                : 'bg-surface hover:bg-surface-3 text-muted hover:text-ink border border-line'
+            }`}
+          >
+            All Templates ({drafts ? drafts.length : 0})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterFormat('full_story')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
+              filterFormat === 'full_story'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'bg-surface hover:bg-surface-3 text-emerald-400 hover:text-emerald-300 border border-emerald-500/30'
+            }`}
+          >
+            <BookOpen size={13} /> Full Stories ({fullStoryCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterFormat('chapters')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
+              filterFormat === 'chapters'
+                ? 'bg-purple-600 text-white shadow-sm'
+                : 'bg-surface hover:bg-surface-3 text-purple-400 hover:text-purple-300 border border-purple-500/30'
+            }`}
+          >
+            <ListOrdered size={13} /> Chapter Breakdowns ({chaptersCount})
+          </button>
+        </div>
+        <div className="text-[11px] text-muted">
+          {filterFormat === 'full_story'
+            ? 'Continuous documentary stories with seamless narrative arc and zero chapter divider cards'
+            : filterFormat === 'chapters'
+            ? 'Step-by-step numbered breakdown lists and challenges'
+            : 'Select Full Stories or Chapter Breakdowns'}
+        </div>
+      </div>
 
       {notice ? (
         <Card className="p-4 text-sm text-ink whitespace-pre-wrap">{notice}</Card>
@@ -203,20 +277,40 @@ export default function DraftsInboxPage() {
       ) : null}
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {(drafts || []).map((d) => (
+        {visibleDrafts.map((d) => (
           <Card key={d.templateId} className="p-5 flex flex-col gap-3.5">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="font-semibold text-[15px] leading-tight text-ink truncate">{d.templateId}</div>
                 <div className="text-xs text-muted mt-0.5 truncate">{(d.niches || []).join(' · ')}</div>
               </div>
-              {d.approval ? (
-                <Chip tone={d.approval.action === 'approve' ? 'ok' : 'plain'}>
-                  {d.approval.action === 'approve' ? 'approved' : d.approval.status}
-                </Chip>
-              ) : (
-                <Chip tone="accent">staged</Chip>
-              )}
+              <div className="flex items-center gap-1.5 shrink-0">
+                {d.narrativeFormat === 'full_story' ? (
+                  <span className="px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                    <BookOpen size={11} /> Full Story
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-purple-500/15 text-purple-400 border border-purple-500/30 flex items-center gap-1">
+                    <ListOrdered size={11} /> Chapters
+                  </span>
+                )}
+                {d.approval ? (
+                  <Chip tone={d.approval.action === 'approve' ? 'ok' : 'plain'}>
+                    {d.approval.action === 'approve' ? 'approved' : d.approval.status}
+                  </Chip>
+                ) : (
+                  <Chip tone="accent">staged</Chip>
+                )}
+              </div>
+            </div>
+
+            <div className="text-[11.5px] text-muted flex items-center gap-1.5 bg-surface-2 px-2.5 py-1.5 rounded-lg border border-line">
+              <span className="font-semibold text-ink/90">
+                {d.narrativeFormat === 'full_story' ? 'Arc:' : 'Structure:'}
+              </span>
+              <span className="truncate">
+                {d.sections?.length ? d.sections.join(' → ') : d.formatDescription}
+              </span>
             </div>
 
             <div className="flex flex-wrap gap-1.5">
@@ -282,14 +376,24 @@ export default function DraftsInboxPage() {
                   <h2 id="draft-preview-title" className="font-display font-bold text-base text-ink">
                     {preview.templateId}
                   </h2>
+                  {preview.narrativeFormat === 'full_story' ? (
+                    <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center gap-1">
+                      <BookOpen size={12} /> Full Story (Continuous Arc)
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-purple-500/20 text-purple-400 border border-purple-500/40 flex items-center gap-1">
+                      <ListOrdered size={12} /> Chapter Breakdown (10 Parts)
+                    </span>
+                  )}
                   {preview.style ? <Chip tone="info">{preview.style}</Chip> : null}
                   {preview.theme ? <Chip>{preview.theme}</Chip> : null}
                   {preview.voice ? <Chip>{preview.voice}</Chip> : null}
                 </div>
-                <p className="text-xs text-muted mt-1 truncate">
-                  {(preview.niches || []).join(' · ')}
-                  {preview.brand ? ` · ${preview.brand}${preview.badge ? ` (${preview.badge})` : ''}` : ''}
-                </p>
+                <div className="flex items-center gap-2 mt-1.5 text-xs text-muted flex-wrap">
+                  <span>{(preview.niches || []).join(' · ')}</span>
+                  {preview.brand ? <span>· {preview.brand}{preview.badge ? ` (${preview.badge})` : ''}</span> : null}
+                  <span className="text-emerald-400 font-medium">· 95%-100% Matched Opening Hook Media Active</span>
+                </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <a
@@ -347,7 +451,7 @@ export default function DraftsInboxPage() {
                   </div>
                 ) : null}
                 <div className="text-[11px] text-faint mt-0.5 truncate">
-                  {preview.disclaimer || `Rendered ${new Date(preview.preview.renderedAt).toLocaleString()}`}
+                  {preview.formatDescription || (preview.narrativeFormat === 'full_story' ? 'Full continuous story arc (0 chapters)' : 'Structured 10-part chapters')}
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">

@@ -86,10 +86,17 @@ export async function listDrafts(sql) {
       const pres = d.doc_presentation || {};
       const act = actions[d.template_id];
       if (act && act.action === 'reject') continue; // rejected drafts leave the inbox
+      const isChapters = d.story_structure?.has_chapters === true || d.story_structure?.narrative_format === 'chapters';
+      const narrativeFormat = isChapters ? 'chapters' : 'full_story';
       drafts.push({
         templateId: d.template_id,
         file: f,
         niches: d.niches || [],
+        narrativeFormat,
+        hasChapters: isChapters,
+        formatLabel: isChapters ? 'Chapter Breakdown' : 'Full Story',
+        formatDescription: d.story_structure?.format_description || (isChapters ? 'Structured 10-part chapter breakdown' : 'Continuous narrative documentary arc (0 chapters)'),
+        sections: d.story_structure?.sections || [],
         theme: pres.theme || null,
         style: pres.style || null,
         voice: pres.voice || null,

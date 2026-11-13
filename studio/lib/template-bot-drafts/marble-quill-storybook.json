@@ -57,7 +57,10 @@
       "Jung Knew: The Shadow You Hide Is Running Your Life"
     ],
     "payoff_rule": "the closing hands the viewer the exact prompt to write tonight",
-    "has_chapters": false
+    "has_chapters": true,
+    "narrative_format": "chapters",
+    "format_label": "Chapter Breakdown (Numbered Parts)",
+    "format_description": "Structured 10-part chapter breakdown with numbered milestone cards and explicit section divides."
   },
   "variation_rules": [
     "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",

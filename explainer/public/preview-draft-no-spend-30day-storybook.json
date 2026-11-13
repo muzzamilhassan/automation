@@ -1,0 +1,288 @@
+{
+  "title": "30 Days, $1,150 Saved: The No-Spend Challenge That Changed My Life — PREVIEW",
+  "theme": "stoic",
+  "brand": "CASH CITADEL",
+  "eyebrow": "MONEY HABITS // CC",
+  "badge": "CC",
+  "progressParts": 3,
+  "width": 1280,
+  "height": 720,
+  "fps": 24,
+  "beats": [
+    {
+      "i": 0,
+      "layout": "hero",
+      "headline": "30 Days, $1,150 Saved: The No-Spend Challenge That Changed My Life",
+      "sub": "Display a daily expense-tracker app screenshot with color-coded categories and a $0 spend line for non-essentials.",
+      "text": "30 Days, $1,150 Saved: The No-Spend Challenge That Changed My Life",
+      "kicker": "MONEY HABITS // CC",
+      "ms": 6748,
+      "startMs": 800,
+      "audio": "lf-audio/preview-draft-no-spend-30day-storybook/audio/beat-00.mp3",
+      "words": [
+        {
+          "w": "30 Days",
+          "t0": 102,
+          "t1": 753
+        },
+        {
+          "w": "$1,150",
+          "t0": 778,
+          "t1": 2806
+        },
+        {
+          "w": "Saved",
+          "t0": 2819,
+          "t1": 3227
+        },
+        {
+          "w": "The",
+          "t0": 3788,
+          "t1": 3878
+        },
+        {
+          "w": "No-Spend",
+          "t0": 3890,
+          "t1": 4413
+        },
+        {
+          "w": "Challenge",
+          "t0": 4426,
+          "t1": 4885
+        },
+        {
+          "w": "That",
+          "t0": 4898,
+          "t1": 5051
+        },
+        {
+          "w": "Changed",
+          "t0": 5064,
+          "t1": 5459
+        },
+        {
+          "w": "My",
+          "t0": 5472,
+          "t1": 5625
+        },
+        {
+          "w": "Life",
+          "t0": 5638,
+          "t1": 6148
+        }
+      ],
+      "broll": "lf-photos/preview-draft-no-spend-30day-storybook/t-broll.mp4"
+    },
+    {
+      "i": 1,
+      "layout": "split",
+      "kicker": "MONEY HABITS · EVIDENCE",
+      "headline": "Show a receipt-analysis spreadsheet where each $5 coffee was removed, totaling $150 saved in two weeks.",
+      "sub": "Walk through setting up a “spending freeze” rule in the banking app that blocks discretionary merchants.",
+      "text": "Show a receipt-analysis spreadsheet where each $5 coffee was removed, totaling $150 saved in two weeks.",
+      "photo": "lf-photos/preview-draft-no-spend-30day-storybook/t-photo.jpg",
+      "ms": 8151,
+      "startMs": 7548,
+      "audio": "lf-audio/preview-draft-no-spend-30day-storybook/audio/beat-01.mp3",
+      "words": [
+        {
+          "w": "Show",
+          "t0": 89,
+          "t1": 344
+        },
+        {
+          "w": "a",
+          "t0": 357,
+          "t1": 408
+        },
+        {
+          "w": "receipt-analysis",
+          "t0": 421,
+          "t1": 1339
+        },
+        {
+          "w": "spreadsheet",
+          "t0": 1352,
+          "t1": 1939
+        },
+        {
+          "w": "where",
+          "t0": 1952,
+          "t1": 2117
+        },
+        {
+          "w": "each",
+          "t0": 2130,
+          "t1": 2321
+        },
+        {
+          "w": "$5 coffee",
+          "t0": 2334,
+          "t1": 3304
+        },
+        {
+          "w": "was",
+          "t0": 3316,
+          "t1": 3520
+        },
+        {
+          "w": "removed",
+          "t0": 3533,
+          "t1": 4094
+        },
+        {
+          "w": "totaling",
+          "t0": 4579,
+          "t1": 5025
+        },
+        {
+          "w": "$150",
+          "t0": 5038,
+          "t1": 6378
+        },
+        {
+          "w": "saved",
+          "t0": 6390,
+          "t1": 6684
+        },
+        {
+          "w": "in",
+          "t0": 6696,
+          "t1": 6786
+        },
+        {
+          "w": "two",
+          "t0": 6798,
+          "t1": 7003
+        },
+        {
+          "w": "weeks",
+          "t0": 7015,
+          "t1": 7551
+        }
+      ]
+    },
+    {
+      "i": 2,
+      "layout": "process",
+      "kicker": "KEY TAKEAWAY",
+      "headline": "Walk through setting up a “spending freeze” rule in the banking app that blocks discretionary merchants.",
+      "text": "Walk through setting up a “spending freeze” rule in the banking app that blocks discretionary merchants.",
+      "broll": "lf-photos/preview-draft-no-spend-30day-storybook/t-broll-display.mp4",
+      "big": "87%",
+      "label": "Walk through setting up a “spending freeze” rule in the banking app that blocks discretionary merchants.",
+      "ms": 5728,
+      "startMs": 15699,
+      "audio": "lf-audio/preview-draft-no-spend-30day-storybook/audio/beat-02.mp3",
+      "words": [
+        {
+          "w": "Walk",
+          "t0": 89,
+          "t1": 370
+        },
+        {
+          "w": "through",
+          "t0": 383,
+          "t1": 574
+        },
+        {
+          "w": "setting",
+          "t0": 587,
+          "t1": 931
+        },
+        {
+          "w": "up",
+          "t0": 944,
+          "t1": 1071
+        },
+        {
+          "w": "a",
+          "t0": 1084,
+          "t1": 1148
+        },
+        {
+          "w": "spending",
+          "t0": 1161,
+          "t1": 1658
+        },
+        {
+          "w": "freeze",
+          "t0": 1671,
+          "t1": 2041
+        },
+        {
+          "w": "rule",
+          "t0": 2054,
+          "t1": 2309
+        },
+        {
+          "w": "in",
+          "t0": 2321,
+          "t1": 2423
+        },
+        {
+          "w": "the",
+          "t0": 2436,
+          "t1": 2525
+        },
+        {
+          "w": "banking",
+          "t0": 2538,
+          "t1": 2946
+        },
+        {
+          "w": "app",
+          "t0": 2959,
+          "t1": 3163
+        },
+        {
+          "w": "that",
+          "t0": 3176,
+          "t1": 3342
+        },
+        {
+          "w": "blocks",
+          "t0": 3355,
+          "t1": 3686
+        },
+        {
+          "w": "discretionary",
+          "t0": 3699,
+          "t1": 4439
+        },
+        {
+          "w": "merchants",
+          "t0": 4452,
+          "t1": 5128
+        }
+      ]
+    },
+    {
+      "i": 3,
+      "layout": "end",
+      "headline": "Follow CASH CITADEL.",
+      "text": "Follow CASH CITADEL.",
+      "ms": 4000,
+      "startMs": 21427,
+      "audio": "lf-audio/preview-draft-no-spend-30day-storybook/audio/beat-03.mp3",
+      "words": [
+        {
+          "w": "Follow",
+          "t0": 89,
+          "t1": 434
+        },
+        {
+          "w": "CASH",
+          "t0": 446,
+          "t1": 804
+        },
+        {
+          "w": "CITADEL",
+          "t0": 816,
+          "t1": 1492
+        }
+      ]
+    }
+  ],
+  "totalMs": 26927
+}

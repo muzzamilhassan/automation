@@ -2,22 +2,44 @@
   "version": "1.0.0",
   "template_id": "deep-reset-storybook",
   "family": "documentary-frames",
-  "niches": ["Sleep & recovery science"],
-  "formats": ["long", "short"],
+  "niches": [
+    "Sleep & recovery science"
+  ],
+  "formats": [
+    "long",
+    "short"
+  ],
   "renderer": "remotion",
-  "required_capabilities": ["script-gen", "tts", "captions"],
+  "required_capabilities": [
+    "script-gen",
+    "tts",
+    "captions"
+  ],
   "doc_presentation": {
     "theme": "midnight",
     "voice": "en-US-AriaNeural",
     "music_mood": "calming",
-    "doc_layouts": ["split", "stat", "quote", "split", "process", "split"],
+    "doc_layouts": [
+      "split",
+      "stat",
+      "quote",
+      "split",
+      "process",
+      "split"
+    ],
     "brand": "DEEP RESET",
     "badge": "DR",
     "eyebrow": "SLEEP & RECOVERY // DR"
   },
   "story_structure": {
     "doc_render": "storybook",
-    "sections": ["cold_open", "chapters:10", "exhibits", "outro"],
+    "sections": [
+      "cold_open",
+      "hook_escalation",
+      "deep_investigation",
+      "verdict_payoff",
+      "outro"
+    ],
     "chapter_min_words": 170,
     "beats": [
       "Opening: Your brain runs its cleaning crew at 3AM — the glymphatic system flushes the day's waste while you sleep.",
@@ -25,13 +47,21 @@
       "Mechanism: The 90-minute cycle explained — why waking mid-cycle wrecks the day and how to time your alarm.",
       "Payoff: The wind-down stack: light, temperature, and the paper list that closes tomorrow's loops tonight."
     ],
-    "hook_classes": ["the-hidden mechanism", "the-case rebuild", "the-ritual promise"],
+    "hook_classes": [
+      "the-hidden mechanism",
+      "the-case rebuild",
+      "the-ritual promise"
+    ],
     "title_patterns": [
       "The 90-Minute Rule That Fixes Broken Sleep",
       "Your Brain Cleans Itself at 3AM — The Glymphatic Story",
       "How One Shift Worker Rebuilt Her Sleep in 30 Days"
     ],
-    "payoff_rule": "the closing sets ONE change for tonight — the viewer starts the protocol in hours, not weeks"
+    "payoff_rule": "the closing sets ONE change for tonight — the viewer starts the protocol in hours, not weeks",
+    "narrative_format": "full_story",
+    "has_chapters": false,
+    "format_label": "Full Story (Continuous Narrative)",
+    "format_description": "Full continuous narrative documentary arc — seamless story progression with zero chapter dividers."
   },
   "variation_rules": [
     "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",

@@ -508,3 +508,70 @@ describe('entityDomainFor — the curated brand→domain map (step 6)', () => {
     assert.match(SRC_DEEPDIVE, /the name-text chip stays/, 'tier 3: fail-soft text chip');
   });
 });
+
+describe('Full Story Templates & 95-100% Content-Matched Starting Hook Media', () => {
+  test('extractVisualQuery maps key topics to 95-100% matched visual search keywords', async () => {
+    const { extractVisualQuery } = await import('../scripts/render-template-preview.mjs');
+    assert.equal(
+      extractVisualQuery({ template_id: 'mr-case-files-storybook' }, 'The $186 Grocery Lie: What a 30-Day Receipt Audit Really Finds', ''),
+      'grocery supermarket receipt shopping',
+    );
+    assert.equal(
+      extractVisualQuery({ template_id: 'night-signal-storybook' }, '5 Hours of Sleep Erases 40% of Your Memory — The Overnight Evidence', ''),
+      'deep sleep night bedroom alarm clock',
+    );
+    assert.equal(
+      extractVisualQuery({ template_id: 'heirloom-storybook' }, 'Why Old Money Never Wears Logos — The $8,000 Quiet Rule', ''),
+      'bespoke luxury suit tailoring quiet luxury',
+    );
+    assert.equal(
+      extractVisualQuery({ template_id: 'marble-quill-storybook' }, "Seneca's 3AM Letter: The Prompt That Rebuilds a Day", ''),
+      'ancient roman statue marble library writing journal',
+    );
+    assert.equal(
+      extractVisualQuery({ template_id: 'iron-five-storybook' }, "Top 5 Training Rules, Ranked by Evidence — #1 Isn't a Lift", ''),
+      'barbell gym strength workout athlete',
+    );
+  });
+
+  test('Template drafts catalog partitions into 14 Full Stories and 4 Chapter Breakdowns', () => {
+    const draftsDir = path.join(ROOT, 'studio/lib/template-bot-drafts');
+    const files = fs.readdirSync(draftsDir).filter((f) => f.endsWith('.json'));
+    assert.equal(files.length, 18, 'all 18 staged template drafts present');
+
+    let fullStories = 0;
+    let chapters = 0;
+    for (const f of files) {
+      const data = JSON.parse(fs.readFileSync(path.join(draftsDir, f), 'utf8'));
+      if (data.story_structure?.narrative_format === 'full_story') {
+        fullStories++;
+        assert.equal(data.story_structure.has_chapters, false, `${data.template_id} must have has_chapters false`);
+        assert.ok(data.story_structure.sections.includes('deep_investigation'), `${data.template_id} must have continuous investigation sections`);
+      } else if (data.story_structure?.narrative_format === 'chapters') {
+        chapters++;
+        assert.equal(data.story_structure.has_chapters, true, `${data.template_id} must have has_chapters true`);
+        assert.ok(data.story_structure.sections.includes('chapters:10'), `${data.template_id} must have chapters:10 section`);
+      }
+    }
+    assert.equal(fullStories, 14, 'exactly 14 continuous full story templates');
+    assert.equal(chapters, 4, 'exactly 4 chapter breakdown templates');
+  });
+
+  test('Staged preview JSONs carry Beat 0 hook broll media from frame 0', () => {
+    const ids = ['iron-five-storybook', 'marble-quill-storybook', 'mr-case-files-storybook', 'night-signal-storybook', 'no-spend-30day-storybook'];
+    for (const id of ids) {
+      const p = path.join(ROOT, 'explainer/public', `preview-draft-${id}.json`);
+      if (fs.existsSync(p)) {
+        const d = JSON.parse(fs.readFileSync(p, 'utf8'));
+        assert.ok(d.beats && d.beats[0], `${id} has Beat 0`);
+        assert.ok(d.beats[0].broll || d.beats[0].photo, `${id} Beat 0 carries opening media (broll or photo)`);
+      }
+    }
+  });
+
+  test('SOURCE PIN: yt-deepdive.mjs passes hasChapters to buildStorybookBeats and sets Beat 0 hook media', () => {
+    assert.match(SRC_DEEPDIVE, /hasChapters\s*=\s*pres\.hasChapters\s*!==\s*false/, 'checks pres.hasChapters');
+    assert.match(SRC_DEEPDIVE, /hasChapters,/, 'passes hasChapters into buildStorybookBeats');
+    assert.match(SRC_DEEPDIVE, /heroBeat\.broll/, 'assigns Beat 0 hook broll');
+  });
+});

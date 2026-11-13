@@ -2,22 +2,44 @@
   "version": "1.0.0",
   "template_id": "full-current-storybook",
   "family": "documentary-frames",
-  "niches": ["Focus & productivity systems"],
-  "formats": ["long", "short"],
+  "niches": [
+    "Focus & productivity systems"
+  ],
+  "formats": [
+    "long",
+    "short"
+  ],
   "renderer": "remotion",
-  "required_capabilities": ["script-gen", "tts", "captions"],
+  "required_capabilities": [
+    "script-gen",
+    "tts",
+    "captions"
+  ],
   "doc_presentation": {
     "theme": "volt",
     "voice": "en-US-AndrewNeural",
     "music_mood": "grooving",
-    "doc_layouts": ["split", "stat", "process", "terminal", "quote", "split"],
+    "doc_layouts": [
+      "split",
+      "stat",
+      "process",
+      "terminal",
+      "quote",
+      "split"
+    ],
     "brand": "FULL CURRENT",
     "badge": "FC",
     "eyebrow": "FOCUS SYSTEMS // FC"
   },
   "story_structure": {
     "doc_render": "storybook",
-    "sections": ["cold_open", "chapters:10", "exhibits", "outro"],
+    "sections": [
+      "cold_open",
+      "hook_escalation",
+      "deep_investigation",
+      "verdict_payoff",
+      "outro"
+    ],
     "chapter_min_words": 170,
     "beats": [
       "Opening: 5.5 million hours of work data point to one rhythm — 52 minutes on, 17 off, repeat.",
@@ -25,13 +47,21 @@
       "Mechanism: Ultradian cycles — why your brain quits at 2PM and how to ride the wave instead of fighting it.",
       "Payoff: The shutdown ritual: one line on paper that tells your brain work is over — sleep included."
     ],
-    "hook_classes": ["the-scale number", "the-study receipt", "the-ritual close"],
+    "hook_classes": [
+      "the-scale number",
+      "the-study receipt",
+      "the-ritual close"
+    ],
     "title_patterns": [
       "The 52/17 Rule: The Work Rhythm Backed by 5.5 Million Hours",
       "Why Your Brain Quits at 2PM — The Dopamine Ledger",
       "Monk Mode: 30 Days Without Feeds, The Results"
     ],
-    "payoff_rule": "the closing installs ONE system the viewer runs tomorrow morning"
+    "payoff_rule": "the closing installs ONE system the viewer runs tomorrow morning",
+    "narrative_format": "full_story",
+    "has_chapters": false,
+    "format_label": "Full Story (Continuous Narrative)",
+    "format_description": "Full continuous narrative documentary arc — seamless story progression with zero chapter dividers."
   },
   "variation_rules": [
     "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",

@@ -1,0 +1,249 @@
+{
+  "title": "Night Signal Storybook — PREVIEW",
+  "theme": "midnight",
+  "style": "dark-doc",
+  "brand": "NIGHT SIGNAL",
+  "eyebrow": "NIGHT SCIENCE // NS",
+  "badge": "NS",
+  "progressParts": 3,
+  "width": 1280,
+  "height": 720,
+  "fps": 24,
+  "beats": [
+    {
+      "i": 0,
+      "layout": "hero",
+      "headline": "Night Signal Storybook",
+      "sub": "One glowing fact — a single night of 5-hour sleep cuts memory consolidation by 40 percent.",
+      "text": "Night Signal Storybook",
+      "kicker": "NIGHT SCIENCE // NS",
+      "ms": 3000,
+      "startMs": 800,
+      "audio": "lf-audio/preview-draft-night-signal-storybook/audio/beat-00.mp3",
+      "words": [
+        {
+          "w": "Night",
+          "t0": 101,
+          "t1": 484
+        },
+        {
+          "w": "Signal",
+          "t0": 496,
+          "t1": 879
+        },
+        {
+          "w": "Storybook",
+          "t0": 892,
+          "t1": 1644
+        }
+      ],
+      "broll": "lf-photos/preview-draft-night-signal-storybook/t-broll.mp4"
+    },
+    {
+      "i": 1,
+      "layout": "split",
+      "kicker": "NIGHT SCIENCE · EVIDENCE",
+      "headline": "The lab record: two groups, one task, eight hours versus five — the gap shows by morning.",
+      "sub": "Adenosine wash and the glymphatic rinse — the brain's cleanup crew only runs at depth.",
+      "text": "The lab record: two groups, one task, eight hours versus five — the gap shows by morning.",
+      "photo": "lf-photos/preview-draft-night-signal-storybook/t-photo.jpg",
+      "ms": 6428,
+      "startMs": 3800,
+      "audio": "lf-audio/preview-draft-night-signal-storybook/audio/beat-01.mp3",
+      "words": [
+        {
+          "w": "The",
+          "t0": 101,
+          "t1": 292
+        },
+        {
+          "w": "lab",
+          "t0": 305,
+          "t1": 573
+        },
+        {
+          "w": "record",
+          "t0": 586,
+          "t1": 956
+        },
+        {
+          "w": "two",
+          "t0": 1211,
+          "t1": 1428
+        },
+        {
+          "w": "groups",
+          "t0": 1440,
+          "t1": 1887
+        },
+        {
+          "w": "one",
+          "t0": 2053,
+          "t1": 2308
+        },
+        {
+          "w": "task",
+          "t0": 2320,
+          "t1": 2767
+        },
+        {
+          "w": "eight",
+          "t0": 2945,
+          "t1": 3098
+        },
+        {
+          "w": "hours",
+          "t0": 3111,
+          "t1": 3443
+        },
+        {
+          "w": "versus",
+          "t0": 3456,
+          "t1": 3838
+        },
+        {
+          "w": "five",
+          "t0": 3851,
+          "t1": 4259
+        },
+        {
+          "w": "the",
+          "t0": 4463,
+          "t1": 4553
+        },
+        {
+          "w": "gap",
+          "t0": 4565,
+          "t1": 4833
+        },
+        {
+          "w": "shows",
+          "t0": 4846,
+          "t1": 5178
+        },
+        {
+          "w": "by",
+          "t0": 5190,
+          "t1": 5331
+        },
+        {
+          "w": "morning",
+          "t0": 5343,
+          "t1": 5828
+        }
+      ]
+    },
+    {
+      "i": 2,
+      "layout": "quote",
+      "kicker": "KEY TAKEAWAY",
+      "headline": "Adenosine wash and the glymphatic rinse — the brain's cleanup crew only runs at depth.",
+      "text": "Adenosine wash and the glymphatic rinse — the brain's cleanup crew only runs at depth.",
+      "broll": "lf-photos/preview-draft-night-signal-storybook/t-broll-display.mp4",
+      "big": "87%",
+      "label": "Adenosine wash and the glymphatic rinse — the brain's cleanup crew only runs at depth.",
+      "ms": 5739,
+      "startMs": 10228,
+      "audio": "lf-audio/preview-draft-night-signal-storybook/audio/beat-02.mp3",
+      "words": [
+        {
+          "w": "Adenosine",
+          "t0": 101,
+          "t1": 854
+        },
+        {
+          "w": "wash",
+          "t0": 866,
+          "t1": 1223
+        },
+        {
+          "w": "and",
+          "t0": 1236,
+          "t1": 1300
+        },
+        {
+          "w": "the",
+          "t0": 1313,
+          "t1": 1402
+        },
+        {
+          "w": "glymphatic",
+          "t0": 1415,
+          "t1": 2027
+        },
+        {
+          "w": "rinse",
+          "t0": 2040,
+          "t1": 2461
+        },
+        {
+          "w": "the",
+          "t0": 2678,
+          "t1": 2805
+        },
+        {
+          "w": "brain's",
+          "t0": 2818,
+          "t1": 3188
+        },
+        {
+          "w": "cleanup",
+          "t0": 3201,
+          "t1": 3634
+        },
+        {
+          "w": "crew",
+          "t0": 3647,
+          "t1": 3928
+        },
+        {
+          "w": "only",
+          "t0": 3940,
+          "t1": 4272
+        },
+        {
+          "w": "runs",
+          "t0": 4285,
+          "t1": 4578
+        },
+        {
+          "w": "at",
+          "t0": 4591,
+          "t1": 4680
+        },
+        {
+          "w": "depth",
+          "t0": 4693,
+          "t1": 5139
+        }
+      ]
+    },
+    {
+      "i": 3,
+      "layout": "end",
+      "headline": "Follow NIGHT SIGNAL.",
+      "text": "Follow NIGHT SIGNAL.",
+      "ms": 4000,
+      "startMs": 15967,
+      "audio": "lf-audio/preview-draft-night-signal-storybook/audio/beat-03.mp3",
+      "words": [
+        {
+          "w": "Follow",
+          "t0": 101,
+          "t1": 484
+        },
+        {
+          "w": "NIGHT",
+          "t0": 496,
+          "t1": 815
+        },
+        {
+          "w": "SIGNAL",
+          "t0": 828,
+          "t1": 1364
+        }
+      ]
+    }
+  ],
+  "totalMs": 21467
+}

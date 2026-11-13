@@ -2,22 +2,44 @@
   "version": "1.0.0",
   "template_id": "heirloom-storybook",
   "family": "documentary-frames",
-  "niches": ["Old money habits & quiet wealth"],
-  "formats": ["long", "short"],
+  "niches": [
+    "Old money habits & quiet wealth"
+  ],
+  "formats": [
+    "long",
+    "short"
+  ],
   "renderer": "remotion",
-  "required_capabilities": ["script-gen", "tts", "captions"],
+  "required_capabilities": [
+    "script-gen",
+    "tts",
+    "captions"
+  ],
   "doc_presentation": {
     "theme": "legacy",
     "voice": "en-GB-RyanNeural",
     "music_mood": "calming",
-    "doc_layouts": ["split", "quote", "split", "stat", "quote", "split"],
+    "doc_layouts": [
+      "split",
+      "quote",
+      "split",
+      "stat",
+      "quote",
+      "split"
+    ],
     "brand": "HEIRLOOM",
     "badge": "HL",
     "eyebrow": "OLD MONEY STORIES // HL"
   },
   "story_structure": {
     "doc_render": "storybook",
-    "sections": ["cold_open", "chapters:10", "exhibits", "outro"],
+    "sections": [
+      "cold_open",
+      "hook_escalation",
+      "deep_investigation",
+      "verdict_payoff",
+      "outro"
+    ],
     "chapter_min_words": 170,
     "beats": [
       "Opening: The richest family on the street wears no logos — the $8,000 coat rule nobody at the party notices, on purpose.",
@@ -25,13 +47,21 @@
       "Mechanism: Stealth wealth decoded — quality per wear, discretion, time horizons measured in generations.",
       "Payoff: The three questions old money asks before any purchase — and the silence that follows."
     ],
-    "hook_classes": ["the-quiet contrast", "the-record proof", "the-decoded list"],
+    "hook_classes": [
+      "the-quiet contrast",
+      "the-record proof",
+      "the-decoded list"
+    ],
     "title_patterns": [
       "Why Old Money Never Wears Logos — The $8,000 Quiet Rule",
       "The 5 Habits That Keep Generational Wealth Invisible",
       "Stealth Wealth: How the Quiet Rich Stay Rich for 100 Years"
     ],
-    "payoff_rule": "the closing lands ONE standard the viewer holds themselves to this week"
+    "payoff_rule": "the closing lands ONE standard the viewer holds themselves to this week",
+    "narrative_format": "full_story",
+    "has_chapters": false,
+    "format_label": "Full Story (Continuous Narrative)",
+    "format_description": "Full continuous narrative documentary arc — seamless story progression with zero chapter dividers."
   },
   "variation_rules": [
     "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",

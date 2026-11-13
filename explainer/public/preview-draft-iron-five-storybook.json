@@ -1,0 +1,274 @@
+{
+  "title": "Iron Five Storybook — PREVIEW",
+  "theme": "stoic",
+  "style": "rank-countdown",
+  "brand": "IRON FIVE",
+  "eyebrow": "THE RANKINGS // IF",
+  "badge": "IF",
+  "progressParts": 3,
+  "width": 1280,
+  "height": 720,
+  "fps": 24,
+  "beats": [
+    {
+      "i": 0,
+      "layout": "hero",
+      "headline": "Iron Five Storybook",
+      "sub": "The criteria up front — evidence, carry-over to real strength, and staying power. Five rules made the list.",
+      "text": "Iron Five Storybook",
+      "kicker": "THE RANKINGS // IF",
+      "ms": 3000,
+      "startMs": 800,
+      "audio": "lf-audio/preview-draft-iron-five-storybook/audio/beat-00.mp3",
+      "words": [
+        {
+          "w": "Iron",
+          "t0": 101,
+          "t1": 496
+        },
+        {
+          "w": "Five",
+          "t0": 509,
+          "t1": 866
+        },
+        {
+          "w": "Storybook",
+          "t0": 879,
+          "t1": 1644
+        }
+      ],
+      "broll": "lf-photos/preview-draft-iron-five-storybook/t-broll.mp4"
+    },
+    {
+      "i": 1,
+      "layout": "split",
+      "kicker": "THE RANKINGS · EVIDENCE",
+      "headline": "Evidence at #5: progressive overload — the oldest rule in the book and still the one that decides everything.",
+      "sub": "Evidence at #3: the 48-hour protein rhythm — timing beats totals in the studies that controlled for both.",
+      "text": "Evidence at #5: progressive overload — the oldest rule in the book and still the one that decides everything.",
+      "photo": "lf-photos/preview-draft-iron-five-storybook/t-photo.jpg",
+      "ms": 7334,
+      "startMs": 3800,
+      "audio": "lf-audio/preview-draft-iron-five-storybook/audio/beat-01.mp3",
+      "words": [
+        {
+          "w": "Evidence",
+          "t0": 101,
+          "t1": 611
+        },
+        {
+          "w": "at",
+          "t0": 624,
+          "t1": 752
+        },
+        {
+          "w": "#5",
+          "t0": 764,
+          "t1": 1568
+        },
+        {
+          "w": "progressive",
+          "t0": 1874,
+          "t1": 2474
+        },
+        {
+          "w": "overload",
+          "t0": 2486,
+          "t1": 3009
+        },
+        {
+          "w": "the",
+          "t0": 3328,
+          "t1": 3456
+        },
+        {
+          "w": "oldest",
+          "t0": 3468,
+          "t1": 3902
+        },
+        {
+          "w": "rule",
+          "t0": 3915,
+          "t1": 4195
+        },
+        {
+          "w": "in",
+          "t0": 4208,
+          "t1": 4285
+        },
+        {
+          "w": "the",
+          "t0": 4297,
+          "t1": 4374
+        },
+        {
+          "w": "book",
+          "t0": 4387,
+          "t1": 4667
+        },
+        {
+          "w": "and",
+          "t0": 4680,
+          "t1": 4795
+        },
+        {
+          "w": "still",
+          "t0": 4808,
+          "t1": 5114
+        },
+        {
+          "w": "the",
+          "t0": 5127,
+          "t1": 5229
+        },
+        {
+          "w": "one",
+          "t0": 5241,
+          "t1": 5445
+        },
+        {
+          "w": "that",
+          "t0": 5458,
+          "t1": 5573
+        },
+        {
+          "w": "decides",
+          "t0": 5586,
+          "t1": 6147
+        },
+        {
+          "w": "everything",
+          "t0": 6160,
+          "t1": 6734
+        }
+      ]
+    },
+    {
+      "i": 2,
+      "layout": "stat",
+      "kicker": "KEY TAKEAWAY",
+      "headline": "Evidence at #3: the 48-hour protein rhythm — timing beats totals in the studies that controlled for both.",
+      "text": "Evidence at #3: the 48-hour protein rhythm — timing beats totals in the studies that controlled for both.",
+      "broll": "lf-photos/preview-draft-iron-five-storybook/t-broll-display.mp4",
+      "big": "87%",
+      "label": "Evidence at #3: the 48-hour protein rhythm — timing beats totals in the studies that controlled for both.",
+      "ms": 7563,
+      "startMs": 11134,
+      "audio": "lf-audio/preview-draft-iron-five-storybook/audio/beat-02.mp3",
+      "words": [
+        {
+          "w": "Evidence",
+          "t0": 101,
+          "t1": 598
+        },
+        {
+          "w": "at",
+          "t0": 611,
+          "t1": 726
+        },
+        {
+          "w": "#3",
+          "t0": 739,
+          "t1": 1479
+        },
+        {
+          "w": "the",
+          "t0": 1772,
+          "t1": 1874
+        },
+        {
+          "w": "48-hour",
+          "t0": 1887,
+          "t1": 2716
+        },
+        {
+          "w": "protein",
+          "t0": 2729,
+          "t1": 3201
+        },
+        {
+          "w": "rhythm",
+          "t0": 3213,
+          "t1": 3583
+        },
+        {
+          "w": "timing",
+          "t0": 3915,
+          "t1": 4323
+        },
+        {
+          "w": "beats",
+          "t0": 4336,
+          "t1": 4655
+        },
+        {
+          "w": "totals",
+          "t0": 4667,
+          "t1": 5101
+        },
+        {
+          "w": "in",
+          "t0": 5114,
+          "t1": 5190
+        },
+        {
+          "w": "the",
+          "t0": 5203,
+          "t1": 5280
+        },
+        {
+          "w": "studies",
+          "t0": 5292,
+          "t1": 5726
+        },
+        {
+          "w": "that",
+          "t0": 5739,
+          "t1": 5879
+        },
+        {
+          "w": "controlled",
+          "t0": 5892,
+          "t1": 6351
+        },
+        {
+          "w": "for",
+          "t0": 6364,
+          "t1": 6504
+        },
+        {
+          "w": "both",
+          "t0": 6517,
+          "t1": 6963
+        }
+      ]
+    },
+    {
+      "i": 3,
+      "layout": "end",
+      "headline": "Follow IRON FIVE.",
+      "text": "Follow IRON FIVE.",
+      "ms": 4000,
+      "startMs": 18697,
+      "audio": "lf-audio/preview-draft-iron-five-storybook/audio/beat-03.mp3",
+      "words": [
+        {
+          "w": "Follow",
+          "t0": 101,
+          "t1": 586
+        },
+        {
+          "w": "IRON",
+          "t0": 598,
+          "t1": 956
+        },
+        {
+          "w": "FIVE",
+          "t0": 968,
+          "t1": 1530
+        }
+      ]
+    }
+  ],
+  "totalMs": 24197
+}

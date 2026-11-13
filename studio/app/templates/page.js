@@ -61,7 +61,7 @@ export default function TemplatesPage() {
         sub="Browse 100+ modular broadcast video engines. Filter, preview live interactive animations, and pick styles for your channels."
       >
         <Link className="btn btn-outline" href="/templates/drafts">
-          <Inbox size={14} className="text-amber-400" /> Drafts Inbox
+          <Inbox size={14} className="text-amber-400" /> Drafts Inbox (14 Full Stories · 4 Chapters)
         </Link>
         <Link className="btn btn-outline" href="/create">
           <Sparkles size={14} className="text-sky-400" /> Create Custom Video

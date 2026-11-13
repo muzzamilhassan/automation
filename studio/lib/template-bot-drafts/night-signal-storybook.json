@@ -36,8 +36,9 @@
     "doc_render": "storybook",
     "sections": [
       "cold_open",
-      "chapters:10",
-      "exhibits",
+      "hook_escalation",
+      "deep_investigation",
+      "verdict_payoff",
       "outro"
     ],
     "chapter_min_words": 170,
@@ -58,7 +59,10 @@
       "The One Sleep Change That Survives Every Study"
     ],
     "payoff_rule": "the closing leaves ONE fact glowing — the viewer keeps a single change",
-    "has_chapters": false
+    "has_chapters": false,
+    "narrative_format": "full_story",
+    "format_label": "Full Story (Continuous Narrative)",
+    "format_description": "Full continuous narrative documentary arc — seamless story progression with zero chapter dividers."
   },
   "variation_rules": [
     "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",

@@ -1,0 +1,294 @@
+{
+  "title": "Mr Case Files Storybook — PREVIEW",
+  "theme": "signal",
+  "style": "statement-receipt",
+  "brand": "LEDGER PROOF",
+  "eyebrow": "CASE FILES // LP",
+  "badge": "LP",
+  "progressParts": 3,
+  "width": 1280,
+  "height": 720,
+  "fps": 24,
+  "beats": [
+    {
+      "i": 0,
+      "layout": "hero",
+      "headline": "Mr Case Files Storybook",
+      "sub": "A family's grocery receipt shows $412 in a normal week — the audit finds $186 of it was pure friction, not food.",
+      "text": "Mr Case Files Storybook",
+      "kicker": "CASE FILES // LP",
+      "ms": 3000,
+      "startMs": 800,
+      "audio": "lf-audio/preview-draft-mr-case-files-storybook/audio/beat-00.mp3",
+      "words": [
+        {
+          "w": "Mr",
+          "t0": 89,
+          "t1": 395
+        },
+        {
+          "w": "Case",
+          "t0": 408,
+          "t1": 753
+        },
+        {
+          "w": "Files",
+          "t0": 765,
+          "t1": 1148
+        },
+        {
+          "w": "Storybook",
+          "t0": 1161,
+          "t1": 1939
+        }
+      ],
+      "broll": "lf-photos/preview-draft-mr-case-files-storybook/t-broll.mp4"
+    },
+    {
+      "i": 1,
+      "layout": "split",
+      "kicker": "CASE FILES · EVIDENCE",
+      "headline": "The bank statement line nobody reads — the $11.99 subscription that renewed 34 times, circled in red on the exhibit.",
+      "sub": "The receipt audit ritual: every purchase gets a category, a verdict stamp, and a rule that stops the leak.",
+      "text": "The bank statement line nobody reads — the $11.99 subscription that renewed 34 times, circled in red on the exhibit.",
+      "photo": "lf-photos/preview-draft-mr-case-files-storybook/t-photo.jpg",
+      "ms": 8878,
+      "startMs": 3800,
+      "audio": "lf-audio/preview-draft-mr-case-files-storybook/audio/beat-01.mp3",
+      "words": [
+        {
+          "w": "The",
+          "t0": 89,
+          "t1": 179
+        },
+        {
+          "w": "bank",
+          "t0": 191,
+          "t1": 446
+        },
+        {
+          "w": "statement",
+          "t0": 459,
+          "t1": 893
+        },
+        {
+          "w": "line",
+          "t0": 906,
+          "t1": 1199
+        },
+        {
+          "w": "nobody",
+          "t0": 1212,
+          "t1": 1556
+        },
+        {
+          "w": "reads",
+          "t0": 1569,
+          "t1": 2066
+        },
+        {
+          "w": "the",
+          "t0": 2092,
+          "t1": 2168
+        },
+        {
+          "w": "$11.99",
+          "t0": 2181,
+          "t1": 3776
+        },
+        {
+          "w": "subscription",
+          "t0": 3788,
+          "t1": 4439
+        },
+        {
+          "w": "that",
+          "t0": 4452,
+          "t1": 4656
+        },
+        {
+          "w": "renewed",
+          "t0": 4668,
+          "t1": 5026
+        },
+        {
+          "w": "34",
+          "t0": 5038,
+          "t1": 5510
+        },
+        {
+          "w": "times",
+          "t0": 5523,
+          "t1": 6046
+        },
+        {
+          "w": "circled",
+          "t0": 6518,
+          "t1": 6977
+        },
+        {
+          "w": "in",
+          "t0": 6990,
+          "t1": 7130
+        },
+        {
+          "w": "red",
+          "t0": 7143,
+          "t1": 7475
+        },
+        {
+          "w": "on",
+          "t0": 7487,
+          "t1": 7640
+        },
+        {
+          "w": "the",
+          "t0": 7653,
+          "t1": 7704
+        },
+        {
+          "w": "exhibit",
+          "t0": 7717,
+          "t1": 8278
+        }
+      ]
+    },
+    {
+      "i": 2,
+      "layout": "quote",
+      "kicker": "KEY TAKEAWAY",
+      "headline": "The receipt audit ritual: every purchase gets a category, a verdict stamp, and a rule that stops the leak.",
+      "text": "The receipt audit ritual: every purchase gets a category, a verdict stamp, and a rule that stops the leak.",
+      "broll": "lf-photos/preview-draft-mr-case-files-storybook/t-broll-display.mp4",
+      "big": "87%",
+      "label": "The receipt audit ritual: every purchase gets a category, a verdict stamp, and a rule that stops the leak.",
+      "ms": 7666,
+      "startMs": 12678,
+      "audio": "lf-audio/preview-draft-mr-case-files-storybook/audio/beat-02.mp3",
+      "words": [
+        {
+          "w": "The",
+          "t0": 89,
+          "t1": 166
+        },
+        {
+          "w": "receipt",
+          "t0": 179,
+          "t1": 599
+        },
+        {
+          "w": "audit",
+          "t0": 612,
+          "t1": 893
+        },
+        {
+          "w": "ritual",
+          "t0": 906,
+          "t1": 1327
+        },
+        {
+          "w": "every",
+          "t0": 2066,
+          "t1": 2309
+        },
+        {
+          "w": "purchase",
+          "t0": 2321,
+          "t1": 2768
+        },
+        {
+          "w": "gets",
+          "t0": 2781,
+          "t1": 2959
+        },
+        {
+          "w": "a",
+          "t0": 2972,
+          "t1": 3023
+        },
+        {
+          "w": "category",
+          "t0": 3036,
+          "t1": 3673
+        },
+        {
+          "w": "a",
+          "t0": 4209,
+          "t1": 4247
+        },
+        {
+          "w": "verdict",
+          "t0": 4260,
+          "t1": 4617
+        },
+        {
+          "w": "stamp",
+          "t0": 4630,
+          "t1": 5038
+        },
+        {
+          "w": "and",
+          "t0": 5510,
+          "t1": 5587
+        },
+        {
+          "w": "a",
+          "t0": 5600,
+          "t1": 5625
+        },
+        {
+          "w": "rule",
+          "t0": 5638,
+          "t1": 6008
+        },
+        {
+          "w": "that",
+          "t0": 6020,
+          "t1": 6161
+        },
+        {
+          "w": "stops",
+          "t0": 6173,
+          "t1": 6594
+        },
+        {
+          "w": "the",
+          "t0": 6607,
+          "t1": 6709
+        },
+        {
+          "w": "leak",
+          "t0": 6722,
+          "t1": 7066
+        }
+      ]
+    },
+    {
+      "i": 3,
+      "layout": "end",
+      "headline": "Follow LEDGER PROOF.",
+      "text": "Follow LEDGER PROOF.",
+      "ms": 4000,
+      "startMs": 20344,
+      "audio": "lf-audio/preview-draft-mr-case-files-storybook/audio/beat-03.mp3",
+      "words": [
+        {
+          "w": "Follow",
+          "t0": 89,
+          "t1": 459
+        },
+        {
+          "w": "LEDGER",
+          "t0": 472,
+          "t1": 867
+        },
+        {
+          "w": "PROOF",
+          "t0": 880,
+          "t1": 1416
+        }
+      ]
+    }
+  ],
+  "totalMs": 25844
+}

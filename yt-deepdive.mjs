@@ -432,8 +432,13 @@ async function renderStorybookVisuals(script, pres) {
 
   // beats (SB-4): hero -> per chapter divider + sentence slides cycling the
   // template's declared layouts (doc_presentation.doc_layouts; absent = splits)
-  const beats = buildStorybookBeats(script, { followLine: `Follow ${pres.brand} for more.`, docLayouts: pres.docLayouts });
-  console.log(`[storybook] ${beats.length} beats (${(script.chapters || []).length} chapters)`);
+  const hasChapters = pres.hasChapters !== false && pres.has_chapters !== false && script.has_chapters !== false && script.hasChapters !== false;
+  const beats = buildStorybookBeats(script, {
+    followLine: `Follow ${pres.brand} for more.`,
+    docLayouts: pres.docLayouts,
+    hasChapters,
+  });
+  console.log(`[storybook] ${beats.length} beats (${(script.chapters || []).length} chapters, hasChapters: ${hasChapters})`);
 
   // TTS (SB-7): one edge_batch call for ALL beats — a real Edge voice (the kit
   // voice when Edge-shaped, else en-US-AndrewNeural; kokoro ids like bm_daniel
@@ -472,6 +477,54 @@ async function renderStorybookVisuals(script, pres) {
     else beat.photo = null;
     await sleepMs(350);
   }
+
+  // Hook media for Beat 0 (opening attention grabber — 95%-100% content matched)
+  const heroBeat = beats.find((x) => x.i === 0 && x.layout === 'hero');
+  if (heroBeat) {
+    const heroWords = [script.title, script.intro, ...(b.niches || [])].join(' ');
+    let heroQuery = photoQueryFor(script.title || '', nicheWords, 0);
+    if (/receipt|grocery|audit|cost/i.test(heroWords)) heroQuery = 'grocery supermarket receipt shopping';
+    else if (/sleep|circadian|insomnia|memory/i.test(heroWords)) heroQuery = 'deep sleep night bedroom alarm clock';
+    else if (/old money|luxury|wealth/i.test(heroWords)) heroQuery = 'bespoke luxury suit tailoring quiet luxury';
+    else if (/gym|workout|lift|strength/i.test(heroWords)) heroQuery = 'barbell gym strength workout athlete';
+    else if (/ai|tech|silicon|algorithm/i.test(heroWords)) heroQuery = 'data center server artificial intelligence coding';
+    else if (/tax|bakery|business/i.test(heroWords)) heroQuery = 'bakery kitchen commercial bakery accounting';
+    else if (/stoic|seneca|marcus/i.test(heroWords)) heroQuery = 'ancient roman statue marble library';
+    else if (/focus|pomodoro|productivity/i.test(heroWords)) heroQuery = 'deep work focus desk stopwatch typing';
+    else if (/savings|fund|piggy|cash/i.test(heroWords)) heroQuery = 'piggy bank cash savings budgeting money';
+
+    try {
+      const outPath = path.join(photoDir, 'hero-broll.mp4');
+      const { fetchBestBroll } = await import('./explainer/broll-fetch.mjs');
+      const r = await fetchBestBroll({
+        query: heroQuery,
+        outPath,
+        pexelsKey: process.env.PEXELS_API_KEY,
+        minDurationSec: 8,
+      });
+      if (r) {
+        heroBeat.broll = path.relative(PUB, r.file).split(path.sep).join('/');
+        console.log(`[storybook] beat 0 hook broll set: ${heroBeat.broll} (query: "${heroQuery}")`);
+      }
+    } catch (e) {
+      console.warn(`[storybook] beat 0 hook broll error: ${e.message}`);
+    }
+
+    if (!heroBeat.broll) {
+      try {
+        const outPath = path.join(photoDir, 'hero-photo.jpg');
+        let r = await fetchPhoto({ key: process.env.PEXELS_API_KEY, query: heroQuery, outPath, orientation: 'landscape' });
+        if (!r) r = await fetchPhotoPixabay({ key: process.env.PIXABAY_API_KEY, query: heroQuery, outPath, orientation: 'landscape' });
+        if (r) {
+          heroBeat.photo = path.relative(PUB, r.file).split(path.sep).join('/');
+          console.log(`[storybook] beat 0 hook photo fallback set: ${heroBeat.photo}`);
+        }
+      } catch (e) {
+        console.warn(`[storybook] beat 0 hook photo error: ${e.message}`);
+      }
+    }
+  }
+
   const slides = beats.filter((x) => x.layout === 'split');
   console.log(`[storybook] photos: ${slides.filter((x) => x.photo).length}/${slides.length} slides set (pool ${pool.length})`);
   // #106 doctrine on the photo lane: a run where ZERO slides carry a photo is

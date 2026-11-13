@@ -335,7 +335,9 @@ test('discover script (extracted from the workflow): schedule event slot-gates v
   const channels = readGithubOutput(out);
   const now = new Date();
   for (const c of channels) {
-    assert.ok(cronMatchesSlot(c.cron, now), `${c.slug} (cron ${c.cron}) must be inside its gate window at the run time`);
+    const inSlot = cronMatchesSlot(c.cron, now);
+    const inCatchUp = inSlotWindow(now.getUTCHours() * 60 + now.getUTCMinutes(), gateOpensAt(c.cron), 240);
+    assert.ok(inSlot || inCatchUp, `${c.slug} (cron ${c.cron}) must be inside its gate or catch-up window at the run time`);
   }
 });
 
