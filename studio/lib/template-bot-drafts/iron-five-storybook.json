@@ -36,8 +36,9 @@
     "doc_render": "storybook",
     "sections": [
       "cold_open",
-      "chapters:10",
-      "exhibits",
+      "hook_escalation",
+      "deep_investigation",
+      "verdict_payoff",
       "outro"
     ],
     "chapter_min_words": 170,
@@ -58,10 +59,10 @@
       "Ranked: What Actually Builds Strength (5-1)"
     ],
     "payoff_rule": "the closing reveals #1 and sends the viewer to run it today",
-    "has_chapters": true,
-    "narrative_format": "chapters",
-    "format_label": "Chapter Breakdown (Numbered Parts)",
-    "format_description": "Structured 10-part chapter breakdown with numbered milestone cards and explicit section divides."
+    "has_chapters": false,
+    "narrative_format": "full_story",
+    "format_label": "Full Story (Continuous Narrative)",
+    "format_description": "Full continuous narrative documentary arc — seamless story progression with zero chapter dividers."
   },
   "variation_rules": [
     "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",

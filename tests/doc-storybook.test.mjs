@@ -534,27 +534,42 @@ describe('Full Story Templates & 95-100% Content-Matched Starting Hook Media', (
     );
   });
 
-  test('Template drafts catalog partitions into 14 Full Stories and 4 Chapter Breakdowns', () => {
+  test('Template drafts default to has_chapters: false (Full Story) and convert dynamically', () => {
     const draftsDir = path.join(ROOT, 'studio/lib/template-bot-drafts');
     const files = fs.readdirSync(draftsDir).filter((f) => f.endsWith('.json'));
     assert.equal(files.length, 18, 'all 18 staged template drafts present');
 
-    let fullStories = 0;
-    let chapters = 0;
     for (const f of files) {
       const data = JSON.parse(fs.readFileSync(path.join(draftsDir, f), 'utf8'));
-      if (data.story_structure?.narrative_format === 'full_story') {
-        fullStories++;
-        assert.equal(data.story_structure.has_chapters, false, `${data.template_id} must have has_chapters false`);
-        assert.ok(data.story_structure.sections.includes('deep_investigation'), `${data.template_id} must have continuous investigation sections`);
-      } else if (data.story_structure?.narrative_format === 'chapters') {
-        chapters++;
-        assert.equal(data.story_structure.has_chapters, true, `${data.template_id} must have has_chapters true`);
-        assert.ok(data.story_structure.sections.includes('chapters:10'), `${data.template_id} must have chapters:10 section`);
-      }
+      assert.equal(data.story_structure?.has_chapters, false, `${data.template_id} must default to has_chapters: false`);
+      assert.equal(data.story_structure?.narrative_format, 'full_story', `${data.template_id} must default to full_story`);
+      assert.ok(data.story_structure.sections.includes('deep_investigation'), `${data.template_id} default sections must include deep_investigation`);
     }
-    assert.equal(fullStories, 14, 'exactly 14 continuous full story templates');
-    assert.equal(chapters, 4, 'exactly 4 chapter breakdown templates');
+
+    // Dynamic conversion logic test: checking has_chapters converts to chapters, unchecking to full_story
+    const simulateToggle = (data, checked) => {
+      const isChapters = Boolean(checked);
+      return {
+        ...data,
+        story_structure: {
+          ...data.story_structure,
+          has_chapters: isChapters,
+          narrative_format: isChapters ? 'chapters' : 'full_story',
+          sections: isChapters ? ['cold_open', 'chapters:10', 'exhibits', 'outro'] : ['cold_open', 'hook_escalation', 'deep_investigation', 'verdict_payoff', 'outro'],
+        },
+      };
+    };
+
+    const sample = JSON.parse(fs.readFileSync(path.join(draftsDir, files[0]), 'utf8'));
+    const convertedToChapters = simulateToggle(sample, true);
+    assert.equal(convertedToChapters.story_structure.has_chapters, true);
+    assert.equal(convertedToChapters.story_structure.narrative_format, 'chapters');
+    assert.ok(convertedToChapters.story_structure.sections.includes('chapters:10'));
+
+    const convertedToFullStory = simulateToggle(convertedToChapters, false);
+    assert.equal(convertedToFullStory.story_structure.has_chapters, false);
+    assert.equal(convertedToFullStory.story_structure.narrative_format, 'full_story');
+    assert.ok(convertedToFullStory.story_structure.sections.includes('deep_investigation'));
   });
 
   test('Staged preview JSONs carry Beat 0 hook broll media from frame 0', () => {

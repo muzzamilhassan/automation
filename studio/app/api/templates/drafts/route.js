@@ -36,19 +36,52 @@ export async function POST(req) {
   if (!user || user.role !== 'owner') return Response.json({ error: 'owner only' }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const { templateId, action } = body;
-  if (!templateId || !['approve', 'reject'].includes(action)) {
-    return Response.json({ error: 'need templateId + action(approve|reject)' }, { status: 400 });
+  if (!templateId || !['approve', 'reject', 'toggle_chapters'].includes(action)) {
+    return Response.json({ error: 'need templateId + action(approve|reject|toggle_chapters)' }, { status: 400 });
   }
   if (!/^[\w-]+$/.test(String(templateId))) {
     return Response.json({ error: 'bad templateId' }, { status: 400 });
   }
   const file = `${templateId}.json`;
-  const draftPath = path.join(process.cwd(), 'lib', 'template-bot-drafts', file);
+  const directPath = path.join(process.cwd(), 'lib', 'template-bot-drafts', file);
+  const studioPath = path.join(process.cwd(), 'studio', 'lib', 'template-bot-drafts', file);
+  const draftPath = fs.existsSync(directPath) ? directPath : (fs.existsSync(studioPath) ? studioPath : directPath);
   let draft = null;
   try {
     draft = JSON.parse(fs.readFileSync(draftPath, 'utf8'));
   } catch {
     return Response.json({ error: `draft not found on this deploy: ${file}` }, { status: 404 });
+  }
+
+  // Dynamic has_chapters toggle: switch between Chapters (true) and Full Story (false)
+  if (action === 'toggle_chapters') {
+    const isChapters = Boolean(body.hasChapters);
+    if (!draft.story_structure) draft.story_structure = {};
+    draft.story_structure.has_chapters = isChapters;
+    draft.story_structure.narrative_format = isChapters ? 'chapters' : 'full_story';
+    draft.story_structure.format_label = isChapters ? 'Chapter Breakdown (Numbered Parts)' : 'Full Story (Continuous Narrative)';
+    draft.story_structure.sections = isChapters
+      ? ['cold_open', 'chapters:10', 'exhibits', 'outro']
+      : ['cold_open', 'hook_escalation', 'deep_investigation', 'verdict_payoff', 'outro'];
+    draft.story_structure.format_description = isChapters
+      ? 'Structured 10-part chapter breakdown with numbered milestone cards and explicit section divides.'
+      : 'Full continuous narrative documentary arc — seamless story progression with zero chapter dividers.';
+    try {
+      fs.writeFileSync(draftPath, JSON.stringify(draft, null, 2), 'utf8');
+      if (fs.existsSync(studioPath) && studioPath !== draftPath) {
+        fs.writeFileSync(studioPath, JSON.stringify(draft, null, 2), 'utf8');
+      }
+    } catch (e) {
+      return Response.json({ error: `failed to save draft toggle: ${e.message}` }, { status: 500 });
+    }
+    return Response.json({
+      ok: true,
+      templateId,
+      hasChapters: isChapters,
+      narrativeFormat: draft.story_structure.narrative_format,
+      formatLabel: draft.story_structure.format_label,
+      sections: draft.story_structure.sections,
+    });
   }
 
   const { default: postgres } = await import('postgres');
@@ -57,6 +90,20 @@ export async function POST(req) {
   const sql = postgres(url, { max: 1, idle_timeout: 5 });
   try {
     if (action === 'approve') {
+      if (body.hasChapters !== undefined) {
+        const isChapters = Boolean(body.hasChapters);
+        if (!draft.story_structure) draft.story_structure = {};
+        draft.story_structure.has_chapters = isChapters;
+        draft.story_structure.narrative_format = isChapters ? 'chapters' : 'full_story';
+        draft.story_structure.format_label = isChapters ? 'Chapter Breakdown (Numbered Parts)' : 'Full Story (Continuous Narrative)';
+        draft.story_structure.sections = isChapters
+          ? ['cold_open', 'chapters:10', 'exhibits', 'outro']
+          : ['cold_open', 'hook_escalation', 'deep_investigation', 'verdict_payoff', 'outro'];
+        draft.story_structure.format_description = isChapters
+          ? 'Structured 10-part chapter breakdown with numbered milestone cards and explicit section divides.'
+          : 'Full continuous narrative documentary arc — seamless story progression with zero chapter dividers.';
+        try { fs.writeFileSync(draftPath, JSON.stringify(draft, null, 2), 'utf8'); } catch {}
+      }
       const res = await commitDraftApproval(draft);
       const id = await enqueueApproval(sql, {
         templateId, action, status: res.ok ? 'applied' : 'failed',

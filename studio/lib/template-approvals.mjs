@@ -86,7 +86,7 @@ export async function listDrafts(sql) {
       const pres = d.doc_presentation || {};
       const act = actions[d.template_id];
       if (act && act.action === 'reject') continue; // rejected drafts leave the inbox
-      const isChapters = d.story_structure?.has_chapters === true || d.story_structure?.narrative_format === 'chapters';
+      const isChapters = Boolean(d.story_structure?.has_chapters === true);
       const narrativeFormat = isChapters ? 'chapters' : 'full_story';
       drafts.push({
         templateId: d.template_id,

@@ -174,20 +174,76 @@ export default function DraftsInboxPage() {
     return drafts.filter((d) => d.narrativeFormat === filterFormat);
   }, [drafts, filterFormat]);
 
+  // Dynamic toggle: checking converts to chapters (true), unchecking converts to full story (false, default)
+  const toggleChapters = async (templateId, checked) => {
+    const isChapters = Boolean(checked);
+    setDrafts((prev) =>
+      (prev || []).map((d) => {
+        if (d.templateId !== templateId) return d;
+        return {
+          ...d,
+          hasChapters: isChapters,
+          narrativeFormat: isChapters ? 'chapters' : 'full_story',
+          formatLabel: isChapters ? 'Chapter Breakdown' : 'Full Story',
+          sections: isChapters
+            ? ['cold_open', 'chapters:10', 'exhibits', 'outro']
+            : ['cold_open', 'hook_escalation', 'deep_investigation', 'verdict_payoff', 'outro'],
+          formatDescription: isChapters
+            ? 'Structured 10-part chapter breakdown with numbered milestone cards and explicit section divides.'
+            : 'Full continuous narrative documentary arc — seamless story progression with zero chapter dividers.',
+        };
+      })
+    );
+
+    if (preview?.templateId === templateId) {
+      setPreview((prev) => ({
+        ...prev,
+        hasChapters: isChapters,
+        narrativeFormat: isChapters ? 'chapters' : 'full_story',
+        formatLabel: isChapters ? 'Chapter Breakdown' : 'Full Story',
+        sections: isChapters
+          ? ['cold_open', 'chapters:10', 'exhibits', 'outro']
+          : ['cold_open', 'hook_escalation', 'deep_investigation', 'verdict_payoff', 'outro'],
+        formatDescription: isChapters
+          ? 'Structured 10-part chapter breakdown with numbered milestone cards and explicit section divides.'
+          : 'Full continuous narrative documentary arc — seamless story progression with zero chapter dividers.',
+      }));
+    }
+
+    try {
+      await fetch('/api/templates/drafts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          templateId,
+          action: 'toggle_chapters',
+          hasChapters: isChapters,
+        }),
+      });
+    } catch (e) {
+      console.warn('Failed to persist template chapters toggle:', e);
+    }
+  };
+
   const act = async (templateId, action) => {
     setBusy(templateId);
     setNotice(null);
+    const targetDraft = (drafts || []).find((x) => x.templateId === templateId);
     try {
       const r = await fetch('/api/templates/drafts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ templateId, action }),
+        body: JSON.stringify({
+          templateId,
+          action,
+          hasChapters: Boolean(targetDraft?.hasChapters),
+        }),
       });
       const d = await r.json();
       if (!r.ok) {
         setNotice(`${action} failed: ${d.error || r.status}`);
       } else if (action === 'approve') {
-        setNotice(`Approved ${templateId}${d.already ? ' (was already in the registry)' : ''} — run the registry sync / redeploy, then assign it from a channel page.`);
+        setNotice(`Approved ${templateId}${d.already ? ' (was already in the registry)' : ''} as ${targetDraft?.hasChapters ? 'Chapter Breakdown' : 'Full Story'} — run the registry sync / redeploy, then assign it from a channel page.`);
         if (preview?.templateId === templateId) closePreview();
       } else {
         setNotice(`Rejected ${templateId} — the draft left the repo and its sample row dropped.`);
@@ -313,6 +369,24 @@ export default function DraftsInboxPage() {
               </span>
             </div>
 
+            {/* Dynamic has_chapters toggle (default = false / Full Story) */}
+            <div className="flex items-center justify-between p-2 rounded-xl bg-surface-2 border border-line">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={Boolean(d.hasChapters)}
+                  onChange={(e) => toggleChapters(d.templateId, e.target.checked)}
+                  className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-surface border-line cursor-pointer"
+                />
+                <span className="text-xs font-semibold text-ink">
+                  {d.hasChapters ? 'Chapter Breakdown (Checked)' : 'Full Story (Default)'}
+                </span>
+              </label>
+              <span className={`text-[10.5px] font-mono px-2 py-0.5 rounded font-medium ${d.hasChapters ? 'text-purple-300 bg-purple-500/20' : 'text-emerald-300 bg-emerald-500/20'}`}>
+                {d.hasChapters ? '10 Chapters' : '0 Chapters'}
+              </span>
+            </div>
+
             <div className="flex flex-wrap gap-1.5">
               {d.style ? <Chip tone="info">{d.style}</Chip> : null}
               {d.theme ? <Chip>{d.theme}</Chip> : null}
@@ -385,6 +459,15 @@ export default function DraftsInboxPage() {
                       <ListOrdered size={12} /> Chapter Breakdown (10 Parts)
                     </span>
                   )}
+                  <label className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-surface-3 border border-line cursor-pointer text-[11px] font-semibold hover:border-purple-500/50 transition select-none">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(preview.hasChapters)}
+                      onChange={(e) => toggleChapters(preview.templateId, e.target.checked)}
+                      className="w-3.5 h-3.5 rounded text-purple-600 focus:ring-purple-500 bg-surface border-line cursor-pointer"
+                    />
+                    <span>{preview.hasChapters ? 'Chapters Mode' : 'Full Story (Default)'}</span>
+                  </label>
                   {preview.style ? <Chip tone="info">{preview.style}</Chip> : null}
                   {preview.theme ? <Chip>{preview.theme}</Chip> : null}
                   {preview.voice ? <Chip>{preview.voice}</Chip> : null}
