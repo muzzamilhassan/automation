@@ -142,9 +142,7 @@ const DEFS = `
     <stop offset="0.5" stop-color="#5E3A8C"/>
     <stop offset="1" stop-color="#0E6B6B"/>
   </linearGradient>
-  <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
-    <feGaussianBlur stdDeviation="9"/>
-  </filter>
+  <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%"></filter>
   <filter id="motionBlur" x="-10%" y="-10%" width="120%" height="120%">
     <feGaussianBlur stdDeviation="16 2"/>
   </filter>
@@ -187,12 +185,8 @@ const DEFS = `
     <stop offset="0.5" stop-color="#000" stop-opacity="0"/>
     <stop offset="1" stop-color="#000" stop-opacity="0.55"/>
   </radialGradient>
-  <filter id="textBlur" x="-20%" y="-20%" width="140%" height="140%">
-    <feGaussianBlur stdDeviation="5"/>
-  </filter>
-  <filter id="glowBlur" x="-50%" y="-50%" width="200%" height="200%">
-    <feGaussianBlur stdDeviation="18"/>
-  </filter>
+  <filter id="textBlur" x="-20%" y="-20%" width="140%" height="140%"></filter>
+  <filter id="glowBlur" x="-50%" y="-50%" width="200%" height="200%"></filter>
 </defs>`;
 
 // ---- renderers ----
@@ -204,9 +198,7 @@ function rClean(o) {
   const startY = 720 - 60 - (lines.length - 1) * lineH;
   const linesEls = lines.map((l, i) => {
     const x = 640 - adv(f, l, size) / 2;
-    const shadow = f.getPath(l, x + 4, startY + i * lineH + 6, size).toPathData(1);
-    const main = accentLinePath(f, l.split(' '), x, startY + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
-    return `<path d="${shadow}" fill="#000" opacity="0.5" filter="url(#textBlur)"/>${main}`;
+    return accentLinePath(f, l.split(' '), x, startY + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
   }).join('');
   return `${bgOrFill(o, '#101014')}
     <rect width="1280" height="720" fill="url(#gradeOverlay)"/>
@@ -224,11 +216,9 @@ function rPoster(o) {
   const lineH = size + 10;
   const startY = 720 - 96 - (lines.length - 1) * lineH;
 
-  // text: soft blurred shadow (same shape, offset, blurred) then crisp fill
+  // text: crisp vector fill without blurry shadow
   const linesEls = lines.map((l, i) => {
-    const shadow = f.getPath(l, 62, startY + i * lineH + 7, size).toPathData(1);
-    const main = accentLinePath(f, l.split(' '), 58, startY + i * lineH, size, '#F5F2E8', o.accent, o.accentWord);
-    return `<path d="${shadow}" fill="#000" opacity="0.6" filter="url(#textBlur)"/>${main}`;
+    return accentLinePath(f, l.split(' '), 58, startY + i * lineH, size, '#F5F2E8', o.accent, o.accentWord);
   }).join('');
 
   // eyebrow: small, tracked, above headline
@@ -255,8 +245,7 @@ function rPoster(o) {
 
     <!-- panel side: layered gradient for depth, not flat -->
     <rect x="0" y="0" width="560" height="720" fill="url(#panelGrad)"/>
-    <!-- subtle accent glow at the panel-photo seam -->
-    <rect x="548" y="0" width="18" height="720" fill="${o.accent}" opacity="0.15" filter="url(#glowBlur)"/>
+    <!-- accent divider at the panel-photo seam -->
     <rect x="556" y="0" width="3" height="720" fill="${o.accent}"/>
 
     <!-- chip -->
@@ -309,9 +298,7 @@ function rHero(o) {
   const lineH = size + 10;
   const startY = 720 - 72 - (lines.length - 1) * lineH;
   const linesEls = lines.map((l, i) => {
-    const shadow = f.getPath(l, 60, startY + i * lineH + 6, size).toPathData(1);
-    const main = accentLinePath(f, l.split(' '), 56, startY + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
-    return `<path d="${shadow}" fill="#000" opacity="0.5" filter="url(#softShadow)"/>${main}`;
+    return accentLinePath(f, l.split(' '), 56, startY + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
   }).join('');
   return `
     ${o.photoHref ? `<image href="${o.photoHref}" x="0" y="0" width="1280" height="720" preserveAspectRatio="xMaxYMid slice"/>` : `<rect width="1280" height="720" fill="${o.shade}"/>`}
@@ -331,9 +318,7 @@ function rStatue(o) {
   const lineH = size + 10;
   const startY = 720 - 96 - (lines.length - 1) * lineH;
   const linesEls = lines.map((l, i) => {
-    const shadow = f.getPath(l, 68, startY + i * lineH + 6, size).toPathData(1);
-    const main = accentLinePath(f, l.split(' '), 64, startY + i * lineH, size, '#F2EAD8', o.accent, o.accentWord);
-    return `<path d="${shadow}" fill="#000" opacity="0.55" filter="url(#softShadow)"/>${main}`;
+    return accentLinePath(f, l.split(' '), 64, startY + i * lineH, size, '#F2EAD8', o.accent, o.accentWord);
   }).join('');
   return `
     ${bgOrFill(o, '#141412')}
@@ -366,7 +351,6 @@ function rSilhouette(o) {
   return `
     ${bgOrFill(o, '#191512')}
     ${vignetteEl(0.6)}
-    <path d="${f.getPath(word, 640 - w / 2 + 5, 407, size).toPathData(1)}" fill="#000" opacity="0.6" filter="url(#softShadow)"/>
     <path d="${f.getPath(word, 640 - w / 2, 400, size).toPathData(1)}" fill="${o.accent}"/>
     ${restHtml}
     ${chipEl(o.chip, 56, 48, o.accent)}`;
@@ -413,9 +397,7 @@ function rSplitBA(o) {
     const y0 = 720 - 64 - (lines.length - 1) * lineH;
     return lines.map((l2, i) => {
       const x = 640 - adv(f, l2, size) / 2;
-      const sh = f.getPath(l2, x + 4, y0 + i * lineH + 6, size).toPathData(1);
-      const main = accentLinePath(f, l2.split(' '), x, y0 + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
-      return `<path d="${sh}" fill="#000" opacity="0.55" filter="url(#softShadow)"/>${main}`;
+      return accentLinePath(f, l2.split(' '), x, y0 + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
     }).join('');
   })()}`;
 }
@@ -439,9 +421,7 @@ function rVS(o) {
     <path d="${f.getPath('VS', 640 - adv(f, 'VS', 84) / 2, 390, 84).toPathData(1)}" fill="#0B0B0D"/>
     ${lines.map((l, i) => {
     const x = 640 - adv(f, l, size) / 2;
-    const sh = f.getPath(l, x + 4, y0 + i * lineH + 6, size).toPathData(1);
-    const main = accentLinePath(f, l.split(' '), x, y0 + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
-    return `<path d="${sh}" fill="#000" opacity="0.55" filter="url(#softShadow)"/>${main}`;
+    return accentLinePath(f, l.split(' '), x, y0 + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
   }).join('')}
     ${chipEl(o.chip, 56, 48, o.accent)}`;
 }
@@ -510,9 +490,7 @@ function rMagazine(o) {
     ${coverLines.map((cl, i) => `<path d="${linePath(inter, cl, 56, 210 + i * 44, 17, 2).d}" fill="#FFF" opacity="0.92"/>
       <circle cx="${56 + adv(inter, cl, 17, 2) + 12}" cy="${204 + i * 44}" r="3.5" fill="${o.accent}"/>`).join('')}
     ${lines.map((l, i) => {
-    const sh = f.getPath(l, 60, startY + i * lineH + 6, size).toPathData(1);
-    const main = accentLinePath(f, l.split(' '), 56, startY + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
-    return `<path d="${sh}" fill="#000" opacity="0.5" filter="url(#softShadow)"/>${main}`;
+    return accentLinePath(f, l.split(' '), 56, startY + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
   }).join('')}
     <rect x="1128" y="600" width="96" height="64" fill="#F4F1E8"/>
     <rect x="1136" y="612" width="80" height="3" fill="#111"/><rect x="1136" y="626" width="80" height="6" fill="#111"/><rect x="1136" y="640" width="80" height="3" fill="#111" opacity="0.7"/>
@@ -532,9 +510,7 @@ function rMotion(o) {
     <g transform="rotate(-2 640 420)">
       ${lines.map((l, i) => {
     const x = 640 - adv(f, l, size) / 2;
-    const sh = f.getPath(l, x + 5, startY + i * lineH + 7, size).toPathData(1);
-    const main = accentLinePath(f, l.split(' '), x, startY + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
-    return `<path d="${sh}" fill="#000" opacity="0.6" filter="url(#softShadow)"/>${main}`;
+    return accentLinePath(f, l.split(' '), x, startY + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
   }).join('')}
     </g>
     <rect x="0" y="712" width="1280" height="8" fill="${o.accent}"/>`;
@@ -561,10 +537,7 @@ function rAnnotate(o) {
       <rect x="70" y="${y0 - size - 26}" width="${Math.min(430, adv(marker, note, 26, 2) + 40).toFixed(0)}" height="${size + 44}" fill="none" stroke="${o.accent}" stroke-width="5" transform="rotate(-1 80 ${y0 - size})"/>
     </g>
     ${lines.map((l, i) => {
-    const x = 72;
-    const sh = f.getPath(l, x + 4, y0 + i * lineH + 6, size).toPathData(1);
-    const main = accentLinePath(f, l.split(' '), x, y0 + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
-    return `<path d="${sh}" fill="#000" opacity="0.6" filter="url(#softShadow)"/>${main}`;
+    return accentLinePath(f, l.split(' '), 72, y0 + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
   }).join('')}
     <g filter="url(#rough)"><path d="${linePath(marker, note, 76, y0 - size - 34, 24, 2).d}" fill="${o.accent}"/></g>`;
 }
@@ -583,9 +556,7 @@ function rBigNum(o) {
     <path d="${f.getPath(num, 48, 560, numSize).toPathData(1)}" fill="none" stroke="${o.accent}" stroke-width="${Math.max(6, numSize * 0.045).toFixed(0)}" stroke-linejoin="round"/>
     <path d="${f.getPath(num, 48, 560, numSize).toPathData(1)}" fill="${o.accent}" opacity="0.16"/>
     ${restFit.lines.map((l, i) => {
-    const main = accentLinePath(f, l.split(' '), 700, 300 + i * (restFit.size + 12), restFit.size, '#F2EDE0', o.accent, o.accentWord);
-    const sh = f.getPath(l, 704, 306 + i * (restFit.size + 12), restFit.size).toPathData(1);
-    return `<path d="${sh}" fill="#000" opacity="0.5" filter="url(#softShadow)"/>${main}`;
+    return accentLinePath(f, l.split(' '), 700, 300 + i * (restFit.size + 12), restFit.size, '#F2EDE0', o.accent, o.accentWord);
   }).join('')}
     ${chipEl(o.chip, 700, 120, o.accent)}`;
 }
@@ -628,9 +599,7 @@ function rTimeline(o) {
     <rect width="1280" height="240" fill="${o.shade}" opacity="0.4"/>` : ''}
     ${lines.map((l, i) => {
     const x = 640 - adv(f, l, size) / 2;
-    const sh = f.getPath(l, x + 4, y0 - 90 + i * lineH + 6, size).toPathData(1);
-    const main = accentLinePath(f, l.split(' '), x, y0 - 90 + i * lineH, size, '#F2EDE0', o.accent, o.accentWord);
-    return `<path d="${sh}" fill="#000" opacity="0.5" filter="url(#softShadow)"/>${main}`;
+    return accentLinePath(f, l.split(' '), x, y0 - 90 + i * lineH, size, '#F2EDE0', o.accent, o.accentWord);
   }).join('')}
     <rect x="${x0}" y="${y0 + 130}" width="${x1 - x0}" height="4" fill="${o.accent}" opacity="0.75"/>
     ${nodes.map((n, i) => {
@@ -653,9 +622,7 @@ function rStats(o) {
     ${o.photoHref ? `<g clip-path="url(#frameClip)"><image href="${o.photoHref}" width="1280" height="720" preserveAspectRatio="xMidYMid slice" opacity="0.25"/></g>` : ''}
     ${lines.map((l, i) => {
     const x = 640 - adv(f, l, size) / 2;
-    const sh = f.getPath(l, x + 4, 200 + i * lineH + 6, size).toPathData(1);
-    const main = accentLinePath(f, l.split(' '), x, 200 + i * lineH, size, '#F2EDE0', o.accent, o.accentWord);
-    return `<path d="${sh}" fill="#000" opacity="0.5" filter="url(#softShadow)"/>${main}`;
+    return accentLinePath(f, l.split(' '), x, 200 + i * lineH, size, '#F2EDE0', o.accent, o.accentWord);
   }).join('')}
     <rect x="80" y="${y0 + 40}" width="1120" height="3" fill="#F2EDE0" opacity="0.4"/>
     ${bars.map(([h, label], i) => {
@@ -704,9 +671,7 @@ function rDuotone(o) {
     </filter>
     ${lines.map((l, i) => {
     const x = 640 - adv(f, l, size) / 2;
-    const sh = f.getPath(l, x, y0 + i * lineH + 7, size).toPathData(1);
-    const main = accentLinePath(f, l.split(' '), x, y0 + i * lineH, size, '#FFFFFF', dark, o.accentWord);
-    return `<path d="${sh}" fill="${light}" opacity="0.85" filter="url(#softShadow)"/>${main}`;
+    return accentLinePath(f, l.split(' '), x, y0 + i * lineH, size, '#FFFFFF', dark, o.accentWord);
   }).join('')}
     ${chipEl(o.chip, 56, 48, light, dark)}
     <rect x="0" y="712" width="1280" height="8" fill="${light}"/>`;
@@ -764,9 +729,7 @@ function rSoft3D(o) {
     ${bgOrFill(o, '#12101A')}
     ${lines.map((l, i) => {
     const x = 640 - adv(f, l, size) / 2;
-    const sh = f.getPath(l, x, y0 + i * lineH + 7, size).toPathData(1);
-    const main = accentLinePath(f, l.split(' '), x, y0 + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
-    return `<path d="${sh}" fill="#000" opacity="0.6" filter="url(#softShadow)"/>${main}`;
+    return accentLinePath(f, l.split(' '), x, y0 + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
   }).join('')}
     ${chipEl(o.chip, 56, 48, o.accent)}`;
 }
@@ -808,9 +771,7 @@ function rIso(o) {
     <rect width="1280" height="720" fill="#0A0E18" opacity="0.25"/>
     ${lines.map((l, i) => {
     const x = 640 - adv(f, l, size) / 2;
-    const sh = f.getPath(l, x + 4, y0 + i * lineH + 6, size).toPathData(1);
-    const main = accentLinePath(f, l.split(' '), x, y0 + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
-    return `<path d="${sh}" fill="#000" opacity="0.55" filter="url(#softShadow)"/>${main}`;
+    return accentLinePath(f, l.split(' '), x, y0 + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
   }).join('')}
     ${chipEl(o.chip, 56, 48, o.accent)}`;
 }
@@ -830,9 +791,7 @@ function rMap(o) {
       <path d="${linePath(inter, labels[i] || '', x + 14, y - 10, 15, 2).d}" fill="#FFF" opacity="0.95"/>`).join('')}
     ${lines.map((l, i) => {
     const x = 640 - adv(f, l, size) / 2;
-    const sh = f.getPath(l, x + 4, y0 + i * lineH + 6, size).toPathData(1);
-    const main = accentLinePath(f, l.split(' '), x, y0 + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
-    return `<path d="${sh}" fill="#000" opacity="0.55" filter="url(#softShadow)"/>${main}`;
+    return accentLinePath(f, l.split(' '), x, y0 + i * lineH, size, '#FFFFFF', o.accent, o.accentWord);
   }).join('')}
     ${chipEl(o.chip, 56, 48, o.accent)}`;
 }

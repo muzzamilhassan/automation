@@ -15,6 +15,16 @@ const CATS = [
 
 const fmtDay = (s) => (s ? String(s).slice(0, 10) : '');
 
+function matchesCategory(tplCat, tab) {
+  if (tab === 'all') return true;
+  if (tplCat === tab) return true;
+  if (tab === 'core') return ['core', 'bold-impact', 'minimal', 'quote'].includes(tplCat);
+  if (tab === 'photo') return ['photo', 'face-emotion', 'before-after', 'luxury', 'doc-style', 'retro-print'].includes(tplCat);
+  if (tab === 'type') return ['type', 'listicle', 'curiosity', 'tech', 'vs'].includes(tplCat);
+  if (tab === 'ai') return tplCat === 'ai';
+  return false;
+}
+
 export default function ThumbsPage() {
   const [channels, setChannels] = useState([]);
   const [slug, setSlug] = useState('');
@@ -497,7 +507,9 @@ export default function ThumbsPage() {
               ))}
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[380px] overflow-y-auto pr-1">
-              {tpls.filter((t) => catTab === 'all' || t.category === catTab).map((t) => (
+              {Array.from(new Map(tpls.map((t) => [t.id, t])).values())
+                .filter((t) => matchesCategory(t.category, catTab))
+                .map((t) => (
                 <button key={t.id} onClick={() => pickTemplate(t)}
                   className={`group relative text-left p-2 rounded-xl border transition-all ${template === t.id ? 'border-accent bg-surface-2 ring-2 ring-accent/30 shadow-md' : 'border-line hover:border-line-strong bg-surface hover:bg-surface-2'}`}>
                   <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-neutral-950 mb-2 border border-line">

@@ -93,13 +93,28 @@ export async function GET(req) {
       publishedAt: i.snippet.publishedAt,
       thumb: i.snippet.thumbnails?.medium?.url || i.snippet.thumbnails?.default?.url || '',
     }));
-    if (!videos.length) {
-      const fb = await fallbackVideos(slug);
-      return Response.json({ videos: fb });
+    const rawVideos = videos.length ? videos : await fallbackVideos(slug);
+    const seen = new Set();
+    const deduped = [];
+    for (const v of rawVideos) {
+      const key = (v.videoId || '') + '::' + (v.title || '').trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        deduped.push(v);
+      }
     }
-    return Response.json({ videos });
+    return Response.json({ videos: deduped });
   } catch (e) {
-    const fb = await fallbackVideos(slug);
-    return Response.json({ error: e.message?.slice(0, 120) || 'failed', videos: fb }, { status: 200 });
+    const rawFb = await fallbackVideos(slug);
+    const seen = new Set();
+    const deduped = [];
+    for (const v of rawFb) {
+      const key = (v.videoId || '') + '::' + (v.title || '').trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        deduped.push(v);
+      }
+    }
+    return Response.json({ error: e.message?.slice(0, 120) || 'failed', videos: deduped }, { status: 200 });
   }
 }
