@@ -7,9 +7,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "Y9vVA_cZcMk",
-      "publishAt": "2026-11-13T22:35:00Z",
-      "title": "The 30-Minute Habit That Buys Real Estate"
+      "videoId": "tuL8aiGQXVA",
+      "publishAt": "2026-11-14T22:35:00Z",
+      "title": "Turn $15 a Day Coffee into $6,200 in a Year"
     }
   ],
   "imageDate": "2026-10-20",
@@ -131,6 +131,10 @@
     {
       "t": "The 30-Minute Habit That Buys Real Estate",
       "at": "2026-11-13T22:35:00Z"
+    },
+    {
+      "t": "Turn $15 a Day Coffee into $6,200 in a Year",
+      "at": "2026-11-14T22:35:00Z"
     }
   ],
   "usedLongSeeds": [
@@ -163,7 +167,8 @@
         "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/741873891",
         "startSec": 64.6,
         "durSec": 23.6,
-        "file": "tt-lf/clipfeed-debt-free-doctrine/clips/clip-01.mp4"
+        "file": "tt-lf/clipfeed-debt-free-doctrine/clips/clip-01.mp4",
+        "postedAt": "2026-11-14T00:56:36.036Z"
       },
       {
         "part": 2,
@@ -194,14 +199,14 @@
       }
     ]
   },
-  "clipLastPostDate": "2026-11-13",
+  "clipLastPostDate": "2026-11-14",
   "uploadsToday": {
-    "date": "2026-11-12",
-    "count": 2
+    "date": "2026-11-13",
+    "count": 1
   },
   "reviewGate": {
     "assigned": false,
     "gated": false,
-    "checkedAt": "2026-11-13T01:07:34.435Z"
+    "checkedAt": "2026-11-14T00:56:28.618Z"
   }
 }
