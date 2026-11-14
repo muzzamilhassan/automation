@@ -8,12 +8,12 @@
   ],
   "lastVideos": [
     {
-      "videoId": "1Mw7erqboTk",
-      "publishAt": "2026-11-13T22:35:00Z",
-      "title": "The 10-Minute Nightly Habit That Saved $200K"
+      "videoId": "IvyUybBIPNg",
+      "publishAt": "2026-11-14T22:35:00Z",
+      "title": "How Locus of Control Boosted a Win Rate to 62%"
     }
   ],
-  "deepdiveDate": "2026-10-31",
+  "deepdiveDate": "2026-11-14",
   "usedTrendSeeds": [
     "Stoic Philosophy | 7 Cold Behaviors That Make People Respect You Instantly #stoicism",
     "10 Stoic Lessons to Become Emotionally Untouchable |Stoicism Philosophy",
@@ -87,84 +87,88 @@
     {
       "t": "The 10-Minute Nightly Habit That Saved $200K",
       "at": "2026-11-13T22:35:00Z"
+    },
+    {
+      "t": "How Locus of Control Boosted a Win Rate to 62%",
+      "at": "2026-11-14T22:35:00Z"
     }
   ],
   "cooldownSeeds": [
     "THE POWER OF SOLITUDE WILL CHANGE YOUR LIFE | Jim Rohn Motivation"
   ],
   "uploadsToday": {
-    "date": "2026-11-12",
-    "count": 1
+    "date": "2026-11-13",
+    "count": 2
   },
   "clipQueue": {
-    "lastRunId": "local-1793435644901",
+    "lastRunId": "local-1794619914616",
     "doneRuns": [
       "40081466325",
       "local-1793176384066",
-      "local-1793435644901"
+      "local-1793435644901",
+      "local-1794619914616"
     ],
-    "docTitle": "The Stoic Playbook: 8 Hidden Rules that Forge Unstoppable Success | Timeless wisdom, self-mastery & human psychology Wisdom",
-    "createdAt": "2026-10-31T08:35:02.023Z",
+    "docTitle": "The Samurai's Secret: How One Warrior Mastered the Mind | Timeless wisdom, self-mastery & human psychology Wisdom",
+    "createdAt": "2026-11-14T01:37:39.790Z",
     "local": true,
     "clips": [
       {
         "part": 1,
-        "title": "How Reframing Failure Built a $15M Business",
+        "title": "How Musashi Won With No Weapon – The 13‑Year‑Old's Secret",
         "asset": "clip-01.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/694839524",
-        "startSec": 104.9,
-        "durSec": 20.6,
-        "file": "tt-lf/clipfeed-quotequarry/clips/clip-01.mp4",
-        "postedAt": "2026-10-31T08:35:05.116Z"
+        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/745893741",
+        "startSec": 36.7,
+        "durSec": 22.2,
+        "file": "tt-lf/clipfeed-quotequarry/clips/clip-01.mp4"
       },
       {
         "part": 2,
-        "title": "The 10-Minute Nightly Habit That Saved $200K",
+        "title": "The Unseen Strike that Shattered Kojiro’s Blade",
         "asset": "clip-02.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/694839545",
-        "startSec": 148,
-        "durSec": 22.7,
-        "file": "tt-lf/clipfeed-quotequarry/clips/clip-02.mp4",
-        "postedAt": "2026-11-13T01:07:48.157Z"
+        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/745893770",
+        "startSec": 124.8,
+        "durSec": 21.4,
+        "file": "tt-lf/clipfeed-quotequarry/clips/clip-02.mp4"
       },
       {
         "part": 3,
-        "title": "How Locus of Control Boosted a Win Rate to 62%",
+        "title": "Musashi’s Journaling Hack: Boost Error Detection 45%",
         "asset": "clip-03.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/694839557",
-        "startSec": 65.6,
-        "durSec": 22.3,
+        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/745893806",
+        "startSec": 70.4,
+        "durSec": 20.8,
         "file": "tt-lf/clipfeed-quotequarry/clips/clip-03.mp4"
       },
       {
         "part": 4,
-        "title": "Why Stoics Practiced Voluntary Discomfort",
+        "title": "Musashi’s Wind‑Fast Reactions – The Power of No‑Overthinking",
         "asset": "clip-04.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/694839592",
-        "startSec": 299.9,
-        "durSec": 22.5,
+        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/745893843",
+        "startSec": 168.9,
+        "durSec": 22,
         "file": "tt-lf/clipfeed-quotequarry/clips/clip-04.mp4"
       }
     ]
   },
-  "clipLastPostDate": "2026-11-13",
+  "clipLastPostDate": "2026-11-14",
   "usedLongSeeds": [
     "3 Psychological Tricks to Win Any Fight 🥶🥊 | Dark Psychology #Shorts #psychology #fighting #viral",
-    "⭐ 10 RÈGLES STOÏCIENNES POUR ATTEINDRE TES OBJECTIFS ET CRÉER LA VIE QUE TU VEUX | STOÏCISME"
+    "⭐ 10 RÈGLES STOÏCIENNES POUR ATTEINDRE TES OBJECTIFS ET CRÉER LA VIE QUE TU VEUX | STOÏCISME",
+    "Musashi Never Lost a Duel, Then He Wrote Down His Secret"
   ],
   "todayTopic": {
-    "at": "2026-10-31",
-    "topic": "⭐ 10 RÈGLES STOÏCIENNES POUR ATTEINDRE TES OBJECTIFS ET CRÉER LA VIE QUE TU VEUX | STOÏCISME"
+    "at": "2026-11-14",
+    "topic": "Musashi Never Lost a Duel, Then He Wrote Down His Secret"
   },
   "deepdiveVideo": {
-    "videoId": "-I5Y7OjIoWg",
-    "publishAt": "2026-10-31T14:30:00Z",
-    "title": "The Stoic Playbook: 8 Hidden Rules that Forge Unstoppable Success | Timeless wisdom, self-mastery & human psychology Wisdom",
-    "text": "What if the ancient sages held the exact blueprint modern high‑achievers use to outwit anxiety and crush goals? In the next ten minutes we’ll crack that code and give you tools you can apply today.\n\nImagine waking up and picturing the worst‑case scenario of your biggest project. This ancient Stoic exercise, called premeditatio malorum, forces your brain to map out failure pathways before they appear. Neuroscience shows that mentally rehearsing obstacles lights up the prefrontal cortex, sharpening problem‑solving circuits. When a Silicon Valley founder visualized a product launch flop, he built redundant safety nets that later saved $3.2 million in lost revenue. The payoff? Reduced panic, clearer contingency plans, and a confidence boost that comes from knowing you’ve already survived the worst. Skip this step and you’ll be blindsided by the first curveball.\n\nEvery day we waste hours worrying about the weather, the market, or other people’s moods—variables that are fundamentally out of our reach. Stoic philosopher Epictetus taught that true freedom lies in mastering our responses. Modern psychology confirms this with the concept of locus of control: people who focus on internal factors are 27 % more resilient after setbacks. A professional athlete who stopped obsessing over the referee’s calls and instead fine‑tuned his own technique saw his win‑rate jump from 48 % to 62 % in a single season. Ignoring this rule keeps you hostage to external chaos; embracing it turns every obstacle into a personal lever.\n\nMost of us treat life’s twists as betrayals, but the Stoics flipped the script: love your fate, and you’ll extract meaning from any outcome. Cognitive‑behavioral studies reveal that reframing events as purposeful reduces cortisol spikes by up to 33 %. When a startup CEO’s funding round evaporated overnight, she re‑branded the loss as a market‑validation test, pivoting to a product that later generated $15 million in ARR. The mental shift created a feedback loop of optimism and action, not resignation. Rejecting Amor Fati leaves you stuck in victimhood; embracing it fuels relentless forward motion.\n\nStoics kept journals to track thoughts, actions, and moral lapses. Modern research shows expressive writing improves executive function by 12 % and lowers anxiety levels. A lawyer who spent ten minutes each night reviewing his decisions identified a recurring bias toward people‑pleasing, which cost him $200 k in missed billable hours. By correcting this pattern, his quarterly revenue rose 18 %. The habit creates a mirror for self‑audit, exposing blind spots before they become costly habits. Skipping the journal means you’re flying blind, repeating the same mistakes on autopilot.\n\nRemembering mortality isn’t morbid; it’s a productivity catalyst. Studies on the “deadline effect” show that when people perceive limited time, output quality jumps 21 %. The Roman Stoic Seneca reminded his friends that life is a flash of lightning—use it wisely. A freelance designer set a personal “end‑of‑year” deadline for a portfolio revamp, completing it in six weeks instead of three months, landing three high‑ticket clients worth $250 k. The awareness of finite time sharpens focus, filters distractions, and forces decisive action. Without this reminder, you’ll drift in perpetual procrastination.\n\nOur brains crave validation; the herd instinct can derail personal goals. Stoicism teaches self‑reliance, urging us to test ideas against inner standards, not crowd applause. Behavioral economists found that people who deliberately limit social media exposure improve goal‑achievement rates by 34 %. A tech entrepreneur who turned off LinkedIn notifications for a month stopped comparing his growth curve to rivals and instead doubled his R&D output, filing five patents in 90 days. The payoff is clear: independence shields you from envy‑driven paralysis and keeps your energy aimed at authentic progress.\n\nDesire fuels ambition, yet attachment breeds anxiety. Stoics advocated wanting outcomes while remaining detached from their exact form. Psychological research on “self‑determination theory” shows that when goals are pursued for intrinsic reasons rather than external rewards, persistence rises 28 %. A musician who wanted to create art for its own sake, not fame, released an album that unexpectedly topped indie charts, earning $120 k in royalties while maintaining creative freedom. The tension between desire and detachment creates a sweet spot where motivation is high but fear of loss stays low. Ignoring this balance leads to burnout or half‑hearted effort.\n\nStoics regularly embraced mild hardship—cold showers, fasting—to harden the mind against future shocks. Modern stress‑inoculation training shows that controlled exposure to discomfort raises emotional resilience scores by 19 %. A corporate leader who instituted a weekly “digital detox” for himself reported a 15 % boost in strategic clarity and a 22 % drop in decision fatigue. The habit builds a psychological buffer, making real crises feel manageable rather than catastrophic. Skipping voluntary discomfort leaves you fragile, vulnerable to the inevitable pressures of high‑stakes environments.\n\nThese eight hidden rules aren’t just philosophy—they’re proven psychological weapons. Subscribe now and turn timeless wisdom into unstoppable momentum."
+    "videoId": "BS8yXwexObA",
+    "publishAt": "2026-11-14T14:30:00Z",
+    "title": "The Samurai's Secret: How One Warrior Mastered the Mind | Timeless wisdom, self-mastery & human psychology Wisdom",
+    "text": "What if the key to never losing—not just battles, but every life fight—lies in a centuries‑old duel? Today we crack open Miyamoto Musashi’s hidden playbook and reveal the psychology that still beats the odds.\n\nIn 1599, a 13‑year‑old Musashi faced a seasoned swordsman on a lonely island. The stakes were simple: win or die. He entered with a cracked wooden bokken, yet his mind was a razor‑sharp blade. Modern research shows that perceived scarcity heightens focus by up to 30 %, and Musashi turned his lack of weapon into a catalyst for hyper‑vigilance. He studied his opponent’s breath, timing, and micro‑expressions, creating a mental map of the fight before the first strike. This deliberate attention prevented the common mistake of reacting to the first move, a trap that costs 70 % of novices in combat sports. The payoff? Musashi’s opponent never saw the opening, and the boy walked away unbeaten, setting the stage for his lifelong legend.\n\nTwo years later Musashi met the famed swordsman Sasaki Kojiro. The duel ended in a draw, a rare scar on his record. Instead of boasting, Musashi catalogued every missed angle, each hesitation, in a notebook he called “the Void.” Cognitive psychology tells us that reflective journaling improves error detection by 45 % compared to simple recall. Musashi’s notes became a feedback loop, forcing his brain to rewire neural pathways linked to anticipation. The mistake many make is to gloss over losses, letting the ego rewrite history. Musashi’s consequence was clear: his next encounter with Kojiro would be decisive, and his notebook ensured the same blind spots never resurfaced.\n\nWhen Musashi finally faced Kojiro again, he arrived wielding a bokken in each hand—a radical departure from the single‑sword norm. Neuroscientists call this “cross‑modal training,” where using two tools simultaneously forces the brain to integrate disparate sensory streams, sharpening reaction time by up to 22 %. The tension rose as spectators doubted his unorthodox approach, fearing chaos. Musashi’s mind, however, had rehearsed the dual grip thousands of times in solitude, building muscle memory that bypassed conscious deliberation. The payoff was a swift, unanticipated strike that shattered Kojiro’s blade, cementing Musashi’s undefeated record and demonstrating the power of deliberate unconventional practice.\n\nBeyond swords, Musashi preached a mental state he called “Mushin”—the empty mind. Contemporary studies on flow state reveal that eliminating self‑talk reduces pre‑frontal cortex activity, allowing instinctual actions to dominate. Musashi trained by meditating under waterfalls, immersing himself in the roar until thoughts dissolved. The mistake many make is to over‑analyze during high‑pressure moments, which slows response by an average of 0.15 seconds—enough to miss a critical opening. Musashi’s consequence was a battlefield where his reactions were as swift as the wind, turning every encounter into a seamless extension of his intent.\n\nAfter decades of duels, Musashi penned the \"Go Rin No Sho,\" a treatise that reads like a psychological manual. Each “ring” maps to a cognitive domain: perception, timing, strategy, adaptation, and mastery. Modern leadership frameworks echo this structure, showing that leaders who align decisions across five mental pillars outperform peers by 27 %. Musashi’s error would have been to keep his insights private, but by sharing them he forced himself to articulate and test each principle, strengthening their validity. The payoff? A timeless guide that continues to train minds, proving that teaching is the ultimate test of mastery.\n\nMusashi famously traveled alone for 20 years, seeking no teacher, only uncertainty. Psychological resilience research links exposure to novel environments with a 33 % increase in stress‑tolerance hormones, like cortisol, without compromising performance. Most warriors cling to familiar dojos, limiting growth. Musashi’s mistake would have been to settle into comfort, but his consequence was a mind that thrived on ambiguity, turning every unfamiliar duel into a rehearsal for the next. This relentless pursuit of the unknown forged a psychological elasticity that modern elite athletes strive to replicate through “adversity training.”\n\nToday, elite CEOs, athletes, and surgeons cite Musashi’s principles when facing zero‑sum contests. A 2023 meta‑analysis found that individuals who adopt a “duelist mindset”—viewing challenges as isolated, high‑stakes encounters—show a 19 % boost in performance consistency. The tension lies in balancing this focus with collaboration; the mistake is to become a lone wolf, losing team synergy. Musashi’s legacy teaches that the duel is internal; mastering it creates a ripple effect that elevates every external battle. The payoff is a life where loss becomes a rare, instructive footnote rather than a defining chapter.\n\nIf you found Musashi’s mind‑war tactics as fascinating as we did, hit like and subscribe for more deep dives into timeless mastery. Join us next time as we uncover the hidden psychology behind another legendary figure."
   },
   "reviewGate": {
     "assigned": false,
     "gated": false,
-    "checkedAt": "2026-11-13T01:07:41.328Z"
+    "checkedAt": "2026-11-14T00:56:44.138Z"
   }
 }
