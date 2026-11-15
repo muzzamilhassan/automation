@@ -31,14 +31,18 @@ export async function sendAlert({
   if (t) {
     const headers = { 'Content-Type': 'text/plain', Priority: 'high', Title: asciiHeaderValue(title) };
     for (let n = 1; n <= attempts; n++) {
+      let waitMs = 1000 * n;
       try {
         const res = await fetchImpl(`https://ntfy.sh/${t}`, { method: 'POST', headers, body: String(text) });
         if (res.ok) { log(`[alert] ntfy push: sent`); return { channel: 'ntfy', ok: true }; }
         log(`[alert] ntfy attempt ${n}/${attempts}: HTTP ${res.status}`);
+        // audit 2026-11-13 #4: on 429 wait what ntfy asks (capped), not 1-2s
+        const ra = res.status === 429 ? Number(res.headers?.get?.('Retry-After')) : NaN;
+        if (Number.isFinite(ra) && ra > 0) waitMs = Math.min(ra, 30) * 1000;
       } catch (e) {
         log(`[alert] ntfy attempt ${n}/${attempts} failed: ${String(e.message).slice(0, 80)}`);
       }
-      if (n < attempts) await sleep(1000 * n);
+      if (n < attempts) await sleep(waitMs);
     }
   } else {
     log(`[alert] no NTFY_TOPIC — push skipped, falling back to GitHub issue`);

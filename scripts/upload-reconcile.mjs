@@ -67,7 +67,10 @@ export function discoverChannels(env = process.env) {
 export async function main(argv = process.argv) {
   loadEnv(); // repo-root .env (CI env always wins)
   const { createAccessToken } = await import('../studio/lib/yt-token.mjs');
-  const { emitWarning, getDefaultWarningsStore } = await import('../lib/warnings-store.mjs');
+  const { emitWarning, getDefaultWarningsStore, makeAlertDigest } = await import('../lib/warnings-store.mjs');
+  // audit 2026-11-13 #4: one summary push per run, not one per orphan/ghost
+  const digest = makeAlertDigest({ title: 'Upload reconcile' });
+  const emitDigested = (store, fields) => emitWarning(store, fields, { sendAlert: digest.sendAlert });
 
   if (!process.env.DATABASE_URL) {
     console.error('[upload-reconcile] DATABASE_URL not set — no intent ledger to reconcile against');
@@ -96,7 +99,7 @@ export async function main(argv = process.argv) {
         accessToken: token,
         store: intents,
         warningsStore: warnings,
-        emitWarning,
+        emitWarning: emitDigested,
         fetchImpl: fetch,
         staleAfterMs,
         log: (m) => console.log(m),
@@ -110,6 +113,9 @@ export async function main(argv = process.argv) {
       summary.push({ slug, ok: false, error: String(e.message).slice(0, 140) });
     }
   }
+
+  const pushed = await digest.flush();
+  console.log(`[upload-reconcile] alert digest: ${pushed.count} new warning(s)${pushed.alert ? ` -> ${pushed.alert.channel} ok=${pushed.alert.ok}` : ' — nothing to push'}`);
 
   // Round-1 minor 12: skipped (no playlist / nothing discoverable) is NOT a
   // failure — only hard per-channel errors fail the run.

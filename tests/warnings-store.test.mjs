@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { makeWarningsStore, emitWarning, SEVERITIES, PUBLISHING_PATH_CODES } from '../lib/warnings-store.mjs';
+import { makeWarningsStore, emitWarning, makeAlertDigest, SEVERITIES, PUBLISHING_PATH_CODES } from '../lib/warnings-store.mjs';
 import { PROBES, probeParkedChannels, probeChannelToken, tokenForChannel } from '../lib/warnings-probe.mjs';
 
 // ---------------------------------------------------------------------------
@@ -172,6 +172,64 @@ test('D9 ladder migration: a pre-review table with the deviant rung is re-constr
   assert.match(renames[0].sql, /official_source TO policy_url/);
   assert.match(renames[0].sql, /detail TO explanation/);
   assert.match(renames[0].sql, /quote_fetched_at/, 'stale DEFAULT now() on quote_fetched_at is dropped in the same pass');
+});
+
+test('audit 2026-11-13 #4: the migration drops the live NOT NULL on quote_fetched_at (most warnings have no policy quote)', async () => {
+  // Live Neon (PG 18.7) carried warnings_quote_fetched_at_not_null, so every
+  // insert with quote_fetched_at = null failed: no row, dedupe never matched,
+  // and every re-fire paged again (~180 ntfy pushes per nightly reconcile).
+  const db = makeWarningsDb();
+  const store = makeWarningsStore(db);
+  await store.openWarning({ channel_id: 'money-rulebook', severity: 'advisory', code: 'upload_orphan', title: 'untracked upload' });
+  const mig = db.calls.find((c) => c.sql.startsWith('DO ') && c.sql.includes('RENAME COLUMN'));
+  assert.ok(mig, 'the column-migration DO block runs');
+  assert.match(mig.sql, /ALTER TABLE warnings ALTER COLUMN quote_fetched_at DROP NOT NULL;/);
+  const create = db.calls.find((c) => c.sql.startsWith('CREATE TABLE IF NOT EXISTS warnings'));
+  assert.doesNotMatch(create.sql, /quote_fetched_at timestamptz NOT NULL/i);
+});
+
+test('audit 2026-11-13 #4: makeAlertDigest collects pushes and sends ONE summary per run', async () => {
+  const sent = alertRecorder();
+  const digest = makeAlertDigest({ send: sent, title: 'Upload reconcile', max: 3 });
+  const db = makeWarningsDb();
+  const store = makeWarningsStore(db);
+  for (let i = 1; i <= 5; i++) {
+    const r = await emitWarning(store, { channel_id: 'money-rulebook', severity: 'advisory', code: 'upload_orphan', title: `orphan ${i}`, dedupe_key: `mr:orphan:${i}` }, { sendAlert: digest.sendAlert });
+    assert.equal(r.ok, true);
+    assert.equal(r.alert.channel, 'digest', 'per-warning push is deferred into the digest');
+  }
+  assert.equal(sent.sends.length, 0, 'nothing is pushed until flush');
+  const out = await digest.flush();
+  assert.equal(sent.sends.length, 1, 'exactly one push per run');
+  assert.equal(out.count, 5);
+  assert.match(sent.sends[0].title, /Upload reconcile: 5 new warning/);
+  assert.match(sent.sends[0].text, /orphan 1/);
+  assert.match(sent.sends[0].text, /\+2 more/, 'long lists are truncated with a count');
+  assert.match(sent.sends[0].text, /\/warnings/, 'points at the Studio warnings page for the full list');
+  // a deduped re-fire never reaches the digest
+  await emitWarning(store, { channel_id: 'money-rulebook', severity: 'advisory', code: 'upload_orphan', title: 'orphan 1', dedupe_key: 'mr:orphan:1' }, { sendAlert: digest.sendAlert });
+  assert.equal((await digest.flush()).count, 0, 'flush resets; deduped re-fires add nothing');
+  assert.equal(sent.sends.length, 1, 'an empty digest sends nothing');
+});
+
+test('audit 2026-11-13 #4: the digest says when the store was unavailable (ntfy fallback must not hide it)', async () => {
+  const sent = alertRecorder();
+  const digest = makeAlertDigest({ send: sent, title: 'Upload reconcile' });
+  const store = makeWarningsStore(makeWarningsDb({ fail: true }));
+  await emitWarning(store, { channel_id: 'quotequarry', severity: 'advisory', code: 'upload_orphan', title: 'orphan x' }, { sendAlert: digest.sendAlert });
+  await digest.flush();
+  assert.match(sent.sends[0].text, /warnings store unavailable/);
+});
+
+test('audit 2026-11-13 #4: the nightly reconcile routes every warning through one digest and flushes it once', async () => {
+  const fs = await import('node:fs');
+  const src = fs.readFileSync('scripts/upload-reconcile.mjs', 'utf8');
+  assert.match(src, /makeAlertDigest\(/);
+  assert.match(src, /emitWarning: emitDigested/, 'reconcileChannel must get the digest-wrapped emitter');
+  assert.doesNotMatch(src, /^\s*emitWarning,\s*$/m, 'the raw per-warning emitter must not be passed');
+  const flush = src.indexOf('digest.flush()');
+  assert.ok(flush > src.indexOf('for (const slug of slugs)'), 'flush runs after the channel loop');
+  assert.equal(src.split('digest.flush()').length - 1, 1, 'exactly one flush per run');
 });
 
 // ---- idempotent dedupe (L4 / D7: re-found condition updates, never duplicates) ----

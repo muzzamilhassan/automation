@@ -58,6 +58,21 @@ test('sendAlert retries ntfy then falls back to the GitHub-issue channel', async
   assert.equal(actions.length, 1, 'exactly one issue action after the search');
 });
 
+test('audit 2026-11-13 #4: a 429 honours Retry-After (capped) instead of the fixed backoff', async () => {
+  const sleeps = [];
+  let n = 0;
+  const r = await sendAlert({
+    text: 'x', topic: 't',
+    fetchImpl: async () => (++n === 1
+      ? { ok: false, status: 429, headers: new Headers({ 'Retry-After': '7' }) }
+      : { ok: false, status: 429, headers: new Headers({ 'Retry-After': '999' }) }),
+    sleep: async (ms) => { sleeps.push(ms); },
+    log: () => { },
+  });
+  assert.equal(r.ok, false);
+  assert.deepEqual(sleeps, [7000, 30000], 'Retry-After seconds are honoured, capped at 30s');
+});
+
 test('sendAlert with NO topic never returns silently — goes straight to fallback', async () => {
   const gh = [];
   const lines = [];

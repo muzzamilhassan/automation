@@ -200,6 +200,9 @@ BEGIN
     ALTER TABLE warnings RENAME COLUMN official_source TO policy_url;
   END IF;
   ALTER TABLE warnings ALTER COLUMN quote_fetched_at DROP DEFAULT;
+  -- audit 2026-11-13 #4: live Neon carried warnings_quote_fetched_at_not_null;
+  -- only blocking rows cite a policy, so most inserts (null) failed.
+  ALTER TABLE warnings ALTER COLUMN quote_fetched_at DROP NOT NULL;
 END $$`, []);
         return { ok: true };
       })().catch((e) => {
@@ -414,6 +417,43 @@ END $$`, []);
   }
 
   return { ensureWarningsSchema, openWarning, acknowledge, resolve, markChecked, openBlockingFor, autoResolveIf, listWarnings };
+}
+
+/**
+ * Per-run alert digest (audit 2026-11-13 #4). A batch job (the nightly upload
+ * reconcile) can open dozens of warnings in one run; one push each meant ~180
+ * ntfy calls a night and a wall of 429s. Pass `digest.sendAlert` as
+ * emitWarning's `opts.sendAlert`: each would-be push is recorded instead, and
+ * `flush()` sends ONE summary. The push still never disappears (AC-P4-11) — it
+ * is batched. Deduped re-fires never reach the digest (emitWarning returns
+ * before alerting), so an unchanged night sends nothing.
+ */
+export function makeAlertDigest({ send = sendAlert, title = 'Pipeline warnings', max = 10 } = {}) {
+  let items = [];
+  return {
+    sendAlert: async ({ title: t, text }) => {
+      items.push({ title: String(t ?? ''), text: String(text ?? '') });
+      return { channel: 'digest', ok: true };
+    },
+    async flush() {
+      const batch = items;
+      items = [];
+      if (!batch.length) return { count: 0, alert: null };
+      const shown = batch.slice(0, max).map((i) => `- ${i.title}`);
+      const extra = batch.length > max ? [`+${batch.length - max} more`] : [];
+      const storeDown = batch.some((i) => i.text.includes('warnings store unavailable'))
+        ? ['warnings store unavailable for some rows — ntfy is the fallback record']
+        : [];
+      const text = [...shown, ...extra, ...storeDown, 'Full list: Studio /warnings'].join('\n');
+      let alert;
+      try {
+        alert = await send({ title: `${title}: ${batch.length} new warning${batch.length === 1 ? '' : 's'}`, text });
+      } catch (e) {
+        alert = { channel: 'none', ok: false, error: redactedError(e) };
+      }
+      return { count: batch.length, alert };
+    },
+  };
 }
 
 /**
