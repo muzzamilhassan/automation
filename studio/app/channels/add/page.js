@@ -174,7 +174,9 @@ export default function AddChannel() {
 
   // start=false saves settings with autopilot OFF; start=true records consent
   // and flips the autopilot on (YouTube API express-consent requirement)
-  const saveProfile = async (start = false) => {
+  // start === true only when the owner explicitly starts the autopilot — a plain
+  // save must never touch it (a sent `false` used to switch live channels off)
+  const saveProfile = async (start) => {
     setSaving(true);
     setError('');
     const subNichesList = form.subNiches
@@ -196,7 +198,7 @@ export default function AddChannel() {
           accent: form.accent,
           slots: form.slots,
           docDay: form.docDay,
-          startAutopilot: start,
+          ...(start === true ? { startAutopilot: true } : {}),
           kit: {
             eyebrow: form.eyebrow,
             tagline: form.tagline,
@@ -490,7 +492,7 @@ export default function AddChannel() {
             </p>
           ) : null}
           <div className="flex gap-2 mt-4 flex-wrap">
-            <button className="btn btn-primary" onClick={() => saveProfile(false)} disabled={saving || !form.niche.trim()}>
+            <button className="btn btn-primary" onClick={() => saveProfile()} disabled={saving || !form.niche.trim()}>
               {saving ? 'Saving…' : 'Save & review'}
             </button>
             <button className="btn btn-outline" onClick={connect} disabled={connecting} title="Refresh this channel's stored key (fixes 're-connect once' notices)">
