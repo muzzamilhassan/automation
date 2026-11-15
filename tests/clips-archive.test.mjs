@@ -405,3 +405,49 @@ describe('audit #7 follow-up: post-next exit codes from a real run', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Audit 2026-11-13 #9 — clip-feed run identity. The doc-day feed (local mode,
+// inside the SAME CI run that uploads lf-<slug>) recorded docRunId
+// 'local-<ts>', while the self-feed matches artifacts by GitHub run id — so a
+// doc fed on its doc day was eligible to be clipped AGAIN when the queue ran
+// dry (every channel's recent doneRuns were local-* entries). And the self-feed
+// scanned the 14 newest successful runs: with the 48/day external heartbeat
+// that is ~7 hours — new docs would stop being found. Now: CI feeds record
+// GITHUB_RUN_ID, and docs are found by artifact NAME (independent of run count).
+// Spec + QA: docs/qa/clip-run-identity-qa.md.
+// ---------------------------------------------------------------------------
+describe('audit #9: clip-feed run identity', () => {
+  test('localFeedRunId: the CI run id when present, local-<ts> only off CI', async () => {
+    const { localFeedRunId } = await import('../longvideo/shorts-clips.mjs');
+    assert.equal(localFeedRunId({ GITHUB_RUN_ID: '43724498853' }, 1794755374545), '43724498853');
+    assert.equal(localFeedRunId({}, 1794755374545), 'local-1794755374545');
+  });
+
+  test('pickDocRun: the newest unexpired doc artifact not yet clipped', async () => {
+    const { pickDocRun } = await import('../longvideo/shorts-clips.mjs');
+    const arts = [
+      { workflow_run: { id: 43724498853 }, expired: false },
+      { workflow_run: { id: 40660835260 }, expired: false },
+    ];
+    assert.deepEqual(pickDocRun(arts, {}), { runId: '43724498853' });
+    assert.deepEqual(pickDocRun(arts, { doneRuns: ['43724498853'] }), { runId: null, reason: 'run 43724498853 already clipped' });
+    assert.deepEqual(pickDocRun(arts, { lastRunId: '43724498853' }), { runId: null, reason: 'run 43724498853 already clipped' });
+    assert.deepEqual(pickDocRun([{ workflow_run: { id: 1 }, expired: true }, ...arts], { doneRuns: ['43724498853'] }).runId, null, 'expired artifacts are skipped, the next is already clipped');
+    assert.deepEqual(pickDocRun([], {}), { runId: null, reason: 'no doc artifacts' });
+  });
+
+  test('regression: a doc fed locally in CI is NEVER re-clipped by the self-feed', async () => {
+    const { pickDocRun, localFeedRunId } = await import('../longvideo/shorts-clips.mjs');
+    const fedAs = localFeedRunId({ GITHUB_RUN_ID: '43724498853' }, Date.now());
+    const clipQueue = { lastRunId: fedAs, doneRuns: [fedAs] };
+    assert.equal(pickDocRun([{ workflow_run: { id: 43724498853 }, expired: false }], clipQueue).runId, null);
+  });
+
+  test('wiring: ensure-queue finds docs by artifact name, not by scanning the last 14 runs', () => {
+    const src = fs.readFileSync(new URL('../longvideo/shorts-clips.mjs', import.meta.url), 'utf8');
+    assert.match(src, /actions\/artifacts\?name=lf-\$\{slug\}/);
+    assert.doesNotMatch(src, /runs\?status=success&per_page=14/);
+    assert.match(src, /docRunId = localFeedRunId\(process\.env, Date\.now\(\)\)/);
+  });
+});

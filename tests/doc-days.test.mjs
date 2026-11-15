@@ -63,3 +63,18 @@ test('wiring: yt-deepdive guards on isDocDue with the channel\'s last doc date',
   assert.match(src, /if \(!isDocDue\(b, state\[slug\]\?\.deepdiveDate\) && !FORCE && !GENERATE_ONLY\)/);
   assert.doesNotMatch(src, /if \(!isDocDay\(b\) && !FORCE/, 'the strict today-only guard is gone');
 });
+
+// Audit #9 (staging half): Phase 6 staged demos/deepdive-<slug>/episode.mp4 as
+// clip material whenever the file existed — a render whose upload failed (or a
+// recovered claim, whose local render belongs to no video) could become Shorts
+// for a doc that is not on YouTube.
+test('docShippedThisRun: only a NEW, non-recovered deepdiveVideo shipped today counts', async () => {
+  const { docShippedThisRun } = await import('../lib/doc-days.mjs');
+  const T = '2026-11-15';
+  const before = { deepdiveDate: '2026-10-28', deepdiveVideo: { videoId: 'old' } };
+  assert.equal(docShippedThisRun(before, { deepdiveDate: T, deepdiveVideo: { videoId: 'iGZCplBBDtA' } }, T), true);
+  assert.equal(docShippedThisRun(before, { deepdiveDate: T, deepdiveVideo: { videoId: 'old' } }, T), false, 'render without a new upload');
+  assert.equal(docShippedThisRun(before, { deepdiveDate: T, deepdiveVideo: { videoId: 'x', recovered: true } }, T), false, 'claimed recovery: local render belongs to no video');
+  assert.equal(docShippedThisRun(before, { deepdiveDate: '2026-11-14', deepdiveVideo: { videoId: 'x' } }, T), false, 'not today');
+  assert.equal(docShippedThisRun({}, { deepdiveDate: T }, T), false, 'no video id');
+});

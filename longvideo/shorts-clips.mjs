@@ -56,6 +56,29 @@ const IS_MAIN = Boolean(process.argv[1]) && import.meta.url === pathToFileURL(pr
 // exited 1 instead of 4 when this sat below `await postNext()`.
 export const CLIP_EXIT = Object.freeze({ POSTED: 0, NOTHING_DUE: 3, NO_CLIP: 4 });
 
+// Audit #9 — clip-feed run identity. The doc-day feed runs inside the SAME CI
+// run that uploads the lf-<slug> artifact, so it must record that run's id:
+// 'local-<ts>' made a fed doc look unclipped to the artifact self-feed.
+export function localFeedRunId(env = process.env, nowMs = Date.now()) {
+  return env.GITHUB_RUN_ID ? String(env.GITHUB_RUN_ID) : `local-${nowMs}`;
+}
+
+// Pure: pick the newest unexpired lf-<slug> artifact's run that is not yet
+// clipped (artifacts newest-first, as GET actions/artifacts?name= returns them).
+// Stops at the first already-clipped run — only the newest doc is a candidate.
+export function pickDocRun(artifacts = [], clipQueue = {}) {
+  const done = new Set((clipQueue?.doneRuns || []).map(String));
+  const last = clipQueue?.lastRunId != null ? String(clipQueue.lastRunId) : null;
+  for (const a of artifacts) {
+    if (a?.expired) continue;
+    const id = String(a?.workflow_run?.id ?? '');
+    if (!id) continue;
+    if (id === last || done.has(id)) return { runId: null, reason: `run ${id} already clipped` };
+    return { runId: id };
+  }
+  return { runId: null, reason: 'no doc artifacts' };
+}
+
 // CLI wiring — module-level lets so ensureQueue/postNext keep their closures;
 // only initialized when this file IS the script being run.
 let MODE = '', slug = null, localDir = null, maxArg = 3, archiveMode = false, b = null;
@@ -262,7 +285,7 @@ const tmp = localDir ? null : path.join('longvideo', `sc-tmp-${slug}`);
 let videoFile, srtFile, meta, docRunId;
 
 if (localDir) {
-  docRunId = 'local-' + Date.now();
+  docRunId = localFeedRunId(process.env, Date.now());
   videoFile = path.join(localDir, 'video.mp4');
   srtFile = path.join(localDir, 'episode.srt');
   meta = JSON.parse(fs.readFileSync(path.join(localDir, 'meta.json'), 'utf8'));
@@ -270,19 +293,19 @@ if (localDir) {
   log(`local mode: ${videoFile}`);
 } else {
   if (!TOK) await fail('GITHUB_TOKEN/GITHUB_PAT missing — cannot read doc artifacts');
-  const SRC_WORKFLOW = process.env.CLIPS_SRC_WORKFLOW || 'channel-autopilot.yml';
-  const runs = await ghApi(`actions/workflows/${SRC_WORKFLOW}/runs?status=success&per_page=14`);
-  let chosen = null;
-  for (const run of runs.workflow_runs || []) {
-    if (String(run.id) === String(st.clipQueue?.lastRunId)) break;
-    const arts = (await ghApi(`actions/runs/${run.id}/artifacts`)).artifacts || [];
-    const vid = arts.find((a) => a.name === `lf-${slug}` && !a.expired);
-    if (!vid) continue;
-    if ((st.clipQueue?.doneRuns || []).includes(String(run.id))) { log(`run ${run.id} already clipped`); break; }
-    chosen = { runId: String(run.id), vid, srt: arts.find((a) => a.name === `lf-srt-${slug}` && !a.expired), meta: arts.find((a) => a.name === `lf-meta-${slug}` && !a.expired) };
-    break;
-  }
-  if (!chosen) { log('nothing new to clip'); return 'nothing-new'; }
+  // Audit #9: find docs by artifact NAME. Scanning the 14 newest successful
+  // runs covered ~7h once the external 30-min heartbeat started (48 runs/day).
+  const docArts = (await ghApi(`actions/artifacts?name=lf-${slug}&per_page=10`)).artifacts || [];
+  const pick = pickDocRun(docArts, st.clipQueue);
+  if (!pick.runId) { log(`nothing new to clip (${pick.reason})`); return 'nothing-new'; }
+  const arts = (await ghApi(`actions/runs/${pick.runId}/artifacts`)).artifacts || [];
+  const chosen = {
+    runId: pick.runId,
+    vid: arts.find((a) => a.name === `lf-${slug}` && !a.expired),
+    srt: arts.find((a) => a.name === `lf-srt-${slug}` && !a.expired),
+    meta: arts.find((a) => a.name === `lf-meta-${slug}` && !a.expired),
+  };
+  if (!chosen.vid) await fail(`doc run ${chosen.runId}: lf-${slug} artifact vanished between listing and download`);
   if (!chosen.srt) await fail(`doc run ${chosen.runId} has no lf-srt-${slug} artifact — it predates #96; wait for the next docDay run`);
   docRunId = chosen.runId;
   fs.mkdirSync(tmp, { recursive: true });

@@ -32,6 +32,7 @@ import { loadAllStates } from './lib/state.mjs';
 // #106 T5b: the review-seam flag parser (PURE module — zero imports of its
 // own, so the flag-off contract's "no store imports" is untouched).
 import { flagOn } from './lib/review-seams.mjs';
+import { docShippedThisRun } from './lib/doc-days.mjs';
 // 10-09 BYOK: this channel's own provider keys (encrypted yt-mcp/channel-keys.json)
 // replace the shared keys for the rest of the run — children inherit process.env.
 import { applyChannelKeys, checkChannelKeys, dropChannelKeys } from './lib/channel-keys.mjs';
@@ -922,7 +923,14 @@ if (docState[slug]?.deepdiveDate === today) {
 await jobCtl?.startStep('staging');
 try {
   const epFile = path.join('demos', `deepdive-${slug}`, 'episode.mp4');
-  if (fs.existsSync(epFile)) {
+  // audit #9: stage only a doc that SHIPPED this run (new, non-recovered
+  // deepdiveVideo) — a render whose upload failed, or a recovered claim's local
+  // render, must never become clip material for a video not on YouTube.
+  const shipped = docShippedThisRun(state[slug], loadState()[slug], today);
+  if (fs.existsSync(epFile) && !shipped) {
+    log('doc rendered but not shipped this run — not staged for clips');
+    await jobCtl?.finishStep('staging', 'skipped', 'doc not shipped this run');
+  } else if (fs.existsSync(epFile)) {
     fs.mkdirSync('tt-lf', { recursive: true });
     fs.copyFileSync(epFile, path.join('tt-lf', `lf-${slug}.mp4`));
     let title = '';
