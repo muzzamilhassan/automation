@@ -64,7 +64,16 @@ export async function DELETE(req) {
   // 3. remove the registry entry — removeChannel() also deletes the Neon row
   // (readRegistry is DB-first when dbReady, so filtering the repo file alone
   // let the row resurrect on the next sync — issue #4)
-  await removeChannel(slug, `flow: disconnected ${slug} (${actor})`);
+  // admin-panel review #5: a failed registry write is reported, not swallowed
+  try {
+    await removeChannel(slug, `flow: disconnected ${slug} (${actor})`);
+  } catch (e) {
+    await appendAudit(actor, 'disconnect-partial', `${slug}: registry write failed`).catch(() => {});
+    return Response.json({
+      error: `access ${revoked ? 'revoked' : 'not revoked'}, key ${secretDeleted ? 'deleted' : 'not deleted'}, but removing it from the registry failed: ${String(e.message).slice(0, 120)} — retry`,
+      revoked, secretDeleted,
+    }, { status: 502 });
+  }
 
   console.log(`[audit] ${actor} → disconnected ${slug} (revoked: ${revoked}, secret deleted: ${secretDeleted})`);
   await appendAudit(actor, 'disconnect', `${slug}${revoked ? ' · key revoked' : ''}`);

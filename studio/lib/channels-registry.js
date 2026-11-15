@@ -280,39 +280,40 @@ export async function upsertChannel(entry, message) {
   return writeRegistry({ channels }, message || `studio: connect channel ${entry.slug}`);
 }
 
+// Admin-panel review #5: the repo feed is what the ENGINE reads, so a failed
+// repo write THROWS (the caller returns an error) — it used to be swallowed
+// and reported ok. A failed DB mirror write is returned as a warning.
 export async function removeChannel(slug, message) {
+  const warnings = [];
   if (dbReady) {
     try {
       await db`DELETE FROM channels WHERE slug = ${slug}`;
     } catch (e) {
-      console.error('[registry] db delete failed:', String(e.message).slice(0, 100));
+      warnings.push(`db delete failed: ${String(e.message).slice(0, 100)}`);
     }
   }
   const reg = await readRegistryRepo();
   const channels = (reg.channels || []).filter((c) => c.slug !== slug);
   if (CLOUD || dbReady) {
-    try {
-      await writeRepoJSON(REG_PATH, { channels }, message || `registry: removed ${slug}`);
-    } catch { }
+    await writeRepoJSON(REG_PATH, { channels }, message || `registry: removed ${slug}`);
   }
-  return { ok: true };
+  return { ok: true, warnings };
 }
 
 // 10-08 FLOW CONTROL — flip the engine-facing autopilot flag (DB + repo sync)
 export async function setChannelAutopilot(slug, on, message) {
+  const warnings = [];
   if (dbReady) {
     try {
       await db`UPDATE channels SET autopilot = ${on} WHERE slug = ${slug}`;
     } catch (e) {
-      console.error('[registry] db autopilot update failed:', String(e.message).slice(0, 100));
+      warnings.push(`db autopilot update failed: ${String(e.message).slice(0, 100)}`);
     }
   }
-  try {
-    const reg = await readRegistryRepo();
-    const channels = (reg.channels || []).map((c) => (c.slug === slug ? { ...c, autopilot: on } : c));
-    if (CLOUD || dbReady) await writeRepoJSON(REG_PATH, { channels }, message || `flow: autopilot ${on ? 'ON' : 'OFF'} for ${slug}`);
-  } catch { }
-  return { ok: true };
+  const reg = await readRegistryRepo();
+  const channels = (reg.channels || []).map((c) => (c.slug === slug ? { ...c, autopilot: on } : c));
+  if (CLOUD || dbReady) await writeRepoJSON(REG_PATH, { channels }, message || `flow: autopilot ${on ? 'ON' : 'OFF'} for ${slug}`);
+  return { ok: true, warnings };
 }
 
 // T4a round 1 (#106 Phase 4.5): pure repo-feed mapper for the gate cron. The

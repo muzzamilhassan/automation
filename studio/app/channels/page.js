@@ -36,16 +36,31 @@ export default function Channels() {
   const [keysOpen, setKeysOpen] = useState(null); // #103 — inline API keys panel per channel
   const [routeOpen, setRouteOpen] = useState(null); // #104 — per-capability provider routing panel per channel
   const [parkedKeys, setParkedKeys] = useState(null); // #103 — parked brand keys (full-width panel below grid)
-  const load = () => fetch('/api/overview').then((r) => r.json()).then(setData).catch(() => setData({ channels: [] }));
+  const [flowMsg, setFlowMsg] = useState(null); // { tone, text } — pause/resume result
+  const load = (fresh = false) => fetch(fresh ? '/api/overview?fresh=1' : '/api/overview').then((r) => r.json()).then(setData).catch(() => setData({ channels: [] }));
 
   // 10-08 FLOW CONTROL — per-channel autopilot ON/OFF
+  // admin-panel review #5: check the result, say what happened, and reload
+  // FRESH data (the overview is cached 60s, so a working pause looked stuck).
   const toggleFlow = async (slug, currentlyPaused) => {
-    await fetch('/api/channels/flow', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slug, on: Boolean(currentlyPaused) }),
-    });
-    load();
+    const on = Boolean(currentlyPaused);
+    setFlowMsg(null);
+    try {
+      const r = await fetch('/api/channels/flow', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug, on }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setFlowMsg({ tone: 'bad', text: `${slug}: ${on ? 'resume' : 'pause'} failed — ${d.error || `HTTP ${r.status}`}` });
+      } else {
+        setFlowMsg({ tone: 'ok', text: `${slug}: autopilot ${on ? 'resumed' : 'paused'}` });
+      }
+    } catch (e) {
+      setFlowMsg({ tone: 'bad', text: `${slug}: ${String(e.message || e)}` });
+    }
+    load(true);
   };
   useEffect(() => {
     load();
@@ -59,8 +74,14 @@ export default function Channels() {
     <div>
       <PageHeader icon={Tv} title="Channels" sub={`${active.length} live channels + ${parked.length} parked brands · every platform account in one place`}>
         <Link href="/channels/add"><Button color="primary" iconLeading={<Plus size={16} />}>New channel</Button></Link>
-        <Button color="secondary" onClick={load} iconLeading={<RefreshCw size={16} />}>Refresh</Button>
+        <Button color="secondary" onClick={() => load(true)} iconLeading={<RefreshCw size={16} />}>Refresh</Button>
       </PageHeader>
+
+      {flowMsg ? (
+        <div role="status" aria-live="polite" className="text-[12px] mb-3" style={{ color: flowMsg.tone === 'bad' ? 'var(--bad)' : 'var(--ok, #10b981)' }}>
+          {flowMsg.text}
+        </div>
+      ) : null}
 
       <div className="grid xl:grid-cols-2 gap-4">
         {active.map((c) => {
