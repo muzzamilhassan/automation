@@ -148,6 +148,16 @@ jobs:
       - name: 📦 Install Node Dependencies
         run: npm install
 
+      # Step C1a shadow week (Neon single source of truth): rebuild the engine
+      # feed + cadence from Neon and compare with the committed files; the
+      # result is stored in registry_shadow_checks. Read-only for the run —
+      # never changes the files, never fails the job.
+      - name: 🪞 Registry shadow check (Neon vs committed files)
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node scripts/export-registry.mjs --check --record
+
       - name: 🔊 Setup FFmpeg
         uses: ./.github/actions/setup-ffmpeg
 

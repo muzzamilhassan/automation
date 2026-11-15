@@ -117,6 +117,20 @@ export async function readRepoJSON(repoPath) {
   return JSON.parse(await res.text());
 }
 
+// Step C1a (Neon single source of truth, shadow week): every write of the
+// engine feed is mirrored into channels.feed_entry so the nightly/per-run
+// comparison (scripts/export-registry.mjs --check) stays exact while the repo
+// file is still the truth. Best-effort — never blocks a Studio save.
+export async function mirrorFeedBestEffort(channels) {
+  if (!dbReady || !db || !Array.isArray(channels)) return;
+  try {
+    const { mirrorFeedToNeon } = await import('./registry-feed.mjs');
+    await mirrorFeedToNeon((t, p) => db.unsafe(t, p), channels);
+  } catch (e) {
+    console.error('[registry] neon feed mirror failed:', String(e.message).slice(0, 100));
+  }
+}
+
 export async function writeRepoJSON(repoPath, data, message) {
   const body = JSON.stringify(data, null, 2) + '\n';
   if (!CLOUD) {
@@ -214,6 +228,7 @@ async function syncRegistryRepo(slug, dbEntry, message) {
       const repo = await readRegistryRepo();
       const channels = mergeRegistrySync(repo?.channels || [], dbEntry);
       await writeRepoJSON(REG_PATH, { channels }, message || `registry sync (db → repo): ${slug}`);
+      await mirrorFeedBestEffort(channels);
     } catch (e) {
       console.error('[registry] repo sync failed:', String(e.message).slice(0, 100));
     }
@@ -296,6 +311,7 @@ export async function removeChannel(slug, message) {
   const channels = (reg.channels || []).filter((c) => c.slug !== slug);
   if (CLOUD || dbReady) {
     await writeRepoJSON(REG_PATH, { channels }, message || `registry: removed ${slug}`);
+    await mirrorFeedBestEffort(channels);
   }
   return { ok: true, warnings };
 }
@@ -312,7 +328,10 @@ export async function setChannelAutopilot(slug, on, message) {
   }
   const reg = await readRegistryRepo();
   const channels = (reg.channels || []).map((c) => (c.slug === slug ? { ...c, autopilot: on } : c));
-  if (CLOUD || dbReady) await writeRepoJSON(REG_PATH, { channels }, message || `flow: autopilot ${on ? 'ON' : 'OFF'} for ${slug}`);
+  if (CLOUD || dbReady) {
+    await writeRepoJSON(REG_PATH, { channels }, message || `flow: autopilot ${on ? 'ON' : 'OFF'} for ${slug}`);
+    await mirrorFeedBestEffort(channels);
+  }
   return { ok: true, warnings };
 }
 
@@ -360,6 +379,7 @@ export async function setChannelCron(slug, cron, message) {
   const { channels, found } = applyGateCronToChannels(reg.channels, slug, cron);
   if (!found) return { ok: false, reason: 'not-in-repo-registry' };
   await writeRepoJSON(REG_PATH, { channels }, message || `schedule: gate cron ${cron} for ${slug}`);
+  await mirrorFeedBestEffort(channels);
   return { ok: true };
 }
 
@@ -367,6 +387,7 @@ export async function writeRegistry(registry, message) {
   const body = JSON.stringify(registry, null, 2) + '\n';
   if (!CLOUD) {
     fs.writeFileSync(path.join(ROOT, 'yt-mcp', 'studio-channels.json'), body);
+    await mirrorFeedBestEffort(registry?.channels);
     return { ok: true, mode: 'local' };
   }
   const cur = await fetch(`https://api.github.com/repos/${REPO}/contents/${REG_PATH}?ref=main`, {
@@ -384,6 +405,7 @@ export async function writeRegistry(registry, message) {
     }),
   });
   if (!res.ok) throw new Error(`github ${res.status} committing registry: ${(await res.text()).slice(0, 120)}`);
+  await mirrorFeedBestEffort(registry?.channels);
   return { ok: true, mode: 'cloud' };
 }
 

@@ -178,6 +178,16 @@ export async function POST(req) {
     updatedBy: user.email,
   };
   await writeRepoJSON(FILE, file, `schedule: ${slug} cadence updated (#100)`);
+  // Step C1a shadow week: mirror the cadence into Neon (best-effort; the repo
+  // file stays the truth until C1b)
+  if (dbReady && db) {
+    try {
+      const { mirrorCadenceToNeon } = await import('@/lib/registry-feed.mjs');
+      await mirrorCadenceToNeon((t, p) => db.unsafe(t, p), file);
+    } catch (e) {
+      console.error('[schedule] neon cadence mirror failed:', String(e.message).slice(0, 100));
+    }
+  }
 
   // T4a (round 1): re-derive the registry gate cron on every save from the
   // channel's SHORT slots only when no gateCron is set yet (never overwrite an
