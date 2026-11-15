@@ -2,21 +2,17 @@ import { brands, state, trend, fbPages, ytChannels, allLogs, MODE, bustCache } f
 import { getUser } from '@/lib/route-auth';
 import { slugsForUser } from '@/lib/access';
 import { db, dbReady } from '@/lib/db';
+import { selectVisibleChannels } from '@/lib/overview-visible.mjs';
+import { summarizeClips } from '@/lib/clip-queue.mjs';
 
 export const dynamic = 'force-dynamic';
 
 function summarizeClipQueue(q) {
   if (!q || typeof q !== 'object') return null;
-  const clips = Array.isArray(q.clips) ? q.clips : [];
-  let remaining = 0;
-  let broken = 0;
-  for (const c of clips) {
-    if (!c || c.postedAt) continue;
-    if (c.url) remaining += 1;
-    else broken += 1;
-  }
+  // one shared rule with post-next (Release-archived clips are NOT broken)
+  const { total, remaining, broken } = summarizeClips(q);
   return {
-    total: clips.length,
+    total,
     remaining,
     broken,
     docTitle: q.docTitle || null,
@@ -110,10 +106,10 @@ export async function GET(req) {
       });
     }
   }
-  // PRODUCTION FILTER: only show channels that are actively producing
-  // (have YouTube data + recent run). Dormant/parked channels are hidden
-  // from the default view — they clutter the dashboard and look unfinished.
-  const producing = channels.filter((c) => c.yt && !c.yt.error && (c.yt.subs > 0 || c.yt.views > 0));
+  // PRODUCTION FILTER: dormant/parked brands stay hidden, but an ACTIVE channel
+  // whose YouTube read fails is shown with health 'youtube_error' instead of
+  // vanishing when it needs a re-login (admin-panel review 2026-11-15 #2).
+  const producing = selectVisibleChannels(channels);
 
   // 10-08 P2 CLIENT ROLE: clients see only their own channels
   const user = await getUser(req).catch(() => null);

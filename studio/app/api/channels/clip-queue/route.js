@@ -8,24 +8,20 @@ import { canAccessChannelSlug } from '@/lib/access';
 import { readRepoJSON, writeRepoJSON } from '@/lib/channels-registry';
 import { appendAudit } from '@/lib/audit';
 import { MODE } from '@/lib/data.mjs';
+import { summarizeClips, withoutBrokenClips } from '@/lib/clip-queue.mjs';
 
 export const dynamic = 'force-dynamic';
 
 const ROOT = path.resolve(process.cwd(), '..');
 const SLUG_RE = /^[a-z0-9-]+$/i;
 
-function clipHasAsset(c) {
-  if (!c) return false;
-  if (c.url) return true;
-  if (MODE === 'local' && c.file) {
-    try {
-      return fs.existsSync(path.resolve(ROOT, String(c.file)));
-    } catch {
-      return false;
-    }
-  }
-  return false;
-}
+// Local mode can also use a clip's local file; cloud mode never sees runner files.
+const qcOpts = {
+  fileExists: (f) => {
+    if (MODE !== 'local') return false;
+    try { return fs.existsSync(path.resolve(ROOT, String(f))); } catch { return false; }
+  },
+};
 
 export async function GET(req) {
   const user = await getUser(req);
@@ -41,13 +37,9 @@ export async function GET(req) {
   if (!q) return Response.json({ ok: true, slug, clipQueue: null });
 
   const clips = Array.isArray(q.clips) ? q.clips : [];
-  let remaining = 0;
-  let broken = 0;
-  for (const c of clips) {
-    if (!c || c.postedAt) continue;
-    if (clipHasAsset(c)) remaining += 1;
-    else broken += 1;
-  }
+  // admin-panel review #4: the same rule post-next uses (Release-archived
+  // clips with asset + lastRunId are ready, not broken)
+  const { remaining, broken } = summarizeClips(q, qcOpts);
 
   return Response.json({
     ok: true,
@@ -77,13 +69,21 @@ export async function POST(req) {
   if (!SLUG_RE.test(slug)) return Response.json({ error: 'invalid slug' }, { status: 400 });
   if (action !== 'clear') return Response.json({ error: 'unknown action' }, { status: 400 });
 
+  // admin-panel review #4: remove ONLY broken clips (was clips: [] — every
+  // clip, posted and ready ones included). doneRuns / lastRunId untouched.
   const filePath = `yt-mcp/state/${slug}.json`;
   const st = await readRepoJSON(filePath);
+  let removed = 0;
   if (st && st.clipQueue) {
-    st.clipQueue = { ...st.clipQueue, clips: [] };
-    await writeRepoJSON(filePath, st, `clip-queue: cleared ${slug} clips`);
+    const before = Array.isArray(st.clipQueue.clips) ? st.clipQueue.clips.length : 0;
+    const kept = withoutBrokenClips(st.clipQueue, qcOpts);
+    removed = before - kept.length;
+    if (removed > 0) {
+      st.clipQueue = { ...st.clipQueue, clips: kept };
+      await writeRepoJSON(filePath, st, `clip-queue: removed ${removed} broken clip(s) for ${slug}`);
+    }
   }
 
-  try { await appendAudit(user.email, 'clip-queue clear', slug); } catch { }
-  return Response.json({ ok: true, slug });
+  try { await appendAudit(user.email, 'clip-queue clear broken', `${slug}: removed ${removed}`); } catch { }
+  return Response.json({ ok: true, slug, removed });
 }

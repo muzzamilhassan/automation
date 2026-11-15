@@ -118,7 +118,9 @@ export default function Production() {
     }
   };
 
-  const clearBrokenQueue = async (slug) => {
+  const clearBrokenQueue = async (slug, broken = 0) => {
+    // admin-panel review #4: destructive — confirm; only broken clips are removed
+    if (!window.confirm(`Remove ${broken} broken clip(s) from ${slug}'s queue? Ready and posted clips are kept.`)) return;
     const key = runKey(slug, 'clear-queue');
     setRuns((r) => ({ ...r, [key]: 'busy' }));
     try {
@@ -221,7 +223,7 @@ export default function Production() {
                       <Button
                         size="xs"
                         color="secondary-destructive"
-                        onClick={() => clearBrokenQueue(c.slug)}
+                        onClick={() => clearBrokenQueue(c.slug, c.clipQueue?.broken || 0)}
                         isDisabled={clearState === 'busy'}
                       >
                         {clearState === 'busy' ? 'Clearing…' : clearState === 'error' ? 'Failed — retry' : 'Clear broken queue'}
