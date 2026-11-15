@@ -25,12 +25,30 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
 
+      # npm ci: exact lockfile install (fails loudly if package.json and the
+      # lock drift). Root deps only — tests/root-manifest-imports.test.mjs
+      # guards that every package the suite reaches is declared at the root.
       - name: 📦 Install Dependencies
-        run: npm install
+        run: npm ci
 
       - name: 🧪 Run Tests
         run: npm test
+
+      # audit 2026-11-13 #3: main sat red for 6+ pushes unnoticed — page once.
+      - name: 🔔 Alert on failure
+        if: failure()
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          node --input-type=module -e "
+            import { sendAlert } from './lib/ntfy-alert.mjs';
+            const subject = (process.env.COMMIT_MSG || '').split('\n')[0].slice(0, 80);
+            await sendAlert({ title: 'CI tests failed on main', text: subject + '\n' + process.env.RUN_URL });
+          "
 
   brain:
     name: 🧠 Brain python tests
