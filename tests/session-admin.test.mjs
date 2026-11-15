@@ -211,10 +211,14 @@ test('self-service device list + sign-out-everywhere are unchanged (AC-P4-31)', 
   assert.equal(/\bscope=all\b/.test(routeSrc.split('scope=all')[1] || ''), false, 'sanity: owner scope check exists above'); // owner branch is additive
 });
 
-test('proxy gates the /sessions admin page owner-only (additive matrix row, self-service API untouched)', () => {
-  assert.match(proxySrc, /p === '\/sessions'/, 'the /sessions page must have an owner-only matrix rule');
-  assert.match(proxySrc, /p === '\/users'[\s\S]{0,200}p === '\/sessions'/, 'sessions rule sits with the owner-only group');
-  assert.equal(/'\/api\/sessions'/.test(proxySrc), false, '/api/sessions stays any-signed-in (handler re-checks owner-mode)');
+test('proxy gates the /sessions admin page owner-only (additive matrix row, self-service API untouched)', async () => {
+  // the matrix moved to studio/lib/route-roles.js (admin-panel review #7) —
+  // assert the behaviour, not the source text
+  const { allowedRoles } = await import('../studio/lib/route-roles.js');
+  assert.deepEqual(allowedRoles('/sessions'), ['owner'], 'the /sessions page must be owner-only');
+  assert.deepEqual(allowedRoles('/users'), ['owner']);
+  assert.equal(allowedRoles('/api/sessions'), null, '/api/sessions stays any-signed-in (handler re-checks owner-mode)');
+  assert.match(proxySrc, /allowedRoles\(pathname\)/, 'the proxy uses the matrix');
 });
 
 // ---- review round 1 (#106) — cleanup liveness, global 401→/login, id tighten ----
