@@ -14,7 +14,7 @@
 //       four official categories must be answered or approval is refused.
 //   POST  /api/review { action: 'reject', id, note }               → owner-only.
 //   POST  /api/review { action: 'redispatch', id }                 → owner-only.
-//   GET  /api/review/thumb?id=<uuid>&idx=<n>  → owner+staff. The candidate's
+//   GET  /api/review?thumb=1&id=<uuid>&idx=<n>  → owner+staff. The candidate's
 //       bytes from the PRIVATE artifact store, resolved from the script row's
 //       meta SERVER-SIDE (a raw client URL is never fetched — open-proxy
 //       guard) and hash-verified before serving image/jpeg. /review's <img>
