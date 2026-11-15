@@ -7,9 +7,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "Gf-umLDYWWY",
-      "publishAt": "2026-11-14T22:35:00Z",
-      "title": "Automation Cut 3 Months Off Debt Payoff!"
+      "videoId": "sGU26MNbyTk",
+      "publishAt": "2026-11-15T22:35:00Z",
+      "title": "Raise? Boost Your Debt Snowball, Save $3,400"
     }
   ],
   "imageDate": "2026-10-18",
@@ -104,6 +104,10 @@
     {
       "t": "Automation Cut 3 Months Off Debt Payoff!",
       "at": "2026-11-14T22:35:00Z"
+    },
+    {
+      "t": "Raise? Boost Your Debt Snowball, Save $3,400",
+      "at": "2026-11-15T22:35:00Z"
     }
   ],
   "cooldownSeeds": [
@@ -143,7 +147,8 @@
         "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/742320476",
         "startSec": 409.6,
         "durSec": 23.6,
-        "file": "tt-lf/clipfeed-money-rulebook/clips/clip-02.mp4"
+        "file": "tt-lf/clipfeed-money-rulebook/clips/clip-02.mp4",
+        "postedAt": "2026-11-15T07:04:33.889Z"
       },
       {
         "part": 3,
@@ -165,15 +170,15 @@
       }
     ]
   },
-  "clipLastPostDate": "2026-11-14",
+  "clipLastPostDate": "2026-11-15",
   "uploadsToday": {
-    "date": "2026-11-13",
+    "date": "2026-11-14",
     "count": 1
   },
   "reviewGate": {
     "assigned": true,
     "gated": true,
-    "checkedAt": "2026-11-14T00:56:10.802Z"
+    "checkedAt": "2026-11-15T07:04:29.795Z"
   },
   "usedLongSeeds": [
     "Stop Wasting Vegetables! 8 Freezer Tricks That Save You Money | Annie Tips",
@@ -186,7 +191,8 @@
     "Another Bad Labour Budget",
     "Tips-tips unik melipat dan menghitung uang ! #reaction #shortvideo",
     "Why the debt snowball beats every payoff hack",
-    "Как экономить семейный бюджет?#психолог #психологияотношений #финляндия #шоппинг #семейныеотношения"
+    "Как экономить семейный бюджет?#психолог #психологияотношений #финляндия #шоппинг #семейныеотношения",
+    "Why Your First $100K Is the Hardest #Shorts"
   ],
   "deepdiveVideo": {
     "videoId": "1sSY4YHLfMM",
