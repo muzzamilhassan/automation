@@ -611,3 +611,66 @@ describe('#106 T2 — resume (D4, AC-P4-4)', () => {
     assert.equal(fin.args.status, 'failed', 'the fresh (quota-blocked) flow completed');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Audit 2026-11-13 #7 — truthful clip-lane outcomes (exit semantics of the
+// PIPELINE stay AC-P4-3: end-of-run exit 0). post-next now exits 3 when no
+// Short was due (off day / queue consumed between docs) and 4 when one was
+// due but no clip could be posted (empty+stale / exhausted / quota). Before,
+// every one of those exited 0 and the pipeline logged "✓ Clip Short
+// processed" — 40/40 green runs while a channel posted nothing for 15 days.
+// Spec + QA: docs/qa/truthful-outcomes-qa.md.
+// ---------------------------------------------------------------------------
+describe('audit #7 — truthful clip-lane outcomes', () => {
+  const clipsRun = (stubExit) => runPipeline({
+    state: {},
+    args: ['--no-episode'],
+    env: { JOB_STORE_ENABLED: '1' },
+    files: {
+      'yt-mcp/cadence.json': JSON.stringify({ [SLUG]: { shortsSource: 'clips' } }),
+      'longvideo/shorts-clips.mjs': `process.exit(${stubExit});`,
+    },
+  });
+
+  test('exit 0 (posted) -> ✓, clips step succeeded, job succeeded', () => {
+    const r = clipsRun(0);
+    assert.equal(r.status, 0);
+    assert.match(r.stdout, /✓ Clip Short processed/);
+    const step = calls(r.spy, 'jobs', 'finishStep').find((c) => c.args.idx === 1);
+    assert.equal(step.args.status, 'succeeded');
+    assert.equal(calls(r.spy, 'jobs', 'finishJob')[0].args.status, 'succeeded');
+  });
+
+  test('exit 3 (nothing due) -> no ✓, step skipped "nothing due", job succeeded, no error', () => {
+    const r = clipsRun(3);
+    assert.equal(r.status, 0, 'AC-P4-3: the pipeline still exits 0');
+    assert.doesNotMatch(r.stdout, /✓ Clip Short processed/, 'a no-op must never log ✓');
+    assert.match(r.stdout, /no Short due today/);
+    assert.match(r.stdout, /Shorts: – nothing due/);
+    const step = calls(r.spy, 'jobs', 'finishStep').find((c) => c.args.idx === 1);
+    assert.equal(step.args.status, 'skipped');
+    assert.match(step.args.error || '', /nothing due/);
+    const fin = calls(r.spy, 'jobs', 'finishJob')[0];
+    assert.equal(fin.args.status, 'succeeded', 'an off day is not a failure');
+    assert.match(r.stdout, /Errors: 0/);
+  });
+
+  test('exit 4 (due but nothing posted) -> error recorded, job failed, ::warning:: annotation', () => {
+    const r = clipsRun(4);
+    assert.equal(r.status, 0, 'AC-P4-3: the pipeline still exits 0');
+    assert.doesNotMatch(r.stdout, /✓ Clip Short processed/);
+    const step = calls(r.spy, 'jobs', 'finishStep').find((c) => c.args.idx === 1);
+    assert.equal(step.args.status, 'skipped');
+    const fin = calls(r.spy, 'jobs', 'finishJob')[0];
+    assert.equal(fin.args.status, 'failed', 'a due Short that never shipped is a failed day');
+    assert.match(fin.args.error || '', /Shorts skipped — no clip available/);
+    assert.match(r.stdout, /::warning title=quotequarry: no Short published::/);
+  });
+
+  test('a crashing child logs its exit status and elapsed time (no silent ✗)', () => {
+    const r = clipsRun(7);
+    assert.match(r.stdout, /longvideo\/shorts-clips\.mjs exited status=7 signal=none after \d+(\.\d+)?s/);
+    assert.match(r.stdout, /✗ Clip posting failed/);
+    assert.equal(calls(r.spy, 'jobs', 'finishJob')[0].args.status, 'failed');
+  });
+});

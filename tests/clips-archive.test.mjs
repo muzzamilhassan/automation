@@ -334,3 +334,45 @@ describe('#96 review r1: load-bearing expressions pinned in shorts-clips.mjs', (
     assert.match(src, /magic\s*!==\s*'ftyp'/, 'verifies MP4 ftyp container signature before uploading to YouTube');
   });
 });
+
+// Audit 2026-11-13 #7 — post-next exit contract (spec docs/qa/truthful-outcomes-qa.md).
+// Every "posted nothing" path used to exit 0 and the pipeline logged ✓.
+describe('audit #7: post-next exit codes', () => {
+  const src = () => fs.readFileSync(new URL('../longvideo/shorts-clips.mjs', import.meta.url), 'utf8');
+  const exitAfter = (marker) => {
+    const s = src();
+    const at = s.indexOf(marker);
+    assert.ok(at > 0, `marker not found: ${marker}`);
+    const m = s.slice(at).match(/process\.exit\(([^)]*)\)/);
+    return m && m[1];
+  };
+
+  test('the exported contract matches the pipeline constants', async () => {
+    const { CLIP_EXIT } = await import('../longvideo/shorts-clips.mjs');
+    assert.deepEqual(CLIP_EXIT, { POSTED: 0, NOTHING_DUE: 3, NO_CLIP: 4 });
+    const pipe = fs.readFileSync(new URL('../channel-pipeline.mjs', import.meta.url), 'utf8');
+    assert.match(pipe, /const CLIPS_NOTHING_DUE = 3;/);
+    assert.match(pipe, /const CLIPS_NO_CLIP = 4;/);
+  });
+
+  test('already posted today -> 0; off day -> NOTHING_DUE', () => {
+    assert.equal(exitAfter('clip Short already posted today'), '0');
+    assert.equal(exitAfter('is not a short day'), 'CLIP_EXIT.NOTHING_DUE');
+  });
+
+  test('quota blocked, exhausted queue -> NO_CLIP', () => {
+    assert.equal(exitAfter('[quota] upload skipped'), 'CLIP_EXIT.NO_CLIP');
+    assert.equal(exitAfter('queue exhausted (all posted'), 'CLIP_EXIT.NO_CLIP');
+  });
+
+  test('empty queue: stale docs -> NO_CLIP, fresh docs -> NOTHING_DUE', () => {
+    const s = src();
+    const block = s.slice(s.indexOf('const stale = !dd'), s.indexOf('const stale = !dd') + 900);
+    assert.match(block, /process\.exit\(stale \? CLIP_EXIT\.NO_CLIP : CLIP_EXIT\.NOTHING_DUE\)/);
+  });
+
+  test('a verify-run with no exit status (killed / timed out) is a failure, not success', () => {
+    assert.doesNotMatch(src(), /process\.exit\(v\.status \|\| 0\)/);
+    assert.match(src(), /process\.exit\(v\.status \?\? 1\)/);
+  });
+});

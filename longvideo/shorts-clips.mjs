@@ -367,6 +367,15 @@ if (IS_MAIN) {
   else console.log('usage: node longvideo/shorts-clips.mjs ensure-queue <slug> | post-next <slug>');
 }
 
+// post-next exit contract (audit 2026-11-13 #7) — channel-pipeline reads it:
+//   POSTED      a Short shipped (or was already shipped today / recovered)
+//   NOTHING_DUE nothing was due: off day, or queue consumed with a fresh doc
+//   NO_CLIP     a Short was due but none could be posted (empty+stale docs,
+//               exhausted queue, quota) — the pipeline records a failed day
+// Anything else = a failure. Before, every one of these exited 0 and the
+// pipeline logged "✓ Clip Short processed" for days with no upload.
+export const CLIP_EXIT = Object.freeze({ POSTED: 0, NOTHING_DUE: 3, NO_CLIP: 4 });
+
 // ---------- post-next (#98): publish one queued clip ----------
 // Fail-closed: empty/exhausted queue = logged skip + ntfy alert, never a
 // re-upload. Title re-checked against LIVE recent uploads (the queue-time
@@ -384,7 +393,7 @@ async function postNext() {
   const shortDays = Array.isArray(b.shortDays) ? b.shortDays : [];
   if (shortDays.length && !shortDays.includes(todayName)) {
     log(`${todayName} is not a short day (${shortDays.join('/')}) — skipped`);
-    process.exit(0);
+    process.exit(CLIP_EXIT.NOTHING_DUE);
   }
   // #99/#104 shared-pool ledger: use the active quota model (100 units/upload
   // default) so the legacy 1,700/upload cap doesn't block multi-channel days.
@@ -402,7 +411,7 @@ async function postNext() {
   if (!q.allowed) {
     log(`[quota] upload skipped — shared pool ${q.usedUnits}/${q.dailyLimit} units today (${q.uploadsToday} uploads) — resets midnight PT`);
     await sendAlert({ text: `${slug}: clip upload skipped — YouTube API daily budget reached (${q.usedUnits}/${q.dailyLimit} units). Resets midnight PT.`, title: `[${slug}] clip upload blocked by quota` });
-    process.exit(0);
+    process.exit(CLIP_EXIT.NO_CLIP);
   }
   let queue = st.clipQueue?.clips || [];
   if (!queue.length) {
@@ -422,7 +431,7 @@ async function postNext() {
       } else {
         log(`queue consumed — next doc day will refill (last doc ${st.deepdiveDate}) — silent skip`);
       }
-      process.exit(0);
+      process.exit(stale ? CLIP_EXIT.NO_CLIP : CLIP_EXIT.NOTHING_DUE);
     }
   }
 
@@ -488,7 +497,7 @@ async function postNext() {
   if (!pick) {
     log(`queue exhausted (all posted or dup vs live uploads) — Shorts skipped today`);
     await sendAlert({ text: `${slug}: clip queue EXHAUSTED — every queued clip is posted or dup-flagged. Run ensure-queue after the next docDay render.`, title: `[${slug}] clip queue exhausted — Short skipped` });
-    process.exit(0);
+    process.exit(CLIP_EXIT.NO_CLIP);
   }
   const { clip, skipped } = pick;
   skipped.forEach((s) => log(`  skip part ${s.part}: ${s.reason}`));
@@ -633,5 +642,8 @@ async function postNext() {
 
   // proof-of-publication — verify-run alerts + exits non-zero on a miss
   const v = spawnSync('node', ['verify-run.mjs', slug], { stdio: 'inherit', timeout: 300000 });
-  process.exit(v.status || 0);
+  // audit #7: status is null when verify-run is killed or times out — that
+  // used to read as success (`|| 0`). No proof of publication = failure.
+  if (v.status === null) log(`verify-run ended without an exit status (signal=${v.signal || 'none'}${v.error?.code === 'ETIMEDOUT' ? ', TIMEOUT 300s' : ''}) — treating as failed`);
+  process.exit(v.status ?? 1);
 }

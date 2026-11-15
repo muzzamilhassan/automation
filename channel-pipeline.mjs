@@ -41,7 +41,9 @@ import { sendAlert } from './lib/ntfy-alert.mjs';
 const loadState = () => loadAllStates();
 
 const log = (msg) => console.log(`[${slug}] ${msg}`);
-const results = { shorts: false, episode: false, fbReels: false, igReels: false, poster: false };
+// nothingDue (audit #7): the clips lane ran and no Short was due today (off
+// day / queue consumed between docs) — distinct from shorts:false (failed).
+const results = { shorts: false, nothingDue: false, episode: false, fbReels: false, igReels: false, poster: false };
 const errors = [];
 
 // ---- #106 T2 — JOB RECORDING / PARK-CHECK / RESUME (Phase 4 S1+S3) --------
@@ -267,7 +269,10 @@ function makePipelineJobController({ slug, jobs, artifacts, brandKit }) {
         for (const p of state.planned) {
           if (!state.closed.has(p.name)) await jobs.finishStep(state.id, p.idx, { status: 'skipped', error: 'not reached' });
         }
-        const terminal = results.shorts ? (errors.length ? 'partial' : 'succeeded') : 'failed';
+        // audit #7: nothing due (off day) with no lane errors is a clean day.
+        const terminal = results.shorts
+          ? (errors.length ? 'partial' : 'succeeded')
+          : (results.nothingDue && !errors.length ? 'succeeded' : 'failed');
         await jobs.finishJob(state.id, { status: terminal, error: errors.length ? errors.join('; ').slice(0, 400) : null });
         log(`[job] job closed: ${terminal}${errors.length ? ` (${errors.length} lane error(s))` : ''}`);
       });
@@ -294,17 +299,39 @@ if (JOB_STORE_ENABLED) {
   }
 }
 
-function run(script, args = [], opts = {}) {
+// Child-lane runner. Returns { ok, status, signal, ms, timedOut }. Audit #7:
+// a non-zero exit, a kill signal or a timeout is LOGGED with how long the
+// child ran — a 45-min timeout used to look exactly like a fast crash.
+function runChild(script, args = [], opts = {}) {
   log(`▶ ${script} ${args.join(' ')}`);
+  const t0 = Date.now();
   try {
     // opts.timeoutMs: per-lane bound. The default 900s predates the
     // 10-chapter doc class — a long documentary (10 chapters x >=170 words:
     // ~10 clip downloads + TTS + render) needs ~30 min, and the 15-min kill
     // landed mid-download exactly at 900000 ms (2026-11-04 resume run).
     const r = spawnSync('node', [script, ...args], { stdio: 'inherit', timeout: opts.timeoutMs ?? 900000 });
-    return r.status === 0;
-  } catch (e) { errors.push(`${script}: ${e.message}`); return false; }
+    const ms = Date.now() - t0;
+    const timedOut = r.error?.code === 'ETIMEDOUT';
+    if (r.status !== 0) {
+      log(`  ${script} exited status=${r.status ?? 'none'} signal=${r.signal || 'none'} after ${(ms / 1000).toFixed(1)}s${timedOut ? ` (TIMEOUT at ${Math.round((opts.timeoutMs ?? 900000) / 1000)}s)` : ''}${r.error && !timedOut ? ` error=${String(r.error.message).slice(0, 80)}` : ''}`);
+    }
+    return { ok: r.status === 0, status: r.status, signal: r.signal || null, ms, timedOut };
+  } catch (e) {
+    errors.push(`${script}: ${e.message}`);
+    return { ok: false, status: null, signal: null, ms: Date.now() - t0, timedOut: false };
+  }
 }
+
+function run(script, args = [], opts = {}) {
+  return runChild(script, args, opts).ok;
+}
+
+// shorts-clips post-next exit contract (audit #7): 0 posted (or already
+// posted today / recovered), 3 nothing due today, 4 due but no clip could be
+// posted (queue empty+stale / exhausted / quota) — anything else = failure.
+const CLIPS_NOTHING_DUE = 3;
+const CLIPS_NO_CLIP = 4;
 
 // ---- Load state ----
 const state = loadState();
@@ -556,10 +583,20 @@ async function runClipsPhase1() {
   log(`Phase 1 — Clips lane (shortsSource=clips) for ${b.label}...`);
   if (await quotaGate('Shorts (clips)')) {
     await jobCtl?.startStep(SHORTS_STEP);
-    if (run('longvideo/shorts-clips.mjs', ['post-next', slug])) {
+    const clip = runChild('longvideo/shorts-clips.mjs', ['post-next', slug]);
+    if (clip.ok) {
       results.shorts = true;
       log(`✓ Clip Short processed`);
       await jobCtl?.finishStep(SHORTS_STEP, 'succeeded');
+    } else if (clip.status === CLIPS_NOTHING_DUE) {
+      results.nothingDue = true;
+      log(`– no Short due today (off day or queue consumed until the next doc) — nothing posted, by design`);
+      await jobCtl?.finishStep(SHORTS_STEP, 'skipped', 'nothing due today');
+    } else if (clip.status === CLIPS_NO_CLIP) {
+      const why = 'Shorts skipped — no clip available (queue empty/exhausted or quota; see clips log)';
+      errors.push(why);
+      log(`✗ ${why}`);
+      await jobCtl?.finishStep(SHORTS_STEP, 'skipped', why);
     } else {
       errors.push('Clip Short posting failed');
       log(`✗ Clip posting failed`);
@@ -946,7 +983,12 @@ try {
 
 // ---- Summary ----
 log(`══ PIPELINE COMPLETE ══`);
-log(`  Shorts: ${results.shorts ? '✓' : '✗'}`);
+log(`  Shorts: ${results.shorts ? '✓' : (results.nothingDue ? '– nothing due' : '✗')}`);
+// audit #7: a run that published nothing when something was due is visible on
+// the Actions run page (annotation) — the exit code stays 0 (AC-P4-3).
+if (!results.shorts && !results.nothingDue) {
+  console.log(`::warning title=${slug}: no Short published::${errors.length ? errors.join('; ').slice(0, 300) : 'no Short shipped this run'}`);
+}
 log(`  FB Reels: ${results.fbReels ? '✓' : '✗'}`);
 log(`  IG Reels: 📅 via ig-slot-poster (3x/day)`);
 log(`  Poster: ${results.poster ? '✓' : '✗'}`);
