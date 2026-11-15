@@ -12,8 +12,13 @@ import { loadEnv } from './lib/env.mjs';
 import { discoverChannels } from './scripts/analytics-nightly.mjs';
 import { listChannels } from './lib/registry.mjs';
 
+import { planDoctorAlerts, doctorExitCode } from './lib/doctor-alerts.mjs';
+
 loadEnv();
 
+// The previously committed report is the alert memory (audit #7b).
+let prevReport = null;
+try { prevReport = JSON.parse(fs.readFileSync('ci-doctor-report.json', 'utf8')); } catch { prevReport = null; }
 
 // T4d round 1 (#106): passive discovery (token files / mapped secrets) is
 // gated on the ACTIVE registry+brands set — the parked brands keep local
@@ -90,17 +95,27 @@ for (const r of results) {
 }
 console.log(`\n${problems} channel(s) with issues out of ${results.length}`);
 
-// Save report for CI to pick up
-fs.writeFileSync('ci-doctor-report.json', JSON.stringify({ at: new Date().toISOString(), problems, results }, null, 2));
-console.log('Report saved: ci-doctor-report.json');
-
-// ---- Alert + fail loudly (issue #69: a watchdog that can't bark) ----
-// The 10-16/17 outage proved this script finding problems changes nothing on
-// its own. problems > 0 -> ntfy push + GitHub issue (deduped) + exit 1.
+// ---- Alert on CHANGE, remind daily (audit 2026-11-13 #7b) ----
+// Before: every run (3/day) with any non-OK channel paged ntfy + commented on
+// issue #90 + exited 1 — a 420h STALE channel produced ~50 identical pages and
+// the red exit skipped the report commit. planDoctorAlerts compares against the
+// previous committed report's `alerts` memory: new/changed problems page now,
+// an unchanged problem re-pages once per 24h, a recovery is announced once.
 const bad = results.filter((r) => r.status !== 'OK');
-if (bad.length) {
-  const summary = bad.map((r) => `${r.slug}: ${r.status}${r.error ? ' — ' + r.error : ''}${r.lastUploadHours != null ? ` (last upload ${r.lastUploadHours}h ago)` : ''}`).join('\n');
-  // 1. ntfy phone push (best-effort)
+for (const r of bad) console.log(`::warning title=CI Doctor: ${r.slug} ${r.status}::${r.error || (r.lastUploadHours != null ? `last upload ${r.lastUploadHours}h ago` : r.status)}`);
+const plan = planDoctorAlerts(prevReport, results, new Date());
+const line = (r) => `${r.slug}: ${r.status}${r.error ? ' — ' + r.error : ''}${r.lastUploadHours != null ? ` (last upload ${r.lastUploadHours}h ago)` : ''}`;
+const sections = [
+  plan.alertNow.length ? `NEW:\n${plan.alertNow.map(line).join('\n')}` : '',
+  plan.reminders.length ? `STILL BROKEN (daily reminder):\n${plan.reminders.map(line).join('\n')}` : '',
+  plan.recovered.length ? `RECOVERED: ${plan.recovered.join(', ')}` : '',
+].filter(Boolean);
+const due = sections.length > 0;
+let delivered = false;
+if (due) {
+  const summary = sections.join('\n\n');
+  const title = plan.alertNow.length ? '🏥 CI Doctor: new problem' : (plan.reminders.length ? '🏥 CI Doctor: still broken' : '🏥 CI Doctor: recovered');
+  // 1. ntfy phone push
   if (process.env.NTFY_TOPIC) {
     try {
       const res = await fetch(`https://ntfy.sh/${process.env.NTFY_TOPIC}`, {
@@ -108,10 +123,11 @@ if (bad.length) {
         // #91: the raw emoji made undici reject the header ("Cannot convert
         // argument to a ByteString", run 39055331728) — push never reached the
         // phone. The 🏥 icon still shows via the Tags shortcode on ntfy.
-        headers: { Title: asciiHeaderValue('🏥 CI Doctor problems'), Priority: 'high', Tags: 'hospital' },
+        headers: { Title: asciiHeaderValue(title), Priority: plan.alertNow.length ? 'high' : 'default', Tags: 'hospital' },
         body: summary.slice(0, 400),
       });
       console.log(`[alert] ntfy push: ${res.ok ? 'sent' : 'HTTP ' + res.status}`);
+      delivered = delivered || res.ok;
     } catch (e) { console.log('[alert] ntfy failed:', String(e.message).slice(0, 80)); }
   }
   // 2. GitHub issue — comment on the open doctor issue if one exists, else create
@@ -121,14 +137,23 @@ if (bad.length) {
     const first = listing.split('\n').find((l) => l.trim());
     if (first) {
       const num = first.split('\t')[0];
-      execFileSync('gh', ['issue', 'comment', num, '--body', `CI Doctor problems at ${new Date().toISOString()}:\n\n${summary}`]);
+      execFileSync('gh', ['issue', 'comment', num, '--body', `CI Doctor at ${new Date().toISOString()}:\n\n${summary}`]);
       console.log(`[alert] commented on existing issue #${num}`);
-    } else {
-      execFileSync('gh', ['issue', 'create', '--title', '🏥 CI Doctor: channels reporting problems', '--body', `${summary}\n\n_Auto-filed by ci-doctor.mjs — see ci-doctor-report.json in the run artifacts._`]);
+    } else if (bad.length) {
+      execFileSync('gh', ['issue', 'create', '--title', '🏥 CI Doctor: channels reporting problems', '--body', `${summary}\n\n_Auto-filed by ci-doctor.mjs — see ci-doctor-report.json._`]);
       console.log('[alert] GitHub issue created');
     }
+    delivered = true;
   } catch (e) { console.log('[alert] GitHub issue step failed:', String(e.message).slice(0, 80)); }
-  process.exitCode = 1; // red workflow = visible even if ntfy/issue both fail
 } else {
-  console.log('✅ no problems — nothing to alert');
+  console.log(bad.length ? `ongoing problem(s) already paged — next reminder within 24h (${bad.map((r) => r.slug).join(', ')})` : '✅ no problems — nothing to alert');
 }
+
+// Save the report — `alerts` is the memory the next run diffs against. An
+// alert that could not be delivered is NOT remembered, so the next run retries.
+const alertsMemory = due && !delivered ? (prevReport?.alerts || {}) : plan.alerts;
+fs.writeFileSync('ci-doctor-report.json', JSON.stringify({ at: new Date().toISOString(), problems, results, alerts: alertsMemory }, null, 2));
+console.log('Report saved: ci-doctor-report.json');
+
+// Red only when an alert was due and nothing could deliver it (issue #69).
+process.exitCode = doctorExitCode({ due, delivered });
