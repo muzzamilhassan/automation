@@ -50,25 +50,45 @@ test('resolveBrand returns null for unknown slug (no silent substitution — iss
   assert.equal(fallback, undefined, 'unknown slugs must NOT silently resolve to quotequarry');
 });
 
-test('#101 IC authority: registry niche fabricates the authority now that the mirror carries real kit data', async () => {
-  // DEPENDENCY: reads the live mirror yt-mcp/studio-channels.json (resolveBrand
-  // has no fixture seam). d72c495 (E2E prep) gave investors-compass a real
-  // niche + kit.niches, so the row is no longer the connect-first skeleton the
-  // original assertion assumed: registryToKit now legitimately fabricates
-  // "<niche> Wisdom" and the merge (registry wins) makes it the authority —
-  // replacing the legacy kit's 'Market Wisdom'. The skeleton fall-through half
-  // of the original #101 intent is covered by the pure-fixture test below
-  // (registryToKit fabricates authority only from a real niche/theme) —
-  // immune to future real-data backfills.
-  const ic = await resolveBrand('investors-compass');
-  assert.equal(ic.authority, 'Investing psychology & market wisdom Wisdom', `mirror niche must fabricate the authority, got "${ic.authority}"`);
+// Owner decision 2026-11-15 (supersedes the d72c495-era pin that kept the
+// niche-fabricated authority): hand-written kit wording wins. The fabricated
+// "<niche> Wisdom" produced live titles like "… | Investing psychology &
+// market wisdom Wisdom" and "… | everyday wisdom Wisdom".
+// Spec + QA: docs/qa/brand-wording-qa.md.
+test('owner 2026-11-15: legacy channels keep their hand-written authority/keyword/kwShort/theme', async () => {
+  const want = {
+    'investors-compass': { authority: 'Market Wisdom', kwShort: 'investing wisdom', theme: 'Investing' },
+    'money-rulebook': { authority: 'Money Rules', kwShort: 'money rules', keyword: 'money rules' },
+    quotequarry: { authority: 'Timeless Wisdom', kwShort: 'daily wisdom' },
+    'debt-free-doctrine': { authority: 'Old Money Philosophy', theme: 'Quiet Wealth' },
+  };
+  for (const [slug, fields] of Object.entries(want)) {
+    const r = resolveBrand(slug);
+    for (const [f, v] of Object.entries(fields)) assert.equal(r[f], v, `${slug}.${f}`);
+    assert.doesNotMatch(r.authority, /wisdom Wisdom/i, `${slug}: no doubled "Wisdom"`);
+  }
 });
 
-test('#101 registryToKit fabricates authority only from a real niche/theme', () => {
-  const skeleton = registryToKit({ slug: 'skeleton', label: 'SKELETON' });
-  assert.equal(skeleton.authority, undefined, 'no niche/theme -> no fabricated authority (merge falls through to legacy)');
-  const withNiche = registryToKit({ slug: 'niched', label: 'NICHED', niche: 'Value investing' });
-  assert.equal(withNiche.authority, 'Value investing Wisdom', 'real niche still fabricates the authority as before');
+test('owner 2026-11-15: eyebrow keeps the hand-written phrase but always names the CURRENT channel', () => {
+  assert.equal(resolveBrand('investors-compass').eyebrow, "MARKET WISDOM // INVESTOR'S COMPASS");
+  assert.equal(resolveBrand('money-rulebook').eyebrow, 'MONEY RULES // THE MONEY RULEBOOK');
+  // the legacy kit predates the rename (it says OLD MONEY CODE)
+  assert.equal(resolveBrand('debt-free-doctrine').eyebrow, 'QUIET WEALTH // DEBT-FREE DOCTRINE');
+});
+
+test('registryToKit never fabricates niche-derived wording; new channels get it from mergeBrand without a doubled "Wisdom"', () => {
+  const k = registryToKit({ slug: 'niched', label: 'NICHED', niche: 'Value investing' });
+  for (const f of ['authority', 'eyebrow', 'keyword', 'kwShort', 'theme']) assert.equal(k[f], undefined, f);
+  const fresh = mergeBrand(null, k);
+  assert.equal(fresh.authority, 'Value investing Wisdom');
+  assert.equal(fresh.eyebrow, 'VALUE INVESTING // NICHED');
+  assert.equal(fresh.keyword, 'value investing');
+  assert.equal(fresh.kwShort, 'value investing');
+  assert.equal(fresh.theme, 'Value investing');
+  assert.equal(mergeBrand(null, registryToKit({ slug: 'w', label: 'W', niche: 'Market wisdom' })).authority, 'Market wisdom', 'no "wisdom Wisdom"');
+  assert.equal(mergeBrand(null, registryToKit({ slug: 's', label: 'S' })).authority, undefined, 'skeleton row: nothing to derive from');
+  const declared = registryToKit({ slug: 'd', label: 'D', niche: 'x', kit: { authority: 'Declared', eyebrow: 'MINE // D' } });
+  assert.equal(mergeBrand({ authority: 'Legacy', eyebrow: 'OLD // D' }, declared).authority, 'Declared', 'a declared kit value still wins');
 });
 
 // ---------------------------------------------------------------------------
