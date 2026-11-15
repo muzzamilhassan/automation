@@ -1,4 +1,5 @@
 import { getUser } from '@/lib/route-auth';
+import { appendAudit } from '@/lib/audit';
 import { createJob, listJobs, DNA_STYLES, GENRE_LIST, VOICES, ghReady } from '../../../lib/hf-jobs.mjs';
 
 export const dynamic = 'force-dynamic';
@@ -22,6 +23,7 @@ export async function POST(req) {
   if (!brand || String(brand).trim().length < 2) return Response.json({ error: 'brand name required' }, { status: 400 });
   try {
     const job = await createJob({ topic: topic.trim(), dna, genre: genre || 'documentary', brand: brand.trim(), subline, voice, beatCount, slug: brand });
+    await appendAudit(user.email, 'create-video', `${brand.trim()}: ${topic.trim()}`);
     return Response.json({ ok: true, id: job.id, brief: job.brief });
   } catch (e) {
     return Response.json({ error: String(e.message).slice(0, 200) }, { status: 500 });

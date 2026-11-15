@@ -80,6 +80,8 @@ export default function Production() {
   }, []);
 
   const setAll = async (on) => {
+    // admin-panel review #8: bulk action across every channel — confirm first
+    if (!window.confirm(on ? `Resume autopilot on all ${chans.length} channels?` : `Pause autopilot on all ${chans.length} channels? Nothing new is produced until you resume (already-scheduled videos still publish).`)) return;
     setNetBusy(true);
     setNetError('');
     let fails = 0;

@@ -111,6 +111,8 @@ export default function ProviderRoutingPanel({ slug }) {
   };
 
   const removeProvider = (cap, providerId) => {
+    // admin-panel review #8: confirm before dropping a provider from a live chain
+    if (!window.confirm(`Remove ${catalog.get(providerId)?.label || providerId} from the ${CAP_LABEL[cap] || cap} chain${activeLayer === 'channel' ? ` for ${slug}` : ' (workspace default)'}?`)) return;
     run(`${cap}:${providerId}`, async () => {
       await post({ action: 'deactivate-route', channelId: activeLayer === 'channel' ? slug : null, capability: cap, providerId });
     });

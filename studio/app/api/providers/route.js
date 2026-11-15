@@ -18,6 +18,7 @@ import { readRegistry, readRepoJSON } from '@/lib/channels-registry';
 import { PROVIDERS as CATALOG, capabilityProviders, CAPABILITY_BASELINE } from '@/lib/provider-catalog';
 import { PROVIDERS as VAULT_PROVIDERS, validateKey, maskKey, decryptKeys } from '@/lib/keys-vault';
 import { getProviderRouting } from '@/lib/provider-routing';
+import { appendAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -234,12 +235,14 @@ export async function POST(req) {
       }
       const result = await routing.setRoute({ channelId: channel, capability, providerId, priority, actor: user.email || 'owner' });
       if (!result.ok) return Response.json({ error: 'invalid route', errors: result.errors }, { status: 400 });
+      await appendAudit(user.email || 'owner', 'provider-set-route', `${channel || 'workspace'}: ${capability} -> ${providerId} p${priority}`);
       return Response.json({ ok: true, action, channelId: channel ?? null, capability, providerId, priority, updated: result.updated });
     }
     const result = await routing.deactivateRoute({ channelId: channel, capability, providerId, actor: user.email || 'owner' });
     if (!result.ok) {
       return Response.json({ error: result.error === 'no_active_route' ? 'no active route for that provider' : 'invalid route', errors: result.errors }, { status: result.error === 'no_active_route' ? 404 : 400 });
     }
+    await appendAudit(user.email || 'owner', 'provider-deactivate-route', `${channel || 'workspace'}: ${capability} -x ${providerId}`);
     return Response.json({ ok: true, action, channelId: channel ?? null, capability, providerId });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 502 });

@@ -156,6 +156,8 @@ export default function TemplateAssignPanel({ slug }) {
   };
 
   const unassign = async (tid) => {
+    // admin-panel review #8: confirm before changing what the channel produces
+    if (!window.confirm(`Unassign template "${tid}" from ${slug}? The channel falls back to its normal engine path.`)) return;
     setBusy(tid);
     setMsg(null);
     try {

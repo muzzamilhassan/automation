@@ -1,6 +1,7 @@
 // Saves/updates the profile of a connected channel (label, niche, sub-niches, style,
 // voice, slots). Supports both wizard-added channels and existing living channels.
-import { requireRole } from '@/lib/route-auth';
+import { requireRole, getUser } from '@/lib/route-auth';
+import { appendAudit } from '@/lib/audit';
 import { readRegistry, upsertChannel } from '@/lib/channels-registry';
 import { STYLE_BY_ID } from '@/lib/styles-catalog';
 import { brands } from '@/lib/data.mjs';
@@ -214,6 +215,9 @@ export async function POST(req) {
 
   try {
     await upsertChannel(entry, `studio: profile for ${slug}`);
+    // admin-panel review #8: every mutating route leaves an audit row
+    const actor = (await getUser(req).catch(() => null))?.email || 'owner';
+    await appendAudit(actor, 'profile-save', `${slug}: ${Object.keys(body).filter((k) => k !== 'slug').join(',')}`);
     return Response.json({ ok: true, entry });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 502 });

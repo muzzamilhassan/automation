@@ -10,6 +10,7 @@ import { capabilityProviders, CAPABILITY_BASELINE } from '@/lib/provider-catalog
 import { TEMPLATES_DATA } from '@/lib/templates-catalog';
 import { REGISTRY_META } from '@/lib/template-registry.data';
 import { getRegistryDb } from '@/lib/template-registry-db';
+import { appendAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -111,6 +112,7 @@ export async function POST(req) {
     await db.ensureSchema();
     const result = await db.assignTemplate(channelId, templateId, pinnedMajor, user.email);
     if (!result.ok) return Response.json({ error: 'assign failed', errors: result.errors || [result.error] }, { status: 422 });
+    await appendAudit(user.email, 'template-assign', `${channelId}: ${templateId}${pinnedMajor != null ? ` (major ${pinnedMajor})` : ''}`);
     return Response.json(result);
   } catch (e) {
     return Response.json({ error: e.message }, { status: 502 });
@@ -136,6 +138,7 @@ export async function DELETE(req) {
       const status = result.error === 'no_active_assignment' ? 404 : 400;
       return Response.json({ error: result.error }, { status });
     }
+    await appendAudit(user.email, 'template-unassign', `${channelId}: ${templateId}`);
     return Response.json({ ok: true, channelId, templateId });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 502 });
