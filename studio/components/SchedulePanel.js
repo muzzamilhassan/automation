@@ -3,7 +3,7 @@
 // shorts source, live quota projection. Writes through /api/channels/schedule
 // (owner/staff); the engine reads yt-mcp/cadence.json (overlay merged last in
 // lib/brand-resolve.mjs).
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { CalendarDays, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import { Chip } from '@/components/ui';
@@ -67,18 +67,38 @@ export default function SchedulePanel({ slug, accent }) {
   const [modelWarnings, setModelWarnings] = useState([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
+  // Admin-panel review #3: a failed load used to fall back to an EMPTY
+  // schedule, and Save then wiped the channel's real days. Remember the
+  // failure, show it, and keep Save disabled until a successful (re)load.
+  const [loadError, setLoadError] = useState(null);
 
-  useEffect(() => {
+  // state is only set when the request settles (never synchronously in the effect)
+  const load = useCallback(() => {
     fetch(`/api/channels/schedule?slug=${encodeURIComponent(slug)}`)
-      .then((r) => r.json())
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+        return d;
+      })
       .then((d) => {
+        setLoadError(null);
         setSchedule(d.schedule || { docDays: [], shortDays: [], shortsSource: 'generated' });
         setServerProj(d.projection || null);
         setGateCron(d.gateCron || '');
         setModelWarnings(d.projection?.warnings || []);
       })
-      .catch(() => setSchedule({ docDays: [], shortDays: [], shortsSource: 'generated' }));
+      .catch((e) => {
+        setSchedule(null);
+        setLoadError(String(e.message || e));
+      });
   }, [slug]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const retry = () => {
+    setLoadError(null);
+    load();
+  };
 
   const draft = schedule || { docDays: [], shortDays: [], shortsSource: 'generated' };
   const proj = projection({ ...draft, ...deriveModelParams(serverProj) });
@@ -91,6 +111,7 @@ export default function SchedulePanel({ slug, accent }) {
     }));
 
   const save = async () => {
+    if (loadError || !schedule) return;
     setSaving(true);
     setMsg(null);
     try {
@@ -126,6 +147,14 @@ export default function SchedulePanel({ slug, accent }) {
           {proj.worstDayUnits}/{proj.budget} units worst day ({proj.pct}%)
         </Chip>
       </div>
+
+      {loadError ? (
+        <div role="alert" className="flex items-center gap-2 text-[12px] mb-3" style={{ color: 'var(--bad)' }}>
+          <AlertTriangle size={13} />
+          <span>Couldn&apos;t load this channel&apos;s schedule ({loadError}) — saving is disabled so nothing gets overwritten.</span>
+          <button type="button" className="underline" onClick={retry}>Retry</button>
+        </div>
+      ) : null}
 
       <div className="grid sm:grid-cols-2 gap-4 mb-3">
         <DayPicker label="Long-form days (docs/week)" days={draft.docDays} onToggle={toggleDay('docDays')} />
@@ -194,7 +223,7 @@ export default function SchedulePanel({ slug, accent }) {
         </p>
       ) : null}
 
-      <Button color="primary" onClick={save} isDisabled={saving || proj.blocked || !cronState.valid}>
+      <Button color="primary" onClick={save} isDisabled={saving || Boolean(loadError) || !schedule || proj.blocked || !cronState.valid}>
         {saving ? 'Saving…' : 'Save scheduling'}
       </Button>
     </div>
