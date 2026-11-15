@@ -45,6 +45,7 @@ outcome, the job terminal and a run-page annotation.
 | 4 | R4/R5/R7 | stub exit 4 → error recorded, job failed, `::warning` annotation, exit 0 | automated | same |
 | 5 | R6 | stub exit 7 → `exited status=7 signal=none after Ns`, ✗, job failed | automated | same |
 | 6 | — | stub exit 0 → ✓, succeeded (no regression) | automated | same |
+| 6b | R1 | REAL run of `post-next` on an off day (sandbox, no network) exits 3 — added after live run 43724498853 exited 1: `CLIP_EXIT` sat below the top-level `await postNext()` dispatch (TDZ ReferenceError); source pins could not see it | automated | `node --test tests/clips-archive.test.mjs` |
 | 7 | R3/R5 | next natural autopilot run that posts nothing shows the annotation on the Actions run page and the job row reads skipped/failed, not succeeded | manual | Actions run page + Studio jobs |
 
 ## Out of scope (item 7b, next)

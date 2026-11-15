@@ -46,6 +46,16 @@ const FFMPEG = process.env.FFMPEG_PATH || 'ffmpeg';
 // builder) must not read argv, resolve a brand or exit.
 const IS_MAIN = Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href;
 
+// post-next exit contract (audit 2026-11-13 #7) — channel-pipeline reads it:
+//   POSTED      a Short shipped (or was already shipped today / recovered)
+//   NOTHING_DUE nothing was due: off day, or queue consumed with a fresh doc
+//   NO_CLIP     a Short was due but none could be posted (empty+stale docs,
+//               exhausted queue, quota) — the pipeline records a failed day
+// Anything else = a failure. Declared ABOVE the top-level CLI dispatch: a
+// const read before its declaration line throws (TDZ) — live run 43724498853
+// exited 1 instead of 4 when this sat below `await postNext()`.
+export const CLIP_EXIT = Object.freeze({ POSTED: 0, NOTHING_DUE: 3, NO_CLIP: 4 });
+
 // CLI wiring — module-level lets so ensureQueue/postNext keep their closures;
 // only initialized when this file IS the script being run.
 let MODE = '', slug = null, localDir = null, maxArg = 3, archiveMode = false, b = null;
@@ -366,15 +376,6 @@ if (IS_MAIN) {
   else if (MODE === 'post-next') await postNext();
   else console.log('usage: node longvideo/shorts-clips.mjs ensure-queue <slug> | post-next <slug>');
 }
-
-// post-next exit contract (audit 2026-11-13 #7) — channel-pipeline reads it:
-//   POSTED      a Short shipped (or was already shipped today / recovered)
-//   NOTHING_DUE nothing was due: off day, or queue consumed with a fresh doc
-//   NO_CLIP     a Short was due but none could be posted (empty+stale docs,
-//               exhausted queue, quota) — the pipeline records a failed day
-// Anything else = a failure. Before, every one of these exited 0 and the
-// pipeline logged "✓ Clip Short processed" for days with no upload.
-export const CLIP_EXIT = Object.freeze({ POSTED: 0, NOTHING_DUE: 3, NO_CLIP: 4 });
 
 // ---------- post-next (#98): publish one queued clip ----------
 // Fail-closed: empty/exhausted queue = logged skip + ntfy alert, never a

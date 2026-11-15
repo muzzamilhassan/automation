@@ -376,3 +376,32 @@ describe('audit #7: post-next exit codes', () => {
     assert.match(src(), /process\.exit\(v\.status \?\? 1\)/);
   });
 });
+
+// Audit #7 follow-up (live run 43724498853): CLIP_EXIT was declared AFTER the
+// top-level `await postNext()` dispatch, so every coded exit threw a TDZ
+// ReferenceError and exited 1 ("Clip posting failed"). Source pins could not
+// see it — this test RUNS post-next for real (off day: no network needed).
+describe('audit #7 follow-up: post-next exit codes from a real run', () => {
+  test('off day -> exit 3 (NOTHING_DUE), not a crash', async () => {
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const { spawnSync } = await import('node:child_process');
+    const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'clips-exit-'));
+    try {
+      const DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const notToday = DAY[(new Date().getUTCDay() + 1) % 7];
+      fs.mkdirSync(path.join(sandbox, 'yt-mcp', 'state'), { recursive: true });
+      fs.writeFileSync(path.join(sandbox, 'yt-mcp', 'cadence.json'), JSON.stringify({ quotequarry: { shortDays: [notToday], shortsSource: 'clips' } }));
+      const script = new URL('../longvideo/shorts-clips.mjs', import.meta.url);
+      const r = spawnSync(process.execPath, [script.pathname.replace(/^\/([A-Za-z]:)/, '$1'), 'post-next', 'quotequarry'], {
+        cwd: sandbox, encoding: 'utf8', timeout: 60000,
+        env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, NTFY_TOPIC: '' },
+      });
+      assert.doesNotMatch(r.stderr || '', /before initialization/, 'no TDZ crash');
+      assert.match(r.stdout || '', /is not a short day/);
+      assert.equal(r.status, 3, `expected NOTHING_DUE (3), got ${r.status}: ${(r.stderr || '').slice(0, 200)}`);
+    } finally {
+      fs.rmSync(sandbox, { recursive: true, force: true });
+    }
+  });
+});
