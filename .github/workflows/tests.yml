@@ -50,6 +50,56 @@ jobs:
             await sendAlert({ title: 'CI tests failed on main', text: subject + '\n' + process.env.RUN_URL });
           "
 
+  # Secret scan of the PUSHED commits (free stand-in for GitHub secret scanning,
+  # which needs paid Secret Protection on a private personal repo). Scans only
+  # before..after — history holds known, already-flagged leaks that are fixed
+  # by revoking, not by code. Config: .gitleaks.toml. Binary pinned + checksum.
+  secrets:
+    name: 🔐 Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 📥 Checkout (full history for the push range)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📦 Install gitleaks 8.30.1 (sha256-pinned)
+        run: |
+          V=8.30.1
+          curl -sSfL -o gl.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${V}/gitleaks_${V}_linux_x64.tar.gz"
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gl.tgz" | sha256sum -c -
+          tar -xzf gl.tgz gitleaks && sudo mv gitleaks /usr/local/bin/gitleaks && gitleaks version
+
+      - name: 🔐 Scan the pushed commits
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            RANGE="${BEFORE}..HEAD"
+          else
+            RANGE="HEAD~1..HEAD"
+          fi
+          echo "scanning $RANGE"
+          gitleaks git --redact --no-banner --config .gitleaks.toml --log-opts="$RANGE" .
+
+      - name: ⚙️ Setup Node.js 24
+        if: failure()
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: 🔔 Alert on a leaked secret
+        if: failure()
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          node --input-type=module -e "
+            import { sendAlert } from './lib/ntfy-alert.mjs';
+            await sendAlert({ title: 'SECRET pushed to main - rotate it', text: 'gitleaks found a secret in the pushed commits (value redacted in the log). Rotate the credential first, then remove it.\n' + process.env.RUN_URL });
+          "
+
   brain:
     name: 🧠 Brain python tests
     runs-on: ubuntu-latest

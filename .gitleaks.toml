@@ -1,0 +1,16 @@
+# gitleaks config — CI secret scan (tests.yml `secrets` job), added 2026-11-15
+# (audit 2026-11-13 security-06: GitHub secret scanning is not available on a
+# free private personal repo; gitleaks is the free equivalent).
+#
+# Default ruleset, plus ONE narrow allowlist: the low-confidence
+# `generic-api-key` rule is silenced under tests/ only, where fixtures use
+# fake values ('test-…', 'fixture-…', 'rt-…'). High-confidence rules
+# (github-pat, huggingface-access-token, jwt, aws, stripe, …) still fire in
+# tests/ and everywhere else.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "fake fixture keys in unit tests (generic rule only)"
+targetRules = ["generic-api-key"]
+paths = ['''^tests/''']
