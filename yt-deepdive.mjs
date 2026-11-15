@@ -13,6 +13,7 @@ import { loadAllStates, saveChannelState } from './lib/state.mjs';
 import { isDocDay, docDaysOf } from './lib/doc-days.mjs';
 import { cuesFromWords, toSrt } from './lib/srt.mjs';
 import { nextCounter } from './lib/quota-ledger.mjs';
+import { shipExitCode } from './lib/ship-exit.mjs';
 import { EMBEDDED_FONTS_CSS } from './typography-poster-engine.mjs';
 import { getTopicClip } from './youtube-clips.mjs';
 import { pickApprovedTrack } from './music-engine.mjs';
@@ -1189,4 +1190,9 @@ if (GENERATE_ONLY) {
   process.exit(0);
 }
 
-await renderAndShipEpisode(script, { yt, auth, intents, longSeed, docTemplateId });
+// audit 2026-11-13 #6: exit explicitly — an open pooled DB connection kept the
+// process alive after a successful upload until the pipeline's 45-min kill.
+const shipped = await renderAndShipEpisode(script, { yt, auth, intents, longSeed, docTemplateId });
+const { closeDb } = await import('./studio/lib/db.mjs');
+await closeDb();
+process.exit(shipExitCode(shipped));
