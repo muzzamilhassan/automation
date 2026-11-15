@@ -945,7 +945,11 @@ describe('lane wiring (yt-daily / yt-deepdive / shorts-clips)', () => {
     assert.ok(s.includes('uploadWithIntent'));
     assert.ok(!/yt\.videos\.insert\s*\(/.test(s), 'no googleapis one-shot insert remains in yt-deepdive');
     assert.match(s, /deepdiveDate\s*=\s*today\(\)/, 'recovered/claimed doc marks the slot produced');
-    assert.match(s, /const docTitle = .*slice\(0, 95\)/, 'minor 7: the intent fingerprints the EXACT uploaded (sliced) title');
+    // minor 7: the intent fingerprints the EXACT uploaded title. Since
+    // 542eaa3 the length cap lives in docTitleFor (<=100, no mid-word cut).
+    assert.match(s, /const docTitle = docTitleFor\(/, 'minor 7: one computed doc title');
+    assert.match(s, /title: docTitle, jobId:/, 'minor 7: the intent fingerprints that exact title');
+    assert.match(s, /snippet: \{ title: docTitle,/, 'minor 7: the upload uses that exact title');
   });
 
   test('shorts-clips: publisher uploads via the shared two-step with kind short + slotIdx 0; recovered claims mark the queue entry posted', () => {
