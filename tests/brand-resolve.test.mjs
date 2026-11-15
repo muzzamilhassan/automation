@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveBrand, registryToKit } from '../lib/brand-resolve.mjs';
+import { resolveBrand, registryToKit, mergeBrand } from '../lib/brand-resolve.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -107,8 +107,89 @@ test('P5-T6 C1 round 1: bare rows fall back to the legacy accent, and the fabric
   assert.equal(bare.accent, '#3DDC97', 'no declared accent -> the legacy kit accent (never the fabricated default)');
   const noLegacy = registryToKit({ slug: 'stoic-path', label: 'STOIC PATH' });
   assert.equal(noLegacy.accent, undefined, 'no legacy kit -> registryToKit returns undefined (it does not fabricate)');
-  // the default moves to resolveBrand's pure-registry branch (no fixture seam —
-  // resolveBrand reads the live mirror — so this is a source pin, house style)
-  const src = fs.readFileSync(path.join(ROOT, 'lib/brand-resolve.mjs'), 'utf8');
-  assert.match(src, /accent: regEntry\.accent \|\| '#38BDF8'/, 'the pure-registry branch keeps the #38BDF8 default for genuinely new channels');
+  // the default lives only in the pure-registry branch (audit #5: now the
+  // pure mergeBrand seam, so this is behavioural instead of a source pin)
+  assert.equal(mergeBrand(null, noLegacy).accent, '#38BDF8', 'the pure-registry branch keeps the #38BDF8 default for genuinely new channels');
+  assert.equal(mergeBrand({ accent: '#3DDC97' }, noLegacy).accent, '#3DDC97', 'the default never reaches a legacy merge');
+});
+
+// ---------------------------------------------------------------------------
+// Audit 2026-11-13 #5 (content-growth-02 = scale-config-01). registryToKit
+// fabricated voice 'am_michael', slots ['22:35'], a generic script, bg/ink,
+// musicFeels, cpmTier and empty description/tagline; the legacy+registry merge
+// spreads the registry entry LAST, so every invented default beat the
+// hand-made kit — all 4 live channels spoke with one voice. Same rule as #101 /
+// P5-T6 C1: registryToKit never fabricates; defaults live only in the
+// pure-registry branch. Spec + QA: docs/qa/brand-resolve-defaults-qa.md.
+// ---------------------------------------------------------------------------
+import { bySlug } from '../yt-brands/brands.mjs';
+
+const LIVE4 = ['money-rulebook', 'quotequarry', 'investors-compass', 'debt-free-doctrine'];
+const registryRow = (slug) => JSON.parse(fs.readFileSync(path.join(ROOT, 'yt-mcp', 'studio-channels.json'), 'utf8')).channels.find((c) => c.slug === slug);
+
+test('#5 pilot pin: money-rulebook resolves its own voice and slot (bm_daniel @ 00:05), not the fabricated am_michael @ 22:35', () => {
+  const mr = resolveBrand('money-rulebook');
+  assert.equal(mr.voice, 'bm_daniel');
+  assert.deepEqual(mr.slots, ['00:05']);
+});
+
+test('#5 registryToKit never fabricates undeclared fields', () => {
+  const bare = registryToKit({ slug: 'stoic-path', label: 'STOIC PATH' });
+  for (const f of ['voice', 'slots', 'script', 'bg', 'ink', 'musicFeels', 'musicPool', 'description', 'tagline', 'hashtags', 'cpmTier', 'shortsSource']) {
+    assert.equal(bare[f], undefined, `${f} must be undefined when the registry row does not declare it`);
+  }
+});
+
+test('#5 registry kit.slots is a declared value (the Studio writes slots under kit)', () => {
+  assert.deepEqual(registryToKit({ slug: 'x', kit: { slots: ['21:20'] } }).slots, ['21:20']);
+  assert.deepEqual(registryToKit({ slug: 'x', slots: ['10:00'], kit: { slots: ['21:20'] } }).slots, ['10:00'], 'top-level slots still win');
+});
+
+test('#5 legacy channels keep every hand-tuned field the registry does not declare', () => {
+  for (const slug of LIVE4) {
+    const legacy = bySlug[slug];
+    const row = registryRow(slug);
+    const r = resolveBrand(slug);
+    assert.equal(r.voice, row.voice || row.kit?.voice || legacy.voice, `${slug} voice`);
+    assert.deepEqual(r.slots, row.slots?.length ? row.slots : (row.kit?.slots?.length ? row.kit.slots : legacy.slots), `${slug} slots`);
+    for (const f of ['script', 'bg', 'ink', 'musicFeels', 'tagline', 'cpmTier']) {
+      if (row.kit?.[f] === undefined) assert.deepEqual(r[f], legacy[f], `${slug} ${f} must be the legacy value`);
+    }
+    if (legacy.description && !row.kit?.description && !row.ytDescription) assert.equal(r.description, legacy.description, `${slug} description`);
+  }
+});
+
+test('#5 the four live channels no longer collapse onto one voice', () => {
+  const voices = new Set(LIVE4.map((s) => resolveBrand(s).voice));
+  assert.ok(voices.size > 1, `expected distinct per-channel voices, got ${[...voices]}`);
+  assert.equal([...voices].includes('am_michael') && voices.size === 1, false);
+});
+
+test('#5 a pure-registry channel (no legacy kit) still gets complete engine defaults', () => {
+  const kit = mergeBrand(null, registryToKit({ slug: 'brand-new', label: 'BRAND NEW', niche: 'Gardening' }));
+  assert.equal(kit.voice, 'am_michael');
+  assert.deepEqual(kit.slots, ['22:35']);
+  assert.equal(kit.script.targetSeconds, 32);
+  assert.equal(kit.bg, '#0A0A0E');
+  assert.equal(kit.ink, '#F5F7FA');
+  assert.deepEqual(kit.musicFeels, ['inspir', 'calming']);
+  assert.equal(kit.shortsSource, 'generated');
+  assert.equal(kit.accent, '#38BDF8');
+  assert.equal(kit.cpmTier, 'registry channel');
+  assert.equal(kit.description, '');
+  // declared values still beat the defaults
+  const declared = mergeBrand(null, registryToKit({ slug: 'b', voice: 'bm_lewis', kit: { slots: ['09:00'], bg: '#111111' } }));
+  assert.equal(declared.voice, 'bm_lewis');
+  assert.deepEqual(declared.slots, ['09:00']);
+  assert.equal(declared.bg, '#111111');
+});
+
+test('#5 mergeBrand: an undefined registry field never erases a legacy value (spread-undefined trap)', () => {
+  const legacy = { slug: 'l', voice: 'bm_daniel', slots: ['00:05'], bg: '#101314', tagline: 'Rules beat motivation.' };
+  const merged = mergeBrand(legacy, registryToKit({ slug: 'l', label: 'L' }));
+  assert.equal(merged.voice, 'bm_daniel');
+  assert.deepEqual(merged.slots, ['00:05']);
+  assert.equal(merged.bg, '#101314');
+  assert.equal(merged.tagline, 'Rules beat motivation.');
+  assert.equal(merged.fromRegistry, true);
 });
