@@ -1,0 +1,111 @@
+name: 🗄️ Neon nightly backup (encrypted, restore-verified)
+
+# Step C0 of docs/superpowers/specs/2026-11-16-neon-single-source-of-truth-design.md.
+# Once Neon is the single source of truth, losing it = losing everything, so:
+#   1. pg_dump over the DIRECT (non-pooler) host, consistent snapshot
+#   2. RESTORE it into a throwaway Postgres 18 + pgvector service container and
+#      compare every table's row count with the live DB (scripts/db-backup-verify.mjs)
+#   3. encrypt with the owner's age PUBLIC key (CI can lock, never unlock — the
+#      private key lives only on the owner's machine) and delete the plaintext
+#   4. store as a GitHub Release asset (outside the 500 MB artifact quota),
+#      keep 30 days (owner decision 2026-11-16), alert on any failure
+# Restore runbook: docs/runbooks/db-restore.md
+
+on:
+  schedule:
+    - cron: '40 4 * * *' # after the 02:13–04:05 UTC channel slots
+  workflow_dispatch:
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+permissions:
+  contents: write # release assets
+
+jobs:
+  backup:
+    name: 🗄️ Dump → verify by restore → encrypt → store
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      pg:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_PASSWORD: restore
+          POSTGRES_DB: restore_check
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      AGE_RECIPIENT: age1gpffacrsmrxanq5snz5vc7qvvrhd9whvdaq7274nw4y6n7efxpssp2harz
+      PGTOOLS: pgvector/pgvector:pg18
+      RELEASE_TAG: db-backups
+      # exact row count of every public table, as one JSON object
+      COUNTS_SQL: >-
+        SELECT coalesce(json_object_agg(table_name, (xpath('/row/c/text()',
+        query_to_xml(format('select count(*) as c from %I.%I', table_schema, table_name),
+        false, true, '')))[1]::text::bigint), '{}')
+        FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: 📤 Dump (direct host, consistent snapshot)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          DIRECT=$(node -e 'const u = new URL(process.env.DATABASE_URL); u.hostname = u.hostname.replace("-pooler", ""); console.log(u.toString())')
+          echo "::add-mask::$DIRECT"
+          mkdir -p work
+          docker run --rm --network host "$PGTOOLS" psql "$DIRECT" -At -c "$COUNTS_SQL" > work/source.json
+          docker run --rm --network host -v "$PWD/work:/work" "$PGTOOLS" \
+            pg_dump "$DIRECT" -Fc --no-owner --no-privileges -f /work/neon.dump
+          echo "dump: $(du -h work/neon.dump | cut -f1), live tables: $(node -e 'console.log(Object.keys(JSON.parse(require("fs").readFileSync("work/source.json","utf8"))).length)')"
+
+      - name: 🔁 Verify by restoring into a throwaway Postgres
+        run: |
+          docker run --rm --network host -e PGPASSWORD=restore -v "$PWD/work:/work" "$PGTOOLS" \
+            pg_restore -h 127.0.0.1 -U postgres -d restore_check --no-owner --no-privileges --exit-on-error /work/neon.dump
+          docker run --rm --network host -e PGPASSWORD=restore "$PGTOOLS" \
+            psql -h 127.0.0.1 -U postgres -d restore_check -At -c "$COUNTS_SQL" > work/restored.json
+          node scripts/db-backup-verify.mjs counts work/source.json work/restored.json
+
+      - name: 🔐 Encrypt (public key only — CI cannot decrypt)
+        run: |
+          sudo apt-get install -y -qq age >/dev/null
+          NAME="neon-$(date -u +%F).dump.age"
+          age -r "$AGE_RECIPIENT" -o "work/$NAME" work/neon.dump
+          rm -f work/neon.dump
+          echo "NAME=$NAME" >> "$GITHUB_ENV"
+          echo "encrypted: $(du -h "work/$NAME" | cut -f1)"
+
+      - name: 📦 Store as a release asset, keep 30 days
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || gh release create "$RELEASE_TAG" --latest=false \
+            --title "Neon backups (age-encrypted)" \
+            --notes "Nightly encrypted Neon dumps. Restore: docs/runbooks/db-restore.md. Needs the owner's private age key."
+          gh release upload "$RELEASE_TAG" "work/$NAME" --clobber
+          gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' \
+            | node scripts/db-backup-verify.mjs prune "$(date -u +%F)" --keep-days 30 \
+            | while read -r old; do gh release delete-asset "$RELEASE_TAG" "$old" -y && echo "pruned $old"; done
+
+      - name: 🔔 Alert on failure
+        if: failure()
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          node --input-type=module -e "
+            import { sendAlert } from './lib/ntfy-alert.mjs';
+            await sendAlert({ title: 'Neon backup FAILED', text: 'The nightly database backup did not complete (dump, restore check, encrypt or upload).\n' + process.env.RUN_URL });
+          "
