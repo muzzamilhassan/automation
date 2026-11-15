@@ -139,3 +139,10 @@ test('the workflow declares the heartbeat input and wires it into the discover e
   const step = wf.jobs.discover.steps.find((s) => s.id === 'disc');
   assert.equal(step.env.INPUT_HEARTBEAT, '${{ inputs.heartbeat }}');
 });
+
+test('cost: the 48x/day discover job runs on the 1-vCPU ubuntu-slim runner; produce stays on ubuntu-latest', () => {
+  const wf = yaml.load(fs.readFileSync(WF, 'utf8'));
+  assert.equal(wf.jobs.discover['runs-on'], 'ubuntu-slim');
+  assert.ok(wf.jobs.discover['timeout-minutes'] <= 15, 'ubuntu-slim jobs are capped at 15 min');
+  assert.equal(wf.jobs.produce['runs-on'], 'ubuntu-latest', 'rendering needs the full runner');
+});

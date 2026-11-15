@@ -57,7 +57,10 @@ permissions:
 
 jobs:
   discover:
-    runs-on: ubuntu-latest
+    # 1-vCPU runner ($0.002/min vs $0.006): discover only reads JSON, and with an
+    # external 30-min clock it runs 48x/day — each job bills at least 1 minute.
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
     outputs:
       channels: ${{ steps.disc.outputs.channels }}
     steps:
