@@ -38,6 +38,9 @@ export async function GET(req) {
   const id = searchParams.get('id') || 'clean';
   const accent = searchParams.get('accent') || '#E8C15A';
   const shade = searchParams.get('shade') || '#0A1128';
+  // public route — colours interpolate into SVG attrs (audit 2026-11-13 #2)
+  const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+  if (!HEX_COLOR.test(accent) || !HEX_COLOR.test(shade)) return Response.json({ error: 'accent/shade must be #RRGGBB' }, { status: 400 });
 
   const sample = SAMPLES[id] || {
     title: (id.replace(/^v2\//, '').replace(/-/g, ' ').toUpperCase() + ' // PREVIEW').slice(0, 32),

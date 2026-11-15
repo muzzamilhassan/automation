@@ -38,6 +38,25 @@ function font(name) {
 export const escapeXml = (s) =>
   String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 
+// Audit 2026-11-13 #2 (security-02): colours and image hrefs are interpolated
+// raw into SVG attributes, and the SVG is rasterised by sharp/librsvg. Every
+// render entry point (buildThumbSvg, renderV2) runs opts through
+// safeThumbOpts, so a route that forgets to validate still cannot inject.
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+const SAFE_IMAGE_DATA_URL = /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/;
+
+export const isSafeImageDataUrl = (s) => typeof s === 'string' && SAFE_IMAGE_DATA_URL.test(s);
+
+// Invalid colours become undefined (each renderer then applies its own default);
+// invalid image hrefs become '' (no image). Text fields are drawn as glyph
+// paths, never as raw SVG text, so they need no escaping here.
+export function safeThumbOpts(opts = {}) {
+  const o = { ...(opts || {}) };
+  for (const k of ['accent', 'shade']) if (!HEX_COLOR.test(String(o[k] ?? ''))) o[k] = undefined;
+  for (const k of ['photoHref', 'faceImage']) if (o[k] && !isSafeImageDataUrl(o[k])) o[k] = '';
+  return o;
+}
+
 const adv = (f, text, size, spacing = 0) =>
   f.getAdvanceWidth(text, size) + Math.max(0, text.length - 1) * spacing;
 
@@ -833,8 +852,9 @@ export const TEMPLATES = {
   map: { label: 'Map Strategy', desc: 'Dark map, glowing routes, markers', category: 'ai', needsPhoto: false, render: rMap, aiPreset: 'dark world map, glowing cyan route lines and city markers, top-down, strategic, no text' },
 };
 
-export function buildThumbSvg(template, opts) {
+export function buildThumbSvg(template, rawOpts) {
   const t = TEMPLATES[template] || TEMPLATES.clean;
+  const opts = safeThumbOpts(rawOpts);
   const o = {
     title: String(opts.title || 'Untitled story').trim(),
     accent: opts.accent || '#E8C15A',

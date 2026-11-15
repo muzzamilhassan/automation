@@ -5,7 +5,7 @@
 import sharp from 'sharp';
 import { getUser } from '@/lib/route-auth';
 import { isAllowedPhotoUrl } from '@/lib/photo-url';
-import { buildThumbSvg, wrapForTemplate, pickAccentWord, TEMPLATES } from '@/lib/thumb-templates';
+import { buildThumbSvg, wrapForTemplate, pickAccentWord, TEMPLATES, isSafeImageDataUrl } from '@/lib/thumb-templates';
 import { renderV2ById, isV2Template, v2NeedsPhoto } from '@/lib/thumb-templates-v2';
 
 export const dynamic = 'force-dynamic';
@@ -23,7 +23,9 @@ export async function POST(req) {
     if (!HEX_COLOR.test(accent) || !HEX_COLOR.test(shade)) return Response.json({ error: 'accent/shade must be #RRGGBB' }, { status: 400 });
 
     let photoHref = '';
-    if (photoDataUrl && photoDataUrl.startsWith('data:image/')) {
+    if (photoDataUrl) {
+      // uploads: base64 jpeg/png/webp only — no SVG into librsvg (audit 2026-11-13 #2)
+      if (!isSafeImageDataUrl(photoDataUrl)) return Response.json({ error: 'upload must be a JPEG, PNG or WebP image' }, { status: 400 });
       photoHref = photoDataUrl;
     } else if (photoUrl) {
       if (!isAllowedPhotoUrl(photoUrl)) return Response.json({ error: 'photo must be a Pexels image URL' }, { status: 400 });

@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import opentype from 'opentype.js';
-import { wrapByWidth, escapeXml, pickAccentWord } from './thumb-templates.js';
+import { wrapByWidth, escapeXml, pickAccentWord, safeThumbOpts } from './thumb-templates.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 // resolution order covers every font the catalog uses
@@ -179,9 +179,10 @@ function specById(id) {
 }
 
 // ---- the renderer ----
-export function renderV2(id, opts = {}) {
+export function renderV2(id, rawOpts = {}) {
   const spec = specById(id);
   if (!spec) throw new Error(`v2 template not found: ${id}`);
+  const opts = safeThumbOpts(rawOpts); // audit 2026-11-13 #2: raw attrs → only safe colours / image dataURLs
   const o = {
     title: String(opts.title || 'Untitled story').trim(),
     accent: opts.accent || null,          // brand accent overrides highlight/underline color when set
