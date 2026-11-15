@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { authToken } from '@/lib/auth-token';
 import { parseSessionCookie } from '@/lib/session';
+import { isPublicPath } from '@/lib/public-paths';
 
 // 10-08 ROLE-BASED ACCESS — the site's front door.
 // Identity: qs_session (signed per-person, Google or password login) OR the
@@ -17,24 +18,7 @@ export default async function proxy(req) {
   if (!password && !process.env.VERCEL) return NextResponse.next();
 
   const { pathname } = req.nextUrl;
-  const isPublic =
-    pathname === '/login' ||
-    pathname === '/api/login' ||
-    pathname === '/api/logout' ||
-    pathname === '/api/oauth/callback' || // self-authenticating (signed link / session)
-    pathname.startsWith('/api/auth/google/') ||
-    pathname === '/api/thumbs/demo' ||
-    pathname === '/api/thumbs/templates' ||
-    pathname === '/api/thumbs/registry' ||
-    pathname === '/api/thumbs/preview' ||
-    pathname === '/api/thumbs/videos' ||
-    pathname === '/api/thumbs/photos' ||
-    pathname.startsWith('/api/template-previews/') ||
-    pathname.startsWith('/api/templates/preview') ||
-    pathname === '/proof' || // public sales page (stats only, no revenue data)
-    pathname === '/api/proof' ||
-    pathname === '/client'; // DFY client workspace (page gate itself; APIs still auth)
-  if (isPublic) return NextResponse.next();
+  if (isPublicPath(pathname)) return NextResponse.next();
 
   // resolve the role
   let role = null;

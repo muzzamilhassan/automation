@@ -1,15 +1,20 @@
-// Thumbnail Studio — live preview render. Owner/staff only (proxy gates too).
-// Stateless: photo comes in as a URL (fetched server-side) or a dataURL,
-// render happens in-process via sharp, JPEG goes back as a dataURL.
+// Thumbnail Studio — live preview render. Any signed-in Studio role the proxy
+// lets onto /thumbs (owner/staff/client). Stateless: photo comes in as a
+// Pexels URL (fetched server-side, host-allowlisted, no redirects) or a
+// dataURL; render happens in-process via sharp, JPEG goes back as a dataURL.
 import sharp from 'sharp';
 import { getUser } from '@/lib/route-auth';
+import { isAllowedPhotoUrl } from '@/lib/photo-url';
 import { buildThumbSvg, wrapForTemplate, pickAccentWord, TEMPLATES } from '@/lib/thumb-templates';
 import { renderV2ById, isV2Template, v2NeedsPhoto } from '@/lib/thumb-templates-v2';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req) {
-  // Allow thumbnail preview generation across all studio sessions
+  // audit 2026-11-13 #1: e9ef6d2 dropped this check — anonymous callers could
+  // drive a server-side fetch + sharp render. Every signed-in role may preview.
+  const user = await getUser(req);
+  if (!user) return Response.json({ error: 'not signed in' }, { status: 401 });
   try {
     const body = await req.json().catch(() => ({}));
     const { template = 'clean', title = '', accentWord = '', accent = '#E8C15A', chip = '', eyebrow = '', shade = '#0A1128', brand = '', photoUrl = '', photoDataUrl = '' } = body || {};
@@ -20,8 +25,9 @@ export async function POST(req) {
     let photoHref = '';
     if (photoDataUrl && photoDataUrl.startsWith('data:image/')) {
       photoHref = photoDataUrl;
-    } else if (photoUrl && /^https:\/\//.test(photoUrl)) {
-      const r = await fetch(photoUrl, { signal: AbortSignal.timeout(12000) });
+    } else if (photoUrl) {
+      if (!isAllowedPhotoUrl(photoUrl)) return Response.json({ error: 'photo must be a Pexels image URL' }, { status: 400 });
+      const r = await fetch(photoUrl, { redirect: 'error', signal: AbortSignal.timeout(12000) });
       if (!r.ok) return Response.json({ error: `photo fetch failed: HTTP ${r.status}` }, { status: 400 });
       const buf = Buffer.from(await r.arrayBuffer());
       if (buf.length > 12 * 1024 * 1024) return Response.json({ error: 'photo too large' }, { status: 400 });
