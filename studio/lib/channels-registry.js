@@ -173,11 +173,47 @@ export async function readRegistry() {
   return readRegistryRepo();
 }
 
-// keeps the engine's discovery file in sync with the DB truth
-async function syncRegistryRepo(entries, message) {
+// Audit 2026-11-13 #8 — pure guard for the DB → repo sync. The engine feed
+// (yt-mcp/studio-channels.json) used to be rewritten from rowToEntry
+// projections of EVERY Neon row: no top-level cron, `active` recomputed from
+// token columns that live Neon does not carry (all 13 rows → false),
+// tokenSecretSaved false, tokenEnc projected into git — one connect/profile
+// save would have switched off all four live channels. Now a write for
+// channel X changes only X's entry:
+//   - other repo entries are left byte-identical; no other Neon rows are added
+//   - an existing entry keeps the repo's cron (else kit.gateCron), active and
+//     tokenSecretSaved; the DB can still PARK (status parked/paused) but a
+//     sync never un-parks
+//   - tokenEnc is never written to the repo
+export function mergeRegistrySync(repoChannels, dbEntry) {
+  const channels = Array.isArray(repoChannels) ? repoChannels : [];
+  if (!dbEntry?.slug) return channels;
+  const { tokenEnc: _dropped, ...fromDb } = dbEntry;
+  const existing = channels.find((c) => c.slug === dbEntry.slug);
+  const parkedInDb = dbEntry.status === 'parked' || dbEntry.status === 'paused';
+  const cron = existing?.cron || dbEntry.kit?.gateCron || undefined;
+  const merged = existing
+    ? {
+      ...existing,
+      ...fromDb,
+      ...(cron ? { cron } : {}),
+      active: parkedInDb ? false : existing.active !== false,
+      tokenSecretSaved: Boolean(existing.tokenSecretSaved || dbEntry.tokenSecretSaved),
+    }
+    : { ...fromDb, ...(cron ? { cron } : {}) };
+  const out = channels.filter((c) => c.slug !== dbEntry.slug);
+  out.push(merged);
+  return out.sort((a, b) => a.slug.localeCompare(b.slug));
+}
+
+// keeps the engine's discovery file in sync with the DB truth — for ONE slug
+async function syncRegistryRepo(slug, dbEntry, message) {
   if (CLOUD || dbReady) {
     try {
-      await writeRepoJSON(REG_PATH, { channels: entries }, message || 'registry sync (db → repo)');
+      if (!dbEntry) return;
+      const repo = await readRegistryRepo();
+      const channels = mergeRegistrySync(repo?.channels || [], dbEntry);
+      await writeRepoJSON(REG_PATH, { channels }, message || `registry sync (db → repo): ${slug}`);
     } catch (e) {
       console.error('[registry] repo sync failed:', String(e.message).slice(0, 100));
     }
@@ -230,7 +266,7 @@ export async function upsertChannel(entry, message) {
           consent = COALESCE(EXCLUDED.consent, channels.consent),
           autopilot_started_at = COALESCE(EXCLUDED.autopilot_started_at, channels.autopilot_started_at)`;
       const reg = await readRegistry();
-      await syncRegistryRepo(reg.channels, message || `studio: connect channel ${entry.slug}`);
+      await syncRegistryRepo(entry.slug, (reg.channels || []).find((c) => c.slug === entry.slug), message || `studio: connect channel ${entry.slug}`);
       return { ok: true, mode: 'db' };
     } catch (e) {
       console.error('[registry] db upsert failed — repo fallback:', String(e.message).slice(0, 100));
