@@ -14,6 +14,7 @@ import { isDocDay, docDaysOf, isDocDue, mostRecentDocDay } from './lib/doc-days.
 import { cuesFromWords, toSrt } from './lib/srt.mjs';
 import { nextCounter } from './lib/quota-ledger.mjs';
 import { shipExitCode } from './lib/ship-exit.mjs';
+import { docTitleFor } from './lib/titles.mjs';
 import { EMBEDDED_FONTS_CSS } from './typography-poster-engine.mjs';
 import { getTopicClip } from './youtube-clips.mjs';
 import { pickApprovedTrack } from './music-engine.mjs';
@@ -767,7 +768,7 @@ async function shipEpisode(script, { yt, auth, intents, longSeed = null, reviewS
   // INSERT mutex), session URI persisted before the first byte, videoId on 201.
   // Minor 7: the intent fingerprints the EXACT uploaded title (sliced, as the
   // resource sends it) so recovery matches the live playlist byte-for-byte.
-  const docTitle = `${script.title} | ${b.authority}`.slice(0, 95);
+  const docTitle = docTitleFor(script.title, b.authority); // <=100 chars, never cut mid-word
   const up = await uploadWithIntent({
     store: intents, channelId: slug, slotDate: today(), kind: 'doc', slotIdx: 0,
     title: docTitle, jobId: process.env.PIPELINE_JOB_ID || null,
@@ -842,7 +843,7 @@ async function shipEpisode(script, { yt, auth, intents, longSeed = null, reviewS
   // #105: narration text rides along in state (intro + chapters + outro) — the
   // pipeline embeds it into the Brain at publish time (AC-P3-2: upload accepted
   // first, so videoId is real here; the dup gate above exits without this write).
-  st[slug].deepdiveVideo = { videoId, publishAt, title: `${script.title} | ${b.authority}`, text: [script.intro, ...(script.chapters || []).map((c) => c?.text || ''), script.outro].filter(Boolean).join('\n\n') };
+  st[slug].deepdiveVideo = { videoId, publishAt, title: docTitle, text: [script.intro, ...(script.chapters || []).map((c) => c?.text || ''), script.outro].filter(Boolean).join('\n\n') };
   // #99 shared-pool ledger: count this successful upload against the daily budget
   st[slug].uploadsToday = nextCounter(st[slug].uploadsToday);
   saveChannelState(slug, st[slug]);
@@ -852,7 +853,7 @@ async function shipEpisode(script, { yt, auth, intents, longSeed = null, reviewS
   fs.mkdirSync(`fb-outbox/${slug}`, { recursive: true });
   const stamp = `ep-${Date.now()}`;
   fs.copyFileSync(final, `fb-outbox/${slug}/${stamp}.mp4`);
-  fs.writeFileSync(`fb-outbox/${slug}/${stamp}.json`, JSON.stringify({ videoFile: `fb-outbox/${slug}/${stamp}.mp4`, publishAt, title: `${script.title} | ${b.authority}`, description, slug, kind: 'episode' }, null, 2));
+  fs.writeFileSync(`fb-outbox/${slug}/${stamp}.json`, JSON.stringify({ videoFile: `fb-outbox/${slug}/${stamp}.mp4`, publishAt, title: docTitle, description, slug, kind: 'episode' }, null, 2));
 
   for (const f of cleanupFiles) fs.rmSync(f, { force: true });
   console.log(`\n✅ ${b.label} EPISODE scheduled: https://youtube.com/watch?v=${videoId} → public ${publishAt} (${(total / 60).toFixed(1)} min) + FB/IG outbox`);
