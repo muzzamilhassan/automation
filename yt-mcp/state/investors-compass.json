@@ -7,17 +7,18 @@
   ],
   "lastVideos": [
     {
-      "videoId": "7tMm_-uCyJs",
-      "publishAt": "2026-10-28T22:35:00Z",
-      "title": "How $10k Became $4 Million With Compounding"
+      "videoId": "e2miuKwZB1E",
+      "publishAt": "2026-11-15T23:35:00Z",
+      "title": "300% Surge Then Crash: The Risk‑Free Illusion"
     }
   ],
   "imageDate": "2026-10-17",
-  "deepdiveDate": "2026-10-28",
+  "deepdiveDate": "2026-11-15",
   "deepdiveVideo": {
-    "videoId": "yD40Gm3865c",
-    "publishAt": "2026-10-28T21:30:00Z",
-    "title": "The Hidden Mechanics Behind Real Wealth | Investing psychology & market wisdom Wisdom"
+    "videoId": "iGZCplBBDtA",
+    "publishAt": "2026-11-15T21:30:00Z",
+    "title": "The Illusion of a ‘Risk‑Free’ Trade: What Buffett Would Never Do | Investing psychology & market wisdom Wisdom",
+    "text": "Every trader chases the myth of a zero‑risk play, but the market punishes complacency. In this episode we peel back the hype to reveal the hard‑won rules that Warren Buffett lives by.\n\nPicture a bright‑light ad promising a guaranteed return with no downside. It’s the modern version of a street magician’s trick, and it lures both novices and seasoned traders alike. Buffett’s first rule—\"Never depend on a single idea for your livelihood\"—reminds us that diversification is the antidote to this illusion. We’ll dissect a recent “risk‑free” crypto arbitrage scheme that promised 15% weekly returns, only to collapse when the exchange froze withdrawals, wiping out 70% of participants’ capital. The episode shows how the promise of safety masks hidden counter‑party risk, and why a diversified portfolio, even a modest one, would have insulated those investors from total loss.\n\nBuffett’s second rule is crystal clear: \"Invest in businesses with durable competitive advantages.\" A viral reel recently touted a penny‑stock with a patented algorithm as a risk‑free income stream. We follow the company’s rise—its price spiking 300% in two weeks—then its sudden delisting after a lawsuit exposed a flimsy patent. The narrative illustrates how a lack of economic moat makes any “guaranteed” return a house of cards. By comparing the stock’s beta of 2.8 to the S&P’s 1.0, we reveal the hidden volatility that the hype ignored, and we demonstrate how a moat‑protected stock like Coca‑Cola would have delivered stable, modest returns instead of catastrophic loss.\n\nBuffett warns, \"Leverage is a double‑edged sword; it magnifies both profit and loss.\" A trending TikTok challenge encouraged viewers to use 5x leverage on a trending meme‑stock, promising a \"risk‑free\" upside. Within days, a 12% market correction triggered automatic liquidations, erasing half the account balances. We break down the math: a $10,000 margin deposit becomes a $50,000 position; a 12% dip translates to a $6,000 loss, wiping 60% of the original capital. The episode underscores Buffett’s rule that “the most important thing is to preserve capital,” and shows how disciplined position sizing could have saved those traders from ruin.\n\nBuffett’s third rule: \"Your best investment is in yourself – your own education and discipline.\" A viral AI‑driven trading bot claimed zero‑risk returns by learning market patterns in real time. Early adopters saw a 20% surge, but the bot’s model over‑fitted to a short‑term rally and crashed when volatility spiked. We interview the bot’s creator, who admits the algorithm lacked stress‑testing against market shocks. By juxtaposing this with Buffett’s habit of reading annual reports and staying patient, we reveal how emotional discipline—resisting the urge to chase fleeting AI hype—protects investors from systemic failures.\n\nBuffett famously said, \"Never depend on a single source of income; always look at the net return after costs.\" A recent “risk‑free” ETF advertised zero expense ratios, but the fine print revealed hidden transaction fees and a bid‑ask spread that averaged 0.4% daily. Over a month, that cost eroded 12% of the purported gains, turning a 5% headline return into a net loss. We calculate the compounding effect of these hidden costs and compare them to a low‑cost index fund that, after fees, delivered a steady 0.8% monthly return. The lesson? Scrutinize the fee structure; true risk‑free returns are a myth once costs are accounted for.\n\nBuffet’s fourth rule: \"Only buy what you understand.\" A viral short‑form video promoted a newly listed fintech startup as a risk‑free dividend play, ignoring its pending SEC investigation for misleading disclosures. When the SEC issued a cease‑and‑desist order, the stock plunged 65% overnight. We trace the timeline of the regulatory filing, the market’s reaction, and the investors’ losses. By contrasting this with Buffett’s practice of investing in companies with transparent governance, we highlight how regulatory uncertainty can instantly nullify any promised safety net.\n\nBuffett’s fifth rule stresses, \"Be fearful when others are greedy and greedy when others are fearful.\" The viral hype around a “risk‑free” high‑yield savings account exploited this by offering 8% APY, far above FDIC‑insured rates. The catch? The platform was a peer‑to‑peer loan marketplace with no insurance. When default rates rose, the platform froze withdrawals, leaving investors stranded. We dive into behavioral finance studies showing how the lure of free money triggers loss‑aversion bias, causing irrational risk‑taking. By applying Buffett’s contrarian mindset, we illustrate how stepping back and questioning the crowd can prevent such traps.\n\nBuffett’s final rule: \"Never lose money; the rest is just details.\" We synthesize the previous chapters into a concrete, eight‑step portfolio framework: diversification across sectors, moat‑focused holdings, zero leverage, disciplined fee awareness, regulatory vetting, psychological self‑checks, and continuous education. Using real‑world data, we back‑test a model portfolio that includes Berkshire Hathaway, a low‑cost S&P ETF, and a small allocation to cash equivalents. Over the past five years, this portfolio outperformed the “risk‑free” hype by 4.2% annualized while experiencing half the drawdown. The payoff? A tangible blueprint that transforms hype into resilient, long‑term wealth.\n\nIf you’re ready to cut through the hype and invest with Buffett’s timeless rules, hit subscribe and join the Investor’s Compass community. Stay sharp, stay disciplined, and keep navigating toward real, risk‑adjusted returns."
   },
   "healedDate": "2026-10-17",
   "healedCount": 1,
@@ -92,6 +93,10 @@
     {
       "t": "How $10k Became $4 Million With Compounding",
       "at": "2026-10-28T22:35:00Z"
+    },
+    {
+      "t": "300% Surge Then Crash: The Risk‑Free Illusion",
+      "at": "2026-11-15T23:35:00Z"
     }
   ],
   "cooldownSeeds": [
@@ -99,27 +104,70 @@
     "Still Waiting For the Market Crash? Watch This Right Now | Weekend Investing | Alok Jain"
   ],
   "uploadsToday": {
-    "date": "2026-10-28",
+    "date": "2026-11-15",
     "count": 2
   },
   "usedLongSeeds": [
-    "The 3 Secrets to Building Wealth"
+    "The 3 Secrets to Building Wealth",
+    "risk free 👍 #viral #viralreels #trending #Mindset #Discipline"
   ],
   "todayTopic": {
-    "at": "2026-10-28",
-    "topic": "The 3 Secrets to Building Wealth"
+    "at": "2026-11-15",
+    "topic": "risk free 👍 #viral #viralreels #trending #Mindset #Discipline"
   },
   "clipQueue": {
-    "lastRunId": "local-1793178354288",
+    "lastRunId": "local-1794755374545",
     "doneRuns": [
-      "local-1793178354288"
+      "local-1793178354288",
+      "local-1794755374545"
     ],
-    "clips": []
+    "docTitle": "The Illusion of a ‘Risk‑Free’ Trade: What Buffett Would Never Do | Investing psychology & market wisdom Wisdom",
+    "createdAt": "2026-11-15T15:15:24.677Z",
+    "local": true,
+    "clips": [
+      {
+        "part": 1,
+        "title": "300% Surge Then Crash: The Risk‑Free Illusion",
+        "asset": "clip-01.mp4",
+        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/751386501",
+        "startSec": 56.3,
+        "durSec": 22.6,
+        "file": "tt-lf/clipfeed-investors-compass/clips/clip-01.mp4",
+        "postedAt": "2026-11-15T15:15:30.031Z"
+      },
+      {
+        "part": 2,
+        "title": "5x Leverage = 60% Loss in One Dip",
+        "asset": "clip-02.mp4",
+        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/751386566",
+        "startSec": 112.7,
+        "durSec": 20.5,
+        "file": "tt-lf/clipfeed-investors-compass/clips/clip-02.mp4"
+      },
+      {
+        "part": 3,
+        "title": "Zero‑Fee ETF? Hidden Costs Eat Your Returns",
+        "asset": "clip-03.mp4",
+        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/751386600",
+        "startSec": 183,
+        "durSec": 23.1,
+        "file": "tt-lf/clipfeed-investors-compass/clips/clip-03.mp4"
+      },
+      {
+        "part": 4,
+        "title": "Beat the ‘Risk‑Free’ Hype: +4.2% Annual Returns",
+        "asset": "clip-04.mp4",
+        "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/751386624",
+        "startSec": 327.3,
+        "durSec": 20.4,
+        "file": "tt-lf/clipfeed-investors-compass/clips/clip-04.mp4"
+      }
+    ]
   },
-  "clipLastPostDate": "2026-10-28",
+  "clipLastPostDate": "2026-11-15",
   "reviewGate": {
     "assigned": false,
     "gated": false,
-    "checkedAt": "2026-11-14T23:58:02.087Z"
+    "checkedAt": "2026-11-15T14:29:56.378Z"
   }
 }
