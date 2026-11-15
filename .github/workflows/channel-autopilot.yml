@@ -41,6 +41,14 @@ on:
         description: "job_id to resume (review-queue approval — the held job's id; blank = fresh run)"
         required: false
         default: ""
+      # External clock (cron-job.org, audit #10): GitHub's own cron drops most
+      # ticks. heartbeat=1 makes a dispatch slot-gated EXACTLY like the
+      # schedule event — never send a blank dispatch from a clock (blank =
+      # every channel, every tick).
+      heartbeat:
+        description: "1 = external scheduler tick (slot-gated like the cron); blank = manual run"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -60,6 +68,7 @@ jobs:
         env:
           EVENT_SCHEDULE: ${{ github.event.schedule }}
           INPUT_CHANNEL: ${{ inputs.channel }}
+          INPUT_HEARTBEAT: ${{ inputs.heartbeat }}
         run: |
           node --input-type=module -e "
             import fs from 'node:fs';
@@ -81,17 +90,20 @@ jobs:
               const all = toDiscoverChannels(reg.channels);
               const target = (process.env.INPUT_CHANNEL || '').trim();
               const sched = (process.env.EVENT_SCHEDULE || '').trim();
+              const heartbeat = (process.env.INPUT_HEARTBEAT || '').trim() === '1';
+              // DISCOVER_NOW: test-only clock override (unset in production)
+              const now = process.env.DISCOVER_NOW ? new Date(process.env.DISCOVER_NOW) : new Date();
               if (target) {
                 chans = all.filter(c => c.slug === target);
-              } else if (sched) {
+              } else if (sched || heartbeat) {
                 // heartbeat fired: gate each channel on its own registry cron (with catch-up for missed slots)
                 const statesBySlug = {};
                 for (const c of all) {
                   try { statesBySlug[c.slug] = JSON.parse(fs.readFileSync('yt-mcp/state/' + c.slug + '.json', 'utf8')); } catch {}
                 }
                 chans = selectChannelsDueOrMissed
-                  ? selectChannelsDueOrMissed(all, statesBySlug, new Date())
-                  : (selectChannelsForSlot ? selectChannelsForSlot(all, new Date()) : []);
+                  ? selectChannelsDueOrMissed(all, statesBySlug, now)
+                  : (selectChannelsForSlot ? selectChannelsForSlot(all, now) : []);
               } else {
                 chans = all;
               }

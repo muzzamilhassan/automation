@@ -81,3 +81,61 @@ test('composite actions exist and parse as valid YAML', () => {
   assert.equal(ffmpegAction.runs.using, 'composite');
   assert.ok(ffmpegAction.runs.steps.length >= 2);
 });
+
+// ---------------------------------------------------------------------------
+// External clock (cron-job.org, owner 2026-11-15; audit #10). GitHub's cron
+// fires 3-5 of 48 heartbeats/day, so an external service dispatches the
+// workflow every 30 min. A BLANK dispatch means "all channels" — every channel
+// on every tick — so the clock must send inputs.heartbeat=1, which the
+// discover step gates exactly like a scheduled tick. These tests RUN the real
+// discover script extracted from the workflow YAML.
+// Spec + QA: docs/qa/external-heartbeat-qa.md.
+// ---------------------------------------------------------------------------
+import { spawnSync } from 'node:child_process';
+import os from 'node:os';
+import path from 'node:path';
+import { selectChannelsDueOrMissed } from '../lib/schedule-slot.mjs';
+
+function runDiscover(env) {
+  const wf = yaml.load(fs.readFileSync(WF, 'utf8'));
+  const step = wf.jobs.discover.steps.find((s) => s.id === 'disc');
+  const script = step.run.match(/node --input-type=module -e "\n([\s\S]*)\n\s*"\s*$/)[1];
+  const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'disc-')), 'out.txt');
+  fs.writeFileSync(out, '');
+  const r = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+    cwd: process.cwd(), encoding: 'utf8', timeout: 30000,
+    env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, GITHUB_OUTPUT: out, ...env },
+  });
+  assert.equal(r.status, 0, r.stderr);
+  return JSON.parse(fs.readFileSync(out, 'utf8').replace(/^channels=/, '')).map((c) => c.slug);
+}
+
+const NOW = '2030-01-01T03:25:00Z'; // far future: no channel has run "today"
+const allSlugs = () => toDiscoverChannels(JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8')).channels).map((c) => c.slug);
+
+test('heartbeat=1 dispatch is slot-gated exactly like the scheduled tick', () => {
+  const all = toDiscoverChannels(JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8')).channels);
+  const states = Object.fromEntries(all.map((c) => { try { return [c.slug, JSON.parse(fs.readFileSync(`yt-mcp/state/${c.slug}.json`, 'utf8'))]; } catch { return [c.slug, {}]; } }));
+  const expected = selectChannelsDueOrMissed(all, states, new Date(NOW)).map((c) => c.slug);
+  const viaHeartbeat = runDiscover({ INPUT_HEARTBEAT: '1', DISCOVER_NOW: NOW });
+  const viaSchedule = runDiscover({ EVENT_SCHEDULE: '5,35 * * * *', DISCOVER_NOW: NOW });
+  assert.deepEqual(viaHeartbeat, expected);
+  assert.deepEqual(viaHeartbeat, viaSchedule, 'external tick == GitHub tick');
+  assert.ok(viaHeartbeat.length < allSlugs().length, `gating must exclude channels outside their window (got ${viaHeartbeat})`);
+});
+
+test('a blank dispatch still means all channels (manual "run everything" unchanged)', () => {
+  assert.deepEqual(runDiscover({ DISCOVER_NOW: NOW }), allSlugs());
+});
+
+test('channel=<slug> still wins over heartbeat', () => {
+  assert.deepEqual(runDiscover({ INPUT_CHANNEL: 'money-rulebook', INPUT_HEARTBEAT: '1', DISCOVER_NOW: NOW }), ['money-rulebook']);
+});
+
+test('the workflow declares the heartbeat input and wires it into the discover env', () => {
+  const wf = yaml.load(fs.readFileSync(WF, 'utf8'));
+  const inputs = (wf.on || wf[true]).workflow_dispatch.inputs;
+  assert.ok(inputs.heartbeat, 'heartbeat input declared');
+  const step = wf.jobs.discover.steps.find((s) => s.id === 'disc');
+  assert.equal(step.env.INPUT_HEARTBEAT, '${{ inputs.heartbeat }}');
+});
