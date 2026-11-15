@@ -10,7 +10,7 @@ import sharp from 'sharp';
 import { Readable } from 'node:stream';
 import { google } from 'googleapis';
 import { loadAllStates, saveChannelState } from './lib/state.mjs';
-import { isDocDay, docDaysOf } from './lib/doc-days.mjs';
+import { isDocDay, docDaysOf, isDocDue, mostRecentDocDay } from './lib/doc-days.mjs';
 import { cuesFromWords, toSrt } from './lib/srt.mjs';
 import { nextCounter } from './lib/quota-ledger.mjs';
 import { shipExitCode } from './lib/ship-exit.mjs';
@@ -1019,11 +1019,15 @@ const DOC_DAY_NAME = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(
 // days. The already-produced and pause guards above/below still apply.
 // force_doc=1 dispatches keep working exactly as before (--force). A RESUMED
 // doc run never reaches this guard (the branch above exits first).
-if (!isDocDay(b) && !FORCE && !GENERATE_ONLY) {
+// audit 2026-11-13 #10 (catch-up): due when the latest doc day has no doc yet —
+// a doc day missed by a dropped cron tick is made up on the next run (once).
+if (!isDocDue(b, state[slug]?.deepdiveDate) && !FORCE && !GENERATE_ONLY) {
   const days = docDaysOf(b);
-  console.log(`[${slug}] doc day${days.length === 1 ? '' : 's'} ${days.join('/') || '(none configured)'} (today is ${DOC_DAY_NAME}) — episode skipped`);
+  console.log(`[${slug}] doc day${days.length === 1 ? '' : 's'} ${days.join('/') || '(none configured)'} (today is ${DOC_DAY_NAME}; last doc ${state[slug]?.deepdiveDate || 'never'}) — episode skipped`);
   process.exit(0);
 }
+const catchingUp = !FORCE && !GENERATE_ONLY && !isDocDay(b);
+if (catchingUp) console.log(`[${slug}] catching up a missed doc day (${mostRecentDocDay(b)}; last doc ${state[slug]?.deepdiveDate || 'never'})`);
 if (state[slug]?.deepdiveDate === today() && !FORCE) {
   console.log(`[${slug}] deep-dive already produced today — skipping (--force to override)`);
   process.exit(0);
