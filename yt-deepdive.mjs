@@ -776,7 +776,7 @@ async function shipEpisode(script, { yt, auth, intents, longSeed = null, reviewS
       snippet: { title: docTitle, description: appendDisclaimers(description, docDisclaimers), tags: b.tags.slice(0, 12), categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
       status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false }
     },
-    bytes: fs.readFileSync(final), publishAt,
+    bytes: fs.readFileSync(final), mediaPath: final, publishAt,
     log: (m) => console.log(`[intent] ${m}`),
   });
   if (up.skipProduction && !up.videoId) {

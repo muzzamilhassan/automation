@@ -246,7 +246,7 @@ async function resumeApprovedScript({ slug, jobId, b }) {
       snippet: { title: meta.title, description: appendDisclaimers(`${meta.description}\n\n${b.hashtags || ''}`.trim(), resumeDisclaimers), tags: meta.tags, categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
       status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false }
     },
-    bytes: out.buffer, publishAt,
+    bytes: out.buffer, mediaPath: mp4Path, publishAt,
     log: (m) => console.log(`  [intent] ${m}`),
   });
   if (up.skipProduction && !up.videoId) {
@@ -621,7 +621,7 @@ if (RUN_SHORTS) {
         snippet: { title: meta.title, description: appendDisclaimers(`${meta.description}\n\n${b.hashtags || ''}`.trim(), templateDisclaimers), tags: meta.tags, categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
         status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false }
       },
-      bytes: out.buffer, publishAt,
+      bytes: out.buffer, mediaPath: mp4Path, publishAt,
       log: (m) => console.log(`  [intent] ${m}`),
     });
     if (up.skipProduction && !up.videoId) {
