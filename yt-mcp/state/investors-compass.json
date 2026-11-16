@@ -7,9 +7,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "e2miuKwZB1E",
-      "publishAt": "2026-11-15T23:35:00Z",
-      "title": "300% Surge Then Crash: The Risk‑Free Illusion"
+      "videoId": "tf7a6LlDYGg",
+      "publishAt": "2026-11-16T23:35:00Z",
+      "title": "5x Leverage = 60% Loss in One Dip"
     }
   ],
   "imageDate": "2026-10-17",
@@ -97,6 +97,10 @@
     {
       "t": "300% Surge Then Crash: The Risk‑Free Illusion",
       "at": "2026-11-15T23:35:00Z"
+    },
+    {
+      "t": "5x Leverage = 60% Loss in One Dip",
+      "at": "2026-11-16T23:35:00Z"
     }
   ],
   "cooldownSeeds": [
@@ -105,7 +109,7 @@
   ],
   "uploadsToday": {
     "date": "2026-11-15",
-    "count": 2
+    "count": 3
   },
   "usedLongSeeds": [
     "The 3 Secrets to Building Wealth",
@@ -144,7 +148,8 @@
         "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/751386566",
         "startSec": 112.7,
         "durSec": 20.5,
-        "file": "tt-lf/clipfeed-investors-compass/clips/clip-02.mp4"
+        "file": "tt-lf/clipfeed-investors-compass/clips/clip-02.mp4",
+        "postedAt": "2026-11-16T03:07:50.518Z"
       },
       {
         "part": 3,
@@ -166,10 +171,10 @@
       }
     ]
   },
-  "clipLastPostDate": "2026-11-15",
+  "clipLastPostDate": "2026-11-16",
   "reviewGate": {
     "assigned": false,
     "gated": false,
-    "checkedAt": "2026-11-15T14:29:56.378Z"
+    "checkedAt": "2026-11-16T03:07:43.485Z"
   }
 }
