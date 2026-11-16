@@ -188,9 +188,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "sGU26MNbyTk",
-        "publishAt": "2026-11-15T22:35:00Z",
-        "title": "Raise? Boost Your Debt Snowball, Save $3,400"
+        "videoId": "BHAbD_0S1M8",
+        "publishAt": "2026-11-17T00:05:00Z",
+        "title": "Save $1,150 by Targeting Debt Cost, Not Size"
       }
     ],
     "imageDate": "2026-10-18",
@@ -289,6 +289,10 @@
       {
         "t": "Raise? Boost Your Debt Snowball, Save $3,400",
         "at": "2026-11-15T22:35:00Z"
+      },
+      {
+        "t": "Save $1,150 by Targeting Debt Cost, Not Size",
+        "at": "2026-11-17T00:05:00Z"
       }
     ],
     "cooldownSeeds": [
@@ -305,7 +309,13 @@
         "local-1793812820581",
         "local-1793881384902",
         "local-1794075015189",
-        "local-1794545600790"
+        "local-1794545600790",
+        "41505187024",
+        "41672112170",
+        "41873055603",
+        "42020963212",
+        "42397134726",
+        "43365094869"
       ],
       "docTitle": "The Secret Power Behind Debt Snowball Success | Personal finance rules & money habits Wisdom",
       "createdAt": "2026-11-13T04:53:57.880Z",
@@ -338,7 +348,8 @@
           "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/742320503",
           "startSec": 150.8,
           "durSec": 20.8,
-          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-03.mp4"
+          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-03.mp4",
+          "postedAt": "2026-11-16T03:37:55.254Z"
         },
         {
           "part": 4,
@@ -351,15 +362,15 @@
         }
       ]
     },
-    "clipLastPostDate": "2026-11-15",
+    "clipLastPostDate": "2026-11-16",
     "uploadsToday": {
-      "date": "2026-11-14",
+      "date": "2026-11-15",
       "count": 1
     },
     "reviewGate": {
       "assigned": true,
       "gated": true,
-      "checkedAt": "2026-11-15T07:04:29.795Z"
+      "checkedAt": "2026-11-16T03:37:48.453Z"
     },
     "usedLongSeeds": [
       "Stop Wasting Vegetables! 8 Freezer Tricks That Save You Money | Annie Tips",
@@ -373,7 +384,8 @@
       "Tips-tips unik melipat dan menghitung uang ! #reaction #shortvideo",
       "Why the debt snowball beats every payoff hack",
       "Как экономить семейный бюджет?#психолог #психологияотношений #финляндия #шоппинг #семейныеотношения",
-      "Why Your First $100K Is the Hardest #Shorts"
+      "Why Your First $100K Is the Hardest #Shorts",
+      "¿Por qué el albañil NO es millonario? | Activo vs Pasivo, la lección de la máquina de palomitas"
     ],
     "deepdiveVideo": {
       "videoId": "1sSY4YHLfMM",
