@@ -261,7 +261,7 @@ export function makeScriptStore(deps) {
    * awaiting_review -> { ok:false, reason:'not_open' } (mirrors
    * warnings-store's acknowledge/resolve reasons).
    */
-  async function approve(id, { by, note = null } = {}) {
+  async function approve(id, { by, note = null, disclosure = null } = {}) {
     try {
       if (!isNonEmptyString(by)) return { ok: false, error: 'approval_by_required' };
       const ensured = await ensureSchema();
@@ -275,6 +275,14 @@ export function makeScriptStore(deps) {
         [id, by, now(), note],
       );
       if (!rows.length) return { ok: false, reason: 'not_open' };
+      // Option B1 (2026-11-16): keep the owner's synthetic-media answers — the
+      // upload sets status.containsSyntheticMedia from them (they were dropped).
+      if (disclosure && typeof disclosure === 'object') {
+        await dbClient(
+          `UPDATE scripts SET meta = COALESCE(meta, '{}'::jsonb) || $2::jsonb WHERE id = $1`,
+          [id, JSON.stringify({ disclosure_answers: disclosure, disclosure_at: now() })],
+        );
+      }
       return { ok: true, id };
     } catch (e) {
       return degrade(e);

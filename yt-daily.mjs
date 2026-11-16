@@ -8,6 +8,7 @@ import path from 'node:path';
 import { Readable } from 'node:stream';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { google } from 'googleapis';
+import { containsSyntheticMediaFor, scriptDisclosureAnswers } from './lib/synthetic-media.mjs';
 import { loadAllStates, saveChannelState } from './lib/state.mjs';
 import { fbPageId } from './lib/registry.mjs';
 
@@ -244,7 +245,7 @@ async function resumeApprovedScript({ slug, jobId, b }) {
     accessToken: await oauthAccessToken(ytAuth),
     resource: {
       snippet: { title: meta.title, description: appendDisclaimers(`${meta.description}\n\n${b.hashtags || ''}`.trim(), resumeDisclaimers), tags: meta.tags, categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
-      status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false }
+      status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false, containsSyntheticMedia: containsSyntheticMediaFor({ answers: scriptDisclosureAnswers(found.script), kit: b }) }
     },
     bytes: out.buffer, mediaPath: mp4Path, publishAt,
     log: (m) => console.log(`  [intent] ${m}`),
@@ -619,7 +620,7 @@ if (RUN_SHORTS) {
       accessToken: await oauthAccessToken(ytAuth),
       resource: {
         snippet: { title: meta.title, description: appendDisclaimers(`${meta.description}\n\n${b.hashtags || ''}`.trim(), templateDisclaimers), tags: meta.tags, categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
-        status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false }
+        status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false, containsSyntheticMedia: containsSyntheticMediaFor({ kit: b }) }
       },
       bytes: out.buffer, mediaPath: mp4Path, publishAt,
       log: (m) => console.log(`  [intent] ${m}`),

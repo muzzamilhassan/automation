@@ -15,6 +15,7 @@ import { cuesFromWords, toSrt } from './lib/srt.mjs';
 import { nextCounter } from './lib/quota-ledger.mjs';
 import { shipExitCode } from './lib/ship-exit.mjs';
 import { docTitleFor } from './lib/titles.mjs';
+import { containsSyntheticMediaFor, scriptDisclosureAnswers } from './lib/synthetic-media.mjs';
 import { EMBEDDED_FONTS_CSS } from './typography-poster-engine.mjs';
 import { getTopicClip } from './youtube-clips.mjs';
 import { pickApprovedTrack } from './music-engine.mjs';
@@ -775,7 +776,7 @@ async function shipEpisode(script, { yt, auth, intents, longSeed = null, reviewS
     accessToken: await oauthAccessToken(auth),
     resource: {
       snippet: { title: docTitle, description: appendDisclaimers(description, docDisclaimers), tags: b.tags.slice(0, 12), categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
-      status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false }
+      status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false, containsSyntheticMedia: containsSyntheticMediaFor({ answers: scriptDisclosureAnswers(reviewScript), kit: b }) }
     },
     bytes: fs.readFileSync(final), mediaPath: final, publishAt,
     log: (m) => console.log(`[intent] ${m}`),

@@ -17,6 +17,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import sharp from 'sharp';
+import { containsSyntheticMediaFor } from '../lib/synthetic-media.mjs';
 import { loadEnv } from '../lib/env.mjs';
 import { parseSrt } from '../lib/srt.mjs';
 import { candidateWindows, parseSelection, pickTitles, cuesToWords, cardSvg } from '../lib/clipper.mjs';
@@ -593,7 +594,7 @@ async function postNext() {
     accessToken: await oauthAccessToken(auth),
     resource: {
       snippet: { title: clipUploadTitle, description, tags: (b.tags || []).slice(0, 12), categoryId: '27', defaultLanguage: 'en', defaultAudioLanguage: 'en' },
-      status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false },
+      status: { privacyStatus: 'private', publishAt, selfDeclaredMadeForKids: false, containsSyntheticMedia: containsSyntheticMediaFor({ kit: b }) },
     },
     bytes: fs.readFileSync(file), mediaPath: file, publishAt,
     log,

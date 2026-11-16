@@ -120,7 +120,7 @@ export async function approveScriptAndDispatch({
     };
   }
 
-  const ap = await scriptStore.approve(scriptId, { by, note });
+  const ap = await scriptStore.approve(scriptId, { by, note, disclosure });
   if (!ap.ok) {
     return { ok: false, approved: false, dispatched: false, error: ap.error || ap.reason || 'approve_failed' };
   }
