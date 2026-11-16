@@ -602,9 +602,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "IvyUybBIPNg",
-        "publishAt": "2026-11-14T22:35:00Z",
-        "title": "How Locus of Control Boosted a Win Rate to 62%"
+        "videoId": "9T8fW0N-jDc",
+        "publishAt": "2026-11-16T22:35:00Z",
+        "title": "How Musashi Won With No Weapon – The 13‑Year‑Old's Secret"
       }
     ],
     "deepdiveDate": "2026-11-14",
@@ -685,14 +685,18 @@
       {
         "t": "How Locus of Control Boosted a Win Rate to 62%",
         "at": "2026-11-14T22:35:00Z"
+      },
+      {
+        "t": "How Musashi Won With No Weapon – The 13‑Year‑Old's Secret",
+        "at": "2026-11-16T22:35:00Z"
       }
     ],
     "cooldownSeeds": [
       "THE POWER OF SOLITUDE WILL CHANGE YOUR LIFE | Jim Rohn Motivation"
     ],
     "uploadsToday": {
-      "date": "2026-11-13",
-      "count": 2
+      "date": "2026-11-15",
+      "count": 1
     },
     "clipQueue": {
       "lastRunId": "local-1794619914616",
@@ -700,7 +704,10 @@
         "40081466325",
         "local-1793176384066",
         "local-1793435644901",
-        "local-1794619914616"
+        "local-1794619914616",
+        "40656308022",
+        "41184319023",
+        "43537225788"
       ],
       "docTitle": "The Samurai's Secret: How One Warrior Mastered the Mind | Timeless wisdom, self-mastery & human psychology Wisdom",
       "createdAt": "2026-11-14T01:37:39.790Z",
@@ -713,7 +720,8 @@
           "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/745893741",
           "startSec": 36.7,
           "durSec": 22.2,
-          "file": "tt-lf/clipfeed-quotequarry/clips/clip-01.mp4"
+          "file": "tt-lf/clipfeed-quotequarry/clips/clip-01.mp4",
+          "postedAt": "2026-11-16T02:37:52.870Z"
         },
         {
           "part": 2,
@@ -744,7 +752,7 @@
         }
       ]
     },
-    "clipLastPostDate": "2026-11-14",
+    "clipLastPostDate": "2026-11-16",
     "usedLongSeeds": [
       "3 Psychological Tricks to Win Any Fight 🥶🥊 | Dark Psychology #Shorts #psychology #fighting #viral",
       "⭐ 10 RÈGLES STOÏCIENNES POUR ATTEINDRE TES OBJECTIFS ET CRÉER LA VIE QUE TU VEUX | STOÏCISME",
@@ -763,7 +771,7 @@
     "reviewGate": {
       "assigned": false,
       "gated": false,
-      "checkedAt": "2026-11-14T00:56:44.138Z"
+      "checkedAt": "2026-11-16T02:37:47.039Z"
     }
   },
   "fajrofquran": {
