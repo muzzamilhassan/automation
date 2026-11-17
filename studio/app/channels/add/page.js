@@ -1,10 +1,11 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { UserPlus, ShieldCheck, CheckCircle2, AlertTriangle, ArrowRight, Layers, Settings2, Plus, Sparkles, X } from 'lucide-react';
+import { UserPlus, ShieldCheck, CheckCircle2, AlertTriangle, ArrowRight, Layers, Settings2, Plus, Sparkles, X, Play } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, EmptyState, PageSkeleton } from '@/components/ui';
 import { STYLE_CATALOG, STYLE_BY_ID } from '@/lib/styles-catalog';
 import { NICHE_CATALOG, NICHE_MAP, recommendedStyleFor } from '@/lib/niches';
+import { previewSourceFor, popupAnchorFor } from '@/lib/wizard-preview-helpers';
 
 const VOICE_SUGGESTIONS = ['am_michael', 'bm_george', 'bm_daniel', 'am_onyx', 'bf_emma'];
 const DOC_DAYS = ['Tue', 'Wed', 'Thu', 'Fri'];
@@ -29,6 +30,15 @@ export default function AddChannel() {
   const [saving, setSaving] = useState(false);
   const [fillingKit, setFillingKit] = useState(false);
   const [kitMood, setKitMood] = useState('');
+  // #115 — production-template browser: the registry view + CI sample MP4s,
+  // one hover popup at a time, per-template assign state.
+  const [tplView, setTplView] = useState(null); // { templates } from /api/templates
+  const [tplSamples, setTplSamples] = useState(null); // { samples, familySamples } from /api/template-previews
+  const [hoveredTpl, setHoveredTpl] = useState(null); // { id, rect }
+  const [assignState, setAssignState] = useState({}); // templateId -> { state, msg? }
+  const POPUP = { width: 360, height: 300 }; // must match popupAnchorFor sizing
+  const openTimer = useRef(null);
+  const closeTimer = useRef(null);
   const [form, setForm] = useState({
     label: '', niche: '', subNiches: '', style: 'cinematic', voice: 'am_michael', accent: '#38BDF8', slots: '22:35',
     docDay: 'Tue', eyebrow: '', tagline: '', tags: '', description: '',
@@ -62,6 +72,80 @@ export default function AddChannel() {
       threadsHandle: entry.destinations?.threadsHandle || '',
       tiktokHandle: entry.destinations?.tiktokHandle || '',
     }));
+  };
+
+  // #115 — registry templates + CI sample MP4s (both owner-gated; both
+  // degrade quietly: no templates list → section hidden; no sample for a
+  // template → card without a preview affordance, never a broken player).
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/templates')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive && d?.templates?.length) setTplView({ templates: d.templates }); })
+      .catch(() => { });
+    fetch('/api/template-previews')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive && d?.samples) setTplSamples({ samples: d.samples, familySamples: d.familySamples || {} }); })
+      .catch(() => { });
+    return () => { alive = false; };
+  }, []);
+
+  // hover lifecycle: open after a 300ms dwell (no flicker crossing the
+  // grid), close on a 150ms grace so the pointer can travel from the card
+  // to the adjacent popup without killing it.
+  const clearTimers = () => { clearTimeout(openTimer.current); clearTimeout(closeTimer.current); };
+  const captureRect = (t, el) => {
+    const r = el.getBoundingClientRect();
+    return { id: t.templateId, rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom } };
+  };
+  const openPreview = (t, el) => {
+    clearTimers();
+    openTimer.current = setTimeout(() => setHoveredTpl(captureRect(t, el)), 300);
+  };
+  const openPreviewNow = (t, el) => {
+    clearTimers();
+    setHoveredTpl(captureRect(t, el));
+  };
+  const scheduleClose = () => {
+    clearTimers();
+    closeTimer.current = setTimeout(() => setHoveredTpl(null), 150);
+  };
+  const cancelClose = () => clearTimeout(closeTimer.current);
+  const closePreview = () => { clearTimers(); setHoveredTpl(null); };
+  useEffect(() => () => clearTimers(), []);
+
+  // while a popup is open, any scroll (in any container) or Escape closes it
+  useEffect(() => {
+    if (!hoveredTpl) return;
+    const close = () => setHoveredTpl(null);
+    const onScroll = () => close();
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    window.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('scroll', onScroll, { capture: true });
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [hoveredTpl]);
+
+  // #115 — assign through the existing lane (its validator decides fit);
+  // every outcome lands in per-template state the card renders honestly.
+  const assignTemplate = async (templateId) => {
+    setAssignState((s) => ({ ...s, [templateId]: { state: 'assigning' } }));
+    try {
+      const r = await fetch('/api/templates/assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channelId: connectedSlug, templateId }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        throw new Error(d.error === 'incompatible' ? `not compatible: ${(d.reasons || []).join('; ')}` : (d.error || 'assign failed'));
+      }
+      setAssignState((s) => ({ ...s, [templateId]: { state: 'done' } }));
+    } catch (e) {
+      setAssignState((s) => ({ ...s, [templateId]: { state: 'error', msg: e.message } }));
+    }
   };
 
   useEffect(() => {
@@ -446,6 +530,70 @@ export default function AddChannel() {
                 </p>
               ) : null}
             </div>
+            {/* #115 — production templates: the CURRENT registry set (what the
+                engine actually renders), each with its CI video demo on hover.
+                Assigning uses the existing assign lane; the base-style choice
+                above and the saved `style` value are untouched. */}
+            {tplView?.templates?.length ? (
+              <div className="sm:col-span-2">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="overline block">Production templates ({tplView.templates.length})</span>
+                  <span className="text-[11px] text-faint">Hover a card to watch its demo · “Use” assigns it to this channel</span>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {tplView.templates.map((t) => {
+                    const src = previewSourceFor(t.templateId, t.family, tplSamples?.samples, tplSamples?.familySamples);
+                    const a = assignState[t.templateId];
+                    return (
+                      <div
+                        key={t.templateId}
+                        className="inset-tile p-2.5 rounded-lg"
+                        onMouseEnter={(e) => openPreview(t, e.currentTarget)}
+                        onMouseLeave={scheduleClose}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-[12.5px] font-bold text-ink truncate">{t.name}</p>
+                            <p className="text-[11px] text-muted mt-0.5 line-clamp-2 leading-snug">{t.catalog?.desc}</p>
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {(t.registry?.formats || []).slice(0, 3).map((f) => (
+                                <Chip key={f} tone="accent">{f}</Chip>
+                              ))}
+                              {src?.mp4 ? (
+                                <span className="text-[10px] text-faint inline-flex items-center gap-0.5">
+                                  <Play size={9} /> demo
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                          {src?.mp4 ? (
+                            <button
+                              type="button"
+                              className="icon-btn w-8 h-8 rounded-md shrink-0"
+                              title="Watch the demo"
+                              onClick={(e) => openPreviewNow(t, e.currentTarget)}
+                            >
+                              <Play size={14} />
+                            </button>
+                          ) : null}
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <button
+                            type="button"
+                            className="btn btn-outline text-[11px] px-2.5 py-1"
+                            onClick={() => assignTemplate(t.templateId)}
+                            disabled={!connectedSlug || a?.state === 'assigning' || a?.state === 'done'}
+                          >
+                            {a?.state === 'assigning' ? 'Assigning…' : a?.state === 'done' ? 'Assigned ✓' : 'Use for this channel'}
+                          </button>
+                          {a?.state === 'error' ? <span className="text-[10.5px] text-red-400 truncate">{a.msg}</span> : null}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
             <label className="block">
               <span className="overline block mb-1.5">Voice</span>
               <input className="input w-full" list="voice-suggestions" value={form.voice} onChange={(e) => setForm({ ...form, voice: e.target.value })} />
@@ -660,6 +808,62 @@ export default function AddChannel() {
           <EmptyState icon={Layers} title="No channels connected yet" sub="Use Step 1 above — the Google login takes ~30 seconds." />
         )}
       </Card>
+
+      {/* #115 — the hover demo popup (one at a time). Video bytes load only
+          when it opens and are freed the moment it unmounts. */}
+      {hoveredTpl && tplView
+        ? (() => {
+            const t = tplView.templates.find((x) => x.templateId === hoveredTpl.id);
+            if (!t) return null;
+            const src = previewSourceFor(t.templateId, t.family, tplSamples?.samples, tplSamples?.familySamples);
+            const pos = popupAnchorFor(hoveredTpl.rect, POPUP, { width: window.innerWidth, height: window.innerHeight });
+            const a = assignState[t.templateId];
+            return (
+              <div
+                className="tpl-pop fixed z-50"
+                style={{ left: pos.left, top: pos.top, width: POPUP.width }}
+                onMouseEnter={cancelClose}
+                onMouseLeave={scheduleClose}
+              >
+                {src?.mp4 ? (
+                  <video
+                    src={src.mp4}
+                    poster={src.poster || undefined}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="w-full rounded-lg border border-line"
+                    style={{ background: 'var(--surface-2)', aspectRatio: '16 / 9', objectFit: 'cover' }}
+                  />
+                ) : src?.poster ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={src.poster} alt="" className="w-full rounded-lg border border-line" style={{ background: 'var(--surface-2)' }} />
+                ) : null}
+                <div className="inset-tile p-3 mt-2 rounded-lg">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[13px] font-bold text-ink">{t.name}</p>
+                    <button type="button" className="icon-btn w-7 h-7 rounded-md shrink-0" onClick={closePreview} title="Close (Esc)">
+                      <X size={13} />
+                    </button>
+                  </div>
+                  <p className="text-[11.5px] text-muted mt-1 leading-relaxed">{t.catalog?.desc}</p>
+                  {t.catalog?.usedFor ? <p className="text-[10.5px] text-faint mt-1">{t.catalog.usedFor}</p> : null}
+                  <button
+                    type="button"
+                    className="btn btn-primary w-full mt-2"
+                    onClick={() => assignTemplate(t.templateId)}
+                    disabled={!connectedSlug || a?.state === 'assigning' || a?.state === 'done'}
+                  >
+                    {a?.state === 'assigning' ? 'Assigning…' : a?.state === 'done' ? 'Assigned ✓ — picked for this channel' : 'Use for this channel'}
+                  </button>
+                  {a?.state === 'error' ? <p className="text-[10.5px] text-red-400 mt-1">{a.msg}</p> : null}
+                </div>
+              </div>
+            );
+          })()
+        : null}
+      <style>{`@keyframes tplpop{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}.tpl-pop{animation:tplpop .14s ease-out}`}</style>
 
       {/* Setup */}
       <Card className="mt-5 overflow-hidden">
