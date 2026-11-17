@@ -7,9 +7,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "oir4ysse8xE",
-      "publishAt": "2026-11-16T21:20:00Z",
-      "title": "Cut Credit Card Interest from 18% to 3% – Save $1,800"
+      "videoId": "wgw-733itNg",
+      "publishAt": "2026-11-17T21:20:00Z",
+      "title": "$200K Community Gift Earned a $5M Contract"
     }
   ],
   "imageDate": "2026-10-20",
@@ -143,6 +143,10 @@
     {
       "t": "Cut Credit Card Interest from 18% to 3% – Save $1,800",
       "at": "2026-11-16T21:20:00Z"
+    },
+    {
+      "t": "$200K Community Gift Earned a $5M Contract",
+      "at": "2026-11-17T21:20:00Z"
     }
   ],
   "usedLongSeeds": [
@@ -209,18 +213,19 @@
         "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/741873964",
         "startSec": 270.9,
         "durSec": 20.7,
-        "file": "tt-lf/clipfeed-debt-free-doctrine/clips/clip-04.mp4"
+        "file": "tt-lf/clipfeed-debt-free-doctrine/clips/clip-04.mp4",
+        "postedAt": "2026-11-17T02:58:56.712Z"
       }
     ]
   },
-  "clipLastPostDate": "2026-11-16",
+  "clipLastPostDate": "2026-11-17",
   "uploadsToday": {
-    "date": "2026-11-15",
-    "count": 2
+    "date": "2026-11-16",
+    "count": 1
   },
   "reviewGate": {
     "assigned": false,
     "gated": false,
-    "checkedAt": "2026-11-16T04:07:40.972Z"
+    "checkedAt": "2026-11-17T02:58:46.965Z"
   }
 }
