@@ -153,3 +153,76 @@ test('resolvePlan supports a ms offset after the anchor word', () => {
   const lines = [{ startMs: 0, words: W([['Your', 0, 200], ['paycheck', 200, 600], ['lands', 600, 900]]) }];
   assert.equal(resolvePlan(p, lines).cues[0].t, 850);
 });
+
+// ---- Course template C1 (docs/qa/course-template-c1-qa.md W1-W3) ----
+const coursePlan = () => ({
+  style: 'paper',
+  course: { modules: [{ n: 1, title: 'Data' }, { n: 2, title: 'Speed' }] },
+  scenes: [{
+    title: 'Find one order *fast*', badge: '07', module: 2,
+    nodes: [], edges: [],
+    widgets: [
+      { id: 'b', type: 'boxes', slot: 'top', cells: ['', '', '', ''], labels: ['0', '1', '2', '3'] },
+      { id: 's', type: 'stepper', slot: 'left', label: 'CHECKED', value: 0 },
+      { id: 'c', type: 'code', slot: 'right', title: 'find.py', lines: ['for o in orders:', '  if o.id == key:', '    return o'] },
+      { id: 'g', type: 'chart', slot: 'right', series: [{ label: 'O(n)', shape: 'linear' }, { label: 'O(1)', shape: 'flat' }] },
+      { id: 't', type: 'takeaway', slot: 'center', items: ['one', 'two', 'three'] },
+      { id: 'r', type: 'roadmap', slot: 'bottom', stops: ['Arrays', 'Hash maps', 'Trees'], current: 1 },
+    ],
+    lines: [{ say: 'Your order list grows every single day.', cues: [
+      { on: 'order', do: 'show', widget: 'b' },
+      { on: 'list', do: 'fill', widget: 'b', index: 2, value: '#4187', tone: 'good' },
+      { on: 'grows', do: 'mark', widget: 'b', index: 2 },
+      { on: 'every', do: 'step', widget: 's', value: 3, text: '3 < 4', ok: true },
+      { on: 'single', do: 'line', widget: 'c', line: 2 },
+      { on: 'day', do: 'plot', widget: 'g', series: 1 },
+      { on: 'day', do: 'tick', widget: 't', index: 0 },
+      { on: 'day', do: 'advance', widget: 'r', to: 2 },
+    ] }],
+  }],
+});
+
+test('C1 W1-W2: a paper course scene with all six widgets validates', () => {
+  assert.deepEqual(validatePlan(coursePlan()), []);
+});
+
+test('C1 W3: unknown widget / wrong verb for the type / out-of-range index are named', () => {
+  const p = coursePlan();
+  p.scenes[0].lines[0].cues.push(
+    { on: 'order', do: 'fill', widget: 'ghost', index: 0 },
+    { on: 'order', do: 'tick', widget: 'b', index: 0 },
+    { on: 'order', do: 'fill', widget: 'b', index: 9 },
+    { on: 'order', do: 'line', widget: 'c', line: 7 },
+    { on: 'order', do: 'plot', widget: 'g', series: 5 },
+    { on: 'order', do: 'advance', widget: 'r', to: 3 },
+  );
+  const errs = validatePlan(p);
+  assert.equal(errs.length, 6, errs.join('\n'));
+  assert.match(errs[0], /scene 1 line 1 cue 9: unknown widget "ghost"/);
+  assert.match(errs[1], /tick does not apply to a boxes widget/);
+  assert.match(errs[2], /index 9 is outside boxes "b" \(0-3\)/);
+  assert.match(errs[3], /line 7 is outside code "c" \(1-3\)/);
+  assert.match(errs[4], /series 5 is outside chart "g" \(0-1\)/);
+  assert.match(errs[5], /stop 3 is outside roadmap "r" \(0-2\)/);
+});
+
+test('C1 W1: widget declarations are checked (id, type, slot)', () => {
+  const p = coursePlan();
+  p.scenes[0].widgets.push({ id: 'b', type: 'boxes', cells: [''] }, { id: 'x', type: 'piechart' }, { id: 'y', type: 'code', slot: 'middle', lines: [] });
+  const errs = validatePlan(p);
+  assert.ok(errs.some((e) => /duplicate widget id "b"/.test(e)), errs.join('\n'));
+  assert.ok(errs.some((e) => /widget "x": type must be one of/.test(e)), errs.join('\n'));
+  assert.ok(errs.some((e) => /widget "y": slot must be one of/.test(e)), errs.join('\n'));
+});
+
+test('C1 P1/P2: resolvePlan carries badge, module, widgets and widget cues', () => {
+  const p = coursePlan();
+  const lines = [{ startMs: 0, words: W([['Your', 0, 100], ['order', 100, 300], ['list', 300, 500], ['grows', 500, 700], ['every', 700, 800], ['single', 800, 900], ['day.', 900, 1100]]) }];
+  const out = resolvePlan(p, lines);
+  assert.deepEqual(out.errors, []);
+  assert.equal(out.scenes[0].badge, '07');
+  assert.equal(out.scenes[0].module, 2);
+  assert.equal(out.scenes[0].widgets.length, 6);
+  assert.equal(out.cues.find((c) => c.do === 'fill').t, 300);
+  assert.equal(out.cues.find((c) => c.do === 'fill').widget, 'b');
+});

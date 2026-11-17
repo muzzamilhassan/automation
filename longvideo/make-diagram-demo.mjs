@@ -100,7 +100,7 @@ if (out.errors.length) {
 }
 
 const doc = {
-  title: plan.title, fps: 30, width: 1920, height: 1080, totalMs, theme, style: plan.style || 'tile',
+  title: plan.title, fps: 30, width: 1920, height: 1080, totalMs, theme, style: plan.style || 'tile', course: out.course || null,
   scenes: out.scenes, cues: out.cues,
   lines: lines.map(({ startMs, ms, audio }) => ({ startMs, ms, audio })),
 };

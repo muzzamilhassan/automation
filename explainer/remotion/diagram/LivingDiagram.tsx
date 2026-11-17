@@ -5,6 +5,7 @@ import {
 } from "remotion";
 import { getLength, getPointAtLength, getTangentAtLength } from "@remotion/paths";
 import { Icon } from "./icons";
+import { WidgetView, applyWidgetCues } from "./Widgets";
 
 // LIVING DIAGRAM — one persistent canvas that the narration mutates word by
 // word (research/motion-storytelling-templates-2026-11-16.md §2; spec
@@ -16,16 +17,19 @@ import { Icon } from "./icons";
 
 type DNode = { id: string; kind: string; label: string; keep?: boolean; value?: string; scale?: number; color?: string };
 type DEdge = { id: string; from: string; to: string };
-type Scene = { n: number; total: number; title: string; startMs: number; endMs: number; layoutKind?: "flow" | "hub"; nodes: DNode[]; edges: DEdge[]; layout: Record<string, { x: number; y: number }> };
+type Scene = { n: number; total: number; title: string; startMs: number; endMs: number; layoutKind?: "flow" | "hub"; nodes: DNode[]; edges: DEdge[]; layout: Record<string, { x: number; y: number }>;
+  badge?: string; module?: number; widgets?: any[] };
 type Cue = {
   t: number; scene: number; do: string; node?: string; edge?: string; from?: number; to?: number; prefix?: string; suffix?: string;
   label?: string; tone?: string; text?: string; zoom?: number; forMs?: number; durMs?: number; burst?: boolean;
   card?: string; title?: string; lines?: string[]; side?: "left" | "right" | "bottom";
+  widget?: string; index?: number; value?: string; line?: number; series?: number; ok?: boolean; step?: number;
 };
 export type DiagramDoc = {
-  title: string; fps: number; width: number; height: number; totalMs: number; style?: "tile" | "glow";
+  title: string; fps: number; width: number; height: number; totalMs: number; style?: "tile" | "glow" | "paper";
   theme: { bg: string; accent: string; label: string };
   scenes: Scene[]; cues: Cue[]; lines: Array<{ audio: string | null; startMs: number; ms: number }>;
+  course?: { modules?: Array<{ n: number; title: string }>; palette?: string[] } | null;
   // the channel's approved music bed (public-relative path), ducked under the voice
   music?: string | null; musicVolume?: number;
 };
@@ -34,6 +38,11 @@ const TILE = 112;
 const FG = "#E9F1EE";
 const BAD = "#FF5D5D";
 const GOOD = "#2EE5A0";
+// paper look (Course template C1): light textbook canvas, ink text, one accent
+// colour per module. Our own palette — not the reference channel's.
+const PAPER_BG = "#F6F4EE";
+const PAPER_INK = "#1A2028";
+const MODULE_COLORS = ["#5B4FDB", "#D96A2B", "#1FA463", "#2B6CB0", "#B3375B", "#8A6A2F"];
 // category colours for the glow look — generic, not per channel ("cyan" = brand accent)
 const CAT: Record<string, string> = { blue: "#3B9BFF", purple: "#A56BFF", green: "#2EE5A0", yellow: "#FFC93C", red: "#FF5D5D", orange: "#FF9A3C", white: "#E9F1EE" };
 const MONO = "JetBrains Mono, monospace";
@@ -69,13 +78,13 @@ const useFonts = () => {
   }, [h]);
 };
 
-// two-tone "*accent*" text → spans
-const twoTone = (text: string, accent: string, style: React.CSSProperties, appear: (i: number) => number) =>
+// two-tone "*accent*" text → spans (base = the non-accent colour)
+const twoTone = (text: string, accent: string, style: React.CSSProperties, appear: (i: number) => number, base = FG) =>
   text.split(/\s+/).map((w, i) => {
     const hot = /^\*|\*$/.test(w) || /^\*.*\*[.,!?]?$/.test(w);
     const p = appear(i);
     return (
-      <span key={i} style={{ ...style, color: hot ? accent : FG, opacity: p, transform: `translateY(${(1 - p) * 26}px)`, display: "inline-block" }}>
+      <span key={i} style={{ ...style, color: hot ? accent : base, opacity: p, transform: `translateY(${(1 - p) * 26}px)`, display: "inline-block" }}>
         {w.replace(/\*/g, "")}
       </span>
     );
@@ -88,7 +97,10 @@ export const LivingDiagram: React.FC<{ doc: DiagramDoc }> = ({ doc }) => {
   const ms = (frame / fps) * 1000;
   const { scenes, cues, theme } = doc;
   const glow = doc.style === "glow";
+  const paper = doc.style === "paper";
   const A = theme.accent;
+  const ink = paper ? PAPER_INK : FG;
+  const bg = paper ? PAPER_BG : theme.bg;
   const R = glow ? 64 : TILE / 2; // node radius for edge endpoints
   const spr = (tMs: number, damping = 14) => spring({ frame: frame - (tMs / 1000) * fps, fps, config: { damping, stiffness: 170 } });
   const colorOf = (n?: DNode) => (n?.color ? (n.color === "cyan" ? A : CAT[n.color] || A) : glow ? A : FG);
@@ -97,6 +109,10 @@ export const LivingDiagram: React.FC<{ doc: DiagramDoc }> = ({ doc }) => {
   const sc = scenes[si];
   const prev = si > 0 ? scenes[si - 1] : undefined;
   const hub = sc.layoutKind === "hub";
+  // module colour (paper): the scene's module cycles the paper palette; a course
+  // plan can override the palette wholesale (no-static-maps: data, not code)
+  const modColors = doc.course?.palette?.length ? doc.course.palette : MODULE_COLORS;
+  const modColor = paper ? modColors[((sc.module ?? 1) - 1) % modColors.length] : A;
 
   // ---- node positions (keep-nodes glide from the previous layout, R4) ----
   const glide = prog(ms, sc.startMs, 1100, easeInOut);
@@ -200,7 +216,7 @@ export const LivingDiagram: React.FC<{ doc: DiagramDoc }> = ({ doc }) => {
       );
     }) : null;
     const dashMarch = glow ? -((ms / 1000) * (flowOn > 0.01 ? 60 : 14)) : 0;
-    const baseStroke = blocked ? BAD : glow ? rgba(FG, 0.34) : rgba(FG, 0.26);
+    const baseStroke = blocked ? BAD : glow ? rgba(FG, 0.34) : paper ? rgba(ink, 0.28) : rgba(FG, 0.26);
     const xAt = getPointAtLength(d, len * 0.5);
     return (
       <g key={`${s.n}-${e.id}`} opacity={fadeOut}>
@@ -282,8 +298,8 @@ export const LivingDiagram: React.FC<{ doc: DiagramDoc }> = ({ doc }) => {
           ...(glow
             ? { transform: `scale(${pulse})` }
             : {
-              borderRadius: 22, border: `2.5px solid ${mood === "neutral" ? rgba(FG, 0.55) : col}`,
-              background: mood === "neutral" ? rgba(FG, 0.04) : rgba(col, 0.1),
+              borderRadius: 22, border: `2.5px solid ${mood === "neutral" ? rgba(ink, paper ? 0.35 : 0.55) : col}`,
+              background: mood === "neutral" ? (paper ? "#FFFFFF" : rgba(FG, 0.04)) : rgba(col, 0.1),
               boxShadow: mood === "neutral" ? "none" : `0 0 ${36 * moodGlow}px ${rgba(col, 0.45)}`,
             }),
         }}>
@@ -291,7 +307,7 @@ export const LivingDiagram: React.FC<{ doc: DiagramDoc }> = ({ doc }) => {
             opacity: failed ? 1 - 0.6 * failPop : 1, display: "flex",
             filter: glow ? `drop-shadow(0 0 ${10 + 14 * moodGlow}px ${rgba(col, 0.75)})` : undefined,
           }}>
-            <Icon kind={n.kind} size={glow ? 104 : 62} color={glow || mood !== "neutral" ? col : FG} stroke={glow ? 1.35 : 1.6} fill={glow ? rgba(col, 0.16) : "none"} />
+            <Icon kind={n.kind} size={glow ? 104 : 62} color={glow || mood !== "neutral" || paper ? col : FG} stroke={glow ? 1.35 : 1.6} fill={glow ? rgba(col, 0.16) : "none"} />
           </div>
           {failed && (
             <svg width={iconBox} height={iconBox} viewBox="0 0 100 100" style={{ position: "absolute", inset: 0, transform: `scale(${failPop})` }}>
@@ -320,12 +336,12 @@ export const LivingDiagram: React.FC<{ doc: DiagramDoc }> = ({ doc }) => {
           marginTop: glow ? 10 : 14, whiteSpace: "nowrap",
           ...(glow
             ? { fontFamily: MONO, fontWeight: 400, fontSize: 21, color: rgba(FG, 0.82), letterSpacing: 0.5 }
-            : { fontFamily: SANS, fontWeight: 800, fontSize: 22, letterSpacing: 3, color: rgba(FG, 0.86), textTransform: "uppercase" as const }),
+            : { fontFamily: SANS, fontWeight: 800, fontSize: 22, letterSpacing: 3, color: rgba(ink, 0.86), textTransform: "uppercase" as const }),
         }}>{n.label}</div>
         {value !== undefined && value !== "" && (
           <div style={{
             marginTop: 6, fontFamily: MONO, fontWeight: 700, fontSize: glow ? 32 : 38,
-            color: mood === "bad" ? BAD : counting || mood === "good" ? (glow ? col : A) : FG,
+            color: mood === "bad" ? BAD : counting || mood === "good" ? (glow ? col : A) : ink,
             transform: `scale(${1 + 0.06 * counting})`,
           }}>{value}</div>
         )}
@@ -359,13 +375,13 @@ export const LivingDiagram: React.FC<{ doc: DiagramDoc }> = ({ doc }) => {
     return (
       <div key={id} style={{
         position: "absolute", ...pos, width: 660 > width / 3 ? 520 : 660, opacity: vis, transform: slide,
-        background: rgba("#0B1018", 0.92), border: `1.5px solid ${rgba(tc, 0.55)}`, borderTop: `4px solid ${tc}`, borderRadius: 14,
+        background: paper ? "#FFFFFF" : rgba("#0B1018", 0.92), border: `1.5px solid ${rgba(tc, paper ? 0.35 : 0.55)}`, borderTop: `4px solid ${tc}`, borderRadius: 14,
         padding: "22px 28px", boxShadow: `0 20px 60px rgba(0,0,0,0.6), 0 0 40px ${rgba(tc, 0.15)}`,
       }}>
         <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 30, color: tc, marginBottom: 12 }}>{show.title}</div>
         {(show.lines || []).map((l, i) => {
           const lp = spr(show.t + 140 + i * 110, 16);
-          const mark = /^✓/.test(l) ? GOOD : /^✗/.test(l) ? BAD : rgba(FG, 0.86);
+          const mark = /^✓/.test(l) ? GOOD : /^✗/.test(l) ? BAD : rgba(ink, 0.86);
           return <div key={i} style={{ fontFamily: MONO, fontSize: 23, color: mark, opacity: lp, transform: `translateX(${(1 - lp) * 14}px)`, lineHeight: 1.55 }}>{l}</div>;
         })}
       </div>
@@ -378,7 +394,7 @@ export const LivingDiagram: React.FC<{ doc: DiagramDoc }> = ({ doc }) => {
   const diagramDim = 1 - 0.8 * titleOn;
 
   return (
-    <AbsoluteFill style={{ background: theme.bg, overflow: "hidden" }}>
+    <AbsoluteFill style={{ background: bg, overflow: "hidden" }}>
       <svg width={width} height={height} style={{ position: "absolute", inset: 0 }}>
         <defs>
           <pattern id="dots" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -393,9 +409,10 @@ export const LivingDiagram: React.FC<{ doc: DiagramDoc }> = ({ doc }) => {
             <stop offset="100%" stopColor="rgba(0,0,0,0)" />
           </radialGradient>
         </defs>
-        <rect width={width} height={height} fill="url(#dots)" />
-        <rect width={width} height={height} fill="url(#halo)" />
+        {!paper && <rect width={width} height={height} fill="url(#dots)" />}
+        {!paper && <rect width={width} height={height} fill="url(#halo)" />}
       </svg>
+      {/* paper: no vignette overlay (the dark looks dim edges below) */}
 
       <AbsoluteFill style={{ transform: camTransform, transformOrigin: "0 0", opacity: diagramDim, filter: titleOn > 0.01 ? `blur(${3 * titleOn}px)` : undefined }}>
         <svg width={width} height={height} style={{ position: "absolute", inset: 0, overflow: "visible" }}>
@@ -404,31 +421,58 @@ export const LivingDiagram: React.FC<{ doc: DiagramDoc }> = ({ doc }) => {
         </svg>
         {outgoingNodes.map((n) => nodeView(n, prev as Scene, outFade))}
         {sc.nodes.map((n) => nodeView(n, sc, 1))}
+        {(sc.widgets || []).map((w) => {
+          const { appear, applied } = applyWidgetCues(cues.filter((c) => c.scene === si), w.id, ms);
+          return <WidgetView key={w.id} spec={w} ap={applied} accent={modColor} pop={spr} appear={appear} hidden={titleOn > 0.05} />;
+        })}
       </AbsoluteFill>
 
       {cards}
 
       <svg width={width} height={height} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-        <rect width={width} height={height} fill="url(#vig)" />
+        {!paper && <rect width={width} height={height} fill="url(#vig)" />}
       </svg>
 
       {/* statement — centred, two-tone, word by word */}
       {titleCue && titleOn > 0.01 && (
         <div style={{ position: "absolute", inset: 0, display: "flex", flexWrap: "wrap", alignContent: "center", justifyContent: "center", gap: "0 22px", padding: "0 160px", opacity: titleOn }}>
-          {twoTone(titleCue.text || "", A, { fontFamily: SANS, fontWeight: 900, fontSize: 84, letterSpacing: -1, textShadow: `0 8px 40px rgba(0,0,0,0.7)` }, (i) => spr(titleCue.t + i * 80, 13))}
+          {twoTone(titleCue.text || "", paper ? modColor : A, { fontFamily: SANS, fontWeight: 900, fontSize: 84, letterSpacing: -1, textShadow: paper ? "none" : `0 8px 40px rgba(0,0,0,0.7)` }, (i) => spr(titleCue.t + i * 80, 13), ink)}
         </div>
       )}
 
-      {/* chapter chip */}
-      <div style={{ position: "absolute", left: 64, top: 52, display: "flex", alignItems: "center", gap: 16, opacity: chipIn, transform: `translateX(${(1 - chipIn) * -40}px)` }}>
-        <div style={{ background: A, color: theme.bg, fontFamily: MONO, fontWeight: 700, fontSize: 22, padding: "6px 14px", borderRadius: 10 }}>{sc.n}/{sc.total}</div>
-        <div style={{ fontFamily: glow ? MONO : SANS, fontWeight: glow ? 700 : 800, fontSize: 24, letterSpacing: glow ? 1 : 4, color: FG, textTransform: glow ? "none" : "uppercase" }}>{glow ? sc.title.toLowerCase() : sc.title}</div>
-      </div>
-      <div style={{ position: "absolute", right: 64, top: 60, fontFamily: SANS, fontWeight: 800, fontSize: 18, letterSpacing: 5, color: rgba(FG, 0.45) }}>{theme.label}</div>
+      {/* chapter chip — paper: the lecture badge + big headline + underline bar */}
+      {paper ? (
+        <div style={{ position: "absolute", left: 64, top: 44, opacity: chipIn, transform: `translateX(${(1 - chipIn) * -40}px)` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+            {sc.badge && (
+              <div style={{ background: modColor, color: "#FFFFFF", fontFamily: MONO, fontWeight: 700, fontSize: 30, width: 64, height: 64, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>{sc.badge}</div>
+            )}
+            <div style={{ fontFamily: SANS, fontWeight: 900, fontSize: 44, letterSpacing: -0.5, color: ink, display: "flex", flexWrap: "wrap", gap: "0 12px" }}>
+              {twoTone(sc.title, modColor, { fontFamily: SANS, fontWeight: 900, fontSize: 44, letterSpacing: -0.5 }, (i) => spr(sc.startMs + 120 + i * 90, 13), ink)}
+            </div>
+          </div>
+          <div style={{ width: 96, height: 6, borderRadius: 3, background: modColor, marginTop: 10, marginLeft: sc.badge ? 82 : 0 }} />
+        </div>
+      ) : (
+        <div style={{ position: "absolute", left: 64, top: 52, display: "flex", alignItems: "center", gap: 16, opacity: chipIn, transform: `translateX(${(1 - chipIn) * -40}px)` }}>
+          <div style={{ background: A, color: theme.bg, fontFamily: MONO, fontWeight: 700, fontSize: 22, padding: "6px 14px", borderRadius: 10 }}>{sc.n}/{sc.total}</div>
+          <div style={{ fontFamily: glow ? MONO : SANS, fontWeight: glow ? 700 : 800, fontSize: 24, letterSpacing: glow ? 1 : 4, color: FG, textTransform: glow ? "none" : "uppercase" }}>{glow ? sc.title.toLowerCase() : sc.title}</div>
+        </div>
+      )}
+      {/* course progress pills (paper) */}
+      {paper && doc.course?.modules?.length ? (
+        <div style={{ position: "absolute", right: 64, top: 48, display: "flex", gap: 10 }}>
+          {doc.course.modules.map((m) => {
+            const here = m.n === sc.module;
+            return <div key={m.n} title={m.title} style={{ width: here ? 34 : 16, height: 16, borderRadius: 8, background: here ? modColors[(m.n - 1) % modColors.length] : rgba(ink, 0.18) }} />;
+          })}
+        </div>
+      ) : null}
+      <div style={{ position: "absolute", right: 64, top: paper && doc.course?.modules?.length ? 84 : 60, fontFamily: SANS, fontWeight: 800, fontSize: 18, letterSpacing: 5, color: rgba(ink, 0.45) }}>{theme.label}</div>
 
       {stamp && (
-        <div style={{ position: "absolute", top: 128, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 18, opacity: stampOut }}>
-          {twoTone(stamp.text || "", A, { fontFamily: SANS, fontWeight: 900, fontSize: 64, letterSpacing: 1, textShadow: `0 6px 30px rgba(0,0,0,0.6)` }, (i) => spr(stamp.t + i * 70, 12))}
+        <div style={{ position: "absolute", top: paper ? 320 : 128, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 18, opacity: stampOut }}>
+          {twoTone(stamp.text || "", paper ? modColor : A, { fontFamily: SANS, fontWeight: 900, fontSize: 64, letterSpacing: 1, textShadow: paper ? "none" : `0 6px 30px rgba(0,0,0,0.6)` }, (i) => spr(stamp.t + i * 70, 12), ink)}
         </div>
       )}
 
