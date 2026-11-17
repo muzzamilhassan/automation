@@ -7,6 +7,7 @@ import { STYLE_CATALOG, STYLE_BY_ID } from '@/lib/styles-catalog';
 import { NICHE_CATALOG, NICHE_MAP, recommendedStyleFor } from '@/lib/niches';
 import { previewSourceFor, popupAnchorFor } from '@/lib/wizard-preview-helpers';
 import { VOICES } from '@/lib/voices';
+import { AUDIENCES, suggestionFor, suggestionText } from '@/lib/audiences';
 
 const DOC_DAYS = ['Tue', 'Wed', 'Thu', 'Fri'];
 
@@ -43,6 +44,9 @@ export default function AddChannel() {
   // the previous one. Picking a voice is always an explicit click.
   const voiceAudio = useRef(null);
   const [playingVoice, setPlayingVoice] = useState(null);
+  // #112 — target-audience choice for the slot suggestion. Local to the
+  // wizard (not part of the saved brand kit); applying needs an explicit click.
+  const [audience, setAudience] = useState('');
   const playDemo = (voice) => {
     const el = voiceAudio.current;
     if (!el) return;
@@ -650,6 +654,35 @@ export default function AddChannel() {
               <span className="overline block mb-1.5">Accent color</span>
               <input type="color" className="input w-full h-[38px] p-1" value={form.accent} onChange={(e) => setForm({ ...form, accent: e.target.value })} />
             </label>
+            <div>
+              <span className="overline block mb-1.5">Target audience</span>
+              <select
+                className="input w-full"
+                value={audience}
+                onChange={(e) => setAudience(e.target.value)}
+              >
+                <option value="">— pick a target audience —</option>
+                {AUDIENCES.map((a) => (
+                  <option key={a.id} value={a.id}>{a.label}</option>
+                ))}
+              </select>
+              {suggestionText(audience) ? (
+                <div className="mt-2 rounded-lg border border-sky-400/40 bg-sky-400/10 px-2.5 py-2">
+                  <div className="text-[12px] text-sky-200">{suggestionText(audience)}</div>
+                  <button
+                    type="button"
+                    className="mt-1.5 text-[11.5px] font-medium text-sky-300 hover:text-sky-200 underline underline-offset-2"
+                    onClick={() => {
+                      const s = suggestionFor(audience);
+                      if (s) setForm({ ...form, slots: s.utc });
+                    }}
+                  >
+                    Use suggestion
+                  </button>
+                </div>
+              ) : null}
+              <span className="text-[10.5px] text-white/40 mt-1.5 block">Presets are a starting point for new channels — later, suggestions can come from your own YouTube Analytics viewer hours.</span>
+            </div>
             <label className="block">
               <span className="overline block mb-1.5">Short slot UTC (evening is best)</span>
               <input className="input w-full font-mono" value={form.slots} onChange={(e) => setForm({ ...form, slots: e.target.value })} />
