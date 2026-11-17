@@ -915,6 +915,95 @@ export const REGISTRY_META = {
     ]
   },
 
+  {
+    "version": "1.0.0",
+    "template_id": "evidence-room-storybook",
+    "family": "documentary-frames",
+    "niches": [
+      "AI & future tech"
+    ],
+    "formats": [
+      "long",
+      "short"
+    ],
+    "renderer": "remotion",
+    "required_capabilities": [
+      "script-gen",
+      "tts",
+      "captions"
+    ],
+    "doc_presentation": {
+      "theme": "signal",
+      "voice": "en-US-BrianNeural",
+      "music_mood": "driving",
+      "doc_layouts": [
+        "terminal",
+        "stat",
+        "split",
+        "quote",
+        "versus",
+        "split"
+      ],
+      "brand": "EVIDENCE ROOM",
+      "badge": "ER",
+      "eyebrow": "AI & FUTURE TECH // ER"
+    },
+    "story_structure": {
+      "doc_render": "storybook",
+      "sections": [
+        "cold_open",
+        "hook_escalation",
+        "deep_investigation",
+        "verdict_payoff",
+        "outro"
+      ],
+      "chapter_min_words": 170,
+      "beats": [
+        "Opening: Case file — a company's AI recruiter quietly rejected every applicant over 40; nobody noticed for two years.",
+        "Evidence: The receipts: the training data, the flagged audits, and the settlement that followed.",
+        "Mechanism: How bias enters a model — one skewed historical example, amplified a million times.",
+        "Payoff: The three questions to ask any black-box system before you trust it with a decision."
+      ],
+      "hook_classes": [
+        "the-case file",
+        "the-receipts reveal",
+        "the-three-questions close"
+      ],
+      "title_patterns": [
+        "Case File: The AI Recruiter That Rejected Everyone Over 40",
+        "The Algorithm That Decided Your Feed — Receipts Included",
+        "How a Deepfaked Voice Moved $25 Million in One Call"
+      ],
+      "payoff_rule": "the closing stamps a verdict — what the evidence proves and what it cannot",
+      "narrative_format": "full_story",
+      "has_chapters": false,
+      "format_label": "Full Story (Continuous Narrative)",
+      "format_description": "Full continuous narrative documentary arc — seamless story progression with zero chapter dividers."
+    },
+    "variation_rules": [
+      "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+      "no recycled example set against the last 5 videos (enforced: the variation gate similarity)",
+      "no repeated hook across the channel's last 5 videos (enforced: the variation gate similarity)",
+      "every figure and fact is a cited source (prose for the author and the review desk — spec Honest Limits)"
+    ],
+    "review_thumb_pick": true,
+    "safety": {
+      "required_sources": true,
+      "review_required": [],
+      "disclaimers": [
+        "Technology commentary with cited sources — not legal or security advice."
+      ]
+    },
+    "deprecated": false,
+    "changelog": [
+      {
+        "version": "1.0.0",
+        "date": "2026-11-09",
+        "note": "style-catalog batch draft (theme: signal) — staged, awaiting owner approval (--approve)"
+      }
+    ]
+  },
+
   // ---- REMOVED 2026-11-04 (owner-approved catalog cleanup): 'quote-cards-premium'
   // retired WITH its family — the entry WAS the QQ shorts recipe bound to its own
   // family (owner call: retire the recipe with the family). QQ reverts to its
