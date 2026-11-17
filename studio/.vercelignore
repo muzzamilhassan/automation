@@ -1,0 +1,9 @@
+# Keep the local pnpm lockfile out of CLI deploy uploads (#114).
+# Vercel picks its package manager from the uploaded files: with
+# pnpm-lock.yaml present it builds with pnpm, whose symlinked node_modules
+# layout breaks Turbopack on opentype.js@1.3.5 / libsodium-wrappers@0.7.16.
+# Without it, Vercel installs with npm (flat layout) — the path that has
+# been green for every deploy before 2026-11-17.
+# NOTE: if the repo later commits a FIXED, deliberate lockfile, remove this
+# ignore entry so the lockfile drives deploys again.
+pnpm-lock.yaml
