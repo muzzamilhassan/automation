@@ -1450,6 +1450,95 @@ export const REGISTRY_META = {
     ]
   },
 
+  {
+    "version": "1.0.0",
+    "template_id": "no-spend-30day-storybook",
+    "family": "documentary-frames",
+    "niches": [
+      "Personal finance rules & money habits"
+    ],
+    "formats": [
+      "long",
+      "short"
+    ],
+    "renderer": "remotion",
+    "required_capabilities": [
+      "script-gen",
+      "tts",
+      "captions"
+    ],
+    "doc_presentation": {
+      "theme": "stoic",
+      "voice": "en-US-EmmaNeural",
+      "music_mood": "calming",
+      "doc_layouts": [
+        "split",
+        "process",
+        "versus",
+        "stat",
+        "quote",
+        "split"
+      ],
+      "brand": "CASH CITADEL",
+      "badge": "CC",
+      "eyebrow": "MONEY HABITS // CC"
+    },
+    "story_structure": {
+      "doc_render": "storybook",
+      "sections": [
+        "cold_open",
+        "hook_escalation",
+        "deep_investigation",
+        "verdict_payoff",
+        "outro"
+      ],
+      "chapter_min_words": 170,
+      "beats": [
+        "Display a daily expense-tracker app screenshot with color-coded categories and a $0 spend line for non-essentials.",
+        "Show a receipt-analysis spreadsheet where each $5 coffee was removed, totaling $150 saved in two weeks.",
+        "Walk through setting up a “spending freeze” rule in the banking app that blocks discretionary merchants.",
+        "Compare a before-and-after bar graph of monthly discretionary spending dropping from $600 to $0."
+      ],
+      "hook_classes": [
+        "challenge teaser",
+        "data shock",
+        "future vision"
+      ],
+      "title_patterns": [
+        "\"30 Days, $1,150 Saved: The No-Spend Challenge That Changed My Life\"",
+        "\"How I Cut $1,200 in a Month by Skipping Non-Essentials\"",
+        "\"Zero-Spend 30-Day Sprint: My Exact Daily Tracker and Savings Breakdown\""
+      ],
+      "payoff_rule": "Pay yourself first; treat savings as a non‑negotiable expense.",
+      "has_chapters": false,
+      "narrative_format": "full_story",
+      "format_label": "Full Story (Continuous Narrative)",
+      "format_description": "Full continuous narrative documentary arc — seamless story progression with zero chapter dividers."
+    },
+    "variation_rules": [
+      "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+      "no recycled example set against the last 5 videos (enforced: the variation gate similarity)",
+      "no repeated hook across the channel's last 5 videos (enforced: the variation gate similarity)",
+      "every figure and fact is a cited source (prose for the author and the review desk — spec Honest Limits)"
+    ],
+    "review_thumb_pick": true,
+    "safety": {
+      "required_sources": true,
+      "review_required": [],
+      "disclaimers": [
+        "The video outlines personal budgeting techniques and does not constitute professional financial advice."
+      ]
+    },
+    "deprecated": false,
+    "changelog": [
+      {
+        "version": "1.0.0",
+        "date": "2026-11-05",
+        "note": "template bot draft — staged, awaiting owner approval (--approve)"
+      }
+    ]
+  },
+
   // ---- REMOVED 2026-11-04 (owner-approved catalog cleanup): 'quote-cards-premium'
   // retired WITH its family — the entry WAS the QQ shorts recipe bound to its own
   // family (owner call: retire the recipe with the family). QQ reverts to its
