@@ -31,6 +31,14 @@ const ghHeaders = () => ({
   'Content-Type': 'application/json',
 });
 
+// One serializer for BOTH approve paths (panel + scripts/template-bot.mjs --approve):
+// the registry is an object literal keyed by template id, so the entry must be keyed.
+export function registryEntrySource(draft) {
+  const id = String(draft && draft.template_id || '');
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) throw new Error(`invalid template_id ${JSON.stringify(id)}`);
+  return `  '${id}': ` + JSON.stringify(draft, null, 2).replace(/\n/g, '\n  ') + ',';
+}
+
 export function hasGithubToken() {
   return Boolean(TOKEN);
 }
@@ -117,30 +125,47 @@ export async function listDrafts(sql) {
 /** The R4 front door, from the panel: append the draft entry to the registry
  * data via a GitHub commit. Idempotent — an id already in the registry is a
  * no-op success. @returns {Promise<{ok, already?: boolean, sha?: string, error?: string}>} */
-export async function commitDraftApproval(draft) {
-  if (!TOKEN) return { ok: false, error: 'server has no GITHUB_TOKEN/GITHUB_PAT' };
+// Several approvals clicked within seconds race on the SAME registry file: each
+// PUT carries the blob sha it read, and every one after the first is stale ->
+// GitHub 409 (2026-11-17: 5 of 20 inbox approvals failed exactly so). A
+// conflict now re-reads the latest file and re-applies (bounded, jittered).
+const COMMIT_ATTEMPTS = 4;
+
+export async function commitDraftApproval(draft, { fetchImpl = fetch, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), token = TOKEN } = {}) {
+  if (!token) return { ok: false, error: 'server has no GITHUB_TOKEN/GITHUB_PAT' };
   try {
-    const cur = await fetch(`https://api.github.com/repos/${REPO}/contents/${REG_PATH}?ref=main`, { headers: ghHeaders() });
-    if (!cur.ok) return { ok: false, error: `registry read failed: ${cur.status}` };
-    const j = await cur.json();
-    const reg = Buffer.from(j.content, 'base64').toString('utf8');
-    if (reg.includes(`'${draft.template_id}':`)) return { ok: true, already: true, sha: j.sha };
-    if (!reg.includes(MARKER)) return { ok: false, error: 'registry marker missing — the data file drifted from the script anchor' };
-    const entrySource = '  ' + JSON.stringify(draft, null, 2).replace(/\n/g, '\n  ') + ',';
-    const next = reg.replace(MARKER, entrySource + '\n\n' + MARKER);
-    const put = await fetch(`https://api.github.com/repos/${REPO}/contents/${REG_PATH}`, {
-      method: 'PUT',
-      headers: ghHeaders(),
-      body: JSON.stringify({
-        message: `registry: approve template ${draft.template_id} (studio drafts inbox)\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`,
-        content: Buffer.from(next, 'utf8').toString('base64'),
-        sha: j.sha,
-        branch: 'main',
-      }),
-    });
-    if (!put.ok) return { ok: false, error: `registry commit failed: ${put.status} ${String(await put.text()).slice(0, 120)}` };
-    const pj = await put.json();
-    return { ok: true, sha: pj.commit?.sha };
+    let lastErr = '';
+    for (let attempt = 1; attempt <= COMMIT_ATTEMPTS; attempt++) {
+      const cur = await fetchImpl(`https://api.github.com/repos/${REPO}/contents/${REG_PATH}?ref=main`, { headers: ghHeaders() });
+      if (!cur.ok) return { ok: false, error: `registry read failed: ${cur.status}` };
+      const j = await cur.json();
+      const reg = Buffer.from(j.content, 'base64').toString('utf8');
+      if (reg.includes(`'${draft.template_id}':`)) return { ok: true, already: true, sha: j.sha };
+      if (!reg.includes(MARKER)) return { ok: false, error: 'registry marker missing — the data file drifted from the script anchor' };
+      // KEYED entry ('<template_id>': {...}) — a bare {...} is a SyntaxError in the
+      // registry object literal (2026-11-17: 15 approvals broke main this way)
+      const entrySource = registryEntrySource(draft);
+      const next = reg.replace(MARKER, entrySource + '\n\n' + MARKER);
+      const put = await fetchImpl(`https://api.github.com/repos/${REPO}/contents/${REG_PATH}`, {
+        method: 'PUT',
+        headers: ghHeaders(),
+        body: JSON.stringify({
+          message: `registry: approve template ${draft.template_id} (studio drafts inbox)\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`,
+          content: Buffer.from(next, 'utf8').toString('base64'),
+          sha: j.sha,
+          branch: 'main',
+        }),
+      });
+      if (put.ok) {
+        const pj = await put.json();
+        return { ok: true, sha: pj.commit?.sha, ...(attempt > 1 ? { attempts: attempt } : {}) };
+      }
+      lastErr = `registry commit failed: ${put.status} ${String(await put.text()).slice(0, 120)}`;
+      // 409 = stale sha (a parallel approval landed first); 422 can carry the same cause
+      if (put.status !== 409 && put.status !== 422) return { ok: false, error: lastErr };
+      if (attempt < COMMIT_ATTEMPTS) await sleep(400 * attempt + Math.floor(Math.random() * 400));
+    }
+    return { ok: false, error: lastErr };
   } catch (e) {
     return { ok: false, error: String((e && e.message) || e).slice(0, 140) };
   }

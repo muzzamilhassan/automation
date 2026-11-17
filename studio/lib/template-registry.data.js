@@ -737,7 +737,7 @@ export const REGISTRY_META = {
     changelog: [{ version: '1.0.0', date: '2026-11-05', note: 'template factory batch 2 — 15-niche matrix coverage' }],
   },
 
-  {
+  'cashflow-challenge-storybook': {
     "version": "1.0.0",
     "template_id": "cashflow-challenge-storybook",
     "family": "documentary-frames",
@@ -826,7 +826,7 @@ export const REGISTRY_META = {
     ]
   },
 
-  {
+  'deep-reset-storybook': {
     "version": "1.0.0",
     "template_id": "deep-reset-storybook",
     "family": "documentary-frames",
@@ -915,7 +915,7 @@ export const REGISTRY_META = {
     ]
   },
 
-  {
+  'evidence-room-storybook': {
     "version": "1.0.0",
     "template_id": "evidence-room-storybook",
     "family": "documentary-frames",
@@ -1004,7 +1004,7 @@ export const REGISTRY_META = {
     ]
   },
 
-  {
+  'fine-print-storybook': {
     "version": "1.0.0",
     "template_id": "fine-print-storybook",
     "family": "documentary-frames",
@@ -1093,7 +1093,7 @@ export const REGISTRY_META = {
     ]
   },
 
-  {
+  'grit-code-storybook': {
     "version": "1.0.0",
     "template_id": "grit-code-storybook",
     "family": "documentary-frames",
@@ -1182,7 +1182,7 @@ export const REGISTRY_META = {
     ]
   },
 
-  {
+  'heirloom-storybook': {
     "version": "1.0.0",
     "template_id": "heirloom-storybook",
     "family": "documentary-frames",
@@ -1271,7 +1271,7 @@ export const REGISTRY_META = {
     ]
   },
 
-  {
+  'money-flow-diagram': {
     "version": "1.0.0",
     "template_id": "money-flow-diagram",
     "family": "documentary-frames",
@@ -1360,7 +1360,7 @@ export const REGISTRY_META = {
     ]
   },
 
-  {
+  'mr-case-files-storybook': {
     "version": "1.0.0",
     "template_id": "mr-case-files-storybook",
     "family": "documentary-frames",
@@ -1450,7 +1450,7 @@ export const REGISTRY_META = {
     ]
   },
 
-  {
+  'no-spend-30day-storybook': {
     "version": "1.0.0",
     "template_id": "no-spend-30day-storybook",
     "family": "documentary-frames",
@@ -1539,7 +1539,7 @@ export const REGISTRY_META = {
     ]
   },
 
-  {
+  'old-verses-storybook': {
     "version": "1.0.0",
     "template_id": "old-verses-storybook",
     "family": "documentary-frames",
@@ -1629,7 +1629,7 @@ export const REGISTRY_META = {
     ]
   },
 
-  {
+  'paper-trail-storybook': {
     "version": "1.0.0",
     "template_id": "paper-trail-storybook",
     "family": "documentary-frames",
@@ -1719,7 +1719,7 @@ export const REGISTRY_META = {
     ]
   },
 
-  {
+  'salt-and-iron-storybook': {
     "version": "1.0.0",
     "template_id": "salt-and-iron-storybook",
     "family": "documentary-frames",
@@ -1808,7 +1808,7 @@ export const REGISTRY_META = {
     ]
   },
 
-  {
+  'silicon-pulse-storybook': {
     "version": "1.0.0",
     "template_id": "silicon-pulse-storybook",
     "family": "documentary-frames",
@@ -1898,7 +1898,7 @@ export const REGISTRY_META = {
     ]
   },
 
-  {
+  'switchboard-storybook': {
     "version": "1.0.0",
     "template_id": "switchboard-storybook",
     "family": "documentary-frames",
@@ -1988,7 +1988,7 @@ export const REGISTRY_META = {
     ]
   },
 
-  {
+  'systems-diagram': {
     "version": "1.0.0",
     "template_id": "systems-diagram",
     "family": "documentary-frames",
@@ -2068,6 +2068,454 @@ export const REGISTRY_META = {
         "version": "1.0.0",
         "date": "2026-11-17",
         "note": "the Living Diagram doc look in the glow style (owner: reusable for future channels) — same engine as money-flow-diagram (story_structure.doc_render = diagram, doc_presentation.style = glow); brand name/colours/voice come from each channel's kit; falls back to the storybook look on any failure (docs/templates/living-diagram.md)"
+      }
+    ]
+  },
+
+  'full-current-storybook': {
+    "version": "1.0.0",
+    "template_id": "full-current-storybook",
+    "family": "documentary-frames",
+    "niches": [
+      "Focus & productivity systems"
+    ],
+    "formats": [
+      "long",
+      "short"
+    ],
+    "renderer": "remotion",
+    "required_capabilities": [
+      "script-gen",
+      "tts",
+      "captions"
+    ],
+    "doc_presentation": {
+      "theme": "volt",
+      "voice": "en-US-AndrewNeural",
+      "music_mood": "grooving",
+      "doc_layouts": [
+        "split",
+        "stat",
+        "process",
+        "terminal",
+        "quote",
+        "split"
+      ],
+      "brand": "FULL CURRENT",
+      "badge": "FC",
+      "eyebrow": "FOCUS SYSTEMS // FC"
+    },
+    "story_structure": {
+      "doc_render": "storybook",
+      "sections": [
+        "cold_open",
+        "hook_escalation",
+        "deep_investigation",
+        "verdict_payoff",
+        "outro"
+      ],
+      "chapter_min_words": 170,
+      "beats": [
+        "Opening: 5.5 million hours of work data point to one rhythm — 52 minutes on, 17 off, repeat.",
+        "Evidence: The desk timer study: workers who took real breaks out-produced the grinders by a wide margin.",
+        "Mechanism: Ultradian cycles — why your brain quits at 2PM and how to ride the wave instead of fighting it.",
+        "Payoff: The shutdown ritual: one line on paper that tells your brain work is over — sleep included."
+      ],
+      "hook_classes": [
+        "the-scale number",
+        "the-study receipt",
+        "the-ritual close"
+      ],
+      "title_patterns": [
+        "The 52/17 Rule: The Work Rhythm Backed by 5.5 Million Hours",
+        "Why Your Brain Quits at 2PM — The Dopamine Ledger",
+        "Monk Mode: 30 Days Without Feeds, The Results"
+      ],
+      "payoff_rule": "the closing installs ONE system the viewer runs tomorrow morning",
+      "narrative_format": "full_story",
+      "has_chapters": false,
+      "format_label": "Full Story (Continuous Narrative)",
+      "format_description": "Full continuous narrative documentary arc — seamless story progression with zero chapter dividers."
+    },
+    "variation_rules": [
+      "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+      "no recycled example set against the last 5 videos (enforced: the variation gate similarity)",
+      "no repeated hook across the channel's last 5 videos (enforced: the variation gate similarity)",
+      "every figure and fact is a cited source (prose for the author and the review desk — spec Honest Limits)"
+    ],
+    "review_thumb_pick": true,
+    "safety": {
+      "required_sources": true,
+      "review_required": [],
+      "disclaimers": [
+        "Productivity research summaries from cited sources — not psychological or medical advice."
+      ]
+    },
+    "deprecated": false,
+    "changelog": [
+      {
+        "version": "1.0.0",
+        "date": "2026-11-09",
+        "note": "style-catalog batch draft (theme: volt) — staged, awaiting owner approval (--approve)"
+      }
+    ]
+  },
+
+  'marble-quill-storybook': {
+    "version": "1.0.0",
+    "template_id": "marble-quill-storybook",
+    "family": "documentary-frames",
+    "niches": [
+      "Timeless wisdom, self-mastery & human psychology"
+    ],
+    "formats": [
+      "long",
+      "short"
+    ],
+    "renderer": "remotion",
+    "required_capabilities": [
+      "script-gen",
+      "tts",
+      "captions"
+    ],
+    "doc_presentation": {
+      "theme": "letterpress",
+      "voice": "en-US-EmmaNeural",
+      "music_mood": "mystical",
+      "doc_layouts": [
+        "quote",
+        "split",
+        "quote",
+        "stat",
+        "quote",
+        "split"
+      ],
+      "brand": "MARBLE QUILL",
+      "badge": "MQ",
+      "eyebrow": "TIMELESS WISDOM // MQ"
+    },
+    "story_structure": {
+      "doc_render": "storybook",
+      "sections": [
+        "cold_open",
+        "hook_escalation",
+        "deep_investigation",
+        "verdict_payoff",
+        "outro"
+      ],
+      "chapter_min_words": 170,
+      "beats": [
+        "Opening: Seneca writes at 3AM — the evening letter that turns an ordinary day into an examination.",
+        "Evidence: The psychology of the evening review: participants who journal three lines sleep sharper and decide faster.",
+        "Mechanism: The shadow, in Jung's words — the trait you refuse to see is the one running your reactions.",
+        "Payoff: The three-line prompt: what did I do well, what did I avoid, whom did I serve — answered nightly."
+      ],
+      "hook_classes": [
+        "the-letter opening",
+        "the-study bridge",
+        "the-prompt close"
+      ],
+      "title_patterns": [
+        "Seneca's 3AM Letter: The Prompt That Rebuilds a Day",
+        "The Silence Rule: Why the Strongest Voice in the Room Speaks Last",
+        "Jung Knew: The Shadow You Hide Is Running Your Life"
+      ],
+      "payoff_rule": "the closing hands the viewer the exact prompt to write tonight",
+      "has_chapters": false,
+      "narrative_format": "full_story",
+      "format_label": "Full Story (Continuous Narrative)",
+      "format_description": "Full continuous narrative documentary arc — seamless story progression with zero chapter dividers."
+    },
+    "variation_rules": [
+      "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+      "no recycled example set against the last 5 videos (enforced: the variation gate similarity)",
+      "no repeated hook across the channel's last 5 videos (enforced: the variation gate similarity)",
+      "every figure and fact is a cited source (prose for the author and the review desk — spec Honest Limits)"
+    ],
+    "review_thumb_pick": true,
+    "safety": {
+      "required_sources": true,
+      "review_required": [],
+      "disclaimers": [
+        "Philosophy and psychology commentary — not medical or psychological advice."
+      ]
+    },
+    "deprecated": false,
+    "changelog": [
+      {
+        "version": "1.0.0",
+        "date": "2026-11-09",
+        "note": "style-catalog batch draft (theme: letterpress) — staged, awaiting owner approval (--approve)"
+      }
+    ]
+  },
+
+  'iron-five-storybook': {
+    "version": "1.0.0",
+    "template_id": "iron-five-storybook",
+    "family": "documentary-frames",
+    "niches": [
+      "Gym & training motivation"
+    ],
+    "formats": [
+      "long",
+      "short"
+    ],
+    "renderer": "remotion",
+    "required_capabilities": [
+      "script-gen",
+      "tts",
+      "captions"
+    ],
+    "doc_presentation": {
+      "style": "rank-countdown",
+      "theme": "stoic",
+      "voice": "en-US-ChristopherNeural",
+      "music_mood": "heroic",
+      "doc_layouts": [
+        "split",
+        "stat",
+        "split",
+        "quote",
+        "versus",
+        "split"
+      ],
+      "brand": "IRON FIVE",
+      "badge": "IF",
+      "eyebrow": "THE RANKINGS // IF"
+    },
+    "story_structure": {
+      "doc_render": "storybook",
+      "sections": [
+        "cold_open",
+        "hook_escalation",
+        "deep_investigation",
+        "verdict_payoff",
+        "outro"
+      ],
+      "chapter_min_words": 170,
+      "beats": [
+        "Opening: The criteria up front — evidence, carry-over to real strength, and staying power. Five rules made the list.",
+        "Evidence at #5: progressive overload — the oldest rule in the book and still the one that decides everything.",
+        "Evidence at #3: the 48-hour protein rhythm — timing beats totals in the studies that controlled for both.",
+        "Payoff at #1: showing up on the days you don't want to — the only rule every champion in the record shares."
+      ],
+      "hook_classes": [
+        "the-criteria reveal",
+        "the-countdown",
+        "the-number one"
+      ],
+      "title_patterns": [
+        "Top 5 Training Rules, Ranked by Evidence — #1 Isn't a Lift",
+        "The 5 Rules That Decide Whether the Gym Works",
+        "Ranked: What Actually Builds Strength (5-1)"
+      ],
+      "payoff_rule": "the closing reveals #1 and sends the viewer to run it today",
+      "has_chapters": false,
+      "narrative_format": "full_story",
+      "format_label": "Full Story (Continuous Narrative)",
+      "format_description": "Full continuous narrative documentary arc — seamless story progression with zero chapter dividers."
+    },
+    "variation_rules": [
+      "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+      "no recycled example set against the last 5 videos (enforced: the variation gate similarity)",
+      "no repeated hook across the channel's last 5 videos (enforced: the variation gate similarity)",
+      "every figure and fact is a cited source (prose for the author and the review desk — spec Honest Limits)"
+    ],
+    "review_thumb_pick": true,
+    "safety": {
+      "required_sources": true,
+      "review_required": [],
+      "disclaimers": [
+        "Fitness education from cited sources — not medical or training advice; consult a professional before changing your program."
+      ]
+    },
+    "deprecated": false,
+    "changelog": [
+      {
+        "version": "1.0.0",
+        "date": "2026-11-09",
+        "note": "family F3 rank-countdown draft — staged, awaiting owner approval (--approve)"
+      }
+    ]
+  },
+
+  'night-signal-storybook': {
+    "version": "1.0.0",
+    "template_id": "night-signal-storybook",
+    "family": "documentary-frames",
+    "niches": [
+      "Sleep & recovery science"
+    ],
+    "formats": [
+      "long",
+      "short"
+    ],
+    "renderer": "remotion",
+    "required_capabilities": [
+      "script-gen",
+      "tts",
+      "captions"
+    ],
+    "doc_presentation": {
+      "style": "dark-doc",
+      "theme": "midnight",
+      "voice": "en-US-AriaNeural",
+      "music_mood": "calming",
+      "doc_layouts": [
+        "split",
+        "quote",
+        "split",
+        "stat",
+        "split",
+        "quote"
+      ],
+      "brand": "NIGHT SIGNAL",
+      "badge": "NS",
+      "eyebrow": "NIGHT SCIENCE // NS"
+    },
+    "story_structure": {
+      "doc_render": "storybook",
+      "sections": [
+        "cold_open",
+        "hook_escalation",
+        "deep_investigation",
+        "verdict_payoff",
+        "outro"
+      ],
+      "chapter_min_words": 170,
+      "beats": [
+        "Opening: One glowing fact — a single night of 5-hour sleep cuts memory consolidation by 40 percent.",
+        "Evidence: The lab record: two groups, one task, eight hours versus five — the gap shows by morning.",
+        "Mechanism: Adenosine wash and the glymphatic rinse — the brain's cleanup crew only runs at depth.",
+        "Payoff: The one change that survives every study — a fixed wake time, held for 21 nights."
+      ],
+      "hook_classes": [
+        "the-single fact",
+        "the-lab record",
+        "the-one change"
+      ],
+      "title_patterns": [
+        "5 Hours of Sleep Erases 40% of Your Memory — The Overnight Evidence",
+        "The Brain's Cleanup Crew Only Runs at Depth",
+        "The One Sleep Change That Survives Every Study"
+      ],
+      "payoff_rule": "the closing leaves ONE fact glowing — the viewer keeps a single change",
+      "has_chapters": false,
+      "narrative_format": "full_story",
+      "format_label": "Full Story (Continuous Narrative)",
+      "format_description": "Full continuous narrative documentary arc — seamless story progression with zero chapter dividers."
+    },
+    "variation_rules": [
+      "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+      "no recycled example set against the last 5 videos (enforced: the variation gate similarity)",
+      "no repeated hook across the channel's last 5 videos (enforced: the variation gate similarity)",
+      "every figure and fact is a cited source (prose for the author and the review desk — spec Honest Limits)"
+    ],
+    "review_thumb_pick": true,
+    "safety": {
+      "required_sources": true,
+      "review_required": [],
+      "disclaimers": [
+        "Sleep science education from cited sources — not medical advice; see a clinician for persistent sleep disorders."
+      ]
+    },
+    "deprecated": false,
+    "changelog": [
+      {
+        "version": "1.0.0",
+        "date": "2026-11-09",
+        "note": "family F2 dark-doc draft — staged, awaiting owner approval (--approve)"
+      }
+    ]
+  },
+
+  'old-banners-storybook': {
+    "version": "1.0.0",
+    "template_id": "old-banners-storybook",
+    "family": "documentary-frames",
+    "niches": [
+      "History stories"
+    ],
+    "formats": [
+      "long",
+      "short"
+    ],
+    "renderer": "remotion",
+    "required_capabilities": [
+      "script-gen",
+      "tts",
+      "captions"
+    ],
+    "doc_presentation": {
+      "style": "map-atlas",
+      "theme": "frontier",
+      "voice": "en-US-ChristopherNeural",
+      "music_mood": "epic",
+      "doc_layouts": [
+        "split",
+        "map",
+        "split",
+        "stat",
+        "quote",
+        "split"
+      ],
+      "brand": "OLD BANNERS",
+      "badge": "OB",
+      "eyebrow": "THE ATLAS // OB"
+    },
+    "story_structure": {
+      "doc_render": "storybook",
+      "sections": [
+        "cold_open",
+        "hook_escalation",
+        "deep_investigation",
+        "verdict_payoff",
+        "outro"
+      ],
+      "chapter_min_words": 170,
+      "beats": [
+        "Opening: Three routes crossed one mountain pass — whoever held the pass held three empires' trade, and everyone knew it.",
+        "Evidence: The survey maps and the garrison logs: supply wagons that never arrived, dated and counted.",
+        "Mechanism: The pass economics — why a single ridge could tax three kingdoms and starve a fourth.",
+        "Payoff: The atlas lesson — border lines on old maps are supply lines wearing costumes."
+      ],
+      "hook_classes": [
+        "the-pass reveal",
+        "the-missing wagons",
+        "the-atlas lesson"
+      ],
+      "title_patterns": [
+        "The Mountain Pass That Taxed Three Empires at Once",
+        "The Supply Wagons That Never Arrived — A Logistics Mystery, Solved",
+        "Border Lines Are Supply Lines Wearing Costumes"
+      ],
+      "payoff_rule": "the closing zooms the atlas out — geography explains what chroniclers dramatize",
+      "narrative_format": "full_story",
+      "has_chapters": false,
+      "format_label": "Full Story (Continuous Narrative)",
+      "format_description": "Full continuous narrative documentary arc — seamless story progression with zero chapter dividers."
+    },
+    "variation_rules": [
+      "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+      "no recycled example set against the last 5 videos (enforced: the variation gate similarity)",
+      "no repeated hook across the channel's last 5 videos (enforced: the variation gate similarity)",
+      "every figure and fact is a cited source (prose for the author and the review desk — spec Honest Limits)"
+    ],
+    "review_thumb_pick": true,
+    "safety": {
+      "required_sources": true,
+      "review_required": [],
+      "disclaimers": [
+        "History retold from cited sources — interpretations vary and historians debate the details."
+      ]
+    },
+    "deprecated": false,
+    "changelog": [
+      {
+        "version": "1.0.0",
+        "date": "2026-11-09",
+        "note": "family F6 map-atlas draft — staged, awaiting owner approval (--approve)"
       }
     ]
   },

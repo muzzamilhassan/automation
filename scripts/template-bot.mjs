@@ -34,7 +34,9 @@ if (flag('approve')) {
   const reg = fs.readFileSync(REGISTRY_FILE, 'utf8');
   if (reg.includes(`'${draft.template_id}':`)) { console.log(`already in the registry: ${draft.template_id}`); process.exit(0); }
   const marker = "  // ---- REMOVED 2026-11-04 (owner-approved catalog cleanup): 'quote-cards-premium'";
-  const entrySource = '  ' + JSON.stringify(draft, null, 2).replace(/\n/g, '\n  ') + ',';
+  // keyed entry — the same serializer the panel uses (a bare {...} breaks the registry)
+  const { registryEntrySource } = await import('../studio/lib/template-approvals.mjs');
+  const entrySource = registryEntrySource(draft);
   if (!reg.includes(marker)) { console.error('registry marker missing'); process.exit(1); }
   fs.writeFileSync(REGISTRY_FILE, reg.replace(marker, entrySource + '\n\n' + marker));
   console.log(`✅ approved + appended: ${draft.template_id} — run the sync CLI + deploy, then assign from the panel`);
