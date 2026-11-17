@@ -1898,6 +1898,96 @@ export const REGISTRY_META = {
     ]
   },
 
+  {
+    "version": "1.0.0",
+    "template_id": "switchboard-storybook",
+    "family": "documentary-frames",
+    "niches": [
+      "Focus & productivity systems"
+    ],
+    "formats": [
+      "long",
+      "short"
+    ],
+    "renderer": "remotion",
+    "required_capabilities": [
+      "script-gen",
+      "tts",
+      "captions"
+    ],
+    "doc_presentation": {
+      "style": "board-system",
+      "theme": "volt",
+      "voice": "en-US-AndrewNeural",
+      "music_mood": "driving",
+      "doc_layouts": [
+        "process",
+        "split",
+        "quote",
+        "stat",
+        "split",
+        "terminal"
+      ],
+      "brand": "THE SWITCHBOARD",
+      "badge": "SW",
+      "eyebrow": "SYSTEMS BOARD // SW"
+    },
+    "story_structure": {
+      "doc_render": "storybook",
+      "sections": [
+        "cold_open",
+        "hook_escalation",
+        "deep_investigation",
+        "verdict_payoff",
+        "outro"
+      ],
+      "chapter_min_words": 170,
+      "beats": [
+        "Opening: The board flips: 4 lines in, 4 lines out — the operator connecting every call was the original single-tasker.",
+        "Evidence: The logbook: operators handling 300 calls a day made fewer errors than the experiment with parallel lines.",
+        "Mechanism: Context switching costs — the 23-minute refocus tax, measured, and why the board never paid it.",
+        "Payoff: Your switchboard rule — one line at a time, and the checklist that keeps it that way."
+      ],
+      "hook_classes": [
+        "the-board flips",
+        "the-logbook record",
+        "the-operator rule"
+      ],
+      "title_patterns": [
+        "The 1920s Operators Who Beat Multitasking 100 Years Early",
+        "300 Calls a Day, Fewer Errors: The Single-Line Logbook",
+        "The 23-Minute Tax Your Brain Pays Every Time You Switch"
+      ],
+      "payoff_rule": "the closing sets the switchboard rule — one line, one task, one day",
+      "has_chapters": false,
+      "narrative_format": "full_story",
+      "format_label": "Full Story (Continuous Narrative)",
+      "format_description": "Full continuous narrative documentary arc — seamless story progression with zero chapter dividers."
+    },
+    "variation_rules": [
+      "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+      "no recycled example set against the last 5 videos (enforced: the variation gate similarity)",
+      "no repeated hook across the channel's last 5 videos (enforced: the variation gate similarity)",
+      "every figure and fact is a cited source (prose for the author and the review desk — spec Honest Limits)"
+    ],
+    "review_thumb_pick": true,
+    "safety": {
+      "required_sources": true,
+      "review_required": [],
+      "disclaimers": [
+        "Productivity history and research summaries from cited sources — not psychological or medical advice."
+      ]
+    },
+    "deprecated": false,
+    "changelog": [
+      {
+        "version": "1.0.0",
+        "date": "2026-11-09",
+        "note": "family F8 board-system draft — staged, awaiting owner approval (--approve)"
+      }
+    ]
+  },
+
   // ---- REMOVED 2026-11-04 (owner-approved catalog cleanup): 'quote-cards-premium'
   // retired WITH its family — the entry WAS the QQ shorts recipe bound to its own
   // family (owner call: retire the recipe with the family). QQ reverts to its
