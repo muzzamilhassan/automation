@@ -1,39 +1,36 @@
 {
   "channels": [
     {
-      "slug": "quotequarry",
-      "label": "Quote Quarry",
-      "handle": "@quotequarry302",
-      "cron": "13 2 * * *",
-      "docDay": "Tue",
+      "slug": "debt-free-doctrine",
+      "label": "Debt-Free Doctrine",
+      "handle": "@debtfreedoctrine",
+      "cron": "53 3 * * *",
+      "docDay": "Fri",
       "active": true,
       "autopilot": true,
       "tokenSecretSaved": true,
-      "niche": "Timeless wisdom, self-mastery & human psychology",
-      "accent": "#F5E31C",
+      "niche": "Old money habits & quiet wealth",
+      "accent": "#D9C7A7",
       "kit": {
         "niches": [
-          "human psychology & respect",
-          "power of silence & solitude",
-          "dark psychology defense",
-          "samurai mindset & musashi",
-          "emotional detachment",
-          "stoic rules for modern life"
+          "silent wealth standards",
+          "stealth wealth etiquette",
+          "generational wealth rules",
+          "taste over flash",
+          "quiet confidence habits"
         ],
-        "longSlot": "14:30",
+        "longSlot": "20:20",
         "slots": [
-          "22:35"
+          "21:20"
         ],
-        "docDay": "Tue",
+        "docDay": "Fri",
         "thumbTemplates": [
-          "slab-quote",
-          "serif-frame",
-          "plinth"
+          "gold-standard",
+          "pillar"
         ]
       },
       "destinations": {
-        "fbPageId": "114550268199751",
-        "threadsHandle": "quotequarry8"
+        "fbPageId": "106473735839651"
       }
     },
     {
@@ -107,37 +104,71 @@
       }
     },
     {
-      "slug": "debt-free-doctrine",
-      "label": "Debt-Free Doctrine",
-      "handle": "@debtfreedoctrine",
-      "cron": "53 3 * * *",
-      "docDay": "Fri",
+      "slug": "quotequarry",
+      "label": "Quote Quarry",
+      "handle": "@quotequarry302",
+      "cron": "13 2 * * *",
+      "docDay": "Tue",
       "active": true,
       "autopilot": true,
       "tokenSecretSaved": true,
-      "niche": "Old money habits & quiet wealth",
-      "accent": "#D9C7A7",
+      "niche": "Timeless wisdom, self-mastery & human psychology",
+      "accent": "#F5E31C",
       "kit": {
         "niches": [
-          "silent wealth standards",
-          "stealth wealth etiquette",
-          "generational wealth rules",
-          "taste over flash",
-          "quiet confidence habits"
+          "human psychology & respect",
+          "power of silence & solitude",
+          "dark psychology defense",
+          "samurai mindset & musashi",
+          "emotional detachment",
+          "stoic rules for modern life"
         ],
-        "longSlot": "20:20",
+        "longSlot": "14:30",
         "slots": [
-          "21:20"
+          "22:35"
         ],
-        "docDay": "Fri",
+        "docDay": "Tue",
         "thumbTemplates": [
-          "gold-standard",
-          "pillar"
+          "slab-quote",
+          "serif-frame",
+          "plinth"
         ]
       },
       "destinations": {
-        "fbPageId": "106473735839651"
+        "fbPageId": "114550268199751",
+        "threadsHandle": "quotequarry8"
       }
+    },
+    {
+      "slug": "yt-bot",
+      "ownerEmail": "muzzamilhassan302@gmail.com",
+      "label": "YT-BOT",
+      "handle": "",
+      "channelId": "UCfrULBCMcy7Ovmsd4c-p4WQ",
+      "niche": "",
+      "style": "",
+      "voice": "",
+      "accent": "#38BDF8",
+      "slots": [],
+      "docDay": "",
+      "autopilot": false,
+      "kit": {
+        "label": "YT-BOT",
+        "handle": ""
+      },
+      "destinations": null,
+      "ytDescription": "",
+      "ytKeywords": "",
+      "tokenSecret": "YT_TOKEN_YT_BOT",
+      "tokenSecretSaved": true,
+      "subs": 0,
+      "connectedAt": "2026-11-17T17:09:06.395Z",
+      "consentedAt": null,
+      "consent": null,
+      "autopilotStartedAt": null,
+      "status": "connected · automation wiring pending",
+      "active": true,
+      "fromRegistry": true
     }
   ]
 }
