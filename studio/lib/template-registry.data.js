@@ -1271,6 +1271,95 @@ export const REGISTRY_META = {
     ]
   },
 
+  {
+    "version": "1.0.0",
+    "template_id": "money-flow-diagram",
+    "family": "documentary-frames",
+    "niches": [
+      "Personal finance rules & money habits",
+      "Investing psychology & market wisdom",
+      "Old money habits & quiet wealth",
+      "Real estate wisdom & property",
+      "Insurance explained simply",
+      "Small-business tax & legal principles",
+      "Entrepreneurship & lean business"
+    ],
+    "formats": [
+      "long",
+      "short"
+    ],
+    "renderer": "remotion",
+    "required_capabilities": [
+      "script-gen",
+      "tts",
+      "captions"
+    ],
+    "thumb_design": {
+      "layout": "left-stack",
+      "accent_word": "last",
+      "scrim_tint": "#0F2A22"
+    },
+    "doc_presentation": {
+      "style": "tile",
+      "music_mood": "bright"
+    },
+    "story_structure": {
+      "doc_render": "diagram",
+      "sections": [
+        "cold_open",
+        "chapters:10",
+        "exhibits",
+        "outro"
+      ],
+      "chapter_min_words": 120,
+      "beats": [
+        "slot 1 shows where the money goes today — the income, the accounts and the bills it flows through, with real dollar amounts",
+        "slot 2 names the leak — the one flow that quietly drains the account, its monthly $ cost and why nobody notices it",
+        "slot 3 flips the order — the rule that reroutes the money, step by step, each step a flow the viewer could draw",
+        "slot 4 is the payoff — the same money after 1, 5 and 10 years, compared side by side in plain numbers"
+      ],
+      "hook_classes": [
+        "where-did-my-money-go question",
+        "shocking $ leak number",
+        "same money, two outcomes"
+      ],
+      "title_patterns": [
+        "money-flow explainer (\"Where Your Paycheck Actually Goes — Explained\")",
+        "one-rule rewire (\"Pay Yourself First: The Order That Builds Wealth\")",
+        "side-by-side outcome (\"Same $4,000 Salary, Two Very Different Lives\")"
+      ],
+      "payoff_rule": "the closing lands one before/after comparison in plain numbers plus the single rule to keep — a mic-drop, never a summary",
+      "has_chapters": true,
+      "narrative_format": "chapters",
+      "format_label": "Chapter Breakdown (Numbered Parts)",
+      "format_description": "Structured 10-part chapter breakdown with numbered milestone cards and explicit section divides."
+    },
+    "variation_rules": [
+      "distinct money flow per video — the habit or account mechanism differs from every case in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+      "no recycled example set — different dollar scenarios against the last 5 videos (enforced: the variation gate similarity)",
+      "no repeated hook across the channel's last 5 videos (enforced: the variation gate similarity)",
+      "every figure is concrete and checkable (a stated salary, rate or period) — prose for the author and the review desk"
+    ],
+    "review_thumb_pick": true,
+    "safety": {
+      "required_sources": true,
+      "review_required": [
+        "finance"
+      ],
+      "disclaimers": [
+        "Education, not financial advice."
+      ]
+    },
+    "deprecated": false,
+    "changelog": [
+      {
+        "version": "1.0.0",
+        "date": "2026-11-17",
+        "note": "step 1 (owner-approved): the Living Diagram doc look for ANY money channel — story_structure.doc_render = diagram renders the approved words as one diagram per chapter, cues fired on the spoken word; brand name/colours/voice come from each channel's kit; falls back to the storybook look on any failure (docs/qa/step1-mr-voice-moneyflow-qa.md, docs/templates/living-diagram.md)"
+      }
+    ]
+  },
+
   // ---- REMOVED 2026-11-04 (owner-approved catalog cleanup): 'quote-cards-premium'
   // retired WITH its family — the entry WAS the QQ shorts recipe bound to its own
   // family (owner call: retire the recipe with the family). QQ reverts to its
