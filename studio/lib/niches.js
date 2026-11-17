@@ -152,3 +152,44 @@ export const NICHE_MAP = {
 };
 
 export const NICHE_CATALOG = Object.keys(NICHE_MAP);
+
+// #110 — per-niche template recommendation for the wizard's template cards.
+// DATA, same class as NICHE_MAP (closed D17 vocabulary; brand specifics stay
+// in kit/registry data — this is product-level guidance, not a brand map).
+// Only 'live' styles may appear here — a demo template is never recommended
+// to a new channel (pin-tested in tests/niche-styles.test.mjs).
+export const NICHE_RECOMMENDED = {
+  'History stories': { style: 'doc', reason: 'chaptered documentary storytelling fits multi-part history narratives' },
+  'Investing psychology & market wisdom': { style: 'doc', reason: 'market stories and crashes read best as 10-minute documentary episodes' },
+  'Personal finance rules & money habits': { style: 'doc', reason: 'the rules-plus-stories format the engine already renders daily' },
+  'Old money habits & quiet wealth': { style: 'cinematic', reason: 'luxury b-roll with giant captions matches the aesthetic' },
+  'Real estate wisdom & property': { style: 'cinematic', reason: 'property footage carries these shorts' },
+  'Insurance explained simply': { style: 'doc', reason: 'explainer depth builds trust on a dry topic' },
+  'Small-business tax & legal principles': { style: 'doc', reason: 'an authority format for rules and fine print' },
+  'Entrepreneurship & lean business': { style: 'doc', reason: 'founder stories and lessons as chaptered episodes' },
+  'Sales & negotiation psychology': { style: 'cinematic', reason: 'punchy numbered-list shorts fit persuasion tactics' },
+  'Leadership & management wisdom': { style: 'doc', reason: 'wisdom and rules suit longer episodes' },
+  'Timeless wisdom, self-mastery & human psychology': { style: 'cinematic', reason: 'stoic stock-footage shorts — the proven daily lane' },
+  'AI & future tech': { style: 'tech', reason: 'the dark minimalist explainer built for dev and AI topics' },
+  'Focus & productivity systems': { style: 'cinematic', reason: 'habit-rules shorts with strong captions' },
+  'Healthspan & longevity habits': { style: 'cinematic', reason: 'daily habit shorts with b-roll' },
+  'Sleep & recovery science': { style: 'cinematic', reason: 'calm visual shorts match the niche mood' },
+  'Gym & training motivation': { style: 'cinematic', reason: 'high-energy footage shorts' },
+  'Science & how things work': { style: 'doc', reason: 'mechanisms explained chapter by chapter' },
+  'Travel & geography explained': { style: 'cinematic', reason: 'visual footage is the content here' },
+  'Human psychology & social dynamics': { style: 'cinematic', reason: 'dark-psychology shorts with bold captions' },
+};
+
+// Best-effort lookup for the wizard badge: exact key match first, then the
+// same bidirectional lowercase-substring rule the kit generator uses (first
+// hit in catalog order). Never throws, never guesses a style outside the
+// data — no match returns null and the wizard shows no badge.
+export function recommendedStyleFor(niche) {
+  const low = String(niche || '').trim().toLowerCase();
+  if (!low) return null;
+  const keys = Object.keys(NICHE_RECOMMENDED);
+  const exact = keys.find((k) => k.toLowerCase() === low);
+  if (exact) return { ...NICHE_RECOMMENDED[exact], matched: exact };
+  const fuzzy = keys.find((k) => low.includes(k.toLowerCase()) || k.toLowerCase().includes(low));
+  return fuzzy ? { ...NICHE_RECOMMENDED[fuzzy], matched: fuzzy } : null;
+}

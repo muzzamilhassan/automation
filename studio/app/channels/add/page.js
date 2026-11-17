@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { UserPlus, ShieldCheck, CheckCircle2, AlertTriangle, ArrowRight, Layers, Settings2, Plus, Sparkles, X } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, EmptyState, PageSkeleton } from '@/components/ui';
 import { STYLE_CATALOG, STYLE_BY_ID } from '@/lib/styles-catalog';
-import { NICHE_CATALOG, NICHE_MAP } from '@/lib/niches';
+import { NICHE_CATALOG, NICHE_MAP, recommendedStyleFor } from '@/lib/niches';
 
 const VOICE_SUGGESTIONS = ['am_michael', 'bm_george', 'bm_daniel', 'am_onyx', 'bf_emma'];
 const DOC_DAYS = ['Tue', 'Wed', 'Thu', 'Fri'];
@@ -228,6 +228,9 @@ export default function AddChannel() {
   if (!reg) return <PageSkeleton />;
   const entry = reg.channels?.find((c) => c.slug === connectedSlug);
   const origin = originNow();
+  // #110 — the per-niche template suggestion. Display-only: it drives a badge
+  // and a hint line, never the selection (the owner always clicks the card).
+  const nicheRec = recommendedStyleFor(form.niche);
 
   return (
     <div className="max-w-3xl">
@@ -400,16 +403,49 @@ export default function AddChannel() {
                 The research engine searches YouTube for live viral videos in each sub-niche, ensuring your channel never runs out of fresh, high-performing ideas.
               </p>
             </label>
-            <label className="block">
-              <span className="overline block mb-1.5">Video template</span>
-              <select className="input w-full" value={form.style} onChange={(e) => setForm({ ...form, style: e.target.value })}>
-                {STYLE_CATALOG.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} {s.status === 'live' ? '· live' : '· demo'}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {/* #110 — template picker as preview cards (replaces the plain
+                dropdown): real render frames + live/demo chips + per-niche
+                recommendation badge. Click-to-select; nothing auto-picks. */}
+            <div className="sm:col-span-2">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="overline block">Video template</span>
+                <span className="text-[11px] text-faint">Previews are real frames from actual renders</span>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {STYLE_CATALOG.map((s) => {
+                  const selected = form.style === s.id;
+                  const recommended = nicheRec?.style === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => setForm({ ...form, style: s.id })}
+                      className="inset-tile p-2.5 flex gap-2.5 items-start text-left rounded-lg transition-[color,border-color,background-color,transform] duration-100 ease-out cursor-pointer active:scale-[0.99]"
+                      style={selected ? { borderColor: 'var(--accent)' } : undefined}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={s.preview} alt="" className="w-14 h-14 rounded-md object-cover shrink-0" style={{ background: 'var(--surface-2)' }} />
+                      <span className="min-w-0 flex-1 block">
+                        <span className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[12.5px] font-bold" style={selected ? { color: 'var(--accent)' } : undefined}>{s.name}</span>
+                          <Chip tone={s.status === 'live' ? 'ok' : 'warn'}>{s.status}</Chip>
+                          {recommended ? <Chip tone="accent">★ Recommended for this niche</Chip> : null}
+                        </span>
+                        <span className="text-[11px] text-muted mt-1 leading-snug block">{s.desc}</span>
+                        <span className="text-[10.5px] text-faint mt-1 block">{s.formats.join(' · ')}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {nicheRec ? (
+                <p className="text-[11px] text-faint mt-1.5">
+                  Suggested for your niche: <b className="text-muted">{STYLE_BY_ID[nicheRec.style]?.name}</b> — {nicheRec.reason}. Nothing is chosen
+                  for you; click that card if you want it.
+                </p>
+              ) : null}
+            </div>
             <label className="block">
               <span className="overline block mb-1.5">Voice</span>
               <input className="input w-full" list="voice-suggestions" value={form.voice} onChange={(e) => setForm({ ...form, voice: e.target.value })} />
@@ -486,11 +522,6 @@ export default function AddChannel() {
               </p>
             </div>
           </div>
-          {form.style && STYLE_BY_ID[form.style] ? (
-            <p className="text-[11.5px] text-faint mt-3">
-              Template: <b className="text-muted">{STYLE_BY_ID[form.style].name}</b> — {STYLE_BY_ID[form.style].desc}
-            </p>
-          ) : null}
           <div className="flex gap-2 mt-4 flex-wrap">
             <button className="btn btn-primary" onClick={() => saveProfile()} disabled={saving || !form.niche.trim()}>
               {saving ? 'Saving…' : 'Save & review'}
