@@ -1004,6 +1004,95 @@ export const REGISTRY_META = {
     ]
   },
 
+  {
+    "version": "1.0.0",
+    "template_id": "fine-print-storybook",
+    "family": "documentary-frames",
+    "niches": [
+      "Small-business tax & legal principles"
+    ],
+    "formats": [
+      "long",
+      "short"
+    ],
+    "renderer": "remotion",
+    "required_capabilities": [
+      "script-gen",
+      "tts",
+      "captions"
+    ],
+    "doc_presentation": {
+      "theme": "brief",
+      "voice": "en-US-EmmaNeural",
+      "music_mood": "driving",
+      "doc_layouts": [
+        "split",
+        "process",
+        "stat",
+        "terminal",
+        "versus",
+        "split"
+      ],
+      "brand": "THE FINE PRINT",
+      "badge": "FP",
+      "eyebrow": "SMALL-BUSINESS TAX // FP"
+    },
+    "story_structure": {
+      "doc_render": "storybook",
+      "sections": [
+        "cold_open",
+        "hook_escalation",
+        "deep_investigation",
+        "verdict_payoff",
+        "outro"
+      ],
+      "chapter_min_words": 170,
+      "beats": [
+        "Opening: A bakery owner pays $22,000 less in tax in one year — same revenue, same staff, one entity election changed.",
+        "Evidence: Two freelancers earn $90k each; one deducts home office, mileage, and equipment correctly, the other overpays by $9,000.",
+        "Mechanism: Walk the four deductions owners miss most — home office, mileage, depreciation, retirement match — one line each.",
+        "Payoff: The 15-minute quarterly review ritual that keeps an owner audit-safe all year."
+      ],
+      "hook_classes": [
+        "the-cost reveal",
+        "the two-paths compare",
+        "the-missed-list"
+      ],
+      "title_patterns": [
+        "The $22,000 Tax Election Most Bakeries Never Make",
+        "Two Freelancers, $90k Each — One Pays $9,000 More. Why?",
+        "The 4 Deductions the IRS Expects Small Owners to Miss"
+      ],
+      "payoff_rule": "the closing hands the viewer ONE rule to apply before the next quarter ends",
+      "has_chapters": false,
+      "narrative_format": "full_story",
+      "format_label": "Full Story (Continuous Narrative)",
+      "format_description": "Full continuous narrative documentary arc — seamless story progression with zero chapter dividers."
+    },
+    "variation_rules": [
+      "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+      "no recycled example set against the last 5 videos (enforced: the variation gate similarity)",
+      "no repeated hook across the channel's last 5 videos (enforced: the variation gate similarity)",
+      "every figure and fact is a cited source (prose for the author and the review desk — spec Honest Limits)"
+    ],
+    "review_thumb_pick": true,
+    "safety": {
+      "required_sources": true,
+      "review_required": [],
+      "disclaimers": [
+        "General education on tax and legal concepts — not tax, legal, or financial advice for your situation."
+      ]
+    },
+    "deprecated": false,
+    "changelog": [
+      {
+        "version": "1.0.0",
+        "date": "2026-11-09",
+        "note": "style-catalog batch draft (theme: brief) — staged, awaiting owner approval (--approve)"
+      }
+    ]
+  },
+
   // ---- REMOVED 2026-11-04 (owner-approved catalog cleanup): 'quote-cards-premium'
   // retired WITH its family — the entry WAS the QQ shorts recipe bound to its own
   // family (owner call: retire the recipe with the family). QQ reverts to its
