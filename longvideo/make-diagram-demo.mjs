@@ -47,7 +47,10 @@ plan.scenes.forEach((sc, si) => sc.lines.forEach((ln, li) => flat.push({ si, li,
 const cliEngine = (args.find((a) => a.startsWith('--voice=')) || '').split('=')[1];
 const V = { engine: 'edge', ...(plan.voice || {}) };
 if (cliEngine) V.engine = cliEngine;
-const engineVoice = V.engine === 'edge' ? (V.edgeVoice || voice) : (V.voice || 'af_heart');
+const EDGE_SHAPE = /^[a-z]{2}-[A-Z]{2}-[A-Za-z0-9]+Neural$/;
+const engineVoice = V.engine === 'edge'
+  ? (V.edgeVoice || (EDGE_SHAPE.test(V.voice) ? V.voice : voice))
+  : (V.voice || 'af_heart');
 const work = path.join(EXPL, 'public', 'audio', `diagram-demo-${slug}-${V.engine}`);
 fs.mkdirSync(work, { recursive: true });
 const voicePy = path.join(EXPL, 'voice_lines.py');

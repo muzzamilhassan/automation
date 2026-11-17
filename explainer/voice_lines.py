@@ -136,13 +136,32 @@ def kokoro_dirs():
 def kokoro_model():
     if kokoro_model.k is None:
         from kokoro_onnx import Kokoro
+        # prefer the fp32 model (faster on CPU); fall back to int8 (smaller memory
+        # footprint) when the big allocation fails — MKL can refuse the fp32
+        # workspace under memory pressure ("mkl_malloc: failed to allocate")
+        candidates = []
         for d in kokoro_dirs():
-            model = next((os.path.join(d, f) for f in ("kokoro-v1.0.onnx", "kokoro-v1.0.int8.onnx") if os.path.exists(os.path.join(d, f))), None)
-            if model and os.path.exists(os.path.join(d, "voices-v1.0.bin")):
-                kokoro_model.k = Kokoro(model, os.path.join(d, "voices-v1.0.bin"))
-                break
-        else:
+            if not os.path.exists(os.path.join(d, "voices-v1.0.bin")):
+                continue
+            for f in ("kokoro-v1.0.onnx", "kokoro-v1.0.int8.onnx"):
+                p = os.path.join(d, f)
+                if os.path.exists(p) and p not in candidates:
+                    candidates.append(p)
+        if not candidates:
             raise RuntimeError(f"kokoro model missing in {kokoro_dirs()}")
+        last = None
+        for model in candidates:
+            try:
+                k = Kokoro(model, os.path.join(os.path.dirname(model), "voices-v1.0.bin"))
+                k.create("Loading.", voice="af_heart", speed=1.0, lang="en-us")  # smoke: catches lazy MKL failures
+                kokoro_model.k = k
+                print(f"kokoro model: {os.path.basename(model)}", flush=True)
+                break
+            except Exception as e:
+                last = e
+                print(f"kokoro {os.path.basename(model)} unusable ({str(e)[:120]})", flush=True)
+        else:
+            raise RuntimeError(f"no usable kokoro model in {kokoro_dirs()}: {last}")
     return kokoro_model.k
 
 
@@ -396,7 +415,10 @@ def main():
             matched = len(words)
         elif args.engine == "kokoro":
             # human-feel path: sentence pacing + pauses + exact timings (fails loudly)
-            words, _ms, matched, _tot = human_tts_to_mp3(script, args.voice, args.speed, mood, mp3, tmp)
+            try:
+                words, _ms, matched, _tot = human_tts_to_mp3(script, args.voice, args.speed, mood, mp3, tmp)
+            except RuntimeError as e:
+                sys.exit(f"line {i} ({script[:60]!r}): {e}")
         else:
             wav = os.path.join(tmp, "line.wav")
             if args.engine == "chatterbox-local":

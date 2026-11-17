@@ -1,0 +1,18 @@
+{
+  "slug": "web-message",
+  "brand": "ai-observer",
+  "title": "How the web moves a message",
+  "audience": "developers who never took a networking class",
+  "world": "a laptop called LAPPY talking to a server called SHELF across the internet. Cast: LAPPY (the laptop), SHELF (the server), the DNS BOOK (an address book), the POSTMAN (who carries packets). Keep the same four characters in every lecture.",
+  "voice": { "engine": "kokoro", "voice": "af_heart", "speed": 1.0, "mood": "warm" },
+  "modules": [
+    {
+      "n": 1,
+      "title": "The journey",
+      "lectures": [
+        { "n": 1, "title": "What really happens when you type a URL", "point": "the DNS book turns the name into an address, TCP opens a road, and HTTP carries the message both ways" },
+        { "n": 2, "title": "Why HTTPS is more than a lock icon", "point": "TLS shakes hands, checks a certificate, and only then scrambles the road so middlemen see noise" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,377 @@
+{
+ "slug": "web-message",
+ "brand": "ai-observer",
+ "title": "How the web moves a message",
+ "style": "paper",
+ "voice": {
+  "engine": "edge",
+  "voice": "en-US-AvaMultilingualNeural"
+ },
+ "course": {
+  "modules": [
+   {
+    "n": 1,
+    "title": "The journey"
+   }
+  ]
+ },
+ "scenes": [
+  {
+   "title": "The *journey* of a URL",
+   "badge": "01",
+   "module": 1,
+   "nodes": [],
+   "edges": [],
+   "widgets": [
+    {
+     "id": "b",
+     "type": "boxes",
+     "slot": "center",
+     "cells": [
+      "LAPPY",
+      "SHELF",
+      "DNS BOOK",
+      "POSTMAN"
+     ],
+     "labels": [
+      "Laptop",
+      "Server",
+      "Address Book",
+      "Carrier"
+     ]
+    },
+    {
+     "id": "s",
+     "type": "stepper",
+     "slot": "left",
+     "label": "Step",
+     "value": 0,
+     "unit": ""
+    },
+    {
+     "id": "c",
+     "type": "code",
+     "slot": "right",
+     "title": "TCP handshake",
+     "lines": [
+      "SYN →",
+      "← SYN‑ACK",
+      "ACK →"
+     ]
+    },
+    {
+     "id": "ch",
+     "type": "chart",
+     "slot": "bottom",
+     "label": "HTTP traffic",
+     "series": [
+      {
+       "label": "Request/Response",
+       "shape": "linear"
+      }
+     ]
+    },
+    {
+     "id": "t",
+     "type": "takeaway",
+     "slot": "left",
+     "label": "What to take away",
+     "items": [
+      "DNS turns a name into an IP address",
+      "TCP builds a reliable road",
+      "HTTP carries data both ways"
+     ]
+    },
+    {
+     "id": "r",
+     "type": "roadmap",
+     "slot": "full",
+     "stops": [
+      "type URL",
+      "lookup name",
+      "open road",
+      "send request",
+      "receive page"
+     ],
+     "current": 0
+    }
+   ],
+   "lines": [
+    {
+     "say": "LAPPY types https://shelf.example.com and expects SHELF to answer.",
+     "mood": "warm",
+     "pauseMs": 600,
+     "cues": [
+      {
+       "on": "LAPPY",
+       "do": "show",
+       "widget": "b"
+      }
+     ]
+    },
+    {
+     "say": "Think of the DNS BOOK as a phone book you look up to find a friend's house number.",
+     "mood": "playful",
+     "pauseMs": 500,
+     "cues": [
+      {
+       "on": "phone",
+       "do": "stamp",
+       "text": "*PHONE BOOK*"
+      }
+     ]
+    },
+    {
+     "say": "LAPPY asks the DNS BOOK, “What IP belongs to shelf.example.com?”",
+     "mood": "calm",
+     "pauseMs": 500,
+     "cues": [
+      {
+       "on": "asks",
+       "do": "step",
+       "widget": "s",
+       "step": 1,
+       "text": "Lookup name"
+      }
+     ]
+    },
+    {
+     "say": "The DNS BOOK replies with 203.0.113.42, filling LAPPY’s address slot.",
+     "mood": "calm",
+     "pauseMs": 400,
+     "cues": [
+      {
+       "on": "replies",
+       "do": "fill",
+       "widget": "b",
+       "index": 2,
+       "value": "203.0.113.42"
+      }
+     ]
+    },
+    {
+     "say": "TCP then opens a road between LAPPY and SHELF, establishing a reliable connection.",
+     "mood": "serious",
+     "pauseMs": 600,
+     "cues": [
+      {
+       "on": "opens",
+       "do": "show",
+       "widget": "c"
+      }
+     ]
+    },
+    {
+     "say": "The POSTMAN (HTTP) rides that road, delivering LAPPY’s request and bringing back the page.",
+     "mood": "excited",
+     "pauseMs": 500,
+     "cues": [
+      {
+       "on": "POSTMAN",
+       "do": "plot",
+       "widget": "ch",
+       "series": 0
+      }
+     ]
+    },
+    {
+     "say": "When the page arrives, LAPPY shows the website – the journey is complete.",
+     "mood": "warm",
+     "pauseMs": 600,
+     "cues": [
+      {
+       "on": "arrives",
+       "do": "advance",
+       "widget": "r",
+       "to": 4
+      }
+     ]
+    },
+    {
+     "say": "Here's what to take away.",
+     "mood": "warm",
+     "pauseMs": 400,
+     "cues": [
+      {
+       "on": "take",
+       "do": "show",
+       "widget": "t"
+      }
+     ]
+    },
+    {
+     "say": "The book turns a name into an address.",
+     "mood": "calm",
+     "pauseMs": 300,
+     "cues": [
+      {
+       "on": "book",
+       "do": "tick",
+       "widget": "t",
+       "index": 0
+      }
+     ]
+    },
+    {
+     "say": "TCP builds a road, and HTTP carries the message both ways.",
+     "mood": "calm",
+     "pauseMs": 300,
+     "cues": [
+      {
+       "on": "TCP",
+       "do": "tick",
+       "widget": "t",
+       "index": 1
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Why HTTPS is more than a *lock*",
+   "badge": "02",
+   "module": 1,
+   "nodes": [],
+   "edges": [],
+   "widgets": [
+    {
+     "id": "b",
+     "type": "boxes",
+     "slot": "center",
+     "cells": [
+      "LAPPY",
+      "SHELF",
+      "POSTMAN"
+     ],
+     "labels": [
+      "Laptop",
+      "Server",
+      "Courier"
+     ]
+    },
+    {
+     "id": "s",
+     "type": "stepper",
+     "slot": "right",
+     "label": "Handshake steps",
+     "value": 0,
+     "unit": ""
+    },
+    {
+     "id": "t",
+     "type": "takeaway",
+     "slot": "left",
+     "label": "What to take away",
+     "items": [
+      "TLS starts with a handshake",
+      "The certificate is the ID check",
+      "Data is encrypted afterwards"
+     ]
+    }
+   ],
+   "lines": [
+    {
+     "say": "LAPPY wants to send a secret note to SHELF but worries a nosy POSTMAN might read it.",
+     "mood": "warm",
+     "pauseMs": 500,
+     "cues": [
+      {
+       "on": "LAPPY",
+       "do": "show",
+       "widget": "b"
+      }
+     ]
+    },
+    {
+     "say": "Think of it as a secret handshake before opening a tunnel.",
+     "mood": "playful",
+     "pauseMs": 600,
+     "cues": [
+      {
+       "on": "handshake",
+       "do": "stamp",
+       "text": "*SECRET* HANDSHAKE"
+      }
+     ]
+    },
+    {
+     "say": "First, LAPPY says hello and asks SHELF to show its certificate.",
+     "mood": "calm",
+     "pauseMs": 500,
+     "cues": [
+      {
+       "on": "hello",
+       "do": "step",
+       "widget": "s",
+       "step": 1,
+       "text": "LAPPY → SHELF: Hello + Cert?",
+       "ok": true
+      }
+     ]
+    },
+    {
+     "say": "Second, they compare the certificate to the trusted DNS BOOK and agree on a shared secret key.",
+     "mood": "serious",
+     "pauseMs": 500,
+     "cues": [
+      {
+       "on": "compare",
+       "do": "step",
+       "widget": "s",
+       "step": 2,
+       "text": "Check cert vs DNS BOOK, agree key",
+       "ok": true
+      }
+     ]
+    },
+    {
+     "say": "Third, every later packet the POSTMAN carries is scrambled, so he only sees noise.",
+     "mood": "excited",
+     "pauseMs": 500,
+     "cues": [
+      {
+       "on": "scrambled",
+       "do": "step",
+       "widget": "s",
+       "step": 3,
+       "text": "All later packets encrypted",
+       "ok": true
+      }
+     ]
+    },
+    {
+     "say": "The result is that middlemen can’t understand the conversation.",
+     "mood": "calm",
+     "pauseMs": 400,
+     "cues": [
+      {
+       "on": "result",
+       "do": "tick",
+       "widget": "t",
+       "index": 0
+      }
+     ]
+    },
+    {
+     "say": "Here's what to take away.",
+     "mood": "warm",
+     "pauseMs": 800,
+     "cues": [
+      {
+       "on": "take",
+       "do": "tick",
+       "widget": "t",
+       "index": 1
+      },
+      {
+       "on": "take",
+       "do": "tick",
+       "widget": "t",
+       "index": 2
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
