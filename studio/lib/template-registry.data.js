@@ -1539,6 +1539,96 @@ export const REGISTRY_META = {
     ]
   },
 
+  {
+    "version": "1.0.0",
+    "template_id": "old-verses-storybook",
+    "family": "documentary-frames",
+    "niches": [
+      "Timeless wisdom, self-mastery & human psychology"
+    ],
+    "formats": [
+      "long",
+      "short"
+    ],
+    "renderer": "remotion",
+    "required_capabilities": [
+      "script-gen",
+      "tts",
+      "captions"
+    ],
+    "doc_presentation": {
+      "style": "landscape-quote",
+      "theme": "letterpress",
+      "voice": "en-US-EmmaNeural",
+      "music_mood": "mystical",
+      "doc_layouts": [
+        "quote",
+        "split",
+        "quote",
+        "stat",
+        "quote",
+        "split"
+      ],
+      "brand": "OLD VERSES",
+      "badge": "OV",
+      "eyebrow": "TIMELESS VERSES // OV"
+    },
+    "story_structure": {
+      "doc_render": "storybook",
+      "sections": [
+        "cold_open",
+        "hook_escalation",
+        "deep_investigation",
+        "verdict_payoff",
+        "outro"
+      ],
+      "chapter_min_words": 170,
+      "beats": [
+        "Opening: Marcus Aurelius wrote to himself at dawn, never for an audience — the Meditations were private notes that survived an empire.",
+        "Evidence: The letter Seneca sent at 3AM — 'every night, examine your day' — and the psychology that proves the habit works.",
+        "Mechanism: Why the verses endure: they compress a rule into rhythm, and rhythm survives translation after translation.",
+        "Payoff: The evening verse practice — one line, read slowly, before the lamp goes out."
+      ],
+      "hook_classes": [
+        "the-private note",
+        "the-letter",
+        "the-evening practice"
+      ],
+      "title_patterns": [
+        "Marcus Aurelius Never Meant for You to Read This",
+        "The 3AM Letter That Taught Rome to Examine a Day",
+        "One Verse a Night: The Oldest Evening Practice on Record"
+      ],
+      "payoff_rule": "the closing leaves one verse held in silence — the viewer reads it nightly",
+      "has_chapters": false,
+      "narrative_format": "full_story",
+      "format_label": "Full Story (Continuous Narrative)",
+      "format_description": "Full continuous narrative documentary arc — seamless story progression with zero chapter dividers."
+    },
+    "variation_rules": [
+      "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+      "no recycled example set against the last 5 videos (enforced: the variation gate similarity)",
+      "no repeated hook across the channel's last 5 videos (enforced: the variation gate similarity)",
+      "every figure and fact is a cited source (prose for the author and the review desk — spec Honest Limits)"
+    ],
+    "review_thumb_pick": true,
+    "safety": {
+      "required_sources": true,
+      "review_required": [],
+      "disclaimers": [
+        "Philosophy and history retold from cited sources — not psychological or medical advice."
+      ]
+    },
+    "deprecated": false,
+    "changelog": [
+      {
+        "version": "1.0.0",
+        "date": "2026-11-09",
+        "note": "family F4 landscape-quote draft — staged, awaiting owner approval (--approve)"
+      }
+    ]
+  },
+
   // ---- REMOVED 2026-11-04 (owner-approved catalog cleanup): 'quote-cards-premium'
   // retired WITH its family — the entry WAS the QQ shorts recipe bound to its own
   // family (owner call: retire the recipe with the family). QQ reverts to its
