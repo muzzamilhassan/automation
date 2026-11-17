@@ -1719,6 +1719,95 @@ export const REGISTRY_META = {
     ]
   },
 
+  {
+    "version": "1.0.0",
+    "template_id": "salt-and-iron-storybook",
+    "family": "documentary-frames",
+    "niches": [
+      "History stories"
+    ],
+    "formats": [
+      "long",
+      "short"
+    ],
+    "renderer": "remotion",
+    "required_capabilities": [
+      "script-gen",
+      "tts",
+      "captions"
+    ],
+    "doc_presentation": {
+      "theme": "frontier",
+      "voice": "en-US-ChristopherNeural",
+      "music_mood": "epic",
+      "doc_layouts": [
+        "timeline",
+        "map",
+        "split",
+        "quote",
+        "process",
+        "split"
+      ],
+      "brand": "SALT & IRON",
+      "badge": "SI",
+      "eyebrow": "HISTORY STORIES // SI"
+    },
+    "story_structure": {
+      "doc_render": "storybook",
+      "sections": [
+        "cold_open",
+        "hook_escalation",
+        "deep_investigation",
+        "verdict_payoff",
+        "outro"
+      ],
+      "chapter_min_words": 170,
+      "beats": [
+        "Opening: An empire of millions collapses at a single river crossing — one bridge decision, one afternoon.",
+        "Evidence: The campaign diary and the modern survey of the pass that trapped the army.",
+        "Mechanism: Logistics as destiny — how supply lines, not swords, decided the war.",
+        "Payoff: The map lesson that repeats in every century: geography writes the history books."
+      ],
+      "hook_classes": [
+        "the-turning point",
+        "the-record excerpt",
+        "the-pattern close"
+      ],
+      "title_patterns": [
+        "The Empire That Fell to a Single River Crossing",
+        "How One Mislabeled Map Lost a King His Entire Army",
+        "The Siege That Lasted 29 Years and Changed Nothing"
+      ],
+      "payoff_rule": "the closing zooms out — what this story explains about every empire after it",
+      "narrative_format": "full_story",
+      "has_chapters": false,
+      "format_label": "Full Story (Continuous Narrative)",
+      "format_description": "Full continuous narrative documentary arc — seamless story progression with zero chapter dividers."
+    },
+    "variation_rules": [
+      "distinct subject/arc per video — differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+      "no recycled example set against the last 5 videos (enforced: the variation gate similarity)",
+      "no repeated hook across the channel's last 5 videos (enforced: the variation gate similarity)",
+      "every figure and fact is a cited source (prose for the author and the review desk — spec Honest Limits)"
+    ],
+    "review_thumb_pick": true,
+    "safety": {
+      "required_sources": true,
+      "review_required": [],
+      "disclaimers": [
+        "History retold from cited sources — interpretations vary and debates continue among historians."
+      ]
+    },
+    "deprecated": false,
+    "changelog": [
+      {
+        "version": "1.0.0",
+        "date": "2026-11-09",
+        "note": "style-catalog batch draft (theme: frontier) — staged, awaiting owner approval (--approve)"
+      }
+    ]
+  },
+
   // ---- REMOVED 2026-11-04 (owner-approved catalog cleanup): 'quote-cards-premium'
   // retired WITH its family — the entry WAS the QQ shorts recipe bound to its own
   // family (owner call: retire the recipe with the family). QQ reverts to its
