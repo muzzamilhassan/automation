@@ -8,9 +8,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "tf7a6LlDYGg",
-        "publishAt": "2026-11-16T23:35:00Z",
-        "title": "5x Leverage = 60% Loss in One Dip"
+        "videoId": "NcUJokCVeAI",
+        "publishAt": "2026-11-17T23:35:00Z",
+        "title": "Zero‑Fee ETF? Hidden Costs Eat Your Returns"
       }
     ],
     "imageDate": "2026-10-17",
@@ -102,6 +102,10 @@
       {
         "t": "5x Leverage = 60% Loss in One Dip",
         "at": "2026-11-16T23:35:00Z"
+      },
+      {
+        "t": "Zero‑Fee ETF? Hidden Costs Eat Your Returns",
+        "at": "2026-11-17T23:35:00Z"
       }
     ],
     "cooldownSeeds": [
@@ -109,8 +113,8 @@
       "Still Waiting For the Market Crash? Watch This Right Now | Weekend Investing | Alok Jain"
     ],
     "uploadsToday": {
-      "date": "2026-11-15",
-      "count": 3
+      "date": "2026-11-16",
+      "count": 1
     },
     "usedLongSeeds": [
       "The 3 Secrets to Building Wealth",
@@ -159,7 +163,8 @@
           "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/751386600",
           "startSec": 183,
           "durSec": 23.1,
-          "file": "tt-lf/clipfeed-investors-compass/clips/clip-03.mp4"
+          "file": "tt-lf/clipfeed-investors-compass/clips/clip-03.mp4",
+          "postedAt": "2026-11-17T02:58:45.396Z"
         },
         {
           "part": 4,
@@ -172,11 +177,11 @@
         }
       ]
     },
-    "clipLastPostDate": "2026-11-16",
+    "clipLastPostDate": "2026-11-17",
     "reviewGate": {
       "assigned": false,
       "gated": false,
-      "checkedAt": "2026-11-16T03:07:43.485Z"
+      "checkedAt": "2026-11-17T02:58:36.033Z"
     }
   },
   "money-rulebook": {
