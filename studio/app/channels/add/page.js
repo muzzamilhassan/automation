@@ -31,6 +31,10 @@ export default function AddChannel() {
   const [saving, setSaving] = useState(false);
   const [fillingKit, setFillingKit] = useState(false);
   const [kitMood, setKitMood] = useState('');
+  // #113 — LLM kit drafts: reviewable per-field suggestions with explicit
+  // Apply. Template fallback fills as before and is stated as such.
+  const [kitDraft, setKitDraft] = useState(null); // { kit, suggestion, applied }
+  const [kitNote, setKitNote] = useState('');
   // #115 — production-template browser: the registry view + CI sample MP4s,
   // one hover popup at a time, per-template assign state.
   const [tplView, setTplView] = useState(null); // { templates } from /api/templates
@@ -217,27 +221,61 @@ export default function AddChannel() {
     }
     setFillingKit(true);
     setError('');
+    setKitNote('');
     try {
       const r = await fetch('/api/channels/kit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug: connectedSlug, niche: form.niche, label: form.label }),
+        body: JSON.stringify({ slug: connectedSlug, niche: form.niche, label: form.label, useLLM: true }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Kit generation failed');
       setKitMood(d.kit.mood || '');
-      setForm((f) => ({
-        ...f,
-        subNiches: Array.isArray(d.kit.niches) ? d.kit.niches.join(', ') : f.subNiches,
-        eyebrow: d.kit.eyebrow || f.eyebrow,
-        tagline: d.kit.tagline || f.tagline,
-        tags: (d.kit.tags || []).join(', '),
-        description: d.kit.description || f.description,
-      }));
+      if (d.source === 'llm') {
+        // AI draft — NEVER fills silently: every field becomes a reviewable
+        // suggestion below with an explicit Apply action.
+        setKitDraft({ kit: d.kit, suggestion: d.suggestion || {}, applied: {} });
+      } else {
+        // template path (or AI fallback) — fills as before, and says which path
+        setKitDraft(null);
+        setKitNote(d.note ? `AI unavailable (${d.note}) — drafted by the template generator.` : 'Drafted by the template generator.');
+        setForm((f) => ({
+          ...f,
+          subNiches: Array.isArray(d.kit.niches) ? d.kit.niches.join(', ') : f.subNiches,
+          eyebrow: d.kit.eyebrow || f.eyebrow,
+          tagline: d.kit.tagline || f.tagline,
+          tags: (d.kit.tags || []).join(', '),
+          description: d.kit.description || f.description,
+        }));
+      }
     } catch (e) {
       setError(e.message);
     }
     setFillingKit(false);
+  };
+
+  // #113 — one explicit Apply per drafted field; the form only changes on click.
+  const applyDraftField = (key) => {
+    if (!kitDraft) return;
+    const { kit, suggestion } = kitDraft;
+    setForm((f) => {
+      switch (key) {
+        case 'eyebrow': return { ...f, eyebrow: kit.eyebrow || f.eyebrow };
+        case 'tagline': return { ...f, tagline: kit.tagline || f.tagline };
+        case 'description': return { ...f, description: kit.description || f.description };
+        case 'tags': return { ...f, tags: (kit.tags || []).join(', ') || f.tags };
+        case 'subNiches': return { ...f, subNiches: (kit.niches || []).join(', ') || f.subNiches };
+        case 'voice': return suggestion.voice ? { ...f, voice: suggestion.voice } : f;
+        case 'style': return suggestion.style ? { ...f, style: suggestion.style } : f;
+        default: return f;
+      }
+    });
+    setKitDraft((kd) => ({ ...kd, applied: { ...kd.applied, [key]: true } }));
+  };
+
+  const applyAllDraftFields = () => {
+    if (!kitDraft) return;
+    ['eyebrow', 'tagline', 'description', 'tags', 'subNiches', ...(kitDraft.suggestion.voice ? ['voice'] : []), ...(kitDraft.suggestion.style ? ['style'] : [])].forEach(applyDraftField);
   };
 
   const makeLink = async () => {
@@ -700,6 +738,42 @@ export default function AddChannel() {
                 <Sparkles size={14} /> {fillingKit ? 'Drafting…' : 'Auto-fill brand kit from niche'}
               </button>
               {kitMood ? <span className="text-[11px] text-faint ml-2">music mood: {kitMood}</span> : null}
+              {kitNote ? <span className="text-[11px] text-amber-300/80 ml-2">{kitNote}</span> : null}
+              {kitDraft ? (
+                <div className="mt-3 rounded-xl border border-sky-400/40 bg-sky-400/5 p-3">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="text-[12px] font-medium text-sky-200">AI draft — review each field, then apply what you like</span>
+                    <div className="flex gap-2">
+                      <button type="button" className="text-[11.5px] font-medium text-sky-300 hover:text-sky-200 underline underline-offset-2" onClick={applyAllDraftFields}>Apply all</button>
+                      <button type="button" className="text-[11.5px] text-white/50 hover:text-white/80 underline underline-offset-2" onClick={() => setKitDraft(null)}>Discard</button>
+                    </div>
+                  </div>
+                  <div className="grid gap-1.5">
+                    {[
+                      ['eyebrow', 'Eyebrow', kitDraft.kit.eyebrow],
+                      ['tagline', 'Tagline', kitDraft.kit.tagline],
+                      ['description', 'Description', kitDraft.kit.description],
+                      ['tags', 'Tags', (kitDraft.kit.tags || []).join(', ')],
+                      ['subNiches', 'Sub-niches', (kitDraft.kit.niches || []).join(', ')],
+                      ...(kitDraft.suggestion.voice ? [['voice', 'Voice', kitDraft.suggestion.voice]] : []),
+                      ...(kitDraft.suggestion.style ? [['style', 'Style', kitDraft.suggestion.style]] : []),
+                    ].map(([key, label, value]) => (
+                      <div key={key} className="flex items-start gap-2 rounded-lg border border-white/10 px-2.5 py-1.5">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[10.5px] text-white/45">{label}</div>
+                          <div className="text-[12.5px] text-white/85 line-clamp-2">{value || '—'}</div>
+                        </div>
+                        {kitDraft.applied[key] ? (
+                          <span className="shrink-0 text-[11.5px] text-emerald-400 font-medium pt-1">Applied ✓</span>
+                        ) : (
+                          <button type="button" className="shrink-0 text-[11.5px] font-medium text-sky-300 hover:text-sky-200 underline underline-offset-2 pt-1" onClick={() => applyDraftField(key)}>Apply</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <span className="text-[10.5px] text-white/40 mt-2 block">Drafted by AI (Groq) from your niche. Nothing here touches the form until you press Apply.</span>
+                </div>
+              ) : null}
             </div>
             <label className="block sm:col-span-2">
               <span className="overline block mb-1.5">Eyebrow (on-video label)</span>
@@ -818,6 +892,8 @@ export default function AddChannel() {
                     setStarted(false);
                     setConnectedSlug('');
                     setKitMood('');
+                    setKitDraft(null);
+                    setKitNote('');
                     setForm({ label: '', niche: '', style: 'cinematic', voice: 'am_michael', accent: '#38BDF8', slots: '22:35', docDay: 'Tue', eyebrow: '', tagline: '', tags: '', description: '', fbPageId: '', igHandle: '', threadsHandle: '', tiktokHandle: '' });
                   }}
                 >

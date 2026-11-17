@@ -1,10 +1,17 @@
 // 10-05 CHANNEL FACTORY — brand-kit generator (wizard step 3).
 // Deterministic draft from the niche + label: identity fields, SEO tags,
 // script rules, music mood. Fully editable by the user in the wizard before
-// saving — the machine drafts, the human approves. (No LLM key needed on the
-// server; the fields are plain templates.)
-import { requireRole } from '@/lib/route-auth';
+// saving — the machine drafts, the human approves.
+// #113 flavor B: when the request asks for AI and GROQ_API_KEY is set, the
+// identity/SEO fields are drafted by the LLM instead (machine-drafts-human-
+// approves preserved — the wizard shows each field as a reviewable
+// suggestion with an explicit Apply). Failure or missing key falls back to
+// the deterministic templates and the response says which path produced the
+// draft. Every AI attempt lands in the audit log.
+import { requireRole, getUser } from '@/lib/route-auth';
 import { NICHE_MAP } from '@/lib/niches';
+import { appendAudit } from '@/lib/audit';
+import { llmKitDraft } from '@/lib/llm-kit';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,10 +39,32 @@ function detectMood(low) {
 export async function POST(req) {
   if (!(await requireRole(req, ['owner']))) return Response.json({ error: 'not signed in' }, { status: 401 });
   const body = await req.json().catch(() => ({}));
-  const { slug, niche, label } = body;
+  const { slug, niche, label, useLLM } = body;
   const nick = String(niche || '').trim();
   const lab = String(label || slug || 'new channel').trim();
   if (!nick) return Response.json({ error: 'niche is required' }, { status: 400 });
+
+  // #113 — AI draft first when asked for and configured; deterministic
+  // templates remain the guaranteed fallback (EARS 3). Both paths return the
+  // same kit shape; `source` tells the wizard which one produced it so the
+  // UI can show reviewable Apply actions (llm) or state the fallback (template).
+  let llmDraft = null;
+  let llmNote = '';
+  if (useLLM) {
+    const actor = (await getUser(req))?.email || 'owner';
+    if (!process.env.GROQ_API_KEY) {
+      llmNote = 'no AI key configured';
+      await appendAudit(actor, 'kit-llm-draft', `skipped: ${llmNote} · ${nick}`);
+    } else {
+      try {
+        llmDraft = await llmKitDraft({ niche: nick, label: lab, slug });
+        await appendAudit(actor, 'kit-llm-draft', `ok · ${nick}`);
+      } catch (e) {
+        llmNote = `AI draft failed (${String(e.message || e).slice(0, 80)})`;
+        await appendAudit(actor, 'kit-llm-draft', `failed: ${llmNote} · ${nick}`);
+      }
+    }
+  }
 
   const low = nick.toLowerCase();
   const words = low.split(/[^a-z0-9]+/).filter((w) => w.length > 2);
@@ -87,5 +116,25 @@ export async function POST(req) {
       titleExamples: '"7 Habits That Quietly Set You Apart", "The Rule Nobody Talks About"',
     },
   };
-  return Response.json({ kit });
+
+  if (!llmDraft) {
+    // deterministic path (or AI fallback) — wizard fills as before, and says so
+    return Response.json({ kit, source: 'template', ...(llmNote ? { note: llmNote } : {}) });
+  }
+  // AI path: LLM fields win where present; the deterministic kit stays the
+  // base so keyword/theme/script/music fields always exist. voice/style are
+  // SUGGESTIONS only — the wizard applies them on an explicit click.
+  const merged = {
+    ...kit,
+    ...(llmDraft.eyebrow ? { eyebrow: llmDraft.eyebrow } : {}),
+    ...(llmDraft.tagline ? { tagline: llmDraft.tagline } : {}),
+    ...(llmDraft.description ? { description: llmDraft.description } : {}),
+    ...(llmDraft.tags.length ? { tags: llmDraft.tags } : {}),
+    ...(llmDraft.subNiches.length ? { niches: llmDraft.subNiches } : {}),
+  };
+  const suggestion = {
+    ...(llmDraft.voice ? { voice: llmDraft.voice } : {}),
+    ...(llmDraft.style ? { style: llmDraft.style } : {}),
+  };
+  return Response.json({ kit: merged, source: 'llm', suggestion });
 }
