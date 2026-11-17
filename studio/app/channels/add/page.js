@@ -1,13 +1,13 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { UserPlus, ShieldCheck, CheckCircle2, AlertTriangle, ArrowRight, Layers, Settings2, Plus, Sparkles, X, Play } from 'lucide-react';
+import { UserPlus, ShieldCheck, CheckCircle2, AlertTriangle, ArrowRight, Layers, Settings2, Plus, Sparkles, X, Play, Square } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, EmptyState, PageSkeleton } from '@/components/ui';
 import { STYLE_CATALOG, STYLE_BY_ID } from '@/lib/styles-catalog';
 import { NICHE_CATALOG, NICHE_MAP, recommendedStyleFor } from '@/lib/niches';
 import { previewSourceFor, popupAnchorFor } from '@/lib/wizard-preview-helpers';
+import { VOICES } from '@/lib/voices';
 
-const VOICE_SUGGESTIONS = ['am_michael', 'bm_george', 'bm_daniel', 'am_onyx', 'bf_emma'];
 const DOC_DAYS = ['Tue', 'Wed', 'Thu', 'Fri'];
 
 function originNow() {
@@ -39,6 +39,24 @@ export default function AddChannel() {
   const POPUP = { width: 360, height: 300 }; // must match popupAnchorFor sizing
   const openTimer = useRef(null);
   const closeTimer = useRef(null);
+  // #111 — voice demos: one shared audio element, so starting a demo stops
+  // the previous one. Picking a voice is always an explicit click.
+  const voiceAudio = useRef(null);
+  const [playingVoice, setPlayingVoice] = useState(null);
+  const playDemo = (voice) => {
+    const el = voiceAudio.current;
+    if (!el) return;
+    if (playingVoice === voice.id) {
+      el.pause();
+      el.currentTime = 0;
+      setPlayingVoice(null);
+      return;
+    }
+    el.src = voice.demo;
+    el.play().catch(() => setPlayingVoice(null));
+    setPlayingVoice(voice.id);
+  };
+  useEffect(() => () => voiceAudio.current?.pause(), []);
   const [form, setForm] = useState({
     label: '', niche: '', subNiches: '', style: 'cinematic', voice: 'am_michael', accent: '#38BDF8', slots: '22:35',
     docDay: 'Tue', eyebrow: '', tagline: '', tags: '', description: '',
@@ -594,15 +612,40 @@ export default function AddChannel() {
                 </div>
               </div>
             ) : null}
-            <label className="block">
+            <div>
               <span className="overline block mb-1.5">Voice</span>
-              <input className="input w-full" list="voice-suggestions" value={form.voice} onChange={(e) => setForm({ ...form, voice: e.target.value })} />
-              <datalist id="voice-suggestions">
-                {VOICE_SUGGESTIONS.map((v) => (
-                  <option key={v} value={v} />
+              <audio ref={voiceAudio} onEnded={() => setPlayingVoice(null)} className="hidden" />
+              <input className="input w-full" value={form.voice} onChange={(e) => setForm({ ...form, voice: e.target.value })} placeholder="any Kokoro voice id" />
+              <div className="mt-2 grid gap-1.5">
+                {VOICES.map((v) => (
+                  <div
+                    key={v.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={form.voice === v.id}
+                    className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 cursor-pointer transition-colors ${form.voice === v.id ? 'border-sky-400/60 bg-sky-400/10' : 'border-white/10 hover:border-white/25'}`}
+                    onClick={() => setForm({ ...form, voice: v.id })}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setForm({ ...form, voice: v.id }); }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[12.5px] font-medium truncate">{v.label}</div>
+                      <div className="text-[10.5px] font-mono text-white/45 truncate">{v.id}</div>
+                    </div>
+                    {v.demo ? (
+                      <button
+                        type="button"
+                        aria-label={playingVoice === v.id ? `Stop ${v.id} demo` : `Play ${v.id} demo`}
+                        className="shrink-0 w-7 h-7 rounded-full grid place-items-center bg-white/10 hover:bg-white/20 text-white/80"
+                        onClick={(e) => { e.stopPropagation(); playDemo(v); }}
+                      >
+                        {playingVoice === v.id ? <Square size={11} fill="currentColor" /> : <Play size={11} />}
+                      </button>
+                    ) : null}
+                  </div>
                 ))}
-              </datalist>
-            </label>
+              </div>
+              <span className="text-[10.5px] text-white/40 mt-1.5 block">Demos all say the same line — compare them fairly. Clicking a voice picks it; typing keeps a custom id.</span>
+            </div>
             <label className="block">
               <span className="overline block mb-1.5">Accent color</span>
               <input type="color" className="input w-full h-[38px] p-1" value={form.accent} onChange={(e) => setForm({ ...form, accent: e.target.value })} />
