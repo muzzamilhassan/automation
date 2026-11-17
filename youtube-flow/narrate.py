@@ -145,10 +145,65 @@ async def _edge(text, mp3_path):
         json.dump(words, f)
 
 
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def voice_profile(slug=None, brands_path=None):
+    """The channel's human-voice profile from its brand kit DATA (no-static-maps):
+    lib/brands.json[slug].voiceProfile = {engine:'kokoro', voice, speed?, mood?}.
+    None = today's engine chain, byte-identical (step 1 V4)."""
+    slug = slug or os.environ.get("YT_VOICE_CHANNEL") or os.environ.get("SLUG") or ""
+    if not slug:
+        return None
+    try:
+        with open(brands_path or os.path.join(ROOT, "lib", "brands.json"), encoding="utf-8") as f:
+            kits = json.load(f)
+    except Exception:
+        return None
+    kits = kits.get("brands", kits) if isinstance(kits, dict) else {}
+    prof = (kits.get(slug) or {}).get("voiceProfile") if isinstance(kits.get(slug), dict) else None
+    if isinstance(prof, dict) and prof.get("engine") == "kokoro" and str(prof.get("voice") or "").strip():
+        return prof
+    return None
+
+
+def try_human(text, mp3_path, prof, lane=None):
+    """Step 1 V1/V2: the human-feel Kokoro path; returns the meta dict, or None after
+    logging why (the caller then runs today's chain unchanged)."""
+    try:
+        if lane is None:
+            sys.path.insert(0, os.path.join(ROOT, "explainer"))
+            import voice_lines as lane
+        tmp = mp3_path + ".human-tmp"
+        try:
+            words, ms, matched, total = lane.human_tts_to_mp3(
+                text, prof["voice"], float(prof.get("speed") or 1.0), prof.get("mood"), mp3_path, tmp)
+        finally:
+            import shutil
+            shutil.rmtree(tmp, ignore_errors=True)
+        if not words:
+            raise RuntimeError("no word timings")
+        print(f"human voice: {prof['voice']} {ms / 1000:.1f}s, {matched}/{total} words heard", file=sys.stderr)
+        return {"engine": "kokoro-human", "audio": mp3_path, "words": words,
+                "duration": round(ms / 1000, 3), "voice": prof["voice"]}
+    except Exception as e:
+        print(f"human voice failed ({str(e)[:200]}); falling back to the legacy chain", file=sys.stderr)
+        return None
+
+
 def main():
     txt_path, mp3_path, words_path = sys.argv[1:4]
     with open(txt_path, encoding="utf-8") as f:
         text = " ".join(f.read().split())
+
+    prof = voice_profile()
+    if prof:
+        meta = try_human(text, mp3_path, prof)
+        if meta:
+            with open(mp3_path + ".meta.json", "w", encoding="utf-8") as f:
+                json.dump(meta, f)
+            print("engine:" + meta["engine"])
+            return
 
     meta = {"engine": "edge", "audio": mp3_path, "words": []}
     key = os.environ.get("OPENAI_API_KEY", "").strip()

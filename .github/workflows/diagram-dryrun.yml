@@ -1,0 +1,82 @@
+# Living Diagram DRY RUN (docs/templates/living-diagram.md, step 1 QA row 10).
+# Renders an approved script in a Living Diagram template ON GITHUB, exactly as the
+# doc lane would (live planner, the channel's voiceProfile, approved music, Remotion),
+# measures every stage, and attaches the MP4 as an artifact. NOTHING is uploaded to
+# YouTube; no production state is touched. Manual dispatch only.
+name: 🧪 Diagram dry run
+
+on:
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: "channel slug (its kit, voiceProfile and music are used)"
+        required: true
+        default: "money-rulebook"
+      template:
+        description: "template file (a draft or an exported registry entry)"
+        required: true
+        default: "studio/lib/template-bot-drafts/money-flow-diagram.json"
+      script:
+        description: "approved script JSON { title, intro, chapters[{title,text}], outro }"
+        required: true
+        default: "longvideo/diagram-demo/mr-silent-money-leaks.script.json"
+      plan_only:
+        description: "1 = planning check only (no voice, no render)"
+        required: false
+        default: "0"
+
+permissions:
+  contents: read
+
+jobs:
+  dryrun:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      SLUG: ${{ inputs.slug }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 💾 Restore Pixabay pool (holds the Kokoro model when cached)
+        uses: actions/cache/restore@v4
+        with:
+          path: pixabay-pool
+          key: pixabay-pool-v1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: 🔊 Setup FFmpeg
+        uses: ./.github/actions/setup-ffmpeg
+
+      - name: 🎨 Setup render env (fonts, TTS, human voice lane for this slug)
+        uses: ./.github/actions/setup-render
+
+      - name: 📦 Install deps (root + explainer)
+        run: |
+          npm install --no-audit --no-fund
+          cd explainer && npm install --no-audit --no-fund
+
+      - name: 🧪 Dry run (no upload)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          START=$(date +%s)
+          node longvideo/diagram-episode-dryrun.mjs "$SLUG" "${{ inputs.script }}" "${{ inputs.template }}" ${{ inputs.plan_only == '1' && '--plan-only' || '' }} 2>&1 | grep -v -E "Rendered [0-9]+/|Encoded [0-9]+/"
+          echo "::notice::diagram dry run wall time: $(( ($(date +%s) - START) / 60 )) min (runner: $(nproc) vCPU)"
+
+      - name: ⬆️ Attach the rendered episode
+        if: ${{ inputs.plan_only != '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagram-dryrun-${{ inputs.slug }}
+          path: |
+            longvideo/out/diagram-demo/${{ inputs.slug }}-dryrun/episode.mp4
+            longvideo/out/diagram-demo/${{ inputs.slug }}-dryrun/episode.srt
+          retention-days: 7
+          if-no-files-found: error

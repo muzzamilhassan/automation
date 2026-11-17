@@ -100,6 +100,12 @@
     "accent": "#3DDC97",
     "bg": "#101314",
     "voice": "bm_daniel",
+    "voiceProfile": {
+      "engine": "kokoro",
+      "voice": "bm_daniel",
+      "speed": 0.95,
+      "mood": "calm"
+    },
     "slots": [
       "00:05"
     ],

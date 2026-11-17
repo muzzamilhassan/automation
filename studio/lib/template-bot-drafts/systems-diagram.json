@@ -1,0 +1,82 @@
+{
+  "version": "1.0.0",
+  "template_id": "systems-diagram",
+  "family": "documentary-frames",
+  "niches": [
+    "AI & future tech",
+    "Science & how things work",
+    "Focus & productivity systems",
+    "Human psychology & social dynamics",
+    "Leadership & management wisdom",
+    "Sales & negotiation psychology",
+    "Travel & geography explained"
+  ],
+  "formats": [
+    "long",
+    "short"
+  ],
+  "renderer": "remotion",
+  "required_capabilities": [
+    "script-gen",
+    "tts",
+    "captions"
+  ],
+  "thumb_design": {
+    "layout": "left-stack",
+    "accent_word": "last",
+    "scrim_tint": "#05131F"
+  },
+  "doc_presentation": {
+    "style": "glow",
+    "music_mood": "calming"
+  },
+  "story_structure": {
+    "doc_render": "diagram",
+    "sections": [
+      "cold_open",
+      "chapters:6",
+      "outro"
+    ],
+    "chapter_min_words": 120,
+    "beats": [
+      "slot 1 opens on the system working normally — the parts (people, apps, servers, places) and how one request or decision travels between them",
+      "slot 2 is the breaking point — the moment the flow overloads, leaks or fails, with the number that shows how bad it gets",
+      "slot 3 is the mechanism that fixes it — one part added or one rule changed, explained step by step as flows between the parts",
+      "slot 4 is the payoff — the same system under the same load, now holding, with the one idea worth remembering"
+    ],
+    "hook_classes": [
+      "everything-breaks-at-3am cold open",
+      "one shocking number",
+      "you-use-this-every-day question"
+    ],
+    "title_patterns": [
+      "how-it-works explainer (\"How Apps Survive a Million Requests\")",
+      "numbered concepts (\"5 Ideas Behind Every App You Use\")",
+      "breaking-point story (\"Why One Slow Server Can Crash Everything\")"
+    ],
+    "payoff_rule": "the closing replays the system once more, now working, and lands one idea in a single sentence — never a summary list",
+    "has_chapters": true,
+    "narrative_format": "chapters",
+    "format_label": "Systems Diagram (Living Diagram, glow look)",
+    "format_description": "Visualcoders-style systems explainer: one glowing diagram per chapter on black, flows of requests/money/people moving between parts, badges, statement screens and side cards, every change fired on the spoken word. Brand name and colours come from each channel's own kit."
+  },
+  "variation_rules": [
+    "distinct system per video — the mechanism examined differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+    "no recycled example set against the last 5 videos (enforced: the variation gate similarity)",
+    "no repeated hook across the channel's last 5 videos (enforced: the variation gate similarity)",
+    "every number is concrete and attributable (a measured rate, a count, a date) — prose for the author and the review desk"
+  ],
+  "review_thumb_pick": true,
+  "safety": {
+    "required_sources": true,
+    "review_required": []
+  },
+  "deprecated": false,
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-11-17",
+      "note": "the Living Diagram doc look in the glow style (owner: reusable for future channels) — same engine as money-flow-diagram (story_structure.doc_render = diagram, doc_presentation.style = glow); brand name/colours/voice come from each channel's kit; falls back to the storybook look on any failure (docs/templates/living-diagram.md)"
+    }
+  ]
+}

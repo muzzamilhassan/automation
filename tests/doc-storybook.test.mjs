@@ -277,8 +277,9 @@ describe('yt-deepdive pins — the storybook branch + shared tail', () => {
   test('SB-2: the presentation merges the template block over the kit', () => {
     assert.match(SRC_DEEPDIVE, /renderStorybookVisuals\(script, docPresentation\(sbMeta, b\)\)/);
   });
-  test('SB-11: BOTH lanes end in the ONE shared shipEpisode', () => {
-    assert.equal((SRC_DEEPDIVE.match(/return shipEpisode\(script, \{/g) || []).length, 2, 'the legacy body and the storybook branch each hand off to shipEpisode');
+  test('SB-11: EVERY lane ends in the ONE shared shipEpisode', () => {
+    // legacy body + storybook branch + (step 1 D5) the diagram branch
+    assert.equal((SRC_DEEPDIVE.match(/return shipEpisode\(script, \{/g) || []).length, 3, 'legacy, storybook and diagram each hand off to shipEpisode');
     assert.match(SRC_DEEPDIVE, /async function shipEpisode\(script, \{ yt, auth, intents/);
   });
   test('SB-7: ONE edge_batch call, an Edge voice, and narrate() never enters the storybook layer', () => {
@@ -286,6 +287,23 @@ describe('yt-deepdive pins — the storybook branch + shared tail', () => {
     assert.match(SB_FN, /EXPLAINER_VOICE: voice/);
     assert.match(SB_FN, /edgeVoiceFor\(pres\.voice \|\| b\.voice\)/, 'P4: the template voice wins, the kit falls back');
     assert.ok(!SB_FN.includes('narrate('), 'narrate.py reloads Kokoro per call and ESTIMATES word timings — never for karaoke');
+  });
+  test('step 1 V3: a kit voiceProfile narrates the storybook with the human Kokoro lane (fail-loud, same layout)', () => {
+    assert.match(SB_FN, /const prof = voiceProfileFor\(slug\)/);
+    assert.match(SB_FN, /'voice_lines\.py'\), inPath, audioDir, '--engine', 'kokoro'/);
+    assert.match(SB_FN, /'--layout', 'edge_batch'/);
+    // still ONE status gate for both voices — a failing line aborts, never a silent beat
+    assert.equal((SB_FN.match(/if \(tts\.status !== 0\) throw new Error\('storybook tts failed'\)/g) || []).length, 1);
+  });
+  test('step 1 D1/D4: the diagram branch renders, and ANY visual failure falls back to the storybook look', () => {
+    const at = SRC_DEEPDIVE.indexOf("if (docRenderOf(sbMeta) === 'diagram')");
+    const sbAt = SRC_DEEPDIVE.indexOf("if (docRenderOf(sbMeta) === 'storybook')");
+    assert.ok(at > -1 && sbAt > at, 'the diagram branch sits before the storybook branch');
+    const branch = SRC_DEEPDIVE.slice(at, sbAt);
+    assert.match(branch, /visuals = await renderDiagramEpisode\(/);
+    assert.match(branch, /\} catch \(e\) \{[\s\S]*sendAlert[\s\S]*\}\s*return shipEpisode\(/, 'alert, then ship OUTSIDE the try');
+    assert.match(branch, /\.\.\.\(visuals \|\| \(await renderStorybookVisuals\(script, pres\)\)\)/);
+    assert.match(branch, /voiceProfile: voiceProfileFor\(slug\)/);
   });
   test('SB-8: portrait photos, then the fail-closed gate BEFORE the render spend', () => {
     assert.match(SB_FN, /orientation: 'portrait'/);
@@ -537,10 +555,17 @@ describe('Full Story Templates & 95-100% Content-Matched Starting Hook Media', (
   test('Template drafts default to has_chapters: false (Full Story) and convert dynamically', () => {
     const draftsDir = path.join(ROOT, 'studio/lib/template-bot-drafts');
     const files = fs.readdirSync(draftsDir).filter((f) => f.endsWith('.json'));
-    assert.equal(files.length, 18, 'all 18 staged template drafts present');
+    assert.equal(files.length, 20, 'the 18 storybook drafts + the 2 Living Diagram drafts (money-flow-diagram, systems-diagram)');
 
     for (const f of files) {
       const data = JSON.parse(fs.readFileSync(path.join(draftsDir, f), 'utf8'));
+      // step 1: a Living Diagram draft renders one diagram scene per chapter, so it
+      // is CHAPTERED by design (the panel toggle's 'chapters' state)
+      if (data.story_structure?.doc_render === 'diagram') {
+        assert.equal(data.story_structure.has_chapters, true, `${data.template_id}: diagram drafts are chaptered`);
+        assert.equal(data.story_structure.narrative_format, 'chapters');
+        continue;
+      }
       assert.equal(data.story_structure?.has_chapters, false, `${data.template_id} must default to has_chapters: false`);
       assert.equal(data.story_structure?.narrative_format, 'full_story', `${data.template_id} must default to full_story`);
       assert.ok(data.story_structure.sections.includes('deep_investigation'), `${data.template_id} default sections must include deep_investigation`);

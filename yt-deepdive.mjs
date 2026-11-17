@@ -58,6 +58,8 @@ import { getUploadIntentStore, uploadWithIntent, recoverOpenIntents, makeFindByT
 // at their snippets.
 import { flagOn, appendDisclaimers, declaredDisclaimers } from './lib/review-seams.mjs';
 import { loadEnv } from './lib/env.mjs';
+import { voiceProfileFor } from './lib/voice-profile.mjs';
+import { renderDiagramEpisode } from './lib/diagram-episode.mjs';
 loadEnv();
 const FF = resolveBinary('ffmpeg');
 const FP = resolveBinary('ffprobe');
@@ -291,6 +293,43 @@ async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null
   // lane its owner approved. Both lanes end in shipEpisode (SB-11) — the
   // upload tail is shared verbatim.
   const sbMeta = docTemplateId ? (REGISTRY_META[docTemplateId] || null) : null;
+  // LIVING DIAGRAM LANE (step 1, docs/qa/step1-mr-voice-moneyflow-qa.md D1-D5):
+  // story_structure.doc_render === 'diagram' renders the approved words as a
+  // Living Diagram. ANY failure (plan / voice / cues / render) alerts and falls
+  // back to the storybook look for THIS episode (D4) — the upload is never lost to
+  // the new lane. Only the VISUALS are inside the try: an upload error is not a
+  // render failure and must never trigger a second render.
+  if (docRenderOf(sbMeta) === 'diagram') {
+    const pres = docPresentation(sbMeta, b);
+    let visuals = null;
+    try {
+      visuals = await renderDiagramEpisode({
+        root: HERE, slug, script, pres,
+        kit: { ...b, voiceProfile: voiceProfileFor(slug) },
+        workDir: `demos/deepdive-${slug}`,
+        call: async (prompt) => {
+          const res = await callScriptBrain({
+            slug, jobId: `diagram:${slug}:${today()}`, prompt,
+            isValidJson: (p) => !!p && typeof p === 'object' && Array.isArray(p.nodes) && Array.isArray(p.lines),
+            maxAttempts: 2, suffix: '\nReply with the raw JSON object ONLY.',
+          });
+          return res.ok ? res.parsed : null;
+        },
+        pickMusic: (mood) => pickApprovedTrack(APPROVED_MUSIC[slug] || [], mood),
+      });
+    } catch (e) {
+      const why = String((e && e.message) || e).slice(0, 300);
+      console.error(`[diagram] FAILED — ${why} — falling back to the storybook look for this episode`);
+      try {
+        const { sendAlert } = await import('./lib/ntfy-alert.mjs');
+        await sendAlert({ text: `${slug}: Living Diagram render failed (${why}). This episode falls back to the storybook look; the slot still ships.`, title: `[${slug}] diagram fallback` });
+      } catch { }
+    }
+    return shipEpisode(script, {
+      yt, auth, intents, longSeed, reviewScript, docTemplateId, docDisclaimerBlock,
+      ...(visuals || (await renderStorybookVisuals(script, pres))),
+    });
+  }
   if (docRenderOf(sbMeta) === 'storybook') {
     return shipEpisode(script, {
       yt, auth, intents, longSeed, reviewScript, docTemplateId, docDisclaimerBlock,
@@ -449,9 +488,23 @@ async function renderStorybookVisuals(script, pres) {
   const spoken = beats.filter((x) => (x.text || '').trim()).map((x) => ({ i: x.i, text: x.text }));
   const inPath = path.join(audioDir, 'tts-input.json');
   fs.writeFileSync(inPath, JSON.stringify(spoken));
-  const voice = edgeVoiceFor(pres.voice || b.voice); // template voice wins; kit falls back
-  console.log(`[storybook] tts: ${spoken.length} spoken beats, voice ${voice}`);
-  const tts = spawnSync('python', [path.join(EXPL, 'edge_batch.py'), inPath], { ...sOpts, env: { ...process.env, EXPLAINER_VOICE: voice } });
+  // Step 1 V3 (docs/qa/step1-mr-voice-moneyflow-qa.md): a channel whose kit DATA
+  // carries voiceProfile {engine:'kokoro'} narrates with the human voice lane —
+  // Kokoro on the runner (no network TTS call to fail), sentence pacing, exact
+  // timings — in the Edge batch's file layout (--layout edge_batch). A failing line exits non-zero:
+  // the 8-silent-beat incident (MR oXAT8NGLV4Q, 2026-11-16) cannot repeat.
+  // No voiceProfile = the Edge path below, byte-identical (V4).
+  const prof = voiceProfileFor(slug); // lib/brands.json — the same DATA narrate.py reads
+  let tts;
+  if (prof) {
+    console.log(`[storybook] tts: ${spoken.length} spoken beats, human voice ${prof.voice} (speed ${prof.speed || 1})`);
+    tts = spawnSync('python', [path.join(EXPL, 'voice_lines.py'), inPath, audioDir, '--engine', 'kokoro', '--voice', prof.voice,
+      '--speed', String(prof.speed || 1), ...(prof.mood ? ['--mood', String(prof.mood)] : []), '--layout', 'edge_batch'], sOpts);
+  } else {
+    const voice = edgeVoiceFor(pres.voice || b.voice); // template voice wins; kit falls back
+    console.log(`[storybook] tts: ${spoken.length} spoken beats, voice ${voice}`);
+    tts = spawnSync('python', [path.join(EXPL, 'edge_batch.py'), inPath], { ...sOpts, env: { ...process.env, EXPLAINER_VOICE: voice } });
+  }
   if (tts.status !== 0) throw new Error('storybook tts failed');
   const durs = JSON.parse(fs.readFileSync(path.join(audioDir, 'tts-durations.json'), 'utf8'));
 

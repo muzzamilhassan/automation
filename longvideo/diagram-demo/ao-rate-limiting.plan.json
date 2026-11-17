@@ -1,0 +1,180 @@
+{
+  "slug": "ao-rate-limiting",
+  "brand": "ai-observer",
+  "title": "How Apps Survive a Million Requests",
+  "style": "glow",
+  "voice": { "engine": "chatterbox", "voice": "af_heart", "edgeVoice": "en-US-AvaMultilingualNeural" },
+  "scenes": [
+    {
+      "title": "The 3 a.m. flood",
+      "nodes": [
+        { "id": "users", "kind": "laptop", "label": "users", "rank": 0, "color": "blue" },
+        { "id": "bot", "kind": "bot", "label": "bot", "rank": 0, "color": "red" },
+        { "id": "api", "kind": "api", "label": "api server", "rank": 1, "color": "purple" },
+        { "id": "db", "kind": "database", "label": "database", "rank": 2, "color": "green" }
+      ],
+      "edges": [
+        { "id": "u-a", "from": "users", "to": "api" },
+        { "id": "b-a", "from": "bot", "to": "api" },
+        { "id": "a-d", "from": "api", "to": "db" }
+      ],
+      "lines": [
+        { "say": "Every app you use is a quiet conversation.", "mood": "calm", "cues": [
+          { "on": "app", "do": "appear", "node": "users" },
+          { "on": "quiet", "do": "appear", "node": "api" },
+          { "on": "conversation", "do": "flow", "edge": "u-a" }
+        ] },
+        { "say": "Users ask. The server answers. The database remembers.", "mood": "warm", "cues": [
+          { "on": "ask", "do": "flow", "edge": "u-a", "label": "GET /feed" },
+          { "on": "answers", "do": "badge", "node": "api", "text": "200", "tone": "good" },
+          { "on": "database", "do": "appear", "node": "db" },
+          { "on": "remembers", "do": "flow", "edge": "a-d" }
+        ] },
+        { "say": "Then, at three in the morning... [sigh] someone sends one million requests. In sixty seconds.", "mood": "tense", "pauseMs": 500, "cues": [
+          { "on": "someone", "do": "appear", "node": "bot" },
+          { "on": "million", "do": "flow", "edge": "b-a", "burst": true, "forMs": 7000 },
+          { "on": "million", "do": "counter", "node": "api", "from": 0, "to": 1000000, "suffix": " req", "durMs": 2600 }
+        ] },
+        { "say": "The server chokes. [gasp] And the database goes down with it.", "mood": "tense", "cues": [
+          { "on": "chokes", "do": "fail", "node": "api" },
+          { "on": "down", "do": "fail", "node": "db" },
+          { "on": "down", "do": "block", "edge": "a-d" }
+        ] },
+        { "say": "[chuckle] Yeah. Somebody got a very rude phone call that night.", "mood": "playful", "pauseMs": 800, "cues": [
+          { "on": "rude", "do": "title", "text": "One bot. *One million* requests.", "durMs": 2600 }
+        ] }
+      ]
+    },
+    {
+      "title": "The bouncer",
+      "nodes": [
+        { "id": "users", "kind": "laptop", "label": "users", "rank": 0, "color": "blue", "keep": true },
+        { "id": "bot", "kind": "bot", "label": "bot", "rank": 0, "color": "red", "keep": true },
+        { "id": "gate", "kind": "gateway", "label": "rate limiter", "rank": 1, "color": "yellow" },
+        { "id": "api", "kind": "api", "label": "api server", "rank": 2, "color": "purple", "keep": true },
+        { "id": "db", "kind": "database", "label": "database", "rank": 3, "color": "green", "keep": true }
+      ],
+      "edges": [
+        { "id": "u-g", "from": "users", "to": "gate" },
+        { "id": "b-g", "from": "bot", "to": "gate" },
+        { "id": "g-a", "from": "gate", "to": "api" },
+        { "id": "a-d", "from": "api", "to": "db" }
+      ],
+      "lines": [
+        { "say": "The fix is surprisingly simple. Put a bouncer at the door.", "mood": "warm", "cues": [
+          { "on": "bouncer", "do": "appear", "node": "gate" }
+        ] },
+        { "say": "A rate limiter counts every request, from every user.", "mood": "calm", "cues": [
+          { "on": "counts", "do": "flow", "edge": "u-g", "label": "8 / min" },
+          { "on": "user", "do": "flow", "edge": "g-a" }
+        ] },
+        { "say": "Ten requests a minute? Come on in.", "mood": "playful", "cues": [
+          { "on": "come", "do": "badge", "node": "users", "text": "✓", "tone": "good" },
+          { "on": "in", "do": "flow", "edge": "a-d" }
+        ] },
+        { "say": "Request number eleven? Sorry. Not this minute.", "mood": "serious", "pauseMs": 500, "cues": [
+          { "on": "eleven", "do": "flow", "edge": "b-g", "burst": true, "forMs": 5000 },
+          { "on": "sorry", "do": "block", "edge": "g-a" },
+          { "on": "sorry", "afterMs": 150, "do": "card", "card": "r429", "side": "right", "title": "HTTP/1.1 429", "lines": ["Too Many Requests", "Retry-After: 60"], "tone": "bad" },
+          { "on": "sorry", "do": "badge", "node": "bot", "text": "429", "tone": "bad" }
+        ] },
+        { "say": "The bot gets a polite no. And your real users never notice a thing.", "mood": "warm", "cues": [
+          { "on": "no", "do": "tone", "node": "bot", "tone": "bad" },
+          { "on": "real", "do": "hide", "card": "r429" },
+          { "on": "notice", "do": "tone", "node": "api", "tone": "good" }
+        ] }
+      ]
+    },
+    {
+      "title": "The token bucket",
+      "nodes": [
+        { "id": "users", "kind": "laptop", "label": "requests", "rank": 0, "color": "blue" },
+        { "id": "bucket", "kind": "bucket", "label": "token bucket", "rank": 1, "color": "cyan", "value": "" },
+        { "id": "api", "kind": "api", "label": "api server", "rank": 2, "color": "purple" }
+      ],
+      "edges": [
+        { "id": "u-b", "from": "users", "to": "bucket" },
+        { "id": "b-a", "from": "bucket", "to": "api" }
+      ],
+      "lines": [
+        { "say": "But how does it actually count? Most limiters use a token bucket.", "mood": "calm", "cues": [
+          { "on": "count", "do": "appear", "node": "users" },
+          { "on": "bucket", "do": "appear", "node": "bucket" },
+          { "on": "bucket", "do": "counter", "node": "bucket", "from": 0, "to": 10, "suffix": " tokens", "durMs": 1200 },
+          { "on": "bucket", "afterMs": 300, "do": "appear", "node": "api" }
+        ] },
+        { "say": "Every request takes one token.", "mood": "calm", "cues": [
+          { "on": "request", "do": "flow", "edge": "u-b" },
+          { "on": "takes", "do": "counter", "node": "bucket", "from": 10, "to": 9, "suffix": " tokens", "durMs": 400 },
+          { "on": "token", "do": "flow", "edge": "b-a" }
+        ] },
+        { "say": "A sudden burst of traffic? The tokens drain, fast.", "mood": "excited", "cues": [
+          { "on": "burst", "do": "flow", "edge": "u-b", "burst": true, "forMs": 3500 },
+          { "on": "drain", "do": "counter", "node": "bucket", "from": 9, "to": 0, "suffix": " tokens", "durMs": 1300 },
+          { "on": "fast", "do": "tone", "node": "bucket", "tone": "bad" }
+        ] },
+        { "say": "Empty bucket means you wait. [sigh] No exceptions.", "mood": "serious", "pauseMs": 600, "cues": [
+          { "on": "wait", "do": "block", "edge": "b-a" }
+        ] },
+        { "say": "But every second, a fresh token drips back in. Slow, and steady.", "mood": "calm", "cues": [
+          { "on": "drips", "do": "tone", "node": "bucket", "tone": "neutral" },
+          { "on": "drips", "do": "counter", "node": "bucket", "from": 0, "to": 3, "suffix": " tokens", "durMs": 2600 },
+          { "on": "steady", "do": "flow", "edge": "b-a" }
+        ] },
+        { "say": "That's the whole trick. Bursts are allowed. Floods are not.", "mood": "warm", "pauseMs": 700, "cues": [
+          { "on": "bursts", "do": "title", "text": "Bursts *allowed.* Floods *not.*", "durMs": 2800 }
+        ] }
+      ]
+    },
+    {
+      "title": "Where it lives",
+      "layout": "hub",
+      "nodes": [
+        { "id": "redis", "kind": "database", "label": "redis · shared counter", "color": "purple" },
+        { "id": "s1", "kind": "server", "label": "server 1", "color": "blue" },
+        { "id": "s2", "kind": "server", "label": "server 2", "color": "blue" },
+        { "id": "s3", "kind": "server", "label": "server 3", "color": "blue" },
+        { "id": "s4", "kind": "server", "label": "server 4", "color": "blue" }
+      ],
+      "edges": [
+        { "id": "s1-r", "from": "s1", "to": "redis" },
+        { "id": "s2-r", "from": "s2", "to": "redis" },
+        { "id": "s3-r", "from": "s3", "to": "redis" },
+        { "id": "s4-r", "from": "s4", "to": "redis" }
+      ],
+      "lines": [
+        { "say": "One more catch. Real apps run many servers, not just one.", "mood": "calm", "cues": [
+          { "on": "many", "do": "appear", "node": "s1" },
+          { "on": "servers", "do": "appear", "node": "s2" },
+          { "on": "not", "do": "appear", "node": "s3" },
+          { "on": "one", "nth": 2, "do": "appear", "node": "s4" }
+        ] },
+        { "say": "If each server counts alone, a clever bot just spreads out... and slips right through.", "mood": "tense", "cues": [
+          { "on": "alone", "do": "badge", "node": "s1", "text": "3/min" },
+          { "on": "alone", "afterMs": 150, "do": "badge", "node": "s2", "text": "3/min" },
+          { "on": "alone", "afterMs": 300, "do": "badge", "node": "s3", "text": "3/min" },
+          { "on": "alone", "afterMs": 450, "do": "badge", "node": "s4", "text": "3/min" },
+          { "on": "slips", "do": "title", "text": "Four servers. *Four* blind counters.", "durMs": 2400 }
+        ] },
+        { "say": "So they share one counter, in a fast store like Redis.", "mood": "warm", "cues": [
+          { "on": "share", "do": "appear", "node": "redis" },
+          { "on": "counter", "do": "flow", "edge": "s1-r" },
+          { "on": "counter", "afterMs": 120, "do": "flow", "edge": "s2-r" },
+          { "on": "store", "do": "flow", "edge": "s3-r" },
+          { "on": "store", "afterMs": 120, "do": "flow", "edge": "s4-r" },
+          { "on": "redis", "do": "counter", "node": "redis", "from": 0, "to": 12, "suffix": " / min", "durMs": 1200 }
+        ] },
+        { "say": "Now every server sees the same number. [chuckle] And the bot runs out of tricks.", "mood": "playful", "cues": [
+          { "on": "same", "do": "badge", "node": "s1", "text": "12", "tone": "good" },
+          { "on": "same", "afterMs": 100, "do": "badge", "node": "s2", "text": "12", "tone": "good" },
+          { "on": "same", "afterMs": 200, "do": "badge", "node": "s3", "text": "12", "tone": "good" },
+          { "on": "same", "afterMs": 300, "do": "badge", "node": "s4", "text": "12", "tone": "good" },
+          { "on": "number", "do": "tone", "node": "redis", "tone": "good" }
+        ] },
+        { "say": "Fair for real users. Brutal for bots.", "mood": "warm", "pauseMs": 600, "cues": [
+          { "on": "fair", "do": "title", "text": "Fair for users. *Brutal for bots.*", "durMs": 3200 }
+        ] }
+      ]
+    }
+  ]
+}

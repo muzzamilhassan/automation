@@ -1,0 +1,132 @@
+{
+  "slug": "mr-pay-yourself-first",
+  "brand": "money-rulebook",
+  "title": "Pay Yourself First",
+  "scenes": [
+    {
+      "title": "The usual way",
+      "nodes": [
+        { "id": "pay", "kind": "cash", "label": "Paycheck", "rank": 0 },
+        { "id": "chk", "kind": "bank", "label": "Checking", "rank": 1 },
+        { "id": "rent", "kind": "home", "label": "Rent", "rank": 2 },
+        { "id": "bills", "kind": "receipt", "label": "Bills", "rank": 2 },
+        { "id": "fun", "kind": "bag", "label": "Weekends", "rank": 2 },
+        { "id": "sav", "kind": "vault", "label": "Savings", "rank": 2 }
+      ],
+      "edges": [
+        { "id": "p-c", "from": "pay", "to": "chk" },
+        { "id": "c-rent", "from": "chk", "to": "rent" },
+        { "id": "c-bills", "from": "chk", "to": "bills" },
+        { "id": "c-fun", "from": "chk", "to": "fun" },
+        { "id": "c-sav", "from": "chk", "to": "sav" }
+      ],
+      "lines": [
+        { "say": "Here's how most people handle a paycheck.", "cues": [
+          { "on": "paycheck", "do": "appear", "node": "pay" }
+        ] },
+        { "say": "It lands in checking. $3,200, every month.", "cues": [
+          { "on": "lands", "do": "flow", "edge": "p-c" },
+          { "on": "checking", "do": "appear", "node": "chk" },
+          { "on": "3,200", "do": "counter", "node": "chk", "from": 0, "to": 3200, "prefix": "$" }
+        ] },
+        { "say": "Then the month starts eating it. Rent takes the biggest bite.", "cues": [
+          { "on": "rent", "do": "appear", "node": "rent" },
+          { "on": "takes", "do": "flow", "edge": "c-rent", "label": "-$1,400" },
+          { "on": "bite", "do": "counter", "node": "chk", "from": 3200, "to": 1800, "prefix": "$" }
+        ] },
+        { "say": "Groceries, subscriptions, a few card payments.", "cues": [
+          { "on": "groceries", "do": "appear", "node": "bills" },
+          { "on": "subscriptions", "do": "flow", "edge": "c-bills", "label": "-$1,100" },
+          { "on": "payments", "do": "counter", "node": "chk", "from": 1800, "to": 700, "prefix": "$" }
+        ] },
+        { "say": "Weekends and takeout finish the job.", "cues": [
+          { "on": "weekends", "do": "appear", "node": "fun" },
+          { "on": "takeout", "do": "flow", "edge": "c-fun", "label": "-$660" },
+          { "on": "finish", "do": "counter", "node": "chk", "from": 700, "to": 40, "prefix": "$" }
+        ] },
+        { "say": "And savings? They get whatever is left.", "cues": [
+          { "on": "savings", "do": "appear", "node": "sav" },
+          { "on": "left", "do": "flow", "edge": "c-sav", "label": "$40" },
+          { "on": "left", "do": "counter", "node": "sav", "from": 0, "to": 40, "prefix": "$" }
+        ] },
+        { "say": "Which is almost nothing.", "cues": [
+          { "on": "nothing", "do": "fail", "node": "sav" },
+          { "on": "nothing", "afterMs": 250, "do": "stamp", "text": "SAVINGS GET THE *LEFTOVERS*" }
+        ] }
+      ]
+    },
+    {
+      "title": "Pay yourself first",
+      "nodes": [
+        { "id": "pay", "kind": "cash", "label": "Paycheck", "rank": 0, "keep": true },
+        { "id": "sav", "kind": "vault", "label": "Savings", "rank": 1, "keep": true },
+        { "id": "chk", "kind": "bank", "label": "Checking", "rank": 1, "keep": true },
+        { "id": "rent", "kind": "home", "label": "Rent", "rank": 2, "keep": true },
+        { "id": "bills", "kind": "receipt", "label": "Bills", "rank": 2, "keep": true },
+        { "id": "fun", "kind": "bag", "label": "Weekends", "rank": 2, "keep": true }
+      ],
+      "edges": [
+        { "id": "p-s", "from": "pay", "to": "sav" },
+        { "id": "p-c", "from": "pay", "to": "chk" },
+        { "id": "c-rent", "from": "chk", "to": "rent" },
+        { "id": "c-bills", "from": "chk", "to": "bills" },
+        { "id": "c-fun", "from": "chk", "to": "fun" }
+      ],
+      "lines": [
+        { "say": "Now flip the order.", "cues": [
+          { "on": "flip", "do": "stamp", "text": "FLIP THE *ORDER*" }
+        ] },
+        { "say": "The day your paycheck lands, an automatic transfer sends 10% to savings.", "cues": [
+          { "on": "automatic", "do": "focus", "node": "sav", "zoom": 1.3 },
+          { "on": "transfer", "do": "flow", "edge": "p-s", "label": "10%" },
+          { "on": "savings", "do": "counter", "node": "sav", "from": 0, "to": 320, "prefix": "$" }
+        ] },
+        { "say": "Before you can touch it.", "cues": [
+          { "on": "touch", "do": "tone", "node": "sav", "tone": "good" }
+        ] },
+        { "say": "Checking gets the rest. $2,880.", "cues": [
+          { "on": "checking", "do": "wide" },
+          { "on": "rest", "do": "flow", "edge": "p-c" },
+          { "on": "2,880", "do": "counter", "node": "chk", "from": 0, "to": 2880, "prefix": "$" }
+        ] },
+        { "say": "Rent and bills still get paid.", "cues": [
+          { "on": "rent", "do": "flow", "edge": "c-rent", "label": "-$1,400" },
+          { "on": "bills", "do": "flow", "edge": "c-bills", "label": "-$1,100" },
+          { "on": "paid", "do": "counter", "node": "chk", "from": 2880, "to": 380, "prefix": "$" }
+        ] },
+        { "say": "Weekends quietly shrink to fit what's left.", "cues": [
+          { "on": "weekends", "do": "flow", "edge": "c-fun", "label": "-$340" },
+          { "on": "shrink", "do": "counter", "node": "chk", "from": 380, "to": 40, "prefix": "$" },
+          { "on": "fit", "afterMs": 300, "do": "stamp", "text": "SAVINGS GO *FIRST*" }
+        ] }
+      ]
+    },
+    {
+      "title": "Ten years later",
+      "nodes": [
+        { "id": "a", "kind": "vault", "label": "Leftover habit", "rank": 0, "value": "$0", "scale": 1.6 },
+        { "id": "b", "kind": "vault", "label": "Pay yourself first", "rank": 1, "value": "$0", "scale": 1.6 }
+      ],
+      "edges": [],
+      "lines": [
+        { "say": "Now run both habits for ten years, at 7%.", "cues": [
+          { "on": "both", "do": "appear", "node": "a" },
+          { "on": "habits", "do": "appear", "node": "b" }
+        ] },
+        { "say": "The leftover habit saves $40 a month. It grows to about $6,900.", "cues": [
+          { "on": "leftover", "do": "focus", "node": "a", "zoom": 1.2 },
+          { "on": "grows", "do": "counter", "node": "a", "from": 0, "to": 6923, "prefix": "$", "durMs": 1400 }
+        ] },
+        { "say": "Paying yourself first saves $320. It grows to over $55,000.", "cues": [
+          { "on": "paying", "do": "focus", "node": "b", "zoom": 1.2 },
+          { "on": "grows", "do": "counter", "node": "b", "from": 0, "to": 55387, "prefix": "$", "durMs": 1800 },
+          { "on": "55,000", "afterMs": 400, "do": "tone", "node": "b", "tone": "good" }
+        ] },
+        { "say": "Same paycheck. Same life. Just a different order.", "cues": [
+          { "on": "same", "do": "wide" },
+          { "on": "different", "do": "stamp", "text": "SAME PAYCHECK. *DIFFERENT ORDER.*" }
+        ] }
+      ]
+    }
+  ]
+}
