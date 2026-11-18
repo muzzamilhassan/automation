@@ -11,7 +11,7 @@
     "render": "remotion render remotion/index.ts Explainer out/demo.mp4"
   },
   "dependencies": {
-    "@remotion/cli": "^4.0.524",
+    "@remotion/cli": "^4.0.543",
     "@remotion/paths": "4.0.524",
     "@remotion/rough-notation": "4.0.524",
     "d3-geo": "3.1.2",
