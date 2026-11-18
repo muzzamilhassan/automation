@@ -112,8 +112,14 @@ export async function GET(req) {
   const producing = selectVisibleChannels(channels);
 
   // 10-08 P2 CLIENT ROLE: clients see only their own channels
+  // FAIL-CLOSED (#118, SEC-13 + SEC-5): no resolvable user → 401 (the proxy
+  // is the cheap front door, not the only gate); a slugsForUser throw (registry
+  // blip) resolves to an EMPTY scope for clients — never the whole network.
+  // owner/staff get null (= all) without touching the registry, so the []
+  // fallback can only ever hit clients.
   const user = await getUser(req).catch(() => null);
-  const owned = user ? await slugsForUser(user).catch(() => null) : null;
+  if (!user) return Response.json({ error: 'not signed in' }, { status: 401 });
+  const owned = await slugsForUser(user).catch(() => []);
   const visible = owned ? producing.filter((c) => owned.includes(c.slug)) : producing;
   const visibleLogs = owned ? logs.filter((l) => owned.includes(l.slug)) : logs;
 

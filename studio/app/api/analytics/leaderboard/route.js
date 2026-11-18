@@ -37,7 +37,10 @@ export async function GET(req) {
   // FAIL-CLOSED (round 1 IMPORTANT 6a): a registry read error resolves to an
   // EMPTY owned list, never to "everything".
   const user = await getUser(req).catch(() => null);
-  const owned = user ? await slugsForUser(user).catch(() => []) : null;
+  // FAIL-CLOSED (#118, SEC-13): no resolvable user → 401 — the proxy is the
+  // cheap front door, not the only gate.
+  if (!user) return Response.json({ error: 'not signed in' }, { status: 401 });
+  const owned = await slugsForUser(user).catch(() => []);
   const viewerRole = user?.role || null;
 
   const daysParam = Number(new URL(req.url).searchParams.get('days'));

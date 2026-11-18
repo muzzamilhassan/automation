@@ -99,11 +99,14 @@ export async function GET(req) {
   // owner, owner aggregates to clients, and null to users whose scope
   // differed from whoever populated it).
   const user = await getUser(req).catch(() => null);
+  // FAIL-CLOSED (#118, SEC-13): no resolvable user → 401 — the proxy is the
+  // cheap front door, not the only gate.
+  if (!user) return Response.json({ error: 'not signed in' }, { status: 401 });
   // FAIL-CLOSED (round 1 IMPORTANT 6a, mirrored from /api/analytics/leaderboard):
   // a registry read error resolves to an EMPTY owned list — a client (or
   // anyone) must never see the whole network because the registry blipped
   // (issue #47's lesson, applied to the error path too).
-  const owned = user ? await slugsForUser(user).catch(() => []) : null;
+  const owned = await slugsForUser(user).catch(() => []);
   if (owned) allSlugs = allSlugs.filter((s) => owned.includes(s));
   const scopeKey = [...allSlugs].sort().join(',');
 

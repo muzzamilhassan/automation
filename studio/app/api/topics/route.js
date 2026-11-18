@@ -15,10 +15,14 @@ export const dynamic = 'force-dynamic';
 const queuePath = (slug) => `yt-mcp/topics-${slug}.json`;
 
 // 10-08 P2 CLIENT ROLE: clients may only touch their own channels' queues
+// FAIL-CLOSED (#118, SEC-5): a slugsForUser throw (registry blip) resolves to
+// an EMPTY owned list — a client must never gain read/write on any queue.
+// owner/staff get null (= all) without touching the registry, so the []
+// fallback can only ever hit clients.
 async function guard(req, slug) {
   const user = await getUser(req);
   if (!user) return 'not signed in';
-  const owned = await slugsForUser(user).catch(() => null);
+  const owned = await slugsForUser(user).catch(() => []);
   if (owned && !owned.includes(slug)) return 'not your channel';
   return null;
 }
