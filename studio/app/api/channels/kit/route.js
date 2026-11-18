@@ -12,6 +12,7 @@ import { requireRole, getUser } from '@/lib/route-auth';
 import { NICHE_MAP } from '@/lib/niches';
 import { appendAudit } from '@/lib/audit';
 import { llmKitDraft } from '@/lib/llm-kit';
+import { enforceLimits } from '@/lib/rate-limit.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,7 +52,13 @@ export async function POST(req) {
   let llmDraft = null;
   let llmNote = '';
   if (useLLM) {
-    const actor = (await getUser(req))?.email || 'owner';
+    // #121 RL-4: the AI draft is the expensive path (Groq, free tier) —
+    // capped per actor. The deterministic fallback below is cheap and
+    // deliberately stays unlimited.
+    const actorUser = await getUser(req);
+    const limited = await enforceLimits(actorUser, [{ bucket: 'llm-kit', limit: 10, windowSec: 3600 }]);
+    if (limited) return limited;
+    const actor = actorUser?.email || 'owner';
     if (!process.env.GROQ_API_KEY) {
       llmNote = 'no AI key configured';
       await appendAudit(actor, 'kit-llm-draft', `skipped: ${llmNote} · ${nick}`);

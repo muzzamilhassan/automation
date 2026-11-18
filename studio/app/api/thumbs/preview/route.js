@@ -5,6 +5,7 @@
 import sharp from 'sharp';
 import { getUser } from '@/lib/route-auth';
 import { isAllowedPhotoUrl } from '@/lib/photo-url';
+import { enforceLimits } from '@/lib/rate-limit.mjs';
 import { buildThumbSvg, wrapForTemplate, pickAccentWord, TEMPLATES, isSafeImageDataUrl } from '@/lib/thumb-templates';
 import { renderV2ById, isV2Template, v2NeedsPhoto } from '@/lib/thumb-templates-v2';
 
@@ -15,6 +16,10 @@ export async function POST(req) {
   // drive a server-side fetch + sharp render. Every signed-in role may preview.
   const user = await getUser(req);
   if (!user) return Response.json({ error: 'not signed in' }, { status: 401 });
+  // #121 RL-4: each preview is a server-side photo fetch (up to 12 MB) plus a
+  // sharp render — 30 per 10 minutes per actor.
+  const limited = await enforceLimits(user, [{ bucket: 'preview', limit: 30, windowSec: 600 }]);
+  if (limited) return limited;
   try {
     const body = await req.json().catch(() => ({}));
     const { template = 'clean', title = '', accentWord = '', accent = '#E8C15A', chip = '', eyebrow = '', shade = '#0A1128', brand = '', photoUrl = '', photoDataUrl = '' } = body || {};

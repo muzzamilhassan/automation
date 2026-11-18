@@ -1,5 +1,6 @@
 import { getUser } from '@/lib/route-auth';
 import { appendAudit } from '@/lib/audit';
+import { enforceLimits } from '@/lib/rate-limit.mjs';
 import { createJob, listJobs, DNA_STYLES, GENRE_LIST, VOICES, ghReady } from '../../../lib/hf-jobs.mjs';
 
 export const dynamic = 'force-dynamic';
@@ -14,6 +15,13 @@ export async function GET(req) {
 export async function POST(req) {
   const user = await getUser(req).catch(() => null);
   if (!user || !['owner', 'staff'].includes(user.role)) return Response.json({ error: 'forbidden' }, { status: 403 });
+  // #121 RL-2: creation drives billable Actions renders — shared 'dispatch'
+  // bucket with /api/action (hourly + daily caps). The GET list stays cheap.
+  const limited = await enforceLimits(user, [
+    { bucket: 'dispatch', limit: 10, windowSec: 3600 },
+    { bucket: 'dispatch', limit: 30, windowSec: 86400 },
+  ]);
+  if (limited) return limited;
   let body;
   try { body = await req.json(); } catch { return Response.json({ error: 'bad json' }, { status: 400 }); }
   const { topic, dna, genre, brand, subline, voice, beatCount } = body;

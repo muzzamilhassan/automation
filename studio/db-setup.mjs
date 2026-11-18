@@ -93,6 +93,19 @@ await sql`
 await sql`CREATE INDEX IF NOT EXISTS login_attempts_ip_idx ON login_attempts (ip, at)`;
 console.log('   sessions + login_attempts ready');
 
+// #121 — shared rate limiter counters (one row per bucket+actor+window).
+// Same Neon-backed pattern as the login throttle; see studio/lib/rate-limit.mjs.
+await sql`
+  CREATE TABLE IF NOT EXISTS rate_limits (
+    bucket TEXT NOT NULL,
+    key TEXT NOT NULL,
+    window_sec INTEGER NOT NULL,
+    window_start TIMESTAMPTZ NOT NULL DEFAULT now(),
+    count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (bucket, key, window_sec)
+  )`;
+console.log('   rate_limits ready');
+
 console.log('1b. seeding audit_log from yt-mcp/audit.json (if table empty)…');
 const existing = await sql`SELECT count(*) AS n FROM audit_log`;
 if (Number(existing[0].n) === 0) {

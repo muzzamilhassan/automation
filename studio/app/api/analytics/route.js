@@ -7,6 +7,7 @@ import path from 'node:path';
 import { createAccessToken } from '@/lib/yt-token.mjs';
 import { getUser } from '@/lib/route-auth';
 import { slugsForUser } from '@/lib/access';
+import { enforceLimits } from '@/lib/rate-limit.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -102,6 +103,14 @@ export async function GET(req) {
   // FAIL-CLOSED (#118, SEC-13): no resolvable user → 401 — the proxy is the
   // cheap front door, not the only gate.
   if (!user) return Response.json({ error: 'not signed in' }, { status: 401 });
+  // #121 R6: fresh=1 re-pulls EVERY channel from Google (the exact quota the
+  // nightly autopilot needs) — owner-only and capped; every other role rides
+  // the 1-hour cache, which is the normal dashboard read.
+  if (fresh) {
+    if (user.role !== 'owner') return Response.json({ error: 'fresh pulls are owner-only' }, { status: 403 });
+    const limited = await enforceLimits(user, [{ bucket: 'fresh-pull', limit: 5, windowSec: 3600 }]);
+    if (limited) return limited;
+  }
   // FAIL-CLOSED (round 1 IMPORTANT 6a, mirrored from /api/analytics/leaderboard):
   // a registry read error resolves to an EMPTY owned list — a client (or
   // anyone) must never see the whole network because the registry blipped

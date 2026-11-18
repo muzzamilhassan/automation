@@ -4,6 +4,7 @@ import { slugsForUser } from '@/lib/access';
 import { db, dbReady } from '@/lib/db';
 import { selectVisibleChannels } from '@/lib/overview-visible.mjs';
 import { summarizeClips } from '@/lib/clip-queue.mjs';
+import { enforceLimits } from '@/lib/rate-limit.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,18 @@ function summarizeClipQueue(q) {
 
 export async function GET(req) {
   const fresh = new URL(req.url).searchParams.get('fresh') === '1';
-  if (fresh) bustCache();
+  // #121 R6: auth FIRST — anonymous probes used to load every upstream source
+  // before hitting the 401, and anonymous fresh=1 could bust the caches. Then
+  // the fresh path (bustCache + full re-pull) is owner-only and capped; every
+  // other role rides the normal cached read.
+  const user = await getUser(req).catch(() => null);
+  if (!user) return Response.json({ error: 'not signed in' }, { status: 401 });
+  if (fresh) {
+    if (user.role !== 'owner') return Response.json({ error: 'fresh pulls are owner-only' }, { status: 403 });
+    const limited = await enforceLimits(user, [{ bucket: 'fresh-pull', limit: 5, windowSec: 3600 }]);
+    if (limited) return limited;
+    bustCache();
+  }
   const [fb, yt, st, logs] = await Promise.all([fbPages(), ytChannels(), state(), allLogs()]);
   const b = brands();
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -111,14 +123,12 @@ export async function GET(req) {
   // vanishing when it needs a re-login (admin-panel review 2026-11-15 #2).
   const producing = selectVisibleChannels(channels);
 
-  // 10-08 P2 CLIENT ROLE: clients see only their own channels
-  // FAIL-CLOSED (#118, SEC-13 + SEC-5): no resolvable user → 401 (the proxy
-  // is the cheap front door, not the only gate); a slugsForUser throw (registry
+  // 10-08 P2 CLIENT ROLE: clients see only their own channels.
+  // FAIL-CLOSED (#118, SEC-13 + SEC-5): the 401 now happens at the TOP of GET
+  // (moved up in #121 — before any data loads); a slugsForUser throw (registry
   // blip) resolves to an EMPTY scope for clients — never the whole network.
   // owner/staff get null (= all) without touching the registry, so the []
   // fallback can only ever hit clients.
-  const user = await getUser(req).catch(() => null);
-  if (!user) return Response.json({ error: 'not signed in' }, { status: 401 });
   const owned = await slugsForUser(user).catch(() => []);
   const visible = owned ? producing.filter((c) => owned.includes(c.slug)) : producing;
   const visibleLogs = owned ? logs.filter((l) => owned.includes(l.slug)) : logs;

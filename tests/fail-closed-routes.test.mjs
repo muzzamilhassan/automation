@@ -38,8 +38,13 @@ test('#118: the client branch of slugsForUser is the only registry touch (source
 
 const overviewSrc = fs.readFileSync('studio/app/api/overview/route.js', 'utf8');
 test('#118 EARS-1+2: overview 401s unknown users and fails closed on scope errors', () => {
+  // #121 pin refresh: the auth gate moved to the TOP of GET (it must precede
+  // the fresh=1 owner gate + bustCache) — the fail-closed property is
+  // unchanged and now provably fires BEFORE any data loads.
+  const gate = overviewSrc.indexOf("if (!user) return Response.json({ error: 'not signed in' }, { status: 401 })");
+  assert.ok(gate > 0, 'unknown user → 401');
+  assert.ok(gate < overviewSrc.indexOf('Promise.all([fbPages'), '401 fires before any data loads');
   const seg = overviewSrc.slice(overviewSrc.indexOf('// 10-08 P2 CLIENT ROLE'));
-  assert.match(seg, /if \(!user\) return Response\.json\(\{ error: 'not signed in' \}, \{ status: 401 \}\)/, 'unknown user → 401');
   assert.match(seg, /slugsForUser\(user\)\.catch\(\(\) => \[\]\)/, 'scope error → EMPTY, not null(=all)');
   assert.doesNotMatch(seg, /slugsForUser\(user\)\.catch\(\(\) => null\)/, 'the old fail-open shape is gone on the SCOPE resolution (getUser.catch(null) + 401 gate is the correct fail-closed pair)');
   assert.match(overviewSrc, /const owned = await slugsForUser\(user\)\.catch/, 'owned is resolved once, post-401, for producing+logs+controlChannels alike');

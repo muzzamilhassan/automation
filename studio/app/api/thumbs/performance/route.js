@@ -3,12 +3,17 @@
 import { getUser } from '@/lib/route-auth';
 import { canAccessChannelSlug } from '@/lib/access';
 import { videoDaily } from '@/lib/yt-attach';
+import { enforceLimits } from '@/lib/rate-limit.mjs';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
   const user = await getUser(req);
   if (!user) return Response.json({ error: 'not signed in' }, { status: 401 });
+  // #121 RL-5: uncached Google fan-outs (token refresh + uploads playlist +
+  // per-video daily rows) — 20/hour per actor, shared with /api/thumbs/videos.
+  const limited = await enforceLimits(user, [{ bucket: 'thumbs-read', limit: 20, windowSec: 3600 }]);
+  if (limited) return limited;
   const slug = new URL(req.url).searchParams.get('slug') || '';
   if (slug && !(await canAccessChannelSlug(user, slug))) return Response.json({ error: 'this channel is not linked to your account' }, { status: 403 });
   if (!slug) return Response.json({ error: 'slug required' }, { status: 400 });

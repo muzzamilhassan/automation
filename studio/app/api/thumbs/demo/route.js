@@ -90,7 +90,7 @@ export async function GET(req) {
       headers: {
         'Content-Type': 'image/jpeg',
         'Content-Length': String(jpeg.length),
-        'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+        'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800', // #121 R7: the CDN caches one render per URL variant
       },
     });
   } catch (e) {

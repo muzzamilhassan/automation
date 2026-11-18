@@ -4,6 +4,7 @@
 import { getUser } from '@/lib/route-auth';
 import { canAccessChannelSlug } from '@/lib/access';
 import { ENV } from '@/lib/data.mjs';
+import { enforceLimits } from '@/lib/rate-limit.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,6 +86,10 @@ async function fallbackVideos(slug) {
 export async function GET(req) {
   const user = await getUser(req);
   if (!user) return Response.json({ error: 'not signed in' }, { status: 401 });
+  // #121 RL-5: uncached Google fan-outs (token refresh + uploads playlist) —
+  // 20/hour per actor, shared with /api/thumbs/performance.
+  const limited = await enforceLimits(user, [{ bucket: 'thumbs-read', limit: 20, windowSec: 3600 }]);
+  if (limited) return limited;
   const slug = new URL(req.url).searchParams.get('slug') || '';
   if (!slug) return Response.json({ error: 'slug required' }, { status: 400 });
   // audit 2026-11-13 #1: no state-derived titles for callers without access

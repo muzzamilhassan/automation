@@ -3,6 +3,7 @@
 // OverlayThumb pattern that avoids AI text clipping). ~15s per 2K image.
 import sharp from 'sharp';
 import { getUser } from '@/lib/route-auth';
+import { enforceLimits } from '@/lib/rate-limit.mjs';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -19,6 +20,13 @@ export async function POST(req) {
   if (!user) return Response.json({ error: 'not allowed' }, { status: 401 });
   const key = process.env.AGNES_API_KEY || '';
   if (!key) return Response.json({ error: 'AGNES_API_KEY not configured on the server' }, { status: 503 });
+  // #121 RL-4: the Agnes gateway is a free tier (10 req/min) and this lambda
+  // can run 60s per image — 5/hour and 20/day per actor.
+  const limited = await enforceLimits(user, [
+    { bucket: 'ai-bg', limit: 5, windowSec: 3600 },
+    { bucket: 'ai-bg', limit: 20, windowSec: 86400 },
+  ]);
+  if (limited) return limited;
   try {
     const body = await req.json().catch(() => ({}));
     const subject = String(body.prompt || '').trim().slice(0, 300);

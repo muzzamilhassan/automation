@@ -6,6 +6,7 @@ import { registryChannels } from '../../../lib/channels-registry.js';
 import { getUser } from '@/lib/route-auth';
 import { slugsForUser } from '@/lib/access';
 import { appendAudit } from '../../../lib/audit.js';
+import { enforceLimits } from '@/lib/rate-limit.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,6 +44,13 @@ export async function POST(req) {
   } else if (!['owner', 'staff'].includes(user.role)) {
     return Response.json({ error: 'not signed in' }, { status: 401 });
   }
+  // #121 RL-2: every dispatch here is a billable GitHub Actions run — shared
+  // 'dispatch' bucket with /api/create-video (hourly + daily caps per actor).
+  const limited = await enforceLimits(user, [
+    { bucket: 'dispatch', limit: 10, windowSec: 3600 },
+    { bucket: 'dispatch', limit: 30, windowSec: 86400 },
+  ]);
+  if (limited) return limited;
   const actor = user.email;
   const fn = MAP[body.action];
   if (!fn) return Response.json({ error: 'unknown action' }, { status: 400 });
@@ -65,7 +73,7 @@ export async function POST(req) {
       if (!Number.isInteger(body.topup) || body.topup < 1) {
         return Response.json({ error: 'topup must be a positive integer' }, { status: 400 });
       }
-      spec.inputs.topup = String(body.topup);
+      spec.inputs.topup = String(Math.min(20, body.topup)); // #121 RL-2: clamped ≤ 20 — one click cannot buy hundreds of slots
     }
     if (['yt-daily', 'deepdive'].includes(body.action) && (body.forceDoc === true || body.forceDoc === '1' || body.force_doc === '1')) {
       spec.inputs.force_doc = '1';
