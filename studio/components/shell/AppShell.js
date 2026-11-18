@@ -105,6 +105,9 @@ function Notifications({ open, onClose }) {
    NavList so the always-dark palette is fully controlled). */
 function NavGroups({ collapsed, onNavigate }) {
   const pathname = usePathname();
+  // #125 (S-11): the sidebar's channel list is LIVE — /api/brands replaces
+  // the old hardcoded list; nothing renders until it loads.
+  const { channels: liveChannels } = useBrands();
   return (
     <nav className="flex-1 overflow-y-auto pb-4 px-2.5">
       {NAV.map((g) => (
@@ -221,9 +224,6 @@ export default function AppShell({ children }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
-  // #125 (S-11): the sidebar's channel list is LIVE — /api/brands replaces
-  // the old hardcoded list; nothing renders until it loads.
-  const { channels: liveChannels } = useBrands();
   const [loggingOut, setLoggingOut] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
