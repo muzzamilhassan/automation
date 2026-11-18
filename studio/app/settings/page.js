@@ -95,6 +95,13 @@ function SettingsContent() {
   const [sessions, setSessions] = useState(null);
   const [secBusy, setSecBusy] = useState(false);
   const [secErr, setSecErr] = useState('');
+  // #123 (OPS-12) — change panel password
+  const [pwCurrent, setPwCurrent] = useState('');
+  const [pwNew, setPwNew] = useState('');
+  const [pwConfirm, setPwConfirm] = useState('');
+  const [pwBusy, setPwBusy] = useState(false);
+  const [pwErr, setPwErr] = useState('');
+  const [pwResult, setPwResult] = useState(null);
   useEffect(() => {
     const frame = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(frame);
@@ -123,6 +130,30 @@ function SettingsContent() {
       alive = false;
     };
   }, []);
+
+  // #123 (OPS-12): verify + prep; the actual value change happens on Vercel
+  const rotatePw = async () => {
+    setPwBusy(true);
+    setPwErr('');
+    setPwResult(null);
+    try {
+      const r = await fetch('/api/settings/rotate-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: pwCurrent, newPassword: pwNew, confirm: pwConfirm }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Could not prepare the rotation');
+      setPwResult(d);
+      setPwCurrent('');
+      setPwNew('');
+      setPwConfirm('');
+    } catch (e) {
+      setPwErr(e.message);
+    } finally {
+      setPwBusy(false);
+    }
+  };
 
   const revokeAll = async () => {
     if (!window.confirm('Sign out EVERYWHERE? All devices (including this one) lose access and must sign in again.')) return;
@@ -360,6 +391,45 @@ function SettingsContent() {
               New members sign in with Google on the login page — their email must match exactly. Owners are added by editing the invite file in the repo.
             </p>
           </>
+        )}
+      </Card>
+
+      {/* #123 (OPS-12) — change panel password */}
+      <Card className="p-5 mt-4">
+        <CardHead
+          title="Change panel password"
+          sub="Verified and prepared here — the value itself is changed on Vercel, then every device signs out automatically on the next deploy."
+          icon={ShieldAlert}
+        />
+        {pwErr ? <p className="text-[12px] px-1 mb-2" style={{ color: 'var(--bad)' }}>{pwErr}</p> : null}
+        {!pwResult ? (
+          <>
+            <div className="grid gap-2 mt-1" style={{ maxWidth: 420 }}>
+              <input className="input" type="password" placeholder="Current password" autoComplete="current-password" value={pwCurrent} onChange={(e) => setPwCurrent(e.target.value)} />
+              <input className="input" type="password" placeholder="New password (at least 12 characters)" autoComplete="new-password" value={pwNew} onChange={(e) => setPwNew(e.target.value)} />
+              <input className="input" type="password" placeholder="Repeat new password" autoComplete="new-password" value={pwConfirm} onChange={(e) => setPwConfirm(e.target.value)} />
+            </div>
+            <div className="flex items-center gap-2 mt-3">
+              <Button color="primary" onClick={rotatePw} isDisabled={pwBusy || !pwCurrent || !pwNew || !pwConfirm}>Verify &amp; prepare rotation</Button>
+              <span className="text-[11px] text-faint">Changing the password is safe — channel tokens live under the master key now (#120).</span>
+            </div>
+          </>
+        ) : (
+          <div className="mt-1 space-y-2">
+            <p className="text-[12.5px]" style={{ color: 'var(--ok, #22c55e)' }}>
+              Ready — {pwResult.scanned} token row{pwResult.scanned === 1 ? '' : 's'} checked, {pwResult.migrated} re-protected{pwResult.unreadable ? `, ${pwResult.unreadable} already unreadable (pre-existing, rotation-safe)` : ''}. Now finish on Vercel:
+            </p>
+            <ol className="text-[12px] text-faint list-decimal pl-5 space-y-1">
+              {pwResult.steps.map((s, i) => <li key={i}>{s}</li>)}
+            </ol>
+            <a className="text-[12px] underline" style={{ color: 'var(--accent)' }} href={pwResult.dashboardUrl} target="_blank" rel="noreferrer">
+              Open Vercel environment variables →
+            </a>
+            {pwResult.warning ? <p className="text-[11.5px] text-faint">{pwResult.warning}</p> : null}
+            <p className="text-[11px] text-faint">
+              Redeployed and signed in with the new password? Done. (Changed your mind? Simply don&apos;t touch Vercel — nothing has changed yet.)
+            </p>
+          </div>
         )}
       </Card>
 

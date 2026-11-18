@@ -90,6 +90,31 @@ export function decryptJSON(s) {
   }
 }
 
+// decrypt under ONE specific derivation — the classifier's primitive.
+function decryptUnder(s, key) {
+  try {
+    if (!key) return null;
+    const [iv, tag, ct] = String(s).split('.').map((p) => Buffer.from(p, 'base64'));
+    const d = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    d.setAuthTag(tag);
+    return JSON.parse(Buffer.concat([d.update(ct), d.final()]).toString('utf8'));
+  } catch {
+    return null;
+  }
+}
+
+// #123 (OPS-12): which key protects this tokenEnc blob? 'v2' = MASTER_KEY
+// derivation (password-independent — rotation-safe), 'legacy' = keyed by the
+// login password (STUDIO_PASSWORD || YOUTUBE_CLIENT_SECRET — MUST be
+// re-encrypted to v2 BEFORE a password rotation, or it becomes unreadable),
+// 'unreadable' = already broken under both, null = nothing to classify.
+export function classifyTokenEncRow(enc) {
+  if (!enc) return null;
+  if (process.env.MASTER_KEY && decryptUnder(enc, masterEncKey()) !== null) return 'v2';
+  if (decryptUnder(enc, legacyEncKey()) !== null) return 'legacy';
+  return 'unreadable';
+}
+
 // #122 (SEC-9): API projection — strips exactly the fields that carry token
 // material. No page ever reads them (grep-verified across studio/app); the
 // browser must never receive ciphertext even though it is encrypted — one
