@@ -111,8 +111,19 @@ export async function POST(req) {
       });
       if (res.ok && id) await markApplied(sql, id, res.sha);
       if (!res.ok) return Response.json({ error: res.error, queued: id }, { status: 502 });
+      // #124 R1: an approved template's job is done — its content lives in the
+      // registry now. Remove the draft file the same way reject does
+      // (best-effort; the applied-approve filter in listDrafts keeps the inbox
+      // honest even if this cleanup fails until the next deploy).
+      let fileCleanup = 'absent';
+      try {
+        const del = await commitDraftDeletion(file);
+        fileCleanup = del.ok ? (del.already ? 'absent' : 'deleted') : `failed: ${String(del.error).slice(0, 80)}`;
+      } catch (e) {
+        fileCleanup = `failed: ${String(e.message || e).slice(0, 80)}`;
+      }
       try { await deletePreviewRow(sql, templateId); } catch { /* previews optional */ }
-      return Response.json({ ok: true, already: Boolean(res.already), sha: res.sha || null });
+      return Response.json({ ok: true, already: Boolean(res.already), sha: res.sha || null, fileCleanup });
     }
     // reject: the draft file leaves the repo + its preview row drops
     const res = await commitDraftDeletion(file);

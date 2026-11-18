@@ -553,12 +553,21 @@ describe('Full Story Templates & 95-100% Content-Matched Starting Hook Media', (
   });
 
   test('Template drafts default to has_chapters: false (Full Story) and convert dynamically', () => {
-    const draftsDir = path.join(ROOT, 'studio/lib/template-bot-drafts');
-    const files = fs.readdirSync(draftsDir).filter((f) => f.endsWith('.json'));
-    assert.equal(files.length, 20, 'the 18 storybook drafts + the 2 Living Diagram drafts (money-flow-diagram, systems-diagram)');
-
-    for (const f of files) {
-      const data = JSON.parse(fs.readFileSync(path.join(draftsDir, f), 'utf8'));
+    // #124: the 20 drafts were APPROVED — they live in REGISTRY_META now and
+    // the draft files left the repo by design. Same assertions, approved home.
+    const APPROVED_IDS = [
+      'cashflow-challenge-storybook', 'deep-reset-storybook', 'evidence-room-storybook',
+      'fine-print-storybook', 'full-current-storybook', 'grit-code-storybook',
+      'heirloom-storybook', 'iron-five-storybook', 'marble-quill-storybook',
+      'money-flow-diagram', 'mr-case-files-storybook', 'night-signal-storybook',
+      'no-spend-30day-storybook', 'old-banners-storybook', 'old-verses-storybook',
+      'paper-trail-storybook', 'salt-and-iron-storybook', 'silicon-pulse-storybook',
+      'switchboard-storybook', 'systems-diagram',
+    ];
+    assert.equal(APPROVED_IDS.length, 20, 'the 18 storybook drafts + the 2 Living Diagram drafts (money-flow-diagram, systems-diagram)');
+    for (const id of APPROVED_IDS) {
+      const data = REGISTRY_META[id];
+      assert.ok(data, `${id} must be in the registry (approved 2026-11-17/18)`);
       // step 1: a Living Diagram draft renders one diagram scene per chapter, so it
       // is CHAPTERED by design (the panel toggle's 'chapters' state)
       if (data.story_structure?.doc_render === 'diagram') {
@@ -585,7 +594,7 @@ describe('Full Story Templates & 95-100% Content-Matched Starting Hook Media', (
       };
     };
 
-    const sample = JSON.parse(fs.readFileSync(path.join(draftsDir, files[0]), 'utf8'));
+    const sample = REGISTRY_META['mr-case-files-storybook']; // any approved entry exercises the toggle shape
     const convertedToChapters = simulateToggle(sample, true);
     assert.equal(convertedToChapters.story_structure.has_chapters, true);
     assert.equal(convertedToChapters.story_structure.narrative_format, 'chapters');

@@ -55,11 +55,23 @@ export async function ensureApprovalsTable(sql) {
   )`;
 }
 
+// #124 — what belongs in the inbox? PENDING work only. Rejected drafts leave
+// via their action row; approved drafts leave via the file-deletion commit —
+// the applied-approve case covers the window before the next deploy ships the
+// deletion (and any straggler whose cleanup failed). A FAILED approve stays
+// visible so the owner can retry.
+export function draftStillPending(act) {
+  if (!act) return true;
+  if (act.action === 'reject') return false;
+  if (act.action === 'approve' && act.status === 'applied') return false;
+  return true;
+}
+
 /** The staged drafts on THIS deploy (they ship in the bundle), joined with
- * their Neon preview renders + the latest approval action per id. */
-export async function listDrafts(sql) {
+ * their Neon preview renders + the latest approval action per id.
+ * draftsDir injectable for tests (#124 — the repo no longer stages fixture files). */
+export async function listDrafts(sql, draftsDir = resolveDraftsDir()) {
   let rows = [];
-  const draftsDir = resolveDraftsDir();
   try {
     rows = fs.readdirSync(draftsDir).filter((f) => f.endsWith('.json'));
   } catch {
@@ -93,7 +105,7 @@ export async function listDrafts(sql) {
       const d = JSON.parse(fs.readFileSync(path.join(draftsDir, f), 'utf8'));
       const pres = d.doc_presentation || {};
       const act = actions[d.template_id];
-      if (act && act.action === 'reject') continue; // rejected drafts leave the inbox
+      if (!draftStillPending(act)) continue; // #124: rejected or approve-applied drafts leave the inbox
       const isChapters = Boolean(d.story_structure?.has_chapters === true);
       const narrativeFormat = isChapters ? 'chapters' : 'full_story';
       drafts.push({

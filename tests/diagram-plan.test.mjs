@@ -192,10 +192,12 @@ test('voiceProfileFor reads lib/brands.json DATA; diagramVoiceArgs picks profile
   assert.equal(voiceProfileFor('money-rulebook').voice, 'bm_daniel');
 });
 
-test('D6: both Living Diagram drafts validate, are reusable (no channel-specific brand) and pick their look', async () => {
-  const fs = await import('node:fs');
+test('D6: both Living Diagram templates validate, are reusable (no channel-specific brand) and pick their look', async () => {
+  // #124: the drafts were approved — they now live in the REGISTRY, and the
+  // draft files left the repo by design. Same assertions, approved home.
+  const { REGISTRY_META } = await import('../studio/lib/template-registry.data.js');
   const { validateDraft } = await import('../lib/template-bot.mjs');
-  const load = (f) => JSON.parse(fs.readFileSync(new URL(`../studio/lib/template-bot-drafts/${f}.json`, import.meta.url), 'utf8'));
+  const load = (f) => REGISTRY_META[f];
   for (const [id, style] of [['money-flow-diagram', 'tile'], ['systems-diagram', 'glow']]) {
     const d = load(id);
     const v = validateDraft(d);
