@@ -34,6 +34,8 @@ const OVERVIEW_TABS = [
 ];
 
 function OverviewContent() {
+  const { bySlug: BRAND } = useBrands(); // #125 (hooks live HERE — every use is in this component): live short/accent per slug
+  const { rows: openWarningRows, canSee: warningsCanSee } = useOpenWarnings(); // #126: live alerts
   const searchParams = useSearchParams();
   const tabFromQuery = searchParams.get('tab');
   const activeTab = tabFromQuery && OVERVIEW_TABS.some((tab) => tab.id === tabFromQuery) ? tabFromQuery : 'pulse';
@@ -331,8 +333,6 @@ function OverviewContent() {
 }
 
 export default function Overview() {
-  const { bySlug: BRAND } = useBrands(); // #125: live short/accent per slug
-  const { rows: openWarningRows, canSee: warningsCanSee } = useOpenWarnings(); // #126: live alerts
 
   return (
     <Suspense fallback={<PageSkeleton />}>

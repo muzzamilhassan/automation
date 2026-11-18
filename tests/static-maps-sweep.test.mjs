@@ -113,3 +113,71 @@ test('#125: the 8 pages + shell use the live hook; thumbs reads overview directl
   }
   assert.match(read('studio/app/thumbs/page.js'), /\/api\/overview/);
 });
+
+// ---- hook SCOPE guard (2026-11-18 regression: the home page crashed with
+// "BRAND is not defined" because the hook was placed in the wrapper component
+// while every use lived in an inner one — the build and the source scans
+// passed; only a runtime render caught it). Every identifier a hook declares
+// must be used ONLY inside the same top-level function that declares it.
+// NOTE: regexes are built with String.raw — a `\b` inside a plain template
+// literal is a BACKSPACE character, which made the first version of this
+// guard pass vacuously (caught by the self-test below).
+const HOOK_IDS = ['BRAND', 'openWarningRows', 'warningsCanSee', 'liveChannels'];
+function topLevelFnAt(lines, idx) {
+  for (let i = idx; i >= 0; i--) {
+    const m = /^(?:export default )?function (\w+)|^const (\w+) = \(/.exec(lines[i]);
+    if (m) return m[1] || m[2];
+  }
+  return null;
+}
+export function hookScopeProblems(src, label = 'src') {
+  const lines = src.split(/\r?\n/);
+  const problems = [];
+  for (const id of HOOK_IDS) {
+    const declRe = new RegExp(String.raw`const \{[^}]*\b${id}\b[^}]*\} = use(?:Brands|OpenWarnings)\(\)`);
+    const useRe = new RegExp(String.raw`\b${id}\b`);
+    const declIdx = lines.findIndex((l) => declRe.test(l));
+    const useIdxs = lines
+      .map((l, i) => [l.replace(/\/\/.*$/, ''), i])
+      .filter(([l, i]) => i !== declIdx && useRe.test(l) && !/^\s*(import|\*)/.test(l))
+      .map(([, i]) => i);
+    if (!useIdxs.length) continue;
+    if (declIdx < 0) { problems.push(`${label}: ${id} used but never declared by its hook`); continue; }
+    const owner = topLevelFnAt(lines, declIdx);
+    for (const u of useIdxs) {
+      const fn = topLevelFnAt(lines, u);
+      if (fn !== owner) problems.push(`${label}:${u + 1} ${id} used in ${fn} but declared in ${owner}`);
+    }
+  }
+  return problems;
+}
+
+test('#125/#126 hook-scope guard SELF-TEST: it catches the exact home-page bug shape', () => {
+  const buggy = [
+    'function OverviewContent() {',
+    '  return <BrandMark short={BRAND[c.slug]?.short} />;',
+    '}',
+    'export default function Overview() {',
+    '  const { bySlug: BRAND } = useBrands();',
+    '  return <OverviewContent />;',
+    '}',
+  ].join('\n');
+  const fixed = [
+    'function OverviewContent() {',
+    '  const { bySlug: BRAND } = useBrands();',
+    '  return <BrandMark short={BRAND[c.slug]?.short} />;',
+    '}',
+  ].join('\n');
+  assert.deepEqual(hookScopeProblems(buggy, 'buggy'), ['buggy:2 BRAND used in OverviewContent but declared in Overview']);
+  assert.deepEqual(hookScopeProblems(fixed, 'fixed'), []);
+});
+
+test('#125/#126 hook scope: every live hook is declared in the SAME component that uses it', () => {
+  const files = [
+    'studio/app/page.js', 'studio/app/analytics/page.js', 'studio/app/channels/page.js',
+    'studio/app/logs/page.js', 'studio/app/music/page.js', 'studio/app/social/page.js',
+    'studio/app/topics/page.js', 'studio/app/videos/page.js', 'studio/components/shell/AppShell.js',
+  ];
+  const problems = files.flatMap((p) => hookScopeProblems(read(p), p));
+  assert.deepEqual(problems, [], problems.join('\n'));
+});
