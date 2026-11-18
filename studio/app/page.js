@@ -23,11 +23,10 @@ import { Card, CardHead, Chip, StatCard, PageSkeleton, EmptyState, BrandMark } f
 import { MiniBars } from '@/components/charts';
 import TabNav from '@/components/TabNav';
 import Analytics from '@/app/analytics/page';
-import { ALERTS } from '@/lib/site-data';
 import { useBrands } from '@/components/use-brands'; // #125: live brand marks
+import { useOpenWarnings } from '@/components/use-open-warnings'; // #126: live alerts
 import { fmt, fmtFull, timeAgo, when } from '@/lib/utils';
 
-const ALERT_ICON = { bad: 'var(--bad)', warn: 'var(--warn)', info: 'var(--info)' };
 
 const OVERVIEW_TABS = [
   { id: 'pulse', label: 'Pulse & Production', icon: LayoutDashboard },
@@ -183,20 +182,27 @@ function OverviewContent() {
           </div>
         </Card>
 
+        {warningsCanSee ? (
         <Card>
-          <CardHead title="Needs attention" sub={`${ALERTS.length} open alerts`} icon={Flame} right={<Link href="/tasks" className="text-[11.5px] text-accent hover:underline">all tasks →</Link>} />
+          <CardHead title="Needs attention" sub={`${openWarningRows.length} open warnings`} icon={Flame} right={<Link href="/warnings" className="text-[11.5px] text-accent hover:underline">triage →</Link>} />
           <div className="px-2 pb-2">
-            {ALERTS.map((a) => (
-              <Link key={a.title} href={a.href} className="flex gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-2 transition-colors">
-                <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: ALERT_ICON[a.level] }} />
+            {openWarningRows.length === 0 ? (
+              <div className="px-4 py-8 text-center">
+                <p className="text-[12.5px] font-semibold text-ink">Nothing needs attention</p>
+                <p className="text-[11px] text-faint mt-1">All probes are quiet — no open warnings.</p>
+              </div>
+            ) : openWarningRows.slice(0, 4).map((w) => (
+              <Link key={w.id} href="/warnings" className="flex gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-2 transition-colors">
+                <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: w.severity === 'bad' ? 'var(--bad)' : 'var(--warn, #E8C15A)' }} />
                 <span className="min-w-0">
-                  <span className="block text-[12.5px] font-semibold text-ink leading-snug">{a.title}</span>
-                  <span className="block text-[11px] text-faint mt-0.5 leading-snug ">{a.body}</span>
+                  <span className="block text-[12.5px] font-semibold text-ink leading-snug">{w.title}</span>
+                  <span className="block text-[11px] text-faint mt-0.5 font-mono truncate">{w.severity}{w.channel_id ? ` · ${w.channel_id}` : ''}</span>
                 </span>
               </Link>
             ))}
           </div>
         </Card>
+        ) : null}
       </div>
 
       {/* production line */}
@@ -326,6 +332,7 @@ function OverviewContent() {
 
 export default function Overview() {
   const { bySlug: BRAND } = useBrands(); // #125: live short/accent per slug
+  const { rows: openWarningRows, canSee: warningsCanSee } = useOpenWarnings(); // #126: live alerts
 
   return (
     <Suspense fallback={<PageSkeleton />}>

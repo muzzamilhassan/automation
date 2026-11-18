@@ -13,23 +13,6 @@ export const RETENTION = [
 ];
 export const RETENTION_GOAL = 70;
 
-export const ALERTS = [
-  {
-    level: 'bad',
-    title: 'Script brain still fragile',
-    body: 'Groq 429 + Gemini 403 still cause ~1 channel/day to skip. Fix is planned — waiting for your go.',
-    when: 'Sep 27',
-    href: '/production',
-  },
-  {
-    level: 'info',
-    title: 'Facebook reels blackout plan waiting',
-    body: '~60 reels across 4 pages got 2 views total. Native re-render + page rename plan awaits your go.',
-    when: 'Sep 20',
-    href: '/social',
-  },
-];
-
 export const PIPELINES = [
   {
     id: 'yt-daily',
@@ -132,67 +115,6 @@ export const MUSIC_MOODS = {
   'money-rulebook': ['Bright', 'Uplifting', 'Grooving'],
   'debt-free-doctrine': ['Driving', 'Hopeful'],
 };
-
-export const ROADMAP = [
-  {
-    group: 'Fix now',
-    icon: 'alert',
-    items: [
-      { t: 'Script brain fallback — Groq 429 + Gemini 403 fail ~1 channel/day', state: 'waiting-you' },
-      { t: 'FB reels blackout plan — native re-render + page renames', state: 'waiting-you' },
-      { t: 'Refresh Threads token before ~Oct 29', state: 'waiting-you' },
-      { t: 'Premium upgrade groups 1–3 (SFX, ducking, loudnorm) — plan ready', state: 'waiting-you' },
-    ],
-  },
-  {
-    group: 'Running live',
-    icon: 'zap',
-    items: [
-      { t: 'Daily Shorts — 1 quality short per channel (best ET slot), Sunday break', state: 'live' },
-      { t: 'Weekly doc episode per channel (QQ Tue · IC Wed · MR Thu · OMC Fri)', state: 'live' },
-      { t: 'Channel Factory — wizard channels run on the nightly Autopilot automatically', state: 'live' },
-      { t: 'Topic Desk — research proposes, you approve, machine runs your picks first', state: 'live' },
-      { t: 'Flow switches — per-channel pause/resume + network master switch', state: 'live' },
-      { t: 'TikTok via Zernio — 4 slots/day + 1 clip part/day (QQ)', state: 'live' },
-      { t: 'FB reels + posters, IG reels ×4 accounts, Threads ×1/day (legacy channels)', state: 'live' },
-      { t: 'SEO pack live + in-pipeline US keyword checker', state: 'live' },
-      { t: 'Photo-poster thumbnails live + 34 old videos backfilled', state: 'live' },
-      { t: 'Role-based access — Google sign-in, owner/staff/client roles', state: 'live' },
-    ],
-  },
-  {
-    group: 'Waiting on you',
-    icon: 'user',
-    items: [
-      { t: 'Check YouTube Studio on QQ for any recovery/policy notice', state: 'pending' },
-      { t: 'Refresh Threads token before ~Oct 29', state: 'pending' },
-      { t: 'FB reels blackout plan — native re-render + page renames', state: 'pending' },
-      { t: 'Premium upgrade groups 1–3 (SFX, ducking, loudnorm) — plan ready', state: 'waiting-you' },
-      { t: 'Affiliate money — Payoneer KYC + network signups', state: 'pending' },
-      { t: 'Buy blog domain (~$10/yr) for AdSense route', state: 'pending' },
-    ],
-  },
-  {
-    group: 'Next up',
-    icon: 'rocket',
-    items: [
-      { t: 'Feeder "views machine" channel — blocked on you creating it', state: 'next' },
-      { t: 'daily.dev API digest — waiting for your API token', state: 'next' },
-      { t: 'Blog + auto-articles once domain is bought', state: 'next' },
-      { t: 'Retention re-judge after 10 videos on new scripts', state: 'next' },
-    ],
-  },
-  {
-    group: 'Decided / parked',
-    icon: 'archive',
-    items: [
-      { t: 'Weekly QQ compilation — disabled, awaiting your call', state: 'parked' },
-      { t: 'DFD fix vs pause decision — open', state: 'parked' },
-      { t: 'Bluesky — do not integrate (your call, Sep 1)', state: 'parked' },
-      { t: 'Recycler (same-file re-uploads) — removed forever (strike risk)', state: 'parked' },
-    ],
-  },
-];
 
 export const INTEGRATIONS = [
   { name: 'YouTube Data API', status: 'ok', note: '5 channels linked (4 legacy + FAJR OF QUR\'AN) · uploads own bucket', icon: 'youtube' },

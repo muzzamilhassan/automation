@@ -24,7 +24,9 @@ import {
 import { NAV } from './nav';
 import CommandPalette from './CommandPalette';
 import { useBrands } from '@/components/use-brands';
-import { ALERTS } from '@/lib/site-data';
+import { useOpenWarnings } from '@/components/use-open-warnings';
+// #126 (S-2): the bell's alert rows come from /api/warnings — the static
+// hand-written September alerts are deleted from site-data.
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
@@ -69,33 +71,44 @@ function ThemeToggle() {
   );
 }
 
-function Notifications({ open, onClose }) {
+function Notifications({ open, onClose, warnings }) {
   if (!open) return null;
   const ICONS = { bad: OctagonAlert, warn: AlertTriangle, info: Info };
   const COLOR = { bad: 'text-error-primary', warn: 'text-warning-primary', info: 'text-fg-tertiary' };
+  // #126 (S-2): real open warnings from /api/warnings — never hand-written rows
+  const rows = warnings.rows || [];
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
       <div className="absolute right-0 top-[calc(100%+10px)] w-[340px] rounded-lg border border-border-secondary bg-bg-primary shadow-xl z-50 overflow-hidden pop-in">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border-tertiary">
           <span className="text-sm font-semibold text-fg-primary">Alerts</span>
-          <Badge color="warning" size="sm">{ALERTS.length} open</Badge>
+          {warnings.canSee ? <Badge color={rows.length ? 'warning' : 'success'} size="sm">{rows.length} open</Badge> : null}
         </div>
         <div className="max-h-[320px] overflow-y-auto">
-          {ALERTS.map((a) => {
-            const Icon = ICONS[a.level] || Info;
+          {!warnings.canSee || rows.length === 0 ? (
+            <div className="px-4 py-6 text-center">
+              <p className="text-[12.5px] font-semibold text-fg-primary">Nothing needs attention</p>
+              <p className="text-[11.5px] text-fg-tertiary mt-1">{warnings.canSee ? 'All probes are quiet — no open warnings.' : 'Alerts are an owner/staff surface.'}</p>
+            </div>
+          ) : rows.map((w) => {
+            const Icon = ICONS[w.severity] || Info;
             return (
-              <Link key={a.title} href={a.href} onClick={onClose} className="flex gap-3 px-4 py-3 border-b border-border-tertiary last:border-0 hover:bg-bg-secondary transition-colors">
-                <Icon size={15} className={cn('shrink-0 mt-0.5', COLOR[a.level] || COLOR.info)} />
-                <span>
-                  <span className="block text-[12.5px] font-semibold text-fg-primary">{a.title}</span>
-                  <span className="block text-[11.5px] text-fg-tertiary mt-0.5 leading-snug">{a.body}</span>
-                  <span className="block text-[10.5px] text-fg-quaternary mt-1 font-mono">{a.when}</span>
+              <Link key={w.id} href="/warnings" onClick={onClose} className="flex gap-3 px-4 py-3 border-b border-border-tertiary last:border-0 hover:bg-bg-secondary transition-colors">
+                <Icon size={15} className={cn('shrink-0 mt-0.5', COLOR[w.severity] || COLOR.info)} />
+                <span className="min-w-0">
+                  <span className="block text-[12.5px] font-semibold text-fg-primary">{w.title}</span>
+                  <span className="block text-[11px] text-fg-tertiary mt-0.5 font-mono truncate">{w.severity}{w.channel_id ? ` · ${w.channel_id}` : ''}</span>
                 </span>
               </Link>
             );
           })}
         </div>
+        {warnings.canSee ? (
+          <Link href="/warnings" onClick={onClose} className="block px-4 py-2.5 border-t border-border-tertiary text-[11.5px] text-accent hover:underline">
+            open the warning triage →
+          </Link>
+        ) : null}
       </div>
     </>
   );
@@ -223,6 +236,8 @@ export default function AppShell({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  // #126 (S-2): real open warnings — badge hides for clients/failures, never a fake number
+  const { rows: openWarningRows, canSee: warningsCanSee } = useOpenWarnings();
   const [userOpen, setUserOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const pathname = usePathname();
@@ -366,10 +381,12 @@ export default function AppShell({ children }) {
                 onClick={() => setNotifOpen((o) => !o)}
                 aria-label="Alerts"
               />
-              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9.5px] font-bold flex items-center justify-center bg-error-solid text-white pointer-events-none">
-                {ALERTS.length}
-              </span>
-              <Notifications open={notifOpen} onClose={() => setNotifOpen(false)} />
+              {warningsCanSee && openWarningRows.length ? (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9.5px] font-bold flex items-center justify-center bg-error-solid text-white pointer-events-none">
+                  {openWarningRows.length}
+                </span>
+              ) : null}
+              <Notifications open={notifOpen} onClose={() => setNotifOpen(false)} warnings={{ rows: openWarningRows, canSee: warningsCanSee }} />
             </div>
 
             <ThemeToggle />
