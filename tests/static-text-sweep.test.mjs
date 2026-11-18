@@ -33,19 +33,21 @@ test('#126 R1: the bell renders real open warnings with severity icons, channel 
   assert.match(shellSrc, /function Notifications\(\{ open, onClose, warnings \}\)/);
   assert.match(shellSrc, /warnings\.rows \|\| \[\]/);
   assert.match(shellSrc, /Nothing needs attention/);
-  assert.match(shellSrc, /ICONS\[w\.severity\]/);
+  assert.match(shellSrc, /SEV_ICON\[w\.severity\]/); // P0-9 refresh: real severity keys
   assert.match(shellSrc, /w\.channel_id/);
   assert.match(shellSrc, /open the warning triage →/);
 });
 
 test('#126 R2: the topbar badge shows the REAL count and hides for clients/failures (no fake number)', () => {
   assert.match(shellSrc, /warningsCanSee && openWarningRows\.length \? \(/);
+  assert.match(shellSrc, /status unknown/);
   assert.match(shellSrc, /useOpenWarnings\(\)/);
   assert.ok(!/\bALERTS\b/.test(stripComments(shellSrc)), 'ALERTS extinct in AppShell code');
 });
 
 test('#126 R3: the home Needs-attention card is real + hidden for clients', () => {
-  assert.match(homeSrc, /\{warningsCanSee \? \(/);
+  assert.match(homeSrc, /\{warningsCanSee \|\| warnStatus === 'error' \? \(/);
+  assert.match(homeSrc, /warnStatus === 'error' \? \(/);
   assert.match(homeSrc, /openWarningRows\.length\} open warnings/);
   assert.match(homeSrc, /openWarningRows\.slice\(0, 4\)\.map/);
   assert.match(homeSrc, /href="\/warnings"/);
@@ -84,7 +86,9 @@ test('#126 R5: ALERTS + ROADMAP exports are gone from site-data; zero code uses 
 });
 
 test('#126: the hook contract — canSee=false for clients/failures (call sites hide, never fake)', () => {
-  assert.match(hookSrc, /canSee: Boolean\(d\.open\)/);
-  assert.match(hookSrc, /canSee: false, loaded: true/);
+  // P0-2 refresh: status contract — DB-down is 'error' (unknown), never quiet
+  assert.match(hookSrc, /status: 'error'/);
+  assert.match(hookSrc, /status: 'ok'/);
+  assert.match(hookSrc, /status: 'forbidden'/);
   assert.match(hookSrc, /fetch\('\/api\/warnings'\)/);
 });

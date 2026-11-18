@@ -10,7 +10,7 @@ import { SquareKanban, OctagonAlert, ScrollText, CircleCheck, Circle } from 'luc
 import { Card, CardHead, Chip, PageHeader } from '@/components/ui';
 import Link from 'next/link';
 
-const sevTone = { bad: 'bad', warn: 'warn', info: 'info' };
+const sevTone = { blocking: 'bad', action_required: 'warn', warning: 'warn', advisory: 'info', informational: 'plain' }; // P0-9 real keys
 
 export default function Tasks() {
   const [warnings, setWarnings] = useState(null); // {open, resolved} | 'denied'
@@ -20,18 +20,19 @@ export default function Tasks() {
   useEffect(() => {
     let alive = true;
     fetch('/api/warnings')
-      .then((r) => (r.ok ? r.json() : 'denied'))
-      .then((d) => { if (alive) setWarnings(d === 'denied' ? 'denied' : { open: d.open || [], resolved: d.resolved || [] }); })
-      .catch(() => { if (alive) setWarnings('denied'); });
+      .then((r) => (r.status === 401 || r.status === 403 ? 'denied' : r.ok ? r.json() : 'error'))
+      .then((d) => { if (alive) setWarnings(d === 'denied' ? 'denied' : d === 'error' ? 'error' : { open: d.open || [], resolved: d.resolved || [] }); })
+      .catch(() => { if (alive) setWarnings('error'); });
     fetch('/api/review')
-      .then((r) => (r.ok ? r.json() : 'denied'))
-      .then((d) => { if (alive) setPending(d === 'denied' ? 'denied' : (d.scripts || [])); })
-      .catch(() => { if (alive) setPending('denied'); });
+      .then((r) => (r.status === 401 || r.status === 403 ? 'denied' : r.ok ? r.json() : 'error'))
+      .then((d) => { if (alive) setPending(d === 'denied' ? 'denied' : d === 'error' ? 'error' : (d.scripts || [])); })
+      .catch(() => { if (alive) setPending('error'); });
     const t = setTimeout(() => { if (alive) setLoaded(true); }, 400);
     return () => { alive = false; clearTimeout(t); };
   }, []);
 
   const denied = warnings === 'denied' && pending === 'denied';
+  const anyError = warnings === 'error' || pending === 'error';
   const open = Array.isArray(warnings?.open) ? warnings.open : [];
   const resolved = Array.isArray(warnings?.resolved) ? warnings.resolved : [];
   const scripts = Array.isArray(pending) ? pending : [];
@@ -51,7 +52,7 @@ export default function Tasks() {
 
   return (
     <div>
-      <PageHeader icon={SquareKanban} title="Tasks" sub={loaded ? `${total} open items · ${open.length} warnings · ${scripts.length} awaiting approval` : 'loading live queue…'} />
+      <PageHeader icon={SquareKanban} title="Tasks" sub={!loaded ? 'loading live queue…' : anyError ? "some sources can't be checked right now — counts may be incomplete" : `${total} open items · ${open.length} warnings · ${scripts.length} awaiting approval`} />
 
       <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
         <Card hover className="p-5">
@@ -66,6 +67,8 @@ export default function Tasks() {
           </div>
           {warnings === 'denied' ? (
             <p className="text-[12px] text-faint px-1">Not available for your role.</p>
+          ) : warnings === 'error' ? (
+            <p className="text-[12px] px-1" style={{ color: 'var(--bad)' }}>Can&apos;t check right now — status unknown, not an all-clear.</p>
           ) : open.length === 0 ? (
             <p className="text-[12px] text-faint px-1">Nothing unresolved — all probes quiet.</p>
           ) : (
@@ -94,6 +97,8 @@ export default function Tasks() {
           </div>
           {pending === 'denied' ? (
             <p className="text-[12px] text-faint px-1">Not available for your role.</p>
+          ) : pending === 'error' ? (
+            <p className="text-[12px] px-1" style={{ color: 'var(--bad)' }}>Can&apos;t check right now — status unknown.</p>
           ) : scripts.length === 0 ? (
             <p className="text-[12px] text-faint px-1">Review queue is clear — nothing waiting.</p>
           ) : (

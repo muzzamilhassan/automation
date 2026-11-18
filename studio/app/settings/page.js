@@ -84,7 +84,6 @@ function SettingsContent() {
 
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [notifs, setNotifs] = useState({ ntfy: true, fails: true, weekly: false });
   // 10-08 P1 — TEAM (owner only)
   const [team, setTeam] = useState(null);
   const [teamErr, setTeamErr] = useState('');
@@ -240,17 +239,15 @@ function SettingsContent() {
             />
           </div>
           <p className="text-[11.5px] text-faint mt-3">
-            Your choice is saved in this browser. Dark is the house style — light is fully supported everywhere.
+            Your choice is saved in this browser. Dark is the house style — light theme is in beta until the Phase 1 pass.
           </p>
 
           <div className="overline mt-7 mb-3">Typography</div>
           <div className="grid sm:grid-cols-3 gap-2.5">
             <div className="inset-tile p-3">
-              <p className="text-[13px] font-semibold text-ink" style={{ fontFamily: 'var(--font-jakarta)' }}>Plus Jakarta Sans</p>
               <p className="text-[11px] text-faint mt-0.5">UI + body text</p>
             </div>
             <div className="inset-tile p-3">
-              <p className="text-[13px] font-bold text-ink" style={{ fontFamily: 'var(--font-jakarta)' }}>Plus Jakarta Sans</p>
               <p className="text-[11px] text-faint mt-0.5">Headlines + big numbers</p>
             </div>
             <div className="inset-tile p-3">
@@ -261,26 +258,9 @@ function SettingsContent() {
 
           <div className="overline mt-7 mb-3">Notifications</div>
           <div className="space-y-2.5">
-            <div className="flex items-center justify-between inset-tile px-3.5 py-3">
-              <div>
-                <p className="text-[12.5px] font-semibold text-ink">Phone pushes (ntfy)</p>
-                <p className="text-[11px] text-faint">Topic quarry-x7f2k-reports — milestones + daily report</p>
-              </div>
-              <Switch checked={notifs.ntfy} onChange={(v) => setNotifs((n) => ({ ...n, ntfy: v }))} label="ntfy pushes" />
-            </div>
-            <div className="flex items-center justify-between inset-tile px-3.5 py-3">
-              <div>
-                <p className="text-[12.5px] font-semibold text-ink">Failure alerts only</p>
-                <p className="text-[11px] text-faint">Ping only when a job fails closed</p>
-              </div>
-              <Switch checked={notifs.fails} onChange={(v) => setNotifs((n) => ({ ...n, fails: v }))} label="Failure alerts" />
-            </div>
-            <div className="flex items-center justify-between inset-tile px-3.5 py-3">
-              <div>
-                <p className="text-[12.5px] font-semibold text-ink">Weekly digest</p>
-                <p className="text-[11px] text-faint">Retention + growth summary every Sunday</p>
-              </div>
-              <Switch checked={notifs.weekly} onChange={(v) => setNotifs((n) => ({ ...n, weekly: v }))} label="Weekly digest" />
+            <div className="inset-tile px-3.5 py-3">
+              <p className="text-[12.5px] font-semibold text-ink">Phone pushes (ntfy)</p>
+              <p className="text-[11px] text-faint mt-0.5">On - milestone pings + the daily report go to your private ntfy topic. (These were fake switches that saved nothing; real preferences come with Phase 2.)</p>
             </div>
           </div>
         </Card>
@@ -313,6 +293,7 @@ function SettingsContent() {
             <div className="flex items-center gap-2 mb-3">
               <Plug size={15} className="text-faint" />
               <span className="section-title">Integrations</span>
+            <span className="text-[10px] text-faint">static list - not live status</span>
             </div>
             <div className="space-y-1">
               {INTEGRATIONS.map((i) => {

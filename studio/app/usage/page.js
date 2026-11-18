@@ -29,7 +29,7 @@ const rollupColumns = [
       <span className="text-fg-quaternary">
         (<span style={{ color: 'var(--ok)' }}>{fmt(r.ok_calls)}</span>
         {' / '}
-        <span style={{ color: 'var(--error)' }}>{fmt(r.fail_calls)}</span>)
+        <span style={{ color: 'var(--bad)' }}>{fmt(r.fail_calls)}</span>)
       </span>
     </span>
   ) },
@@ -119,7 +119,7 @@ export default function UsageDashboard() {
       {err ? (
         <Card className="mb-5">
           <div className="px-5 py-6 flex items-center gap-3">
-            <CircleAlert size={18} style={{ color: 'var(--error)' }} className="shrink-0" />
+            <CircleAlert size={18} style={{ color: 'var(--bad)' }} className="shrink-0" />
             <div>
               <p className="text-[13px] font-semibold text-ink">Usage ledger unavailable</p>
               <p className="text-[12px] text-muted mt-0.5 font-mono break-all">{err}</p>
@@ -150,7 +150,7 @@ export default function UsageDashboard() {
             <StatCard icon={Coins} label={`Tokens · ${days} days`} value={totals.tokens} fmt={fmt} color="var(--accent)" iconBg="color-mix(in srgb, var(--accent) 12%, transparent)" />
             <StatCard icon={Gauge} label="AI calls" value={totals.events} fmt={fmt} color="var(--info)" iconBg="color-mix(in srgb, var(--info) 12%, transparent)" />
             <StatCard icon={CheckCircle2} label="OK calls" value={totals.ok_calls} fmt={fmt} color="var(--ok)" iconBg="color-mix(in srgb, var(--ok) 12%, transparent)" />
-            <StatCard icon={XCircle} label="Failed calls" value={totals.fail_calls} fmt={fmt} color="var(--error)" iconBg="color-mix(in srgb, var(--error) 12%, transparent)" />
+            <StatCard icon={XCircle} label="Failed calls" value={totals.fail_calls} fmt={fmt} color="var(--bad)" iconBg="color-mix(in srgb, var(--bad) 12%, transparent)" />
           </div>
 
           <div className="mb-5">

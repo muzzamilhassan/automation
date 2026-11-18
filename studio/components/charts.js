@@ -223,14 +223,18 @@ export function RetentionBars({ rows, goal }) {
               <span className="w-2.5 h-2.5 rounded-sm" style={{ background: r.accent }} />
               {r.name}
             </span>
-            <span className="tnum font-bold" style={{ color: r.pct >= goal ? 'var(--ok)' : 'var(--ink)' }}>
-              {r.pct}%
-            </span>
+            {r.live === false ? (
+              <span className="text-[10.5px] text-faint">no data — needs analytics access</span>
+            ) : (
+              <span className="tnum font-bold" style={{ color: r.pct >= goal ? 'var(--ok)' : 'var(--ink)' }}>
+                {r.pct}%
+              </span>
+            )}
           </div>
           <div className="relative h-3.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)', border: '1px solid var(--line)' }}>
             <div
               className="h-full rounded-full transition-[width] duration-700 ease-out"
-              style={{ width: `${Math.min(100, r.pct)}%`, background: `linear-gradient(90deg, color-mix(in srgb, ${r.accent} 55%, transparent), ${r.accent})` }}
+              style={r.live === false ? { width: '100%', background: 'repeating-linear-gradient(90deg, var(--line) 0 6px, transparent 6px 12px)' } : { width: `${Math.min(100, r.pct)}%`, background: `linear-gradient(90deg, color-mix(in srgb, ${r.accent} 55%, transparent), ${r.accent})` }}
             />
             <div
               className="absolute top-0 bottom-0 w-0.5"

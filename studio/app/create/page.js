@@ -1,7 +1,8 @@
 'use client';
 // Create Video — generative HyperFrames wizard (owner + staff).
 // topic + style -> CI renders a bespoke-designed vertical short -> watch inline.
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Sparkles, Loader2, PlayCircle, RefreshCw, CircleDot, CheckCircle2, XCircle, Download } from 'lucide-react';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import { Badge, BadgeWithIcon } from '@/components/untitledui/base/badges/badges';
@@ -14,10 +15,12 @@ const STATE_BADGE = {
 };
 const STATE_LABEL = { queued: 'Rendering on CI…', done: 'Ready', failed: 'Failed', unknown: 'In progress…' };
 
-export default function CreatePage() {
+function CreatePageContent() {
+  const searchParams = useSearchParams();
   const [meta, setMeta] = useState(null);
   const [jobs, setJobs] = useState([]);
-  const [form, setForm] = useState({ topic: '', dna: 'luxury', genre: 'documentary', brand: '', subline: '', voice: 'en-US-AndrewNeural', beatCount: 5 });
+  const [form, setForm] = useState(() => ({ topic: '', dna: (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('template')) || 'luxury', genre: 'documentary', brand: '', subline: '', voice: 'en-US-AndrewNeural', beatCount: 5 }));
+  // P0-16 handled in the form initializer below (reads ?template= once)
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [okMsg, setOkMsg] = useState('');
@@ -174,5 +177,14 @@ export default function CreatePage() {
         ))}
       </div>
     </div>
+  );
+}
+
+// useSearchParams needs a Suspense boundary during prerender (P0-16)
+export default function CreatePage() {
+  return (
+    <Suspense fallback={null}>
+      <CreatePageContent />
+    </Suspense>
   );
 }

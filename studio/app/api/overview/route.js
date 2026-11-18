@@ -75,7 +75,7 @@ export async function GET(req) {
       fb: fbRow ? { name: fbRow.name, username: fbRow.username, followers: fbRow.followers } : null,
       ig: ig ? { username: ig.username, followers: ig.followers, posts: ig.posts } : null,
       lastRun: s.lastRunDate || null, imageDate: s.imageDate || null,
-      deepdiveDate: s.deepdiveDate || null, todayVideos: (s.lastVideos || []).length,
+      deepdiveDate: s.deepdiveDate || null, todayVideos: s.lastRunDate === todayStr ? (s.lastVideos || []).length : 0, // P0-11: only today's run counts
       todayTopics: Array.isArray(s.todayTopics) ? s.todayTopics.map(t => t.topic) : null,
       episodeTopic: s.todayTopic?.topic || null,
       flowPaused: (s.pausedUntil || '') >= todayStr,
@@ -108,7 +108,7 @@ export async function GET(req) {
         yt: ytRow ? { title: ytRow.ytTitle, handle: ytRow.ytCustomUrl, subs: ytRow.subs, views: ytRow.views, videos: ytRow.videos, error: ytRow.error || null } : (ytRow === null ? { error: 're-connect once in Studio to show live stats' } : null),
         fb: null, ig: null,
         lastRun: s.lastRunDate || null, imageDate: null,
-        deepdiveDate: s.deepdiveDate || null, todayVideos: (s.lastVideos || []).length,
+        deepdiveDate: s.deepdiveDate || null, todayVideos: s.lastRunDate === todayStr ? (s.lastVideos || []).length : 0, // P0-11: only today's run counts
         todayTopics: Array.isArray(s.todayTopics) ? s.todayTopics.map((t) => t.topic) : null,
         episodeTopic: s.todayTopic?.topic || null,
         flowPaused: e.autopilot === false || (s.pausedUntil || '') >= todayStr,

@@ -32,7 +32,7 @@ export default function TemplateSimulator({ template, onClose, onSelect }) {
   const p = template.sampleProps || {};
 
   return (
-    <div className="flex flex-col h-full max-h-[88vh] bg-[var(--surface-1)] text-ink rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+    <div className="flex flex-col h-full max-h-[88vh] bg-[var(--surface)] text-ink rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
       {/* Top Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-white/[0.02]">
         <div className="flex items-center gap-3">

@@ -31,7 +31,15 @@ export function timeAgo(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return String(iso);
-  const s = Math.max(0, (Date.now() - d.getTime()) / 1000);
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < -90) {
+    // P0-8: scheduled/future timestamps must never read as "just now"
+    const f = -diff;
+    if (f < 3600) return 'in ' + Math.round(f / 60) + 'm';
+    if (f < 86400) return 'in ' + Math.round(f / 3600) + 'h';
+    return 'in ' + Math.round(f / 86400) + 'd';
+  }
+  const s = Math.max(0, diff);
   if (s < 90) return 'just now';
   if (s < 3600) return Math.round(s / 60) + 'm ago';
   if (s < 86400) return Math.round(s / 3600) + 'h ago';

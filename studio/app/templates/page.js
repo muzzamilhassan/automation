@@ -58,10 +58,10 @@ export default function TemplatesPage() {
       <PageHeader
         icon={Clapperboard}
         title="Video Templates Studio"
-        sub="Browse 100+ modular broadcast video engines. Filter, preview live interactive animations, and pick styles for your channels."
+        sub="Browse the modular video engine registry. Filter, preview live interactive animations, and pick styles for your channels."
       >
         <Link className="btn btn-outline" href="/templates/drafts">
-          <Inbox size={14} className="text-amber-400" /> Drafts Inbox (14 Full Stories · 4 Chapters)
+          <Inbox size={14} className="text-amber-400" /> Drafts Inbox
         </Link>
         <Link className="btn btn-outline" href="/create">
           <Sparkles size={14} className="text-sky-400" /> Create Custom Video
@@ -69,7 +69,7 @@ export default function TemplatesPage() {
       </PageHeader>
 
       {/* Control Bar: Categories & Filters */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-[var(--surface-1)] p-4 rounded-2xl border border-white/10 shadow-sm">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-[var(--surface)] p-4 rounded-2xl border border-white/10 shadow-sm">
         {/* Categories scroll / wrap */}
         <div className="flex flex-wrap items-center gap-1.5">
           {TEMPLATE_CATEGORIES.map((c) => (
@@ -131,7 +131,7 @@ export default function TemplatesPage() {
           <Card
             key={t.id}
             hover
-            className="flex flex-col justify-between overflow-hidden border border-white/10 bg-[var(--surface-1)] hover:border-sky-500/50 transition-all duration-200 group"
+            className="flex flex-col justify-between overflow-hidden border border-white/10 bg-[var(--surface)] hover:border-sky-500/50 transition-all duration-200 group"
           >
             <div>
               {/* Card Banner / Visual Simulation Preview */}

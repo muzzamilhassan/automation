@@ -11,7 +11,7 @@ import ThumbsPage from '@/app/thumbs/page';
 import TemplatesPage from '@/app/templates/page';
 
 const STUDIO_TABS = [
-  { id: 'review', label: 'Review Queue', icon: ClipboardCheck, badge: '3', badgeTone: 'warn' },
+  { id: 'review', label: 'Review Queue', icon: ClipboardCheck },
   { id: 'topics', label: 'Topic Desk', icon: ListChecks },
   { id: 'create', label: 'Create Video', icon: Sparkles },
   { id: 'thumbs', label: 'Thumbnails', icon: ImageIcon },

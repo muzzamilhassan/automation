@@ -35,13 +35,14 @@ const OVERVIEW_TABS = [
 
 function OverviewContent() {
   const { bySlug: BRAND } = useBrands(); // #125 (hooks live HERE — every use is in this component): live short/accent per slug
-  const { rows: openWarningRows, canSee: warningsCanSee } = useOpenWarnings(); // #126: live alerts
+  const { rows: openWarningRows, canSee: warningsCanSee, status: warnStatus, retry: warnRetry } = useOpenWarnings(); // #126: live alerts
   const searchParams = useSearchParams();
   const tabFromQuery = searchParams.get('tab');
   const activeTab = tabFromQuery && OVERVIEW_TABS.some((tab) => tab.id === tabFromQuery) ? tabFromQuery : 'pulse';
 
   const [data, setData] = useState(null);
   const [analytics, setAnalytics] = useState(null);
+  const [analyticsCoverage, setAnalyticsCoverage] = useState(null);
   const [err, setErr] = useState(false);
   const [tick, setTick] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,6 +60,7 @@ function OverviewContent() {
       if (ov.status === 'fulfilled') { setData(ov.value); setErr(false); } else setErr(true);
       const a = an.status === 'fulfilled' ? an.value : null;
       setAnalytics(a && !a.error ? a : null);
+      setAnalyticsCoverage(a?.coverage || null);
       if (fresh) setRefreshedAt(new Date());
     }).finally(() => setRefreshing(false));
   };
@@ -152,9 +154,13 @@ function OverviewContent() {
         <Card className="lg:col-span-2 overflow-hidden">
           <CardHead
             title="Views per day"
-            sub={analytics ? 'Real YouTube Analytics · all channels · last 14 of 28 days' : 'Loading real YouTube Analytics…'}
+            sub={analytics ? 'Real YouTube Analytics · all channels · last 14 of 28 days' : analyticsCoverage && !analyticsCoverage.ok?.length ? 'YouTube Analytics unavailable right now' : 'Loading real YouTube Analytics…'}
             icon={Radar}
-            right={<Chip tone="ok">real data</Chip>}
+            right={analyticsCoverage ? (
+              analyticsCoverage.failed?.length === 0 ? <Chip tone="ok">YouTube · {new Date(analyticsCoverage.fetchedAt).toLocaleDateString()}</Chip>
+                : analyticsCoverage.ok?.length ? <Chip tone="warn">{analyticsCoverage.ok.length} of {analyticsCoverage.ok.length + analyticsCoverage.failed.length} channels</Chip>
+                  : <Chip tone="bad">YouTube unavailable · <button className="underline" onClick={() => load(true)}>Retry</button></Chip>
+            ) : null}
           />
           <div className="px-3 pb-3">
             {analytics ? (
@@ -184,18 +190,24 @@ function OverviewContent() {
           </div>
         </Card>
 
-        {warningsCanSee ? (
+        {warningsCanSee || warnStatus === 'error' ? (
         <Card>
           <CardHead title="Needs attention" sub={`${openWarningRows.length} open warnings`} icon={Flame} right={<Link href="/warnings" className="text-[11.5px] text-accent hover:underline">triage →</Link>} />
           <div className="px-2 pb-2">
-            {openWarningRows.length === 0 ? (
+            {warnStatus === 'error' ? (
+              <div className="px-4 py-8 text-center">
+                <p className="text-[12.5px] font-semibold text-ink">Can&apos;t check warnings right now</p>
+                <p className="text-[11px] text-faint mt-1">Status unknown — this is not an all-clear.</p>
+                <button className="text-[11px] text-accent underline mt-2" onClick={() => warnRetry?.()}>Retry</button>
+              </div>
+            ) : openWarningRows.length === 0 ? (
               <div className="px-4 py-8 text-center">
                 <p className="text-[12.5px] font-semibold text-ink">Nothing needs attention</p>
                 <p className="text-[11px] text-faint mt-1">All probes are quiet — no open warnings.</p>
               </div>
             ) : openWarningRows.slice(0, 4).map((w) => (
               <Link key={w.id} href="/warnings" className="flex gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-2 transition-colors">
-                <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: w.severity === 'bad' ? 'var(--bad)' : 'var(--warn, #E8C15A)' }} />
+                <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: w.severity === 'blocking' ? 'var(--bad)' : 'var(--warn, #E8C15A)' }} />
                 <span className="min-w-0">
                   <span className="block text-[12.5px] font-semibold text-ink leading-snug">{w.title}</span>
                   <span className="block text-[11px] text-faint mt-0.5 font-mono truncate">{w.severity}{w.channel_id ? ` · ${w.channel_id}` : ''}</span>

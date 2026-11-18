@@ -38,7 +38,17 @@ export default function Channels() {
   const [tplOpen, setTplOpen] = useState(null);   // #102 — template registry panel per channel
   const [keysOpen, setKeysOpen] = useState(null); // #103 — inline API keys panel per channel
   const [routeOpen, setRouteOpen] = useState(null); // #104 — per-capability provider routing panel per channel
-  const [parkedKeys, setParkedKeys] = useState(null); // #103 — parked brand keys (full-width panel below grid)
+  const [parkedKeys, setParkedKeys] = useState(null);
+  const [highlight] = useState(() =>
+    typeof window !== 'undefined' ? window.location.hash.replace('#', '') : ''
+  ); // P0-17: /channels#slug deep-link
+  useEffect(() => {
+    if (!highlight) return;
+    const t = setTimeout(() => {
+      document.getElementById('chan-' + highlight)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 600);
+    return () => clearTimeout(t);
+  }, [highlight, data]); // #103 — parked brand keys (full-width panel below grid)
   const [flowMsg, setFlowMsg] = useState(null); // { tone, text } — pause/resume result
   const load = (fresh = false) => fetch(fresh ? '/api/overview?fresh=1' : '/api/overview').then((r) => r.json()).then(setData).catch(() => setData({ channels: [] }));
 
@@ -91,10 +101,10 @@ export default function Channels() {
           const meta = BRAND[c.slug];
           const moods = MUSIC_MOODS[c.slug] || [];
           return (
-            <Card key={c.slug} hover className="p-5">
+            <Card key={c.slug} hover id={'chan-' + c.slug} className={'p-5 scroll-mt-24' + (highlight === c.slug ? ' ring-2 ring-[var(--accent)]' : '')}>
               {/* head */}
-              <div className="flex items-start justify-between gap-3 mb-4">
-                <div className="flex items-center gap-3.5">
+              <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                <div className="flex items-center gap-3.5 min-w-0 flex-1">
                   <BrandMark short={meta?.short || '•'} accent={c.accent} size={44} />
                   <div>
                     <div className="flex items-center gap-2">

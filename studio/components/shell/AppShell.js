@@ -25,6 +25,7 @@ import { NAV } from './nav';
 import CommandPalette from './CommandPalette';
 import { useBrands } from '@/components/use-brands';
 import { useOpenWarnings } from '@/components/use-open-warnings';
+import { useMe, initialsOf } from '@/components/use-me';
 // #126 (S-2): the bell's alert rows come from /api/warnings — the static
 // hand-written September alerts are deleted from site-data.
 import { cn } from '@/lib/utils';
@@ -72,6 +73,8 @@ function ThemeToggle() {
 }
 
 function Notifications({ open, onClose, warnings }) {
+  const SEV_ICON = { blocking: OctagonAlert, action_required: AlertTriangle, warning: AlertTriangle, advisory: Info, informational: Info };
+  const SEV_COLOR = { blocking: 'text-error-primary', action_required: 'text-warning-primary', warning: 'text-warning-primary', advisory: 'text-fg-tertiary', informational: 'text-fg-tertiary' };
   if (!open) return null;
   const ICONS = { bad: OctagonAlert, warn: AlertTriangle, info: Info };
   const COLOR = { bad: 'text-error-primary', warn: 'text-warning-primary', info: 'text-fg-tertiary' };
@@ -86,16 +89,22 @@ function Notifications({ open, onClose, warnings }) {
           {warnings.canSee ? <Badge color={rows.length ? 'warning' : 'success'} size="sm">{rows.length} open</Badge> : null}
         </div>
         <div className="max-h-[320px] overflow-y-auto">
-          {!warnings.canSee || rows.length === 0 ? (
+          {warnings.status === 'error' ? (
+            <div className="px-4 py-6 text-center">
+              <p className="text-[12.5px] font-semibold text-fg-primary">Can&apos;t check alerts right now</p>
+              <p className="text-[11.5px] text-fg-tertiary mt-1">Status unknown — this is not an all-clear.</p>
+              <button className="text-[11.5px] text-accent underline mt-2" onClick={() => warnings.retry?.()}>Retry</button>
+            </div>
+          ) : !warnings.canSee || rows.length === 0 ? (
             <div className="px-4 py-6 text-center">
               <p className="text-[12.5px] font-semibold text-fg-primary">Nothing needs attention</p>
               <p className="text-[11.5px] text-fg-tertiary mt-1">{warnings.canSee ? 'All probes are quiet — no open warnings.' : 'Alerts are an owner/staff surface.'}</p>
             </div>
           ) : rows.map((w) => {
-            const Icon = ICONS[w.severity] || Info;
+            const Icon = SEV_ICON[w.severity] || Info;
             return (
               <Link key={w.id} href="/warnings" onClick={onClose} className="flex gap-3 px-4 py-3 border-b border-border-tertiary last:border-0 hover:bg-bg-secondary transition-colors">
-                <Icon size={15} className={cn('shrink-0 mt-0.5', COLOR[w.severity] || COLOR.info)} />
+                <Icon size={15} className={cn('shrink-0 mt-0.5', SEV_COLOR[w.severity] || COLOR.info)} />
                 <span className="min-w-0">
                   <span className="block text-[12.5px] font-semibold text-fg-primary">{w.title}</span>
                   <span className="block text-[11px] text-fg-tertiary mt-0.5 font-mono truncate">{w.severity}{w.channel_id ? ` · ${w.channel_id}` : ''}</span>
@@ -116,7 +125,7 @@ function Notifications({ open, onClose, warnings }) {
 
 /* 10-15 DREAMS CONVERSION: dark sidebar with custom links (replaces the UUI
    NavList so the always-dark palette is fully controlled). */
-function NavGroups({ collapsed, onNavigate }) {
+function NavGroups({ collapsed, onNavigate, studioCount, opsCount }) {
   const pathname = usePathname();
   // #125 (S-11): the sidebar's channel list is LIVE — /api/brands replaces
   // the old hardcoded list; nothing renders until it loads.
@@ -146,14 +155,14 @@ function NavGroups({ collapsed, onNavigate }) {
                   {!collapsed ? (
                     <>
                       <span className="truncate flex-1">{i.label}</span>
-                      {i.href === '/studio' ? (
+                      {i.href === '/studio' && studioCount ? (
                         <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-accent/20 text-accent">
-                          3
+                          {studioCount}
                         </span>
                       ) : null}
-                      {i.href === '/operations' ? (
+                      {i.href === '/operations' && opsCount ? (
                         <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-error-solid/20 text-error-primary">
-                          1
+                          {opsCount}
                         </span>
                       ) : null}
                     </>
@@ -179,7 +188,7 @@ function NavGroups({ collapsed, onNavigate }) {
           {liveChannels.map((p) => (
             <Link
               key={p.slug}
-              href={`/network?channel=${p.slug}`}
+              href={`/channels#${p.slug}`}
               onClick={onNavigate}
               title={`${p.label} (${p.short})`}
               className={cn(
@@ -237,7 +246,18 @@ export default function AppShell({ children }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   // #126 (S-2): real open warnings — badge hides for clients/failures, never a fake number
-  const { rows: openWarningRows, canSee: warningsCanSee } = useOpenWarnings();
+  const { rows: openWarningRows, canSee: warningsCanSee, status: warnStatus, retry: warnRetry } = useOpenWarnings();
+  // Phase 0 (P0-1): badge numbers are REAL counts — hidden when 0 or unknown.
+  const me = useMe();
+  const [pendingReview, setPendingReview] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/review')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive) setPendingReview(Array.isArray(d?.scripts) ? d.scripts.length : null); })
+      .catch(() => { if (alive) setPendingReview(null); });
+    return () => { alive = false; };
+  }, []);
   const [userOpen, setUserOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const pathname = usePathname();
@@ -283,16 +303,9 @@ export default function AppShell({ children }) {
   const sidebarInner = (collapsedState, isMobile = false) => (
     <>
       <Brand collapsed={collapsedState && !isMobile} />
-      <NavGroups collapsed={collapsedState && !isMobile} onNavigate={() => setMobileOpen(false)} />
+      <NavGroups collapsed={collapsedState && !isMobile} onNavigate={() => setMobileOpen(false)} studioCount={pendingReview} opsCount={warningsCanSee ? openWarningRows.length : null} />
       <div className={cn('qs-side-foot p-3 shrink-0', collapsedState && !isMobile ? 'flex flex-col items-center gap-2' : 'flex items-center justify-between')}>
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="w-2 h-2 rounded-full pulse-dot" style={{ background: '#17b26a' }} />
-          {!collapsedState || isMobile ? (
-            <span className="text-[11px] text-[#98a2a7] truncate">
-              Engine connected
-            </span>
-          ) : null}
-        </div>
+
         {!isMobile ? (
           <button
             className="qs-side-collapse"
@@ -366,12 +379,6 @@ export default function AppShell({ children }) {
               <Search size={15.5} />
             </button>
 
-            <span className="hidden md:inline-flex">
-              <BadgeWithIcon color="success" size="sm" icon={<span className="w-1.5 h-1.5 rounded-full pulse-dot" style={{ background: 'currentColor' }} />}>
-                Engine live
-              </BadgeWithIcon>
-            </span>
-
             <div className="relative">
               <ButtonUtility
                 size="sm"
@@ -381,7 +388,9 @@ export default function AppShell({ children }) {
                 onClick={() => setNotifOpen((o) => !o)}
                 aria-label="Alerts"
               />
-              {warningsCanSee && openWarningRows.length ? (
+              {warnStatus === 'error' ? (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9.5px] font-bold flex items-center justify-center bg-bg-tertiary text-fg-tertiary pointer-events-none" title="Can't check alerts — status unknown">?</span>
+              ) : warningsCanSee && openWarningRows.length ? (
                 <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9.5px] font-bold flex items-center justify-center bg-error-solid text-white pointer-events-none">
                   {openWarningRows.length}
                 </span>
@@ -397,17 +406,17 @@ export default function AppShell({ children }) {
                 style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
                 onClick={() => setUserOpen((o) => !o)}
                 aria-label="Account menu"
-                title="Muzzamil — owner"
+                title={me ? `${me.name || me.email} — ${me.role}` : "Account menu"}
               >
-                MH
+                {me ? initialsOf(me.name, me.email) : '··'}
               </button>
               {userOpen ? (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setUserOpen(false)} />
                   <div className="absolute right-0 top-[calc(100%+10px)] w-[220px] rounded-lg border border-border-secondary bg-bg-primary shadow-xl overflow-hidden z-50 pop-in">
                     <div className="px-4 py-3 border-b border-border-tertiary">
-                      <p className="text-[12.5px] font-semibold text-fg-primary">Muzzamil Hassan</p>
-                      <p className="text-[11px] text-fg-quaternary mt-0.5">Studio owner · trusted 30 days</p>
+                      <p className="text-[12.5px] font-semibold text-fg-primary">{me?.name || me?.email || 'Signed in'}</p>
+                      <p className="text-[11px] text-fg-quaternary mt-0.5">{me?.email || ''}{me?.role ? ` · ${me.role}` : ''}</p>
                     </div>
                     <button
                       onClick={logout}

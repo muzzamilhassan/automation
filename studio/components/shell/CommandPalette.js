@@ -76,17 +76,10 @@ export default function CommandPalette({ open, onClose }) {
   const channelRuns = (chans || []).map((c) => ({
     kind: 'run',
     id: 'run-' + c.slug,
-    label: 'Run ' + c.label + ' Shorts now',
+    label: armed === 'run-' + c.slug ? '↵ again to CONFIRM — Run ' + c.label + ' Shorts now' : 'Run ' + c.label + ' Shorts now',
     sub: 'Production action · starts in background',
     icon: Play,
-    run: async () => {
-      await fetch('/api/action', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'yt-daily', slug: c.slug }),
-      });
-      router.push('/operations?tab=logs');
-    },
+    payload: { action: 'yt-daily', slug: c.slug },
   }));
 
   const channelJumps = (chans || []).map((c) => ({
@@ -95,7 +88,7 @@ export default function CommandPalette({ open, onClose }) {
     label: 'Channel: ' + c.label,
     sub: `Inspect ${c.label} in Network`,
     icon: Tv,
-    run: () => router.push(`/network?channel=${c.slug}`),
+    run: () => router.push(`/channels#${c.slug}`),
   }));
 
   const items = [
@@ -115,14 +108,7 @@ export default function CommandPalette({ open, onClose }) {
       label: a.label,
       sub: 'Production action · starts in background',
       icon: Play,
-      run: async () => {
-        await fetch('/api/action', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: a.action }),
-        });
-        router.push('/operations?tab=logs');
-      },
+      payload: { action: a.action },
     })),
     {
       kind: 'theme',
@@ -134,9 +120,37 @@ export default function CommandPalette({ open, onClose }) {
     },
   ].filter((i) => i.label.toLowerCase().includes(q.toLowerCase()));
 
+// P0-13: production runs need a second-Enter confirm, an inline result, and
+// navigation only on success.
+const [armed, setArmed] = useState(null);
+const [note, setNote] = useState('');
+
   const pick = (i) => {
+    const it = items[i];
+    if (!it) return;
+    if (it.kind === 'run' && armed !== it.id) {
+      setArmed(it.id);
+      setNote('Press ↵ again to confirm — ' + it.label);
+      return;
+    }
+    if (it.kind === 'run') {
+      setNote('Starting…');
+      fetch('/api/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(it.payload),
+      })
+        .then(async (r) => {
+          const d = await r.json().catch(() => ({}));
+          if (!r.ok || d.error) { setNote('Failed: ' + (d.error || 'HTTP ' + r.status) + ' — nothing was started'); setArmed(null); return; }
+          setNote('Started ✓');
+          onClose();
+        })
+        .catch(() => { setNote('Failed: network error — nothing was started'); setArmed(null); });
+      return;
+    }
     onClose();
-    items[i]?.run();
+    it.run();
   };
 
   if (!open) return null;
@@ -161,13 +175,16 @@ export default function CommandPalette({ open, onClose }) {
               if (e.key === 'ArrowDown') { e.preventDefault(); setIdx((i) => Math.min(items.length - 1, i + 1)); }
               if (e.key === 'ArrowUp') { e.preventDefault(); setIdx((i) => Math.max(0, i - 1)); }
               if (e.key === 'Enter') { e.preventDefault(); pick(idx); }
-              if (e.key === 'Escape') onClose();
+              if (e.key === 'Escape') { if (armed) { setArmed(null); setNote(''); } else onClose(); }
             }}
             placeholder="Search pages and actions…"
             className="flex-1 bg-transparent outline-none text-sm text-ink placeholder:text-faint"
           />
           <span className="kbd">ESC</span>
         </div>
+        {note ? (
+          <p className="px-4 py-2 text-[11.5px] border-b border-line text-muted" role="status">{note}</p>
+        ) : null}
         <div className="max-h-[46vh] overflow-y-auto py-2">
           {items.length === 0 ? (
             <p className="text-xs text-faint px-4 py-6 text-center">Nothing found for “{q}”</p>

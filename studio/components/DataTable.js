@@ -19,9 +19,14 @@ export default function DataTable({ label, columns, rows, pageSize = 10, emptyIc
       <div className="overflow-x-auto rounded-xl border border-border-tertiary">
         <Table aria-label={label}>
           <Table.Header>
-            {columns.map((c) => (
-              <Table.Head key={c.key} id={c.key} label={c.label} isRowHeader={Boolean(c.rowHeader)} />
-            ))}
+            {(() => {
+              // P0-18: rows need an accessible name — default the row header to
+              // the first column that HAS a label when no caller marks one.
+              const rowHeaderKey = columns.find((c) => c.rowHeader)?.key || columns.find((c) => c.label)?.key;
+              return columns.map((c) => (
+                <Table.Head key={c.key} id={c.key} label={c.label || c.key} isRowHeader={c.key === rowHeaderKey} />
+              ));
+            })()}
           </Table.Header>
           <Table.Body items={slice}>
             {(row) => (

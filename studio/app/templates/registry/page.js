@@ -96,7 +96,7 @@ export default function TemplateRegistryPage() {
       ) : null}
 
       {/* filters: niche + format + search (AC-1) */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-[var(--surface-1)] p-4 rounded-2xl border border-white/10">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-[var(--surface)] p-4 rounded-2xl border border-white/10">
         <div className="flex flex-wrap items-center gap-2">
           <span className="overline">Niche</span>
           <select

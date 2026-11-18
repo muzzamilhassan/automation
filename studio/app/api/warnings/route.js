@@ -22,7 +22,7 @@ function store() {
 export async function GET(req) {
   const user = await getUser(req);
   if (!user || !['owner', 'staff'].includes(user.role)) return Response.json({ error: 'not signed in' }, { status: 401 });
-  if (!dbReady) return Response.json({ open: [], resolved: [], error: 'db unavailable' });
+  if (!dbReady) return Response.json({ ok: false, code: 'DB_DOWN', error: 'db unavailable' }, { status: 503 });
   const s = store();
   const open = await s.listWarnings({});
   const resolved = await s.listWarnings({ resolvedOnly: true, limit: 50 });

@@ -4,13 +4,8 @@
 // now comes live from /api/brands (legacy brands + registry) via the
 // useBrands() hook. Never reintroduce a slug map in code.
 
-// Avg % watched — Analytics audit, Sep 19 2026
-export const RETENTION = [
-  { slug: 'quotequarry', pct: 86.3 },
-  { slug: 'money-rulebook', pct: 53.5 },
-  { slug: 'investors-compass', pct: 51.7 },
-  { slug: 'debt-free-doctrine', pct: 35.1 },
-];
+// P0-5: the static Sep-2026 retention baseline was deleted — Analytics draws
+// only live avgWatched from the API (channels without data say so).
 export const RETENTION_GOAL = 70;
 
 export const PIPELINES = [

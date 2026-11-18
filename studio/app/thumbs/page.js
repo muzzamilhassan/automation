@@ -298,6 +298,8 @@ export default function ThumbsPage() {
 
   const attach = async () => {
     if (!preview || !video) return;
+    // P0-14: this changes a LIVE YouTube thumbnail - confirm with the cost.
+    if (!window.confirm(`Replace the live thumbnail of "${video.title.slice(0, 50)}" on YouTube? This goes live shortly (changes limited ~10/day).`)) return;
     setAttaching(true);
     setAttachMsg(null);
     try {
@@ -454,7 +456,7 @@ export default function ThumbsPage() {
                 </button>
                 {selMode ? <span className="text-[11px] text-muted">{selected.length} selected · uses the template + colors set below</span> : null}
                 {selMode && selected.length ? (
-                  <button onClick={runBulk} disabled={bulkBusy} className="ml-auto text-[11.5px] font-semibold px-2.5 py-1 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-50 flex items-center gap-1.5">
+                  <button onClick={() => { if (!window.confirm(`Redesign and replace ${selected.length} LIVE YouTube thumbnail${selected.length === 1 ? '' : 's'} right now?`)) return; runBulk(); }} disabled={bulkBusy} className="ml-auto text-[11.5px] font-semibold px-2.5 py-1 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-50 flex items-center gap-1.5">
                     {bulkBusy ? <Loader2 size={11} className="animate-spin" /> : <Layers size={11} />} Redesign {selected.length}
                   </button>
                 ) : null}

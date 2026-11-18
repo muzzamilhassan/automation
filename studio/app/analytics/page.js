@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, PageSkeleton, StatCard, BrandMark, Segmented, EmptyState } from '@/components/ui';
 import { RetentionBars, MiniBars } from '@/components/charts';
-import { RETENTION, RETENTION_GOAL } from '@/lib/site-data';
+import { RETENTION_GOAL } from '@/lib/site-data';
 import { useBrands } from '@/components/use-brands'; // #125: live brand marks
 import { fmt } from '@/lib/utils';
 import { Button } from '@/components/untitledui/base/buttons/button';
@@ -99,16 +99,14 @@ export default function Analytics() {
     if (sel === slug) return real?.avgWatched;
     return undefined;
   };
-  const retentionRows = RETENTION.filter((r) => sel === 'all' || r.slug === sel).map((r) => {
-    const live = Number(avgFor(r.slug));
-    const hasLive = Number.isFinite(live) && live > 0;
-    return {
-      ...r,
-      pct: hasLive ? Math.round(live) : r.pct,
-      live: hasLive,
-      name: active.find((c) => c.slug === r.slug)?.label || r.slug,
-      accent: BRAND[r.slug]?.accent || 'var(--accent)',
-    };
+  // P0-5: LIVE average-watched only. No Sep-2026 baseline — a channel without
+  // analytics data shows an honest "no data" bar, never an old number.
+  const channelScope = sel === 'all' ? active : active.filter((c) => c.slug === sel);
+  const retentionRows = channelScope.map((c) => {
+    const raw = sel === 'all' ? real?.channels?.[c.slug]?.avgWatched : real?.avgWatched;
+    const live = Number(raw);
+    const pct = Number.isFinite(live) && live > 0 ? Math.round(live) : null;
+    return { slug: c.slug, pct, live: pct != null, name: c.label || c.slug, accent: BRAND[c.slug]?.accent || 'var(--accent)' };
   });
   const retentionLive = retentionRows.length > 0 && retentionRows.every((r) => r.live);
 
@@ -128,8 +126,9 @@ export default function Analytics() {
       ];
   const platformTotal = platformSlices.reduce((a, s) => a + s.value, 0) || 1;
   const subsShown = sel === 'all' ? totals.ytSubs || 0 : selChannel?.yt?.subs || 0;
-  const best = [...retentionRows].sort((a, b) => b.pct - a.pct)[0];
-  const worst = retentionRows.length > 1 ? [...retentionRows].sort((a, b) => a.pct - b.pct)[0] : null;
+  const liveRows = retentionRows.filter((r) => r.live);
+  const best = [...liveRows].sort((a, b) => b.pct - a.pct)[0];
+  const worst = liveRows.length > 1 ? [...liveRows].sort((a, b) => a.pct - b.pct)[0] : null;
   const splitTotal = (real?.split?.shortsViews || 0) + (real?.split?.longViews || 0);
   const shortPct = splitTotal ? Math.round((real.split.shortsViews / splitTotal) * 100) : 0;
   const genderTotal = (real?.audience?.gender || []).reduce((a, g) => a + g.views, 0) || 1;
@@ -304,13 +303,13 @@ export default function Analytics() {
         <Card>
           <CardHead
             title="Average watched"
-            sub={retentionLive ? 'Live from YouTube Analytics · last 28 days' : 'Live where available · baseline audit Sep 19'}
+            sub={retentionLive ? 'Live from YouTube Analytics · last 28 days' : 'Live where the channel has analytics data — the rest say “no data”'}
             icon={Target}
-            right={<Chip tone={retentionLive ? 'ok' : 'warn'}>{retentionLive ? 'live data' : 'partly live'}</Chip>}
+            right={<Chip tone={retentionLive ? 'ok' : 'warn'}>{retentionLive ? 'live data' : 'partial data'}</Chip>}
           />
           <div className="px-5 pb-5">
             <RetentionBars rows={retentionRows} goal={RETENTION_GOAL} />
-            {sel === 'all' && worst ? (
+            {sel === 'all' && worst && retentionLive ? (
               <div className="inset-tile p-3 mt-4 flex gap-2.5">
                 <Info size={14} className="shrink-0 mt-0.5" style={{ color: 'var(--info)' }} />
                 <p className="text-[11.5px] text-muted leading-relaxed">

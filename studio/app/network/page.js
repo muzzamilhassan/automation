@@ -9,7 +9,7 @@ import ProvidersPage from '@/app/providers/page';
 import UsagePage from '@/app/usage/page';
 
 const NETWORK_TABS = [
-  { id: 'channels', label: 'Channels (16)', icon: Tv },
+  { id: 'channels', label: 'Channels', icon: Tv },
   { id: 'providers', label: 'AI Providers (BYOK)', icon: PlugZap },
   { id: 'usage', label: 'Quota & Costs', icon: Gauge },
 ];

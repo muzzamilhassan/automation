@@ -1,27 +1,25 @@
 'use client';
-// #126 (S-2) — the ONE client hook for live open warnings (bell + home card).
-// canSee=false for clients (401/403) and on fetch failure — call sites hide
-// the badge/card instead of ever showing a fake number. Owner/staff get the
-// real open rows from /api/warnings (the surface Operations already trusts).
-import { useEffect, useState } from 'react';
+// Phase 0 (P0-2): the bell/home/tasks can only say "all quiet" when the check
+// actually SUCCEEDED. DB-down answers 503 DB_DOWN — that is status 'error'
+// ("unknown"), never quiet. canSee=false for 401/403 (forbidden).
+import { useCallback, useEffect, useState } from 'react';
 
 export function useOpenWarnings() {
-  const [state, setState] = useState({ rows: [], canSee: false, loaded: false });
-  useEffect(() => {
-    let alive = true;
+  const [state, setState] = useState({ rows: [], canSee: false, status: 'loading' });
+  const load = useCallback(() => {
     fetch('/api/warnings')
-      .then((r) => (r.ok ? r.json() : { open: [], canSee: false }))
-      .then((d) => {
-        if (alive) {
-          setState({ rows: d.open || [], canSee: Boolean(d.open), loaded: true });
-        }
+      .then((r) => {
+        if (r.status === 401 || r.status === 403) return { t: 'forbidden' };
+        if (!r.ok) return { t: 'error' };
+        return r.json().then((d) => ({ t: 'ok', d }));
       })
-      .catch(() => {
-        if (alive) setState({ rows: [], canSee: false, loaded: true });
-      });
-    return () => {
-      alive = false;
-    };
+      .then((res) => {
+        if (res.t === 'ok') setState({ rows: res.d.open || [], canSee: true, status: 'ok' });
+        else if (res.t === 'forbidden') setState({ rows: [], canSee: false, status: 'forbidden' });
+        else setState({ rows: [], canSee: false, status: 'error' });
+      })
+      .catch(() => setState({ rows: [], canSee: false, status: 'error' }));
   }, []);
-  return state;
+  useEffect(() => load(), [load]);
+  return { ...state, retry: load };
 }

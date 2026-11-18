@@ -124,6 +124,9 @@ export async function GET(req) {
     return Response.json(slug === 'all' ? d.all : d.channels[slug] || null);
   }
   const channels = {};
+  // P0-4: the response says which channels actually answered — the UI must
+  // never dress a failed fetch up as zeros under a 'real data' badge.
+  const coverage = { ok: [], failed: [] };
   const all = { slug: 'all', range: 28, totals: { views: 0, watchHours: 0, subsGained: 0 }, daily: [], split: { shortsViews: 0, longViews: 0 }, audience: { gender: [], age: [], countries: [] } };
   for (const s of allSlugs) {
     try {
@@ -135,7 +138,9 @@ export async function GET(req) {
       all.totals.subsGained += c.totals.subsGained;
       all.split.shortsViews += c.split.shortsViews;
       all.split.longViews += c.split.longViews;
+      coverage.ok.push(s);
     } catch (e) {
+      coverage.failed.push({ slug: s, error: String(e.message).slice(0, 80) });
       channels[s] = { slug: s, range: 28, error: String(e.message).slice(0, 100), totals: { views: 0, watchHours: 0, subsGained: 0 }, daily: [], split: { shortsViews: 0, longViews: 0 }, audience: { gender: [], age: [], countries: [] } };
     }
   }
@@ -163,6 +168,8 @@ export async function GET(req) {
     slim[c.slug] = { totals: c.totals, avgWatched: c.avgWatched, daily: c.daily };
   }
   all.channels = slim;
+  all.coverage = coverage;
+  all.fetchedAt = new Date().toISOString();
   // view-weighted average-watched across channels
   const wv = Object.values(slim);
   const wViews = wv.reduce((a, c) => a + c.totals.views, 0);
@@ -170,8 +177,10 @@ export async function GET(req) {
     ? Math.round((wv.reduce((a, c) => a + c.avgWatched * c.totals.views, 0) / wViews) * 10) / 10
     : 0;
 
-  cache.at = Date.now();
-  cache.scope = scopeKey;
-  cache.data = { channels, all };
+  if (coverage.ok.length > 0) {
+    cache.at = Date.now();
+    cache.scope = scopeKey;
+    cache.data = { channels, all };
+  }
   return Response.json(slug === 'all' ? all : channels[slug] || null);
 }

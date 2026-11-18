@@ -305,6 +305,7 @@ body {
   gap: 5px;
 }
 
+@layer components {
 .icon-btn {
   display: inline-flex;
   align-items: center;
@@ -333,6 +334,7 @@ body {
 }
 .icon-btn:active {
   transform: scale(0.96);
+}
 }
 
 /* -------------------------------- nav ------------------------------------ */

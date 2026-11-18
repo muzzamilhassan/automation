@@ -81,7 +81,7 @@ export async function GET(req) {
   const user = await getUser(req);
   // staff read + prepare (OQ-5); clients get nothing here.
   if (!user || !['owner', 'staff'].includes(user.role)) return Response.json({ error: 'not signed in' }, { status: 401 });
-  if (!dbReady) return Response.json({ scripts: [], error: 'db unavailable' });
+  if (!dbReady) return Response.json({ ok: false, code: 'DB_DOWN', error: 'db unavailable' }, { status: 503 });
   const s = store();
   const url = new URL(req.url);
   const id = url.searchParams.get('id');

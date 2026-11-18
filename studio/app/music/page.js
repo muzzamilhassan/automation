@@ -108,7 +108,7 @@ export default function MusicPage() {
                   <button
                     disabled={disabled}
                     className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 transition-transform hover:scale-105 disabled:opacity-30 disabled:cursor-not-allowed"
-                    style={{ background: isPlaying ? 'var(--accent)' : 'var(--surface-2)', color: isPlaying ? 'var(--accent-ink)' : 'transparent', border: '1px solid var(--line)' }}
+                    style={{ background: isPlaying ? 'var(--accent)' : 'var(--surface-2)', color: isPlaying ? 'var(--accent-ink)' : 'var(--ink, #e6e6e6)', border: '1px solid var(--line)' }}
                     onClick={() => toggle(t)}
                     aria-label={isPlaying ? `Pause ${t.title}` : `Play ${t.title}`}
                   >
