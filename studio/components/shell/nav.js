@@ -42,13 +42,6 @@ export const NAV = [
   },
 ];
 
-export const PINNED_CHANNELS = [
-  { slug: 'quotequarry', short: 'QQ', label: 'QuoteQuarry', accent: '#F5E31C' },
-  { slug: 'investors-compass', short: 'IC', label: 'Investors Compass', accent: '#E8C15A' },
-  { slug: 'money-rulebook', short: 'MR', label: 'Money Rulebook', accent: '#3DDC97' },
-  { slug: 'old-money-code', short: 'OM', label: 'Old Money Code', accent: '#D9C7A7' },
-];
-
 export const ALL_NAV_ITEMS = [
   ...NAV.flatMap((g) => g.items.map((i) => ({ ...i, group: g.group }))),
   // Retain legacy paths for Command Palette searchability & bookmarks
@@ -63,7 +56,7 @@ export const ALL_NAV_ITEMS = [
   { href: '/production', label: 'Production Pipelines', icon: Zap, group: 'Operations', desc: 'One-click runs' },
   { href: '/logs', label: 'Execution Logs', icon: ScrollText, group: 'Operations', desc: 'Posting stream' },
   { href: '/warnings', label: 'Warnings', icon: TriangleAlert, group: 'Operations', desc: 'Durable alert triage' },
-  { href: '/channels', label: 'Channels', icon: Tv, group: 'Network', desc: '16 brands' },
+  { href: '/channels', label: 'Channels', icon: Tv, group: 'Network', desc: 'Channel portfolio' },
   { href: '/providers', label: 'AI Providers', icon: PlugZap, group: 'Network', desc: 'BYOK vault v2' },
   { href: '/usage', label: 'Quota Ledger', icon: Gauge, group: 'Network', desc: 'Token & cost spend' },
   { href: '/analytics', label: 'Analytics', icon: TrendingUp, group: 'Command', desc: 'Retention & leaderboards' },

@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { ListChecks, Flame, Search, Plus, X, PenLine, RefreshCw, Clock3 } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, PageSkeleton, EmptyState, BrandMark, Segmented } from '@/components/ui';
-import { BRAND_META } from '@/lib/site-data';
+import { useBrands } from '@/components/use-brands'; // #125: live brand marks
 import { fmt } from '@/lib/utils';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
@@ -11,6 +11,8 @@ import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utili
 // consumes your picks first (one per slot per day) before auto-research.
 
 export default function TopicDesk() {
+  const { bySlug: BRAND } = useBrands(); // #125: live short/accent per slug
+
   const [ov, setOv] = useState(null);
   const [reg, setReg] = useState(null);
   const [sel, setSel] = useState('');
@@ -25,7 +27,7 @@ export default function TopicDesk() {
   }, []);
 
   const options = (() => {
-    const legacy = (ov?.channels || []).filter((c) => c.active).map((c) => ({ value: c.slug, label: BRAND_META[c.slug]?.short || c.slug }));
+    const legacy = (ov?.channels || []).filter((c) => c.active).map((c) => ({ value: c.slug, label: BRAND[c.slug]?.short || c.slug }));
     const mine = (reg?.channels || [])
       .filter((c) => c.active !== false && !legacy.some((l) => l.value === c.slug))
       .map((c) => ({ value: c.slug, label: (c.label || c.slug).slice(0, 6).toUpperCase() }));
@@ -88,7 +90,7 @@ export default function TopicDesk() {
   };
 
   if (!ov || !reg) return <PageSkeleton />;
-  const accent = BRAND_META[sel]?.accent || 'var(--accent)';
+  const accent = BRAND[sel]?.accent || 'var(--accent)';
 
   return (
     <div>

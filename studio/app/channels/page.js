@@ -10,7 +10,8 @@ import SchedulePanel from '@/components/SchedulePanel';
 import TemplateAssignPanel from '@/components/TemplateAssignPanel';
 import ChannelKeysPanel from '@/components/ChannelKeysPanel';
 import ProviderRoutingPanel from '@/components/ProviderRoutingPanel';
-import { BRAND_META, MUSIC_MOODS } from '@/lib/site-data';
+import { MUSIC_MOODS } from '@/lib/site-data';
+import { useBrands } from '@/components/use-brands'; // #125: live brand marks
 import { fmt } from '@/lib/utils';
 
 function PlatformRow({ icon: Icon, color, label, handle, followers, extra }) {
@@ -30,6 +31,8 @@ function PlatformRow({ icon: Icon, color, label, handle, followers, extra }) {
 }
 
 export default function Channels() {
+  const { bySlug: BRAND } = useBrands(); // #125: live short/accent per slug
+
   const [data, setData] = useState(null);
   const [schedOpen, setSchedOpen] = useState(null);
   const [tplOpen, setTplOpen] = useState(null);   // #102 — template registry panel per channel
@@ -85,7 +88,7 @@ export default function Channels() {
 
       <div className="grid xl:grid-cols-2 gap-4">
         {active.map((c) => {
-          const meta = BRAND_META[c.slug];
+          const meta = BRAND[c.slug];
           const moods = MUSIC_MOODS[c.slug] || [];
           return (
             <Card key={c.slug} hover className="p-5">
@@ -213,7 +216,7 @@ export default function Channels() {
                 title="API keys — pre-load this brand's provider keys before wake-up"
                 className="inset-tile p-3 flex items-center gap-2.5 text-left hover:bg-surface-2 transition-colors"
               >
-                <BrandMark short={BRAND_META[c.slug]?.short || '•'} accent={c.accent} size={28} />
+                <BrandMark short={BRAND[c.slug]?.short || '•'} accent={c.accent} size={28} />
                 <div className="min-w-0 flex-1">
                   <p className="text-[11.5px] font-semibold text-ink truncate">{c.label}</p>
                   <p className="text-[10.5px] text-faint truncate">{c.niche}</p>

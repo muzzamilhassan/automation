@@ -19,7 +19,8 @@ import {
 } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, PageSkeleton, StatCard, BrandMark, Segmented, EmptyState } from '@/components/ui';
 import { RetentionBars, MiniBars } from '@/components/charts';
-import { RETENTION, RETENTION_GOAL, BRAND_META } from '@/lib/site-data';
+import { RETENTION, RETENTION_GOAL } from '@/lib/site-data';
+import { useBrands } from '@/components/use-brands'; // #125: live brand marks
 import { fmt } from '@/lib/utils';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import DataTable from '@/components/DataTable';
@@ -31,6 +32,8 @@ import DataTable from '@/components/DataTable';
 const SNAPSHOT_DAYS = [7, 28, 90];
 
 export default function Analytics() {
+  const { bySlug: BRAND } = useBrands(); // #125: live short/accent per slug
+
   const [data, setData] = useState(null);
   const [sel, setSel] = useState('all');
   const [real, setReal] = useState(null);
@@ -104,7 +107,7 @@ export default function Analytics() {
       pct: hasLive ? Math.round(live) : r.pct,
       live: hasLive,
       name: active.find((c) => c.slug === r.slug)?.label || r.slug,
-      accent: BRAND_META[r.slug]?.accent || 'var(--accent)',
+      accent: BRAND[r.slug]?.accent || 'var(--accent)',
     };
   });
   const retentionLive = retentionRows.length > 0 && retentionRows.every((r) => r.live);
@@ -137,7 +140,7 @@ export default function Analytics() {
   const snapThrough = snap?.dataThrough || null;
   const winRates = snap?.winRates || null;
   const winRows = winRates?.available ? [...(winRates.templates || []).map((t) => ({ ...t, kind: 'template' })), ...(winRates.topics || []).map((t) => ({ ...t, kind: 'topic' }))] : [];
-  const brandOf = (slug) => BRAND_META[slug] || { short: (slug || '•').slice(0, 2).toUpperCase(), accent: 'var(--faint)' };
+  const brandOf = (slug) => BRAND[slug] || { short: (slug || '•').slice(0, 2).toUpperCase(), accent: 'var(--faint)' };
   const isOwner = snap?.viewerRole === 'owner'; // the oauth start route is owner-only
 
   return (
@@ -146,14 +149,14 @@ export default function Analytics() {
 
       <div className="mb-5 flex items-center gap-3 flex-wrap">
         <Segmented
-          options={[{ value: 'all', label: 'All channels' }, ...active.map((c) => ({ value: c.slug, label: BRAND_META[c.slug]?.short || c.slug }))]}
+          options={[{ value: 'all', label: 'All channels' }, ...active.map((c) => ({ value: c.slug, label: BRAND[c.slug]?.short || c.slug }))]}
           value={sel}
           onChange={setSel}
         />
         <Button color="secondary" onClick={() => load(true)} iconLeading={<RefreshCw size={16} />}>Refresh</Button>
         {selChannel ? (
           <span className="flex items-center gap-2 text-[12px] text-muted">
-            <BrandMark short={BRAND_META[sel]?.short} accent={selChannel.accent} size={20} />
+            <BrandMark short={BRAND[sel]?.short} accent={selChannel.accent} size={20} />
             {selChannel.label}
           </span>
         ) : null}

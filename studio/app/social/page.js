@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { YoutubeIcon, FacebookIcon, InstagramIcon } from '@/components/BrandIcons';
 import { Card, CardHead, Chip, PageHeader, PageSkeleton, BrandMark, EmptyState } from '@/components/ui';
-import { BRAND_META } from '@/lib/site-data';
+import { useBrands } from '@/components/use-brands'; // #125: live brand marks
 import { fmt } from '@/lib/utils';
 
 const TABS = [
@@ -29,6 +29,8 @@ const NOTE_STATUS = { ok: CheckCircle2, warn: AlertTriangle, bad: OctagonAlert, 
 const NOTE_COLOR = { ok: 'var(--ok)', warn: 'var(--warn)', bad: 'var(--bad)', pending: 'var(--info)' };
 
 export default function Social() {
+  const { bySlug: BRAND } = useBrands(); // #125: live short/accent per slug
+
   const [data, setData] = useState(null);
   const [tab, setTab] = useState('youtube');
   useEffect(() => {
@@ -87,7 +89,7 @@ export default function Social() {
                 const color = tab === 'youtube' ? '#ff4444' : tab === 'facebook' ? '#3b82f6' : '#ec4899';
                 return (
                   <div key={c.slug} className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-surface-2 transition-colors">
-                    <BrandMark short={BRAND_META[c.slug]?.short} accent={c.accent} size={34} />
+                    <BrandMark short={BRAND[c.slug]?.short} accent={c.accent} size={34} />
                     <span className="min-w-0 flex-1">
                       <span className="block text-[13px] font-semibold text-ink truncate">{c.label}</span>
                       <span className="block text-[11px] text-faint font-mono truncate">

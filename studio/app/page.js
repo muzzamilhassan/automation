@@ -23,7 +23,8 @@ import { Card, CardHead, Chip, StatCard, PageSkeleton, EmptyState, BrandMark } f
 import { MiniBars } from '@/components/charts';
 import TabNav from '@/components/TabNav';
 import Analytics from '@/app/analytics/page';
-import { ALERTS, BRAND_META } from '@/lib/site-data';
+import { ALERTS } from '@/lib/site-data';
+import { useBrands } from '@/components/use-brands'; // #125: live brand marks
 import { fmt, fmtFull, timeAgo, when } from '@/lib/utils';
 
 const ALERT_ICON = { bad: 'var(--bad)', warn: 'var(--warn)', info: 'var(--info)' };
@@ -167,7 +168,7 @@ function OverviewContent() {
                       <div key={c.slug} className="inset-tile p-2.5">
                         <div className="flex items-center gap-1.5 mb-1">
                           <span className="w-2 h-2 rounded-full" style={{ background: c.accent }} />
-                          <span className="overline truncate">{BRAND_META[c.slug]?.short}</span>
+                          <span className="overline truncate">{BRAND[c.slug]?.short}</span>
                         </div>
                         <div className="tnum text-[13px] font-bold text-ink">{fmt(t?.views || 0)}</div>
                         <div className="text-[10px] text-faint">views · 28d</div>
@@ -218,7 +219,7 @@ function OverviewContent() {
             </thead>
             <tbody>
               {active.map((c) => {
-                const meta = BRAND_META[c.slug];
+                const meta = BRAND[c.slug];
                 return (
                   <tr key={c.slug}>
                     <td>
@@ -266,7 +267,7 @@ function OverviewContent() {
             {active.filter((c) => c.todayTopics || c.episodeTopic).map((c) => (
               <div key={c.slug} className="inset-tile p-3.5">
                 <div className="flex items-center gap-2 mb-2">
-                  <BrandMark short={BRAND_META[c.slug]?.short || '•'} accent={c.accent} size={22} />
+                  <BrandMark short={BRAND[c.slug]?.short || '•'} accent={c.accent} size={22} />
                   <span className="text-[12px] font-semibold text-ink">{c.label}</span>
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -299,7 +300,7 @@ function OverviewContent() {
             Object.entries(trends).map(([slug, t]) => (
               <div key={slug} className="py-2.5 border-b border-line last:border-0">
                 <div className="flex items-center gap-2 mb-1.5">
-                  <BrandMark short={BRAND_META[slug]?.short || '•'} accent={BRAND_META[slug]?.accent || 'var(--faint)'} size={20} />
+                  <BrandMark short={BRAND[slug]?.short || '•'} accent={BRAND[slug]?.accent || 'var(--faint)'} size={20} />
                   <span className="text-[12.5px] font-semibold text-ink">{slug}</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5 mb-1.5">
@@ -324,6 +325,8 @@ function OverviewContent() {
 }
 
 export default function Overview() {
+  const { bySlug: BRAND } = useBrands(); // #125: live short/accent per slug
+
   return (
     <Suspense fallback={<PageSkeleton />}>
       <OverviewContent />

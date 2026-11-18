@@ -25,34 +25,17 @@ function matchesCategory(tplCat, tab) {
   return false;
 }
 
-const DEFAULT_CHANNELS = [
-  { slug: 'money-rulebook', label: 'The Money Rulebook', accent: '#E8C15A', brand: 'The Money Rulebook' },
-  { slug: 'quotequarry', label: 'Quote Quarry', accent: '#D4AF37', brand: 'Quote Quarry' },
-  { slug: 'investors-compass', label: "Investor's Compass", accent: '#3B82F6', brand: "Investor's Compass" },
-  { slug: 'old-money-code', label: 'Old Money Code', accent: '#10B981', brand: 'Old Money Code' },
-  { slug: 'debt-free-doctrine', label: 'Debt-Free Doctrine', accent: '#8B5CF6', brand: 'Debt-Free Doctrine' },
-  { slug: 'corner-office', label: 'Corner Office', accent: '#F59E0B', brand: 'Corner Office' },
-  { slug: 'founders-margin', label: "Founders' Margin", accent: '#EC4899', brand: "Founders' Margin" },
-  { slug: 'closing-table', label: 'Closing Table', accent: '#06B6D4', brand: 'Closing Table' },
-  { slug: 'ai-observer', label: 'AI Observer', accent: '#6366F1', brand: 'AI Observer' },
-  { slug: 'deep-work-os', label: 'Deep Work OS', accent: '#14B8A6', brand: 'Deep Work OS' },
-  { slug: 'longevity-code', label: 'Longevity Code', accent: '#84CC16', brand: 'Longevity Code' },
-  { slug: 'iron-discipline', label: 'Iron Discipline', accent: '#EF4444', brand: 'Iron Discipline' },
-  { slug: 'sleep-architect', label: 'Sleep Architect', accent: '#A855F7', brand: 'Sleep Architect' },
-  { slug: 'policy-brief', label: 'Policy Brief', accent: '#64748B', brand: 'Policy Brief' },
-  { slug: 'escrow-estate', label: 'Escrow Estate', accent: '#F97316', brand: 'Escrow Estate' },
-  { slug: 'tax-shield', label: 'Tax Shield', accent: '#0EA5E9', brand: 'Tax Shield' },
-];
-
 export default function ThumbsPage() {
-  const [channels, setChannels] = useState(DEFAULT_CHANNELS);
-  const [slug, setSlug] = useState('money-rulebook');
+  // #125 (S-10): channels are LIVE from /api/overview — no hardcoded list,
+  // no fake error fallback. Empty = honest "connect a channel" state.
+  const [channels, setChannels] = useState([]);
+  const [slug, setSlug] = useState('');
   const [accent, setAccent] = useState('#E8C15A');
-  const [brand, setBrand] = useState('The Money Rulebook');
+  const [brand, setBrand] = useState('');
   const [videos, setVideos] = useState(null);
-  const [video, setVideo] = useState({ videoId: 'money-rulebook-sample-1', title: 'Why Your Budget Is Secretly Killing Your Wealth' }); // {videoId,title}
+  const [video, setVideo] = useState({ videoId: '', title: '' }); // {videoId,title}
   const [template, setTemplate] = useState('poster');
-  const [title, setTitle] = useState('Why Your Budget Is Secretly Killing Your Wealth');
+  const [title, setTitle] = useState('');
   const [accentWord, setAccentWord] = useState('Killing');
   const [chip, setChip] = useState('RULES');
   const [eyebrow, setEyebrow] = useState('MONEY HABITS');
@@ -429,19 +412,17 @@ export default function ThumbsPage() {
       .then((r) => r.json())
       .then((d) => {
         const source = (d.controlChannels?.length ? d.controlChannels : d.channels) || [];
-        const list = source.length ? source.map((c) => ({
+        const list = source.map((c) => ({
           slug: c.slug,
           label: c.label || c.slug,
           accent: c.accent || '#E8C15A',
-          tags: c.todayTopics ? undefined : undefined,
           brand: c.label || c.slug,
-        })) : DEFAULT_CHANNELS;
+        }));
         setChannels(list);
         if (list.length) pickChannel(list[0]);
       })
       .catch(() => {
-        setChannels(DEFAULT_CHANNELS);
-        pickChannel(DEFAULT_CHANNELS[0]);
+        setChannels([]); // #125: honest empty on failure — never fake channels
       });
   }, []);
 

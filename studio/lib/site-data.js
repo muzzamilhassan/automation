@@ -1,24 +1,8 @@
 // Curated platform data for pages that don't have a live API yet.
 // Real numbers come from the repo's audits + state files (Sep 2026).
-
-export const BRAND_META = {
-  'quotequarry': { short: 'QQ', accent: '#F5E31C' },
-  'investors-compass': { short: 'IC', accent: '#E8C15A' },
-  'money-rulebook': { short: 'MR', accent: '#3DDC97' },
-  'debt-free-doctrine': { short: 'OM', accent: '#D9C7A7' },
-  'escrow-estate': { short: 'EE', accent: '#D98E4A' },
-  'policy-brief': { short: 'PB', accent: '#58A6C9' },
-  'old-money-code': { short: 'OM', accent: '#D9C7A7' },
-  'founders-margin': { short: 'FM', accent: '#9EE04F' },
-  'closing-table': { short: 'CT', accent: '#E14D6B' },
-  'corner-office': { short: 'CO', accent: '#C0C6D0' },
-  'tax-shield': { short: 'TS', accent: '#4ECDC4' },
-  'ai-observer': { short: 'AI', accent: '#39D5FF' },
-  'deep-work-os': { short: 'DW', accent: '#C8B6FF' },
-  'longevity-code': { short: 'LC', accent: '#7ED957' },
-  'iron-discipline': { short: 'ID', accent: '#CCFF00' },
-  'sleep-architect': { short: 'SA', accent: '#8C9EFF' },
-};
+// #125: the hardcoded 16-brand mark map was DELETED — brand short/accent
+// now comes live from /api/brands (legacy brands + registry) via the
+// useBrands() hook. Never reintroduce a slug map in code.
 
 // Avg % watched — Analytics audit, Sep 19 2026
 export const RETENTION = [

@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { ScrollText, RefreshCw, ArrowUpRight, FolderOpen, Terminal, ListChecks } from 'lucide-react';
 import { Card, Chip, PageHeader, PageSkeleton, EmptyState, BrandMark, Segmented } from '@/components/ui';
-import { BRAND_META } from '@/lib/site-data';
+import { useBrands } from '@/components/use-brands'; // #125: live brand marks
 import { timeAgo, when } from '@/lib/utils';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
@@ -16,6 +16,8 @@ const FILTERS = [
 ];
 
 export default function Logs() {
+  const { bySlug: BRAND } = useBrands(); // #125: live short/accent per slug
+
   const [data, setData] = useState(null);
   const [filter, setFilter] = useState('all');
   const [tick, setTick] = useState(0);
@@ -75,7 +77,7 @@ export default function Logs() {
           emptySub="Try another filter, or run a job from Production."
           pageSize={12}
           columns={[
-            { key: 'brand', label: '', render: (l) => <BrandMark short={BRAND_META[l.slug]?.short || '•'} accent={BRAND_META[l.slug]?.accent || 'var(--faint)'} size={26} /> },
+            { key: 'brand', label: '', render: (l) => <BrandMark short={BRAND[l.slug]?.short || '•'} accent={BRAND[l.slug]?.accent || 'var(--faint)'} size={26} /> },
             { key: 'at', label: 'When', render: (l) => (
               <span className="whitespace-nowrap">
                 <span className="block text-[12.5px] text-fg-primary tnum">{when(l.at)}</span>

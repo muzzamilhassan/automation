@@ -12,11 +12,14 @@ import {
   Loader2,
 } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, BrandMark } from '@/components/ui';
-import { MUSIC_MOODS, BRAND_META } from '@/lib/site-data';
+import { MUSIC_MOODS } from '@/lib/site-data';
+import { useBrands } from '@/components/use-brands'; // #125: live brand marks
 import MUSIC_URLS from '@/lib/music-urls.json';
 import { cn } from '@/lib/utils';
 
 export default function MusicPage() {
+  const { bySlug: BRAND } = useBrands(); // #125: live short/accent per slug
+
   const [slug, setSlug] = useState('quotequarry');
   const [chans, setChans] = useState([]); // T4d: registry-driven tabs from the overview payload
   const [playingTitle, setPlayingTitle] = useState(null);
@@ -79,7 +82,7 @@ export default function MusicPage() {
               className={cn('px-3 h-8 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5', slug === c.slug ? 'text-ink' : 'text-faint hover:text-muted')}
               style={slug === c.slug ? { background: 'var(--surface-2)', boxShadow: 'inset 0 0 0 1px var(--line-strong)' } : undefined}
             >
-              <BrandMark short={BRAND_META[c.slug]?.short} accent={c.accent} size={16} />
+              <BrandMark short={BRAND[c.slug]?.short} accent={c.accent} size={16} />
               {c.label}
             </button>
           ))}
@@ -144,8 +147,8 @@ export default function MusicPage() {
               {Object.entries(MUSIC_MOODS).map(([mslug, moods]) => (
                 <div key={mslug} className="inset-tile p-3">
                   <div className="flex items-center gap-2 mb-2">
-                    <BrandMark short={BRAND_META[mslug]?.short} accent={BRAND_META[mslug]?.accent} size={22} />
-                    <span className="text-[12px] font-semibold text-ink truncate">{BRAND_META[mslug]?.short || mslug}</span>
+                    <BrandMark short={BRAND[mslug]?.short} accent={BRAND[mslug]?.accent} size={22} />
+                    <span className="text-[12px] font-semibold text-ink truncate">{BRAND[mslug]?.short || mslug}</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {moods.map((m) => <Chip key={m} tone="accent">{m}</Chip>)}

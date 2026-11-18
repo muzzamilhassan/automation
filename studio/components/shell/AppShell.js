@@ -21,8 +21,9 @@ import {
   LogOut,
   Sparkles,
 } from 'lucide-react';
-import { NAV, PINNED_CHANNELS } from './nav';
+import { NAV } from './nav';
 import CommandPalette from './CommandPalette';
+import { useBrands } from '@/components/use-brands';
 import { ALERTS } from '@/lib/site-data';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/untitledui/base/buttons/button';
@@ -148,18 +149,18 @@ function NavGroups({ collapsed, onNavigate }) {
         </div>
       ))}
 
-      {/* Pinned Channels Section */}
+      {/* Channels Section — live from /api/brands (#125 S-11) */}
       <div className="mt-3 pt-3 border-t border-white/10">
         {!collapsed ? (
           <div className="qs-side-group flex items-center justify-between">
-            <span>Pinned Channels</span>
+            <span>Channels</span>
             <Link href="/network?tab=channels" className="text-[10px] lowercase text-[#6b7671] hover:text-[#98a2a7]">
-              all 16 →
+              manage →
             </Link>
           </div>
         ) : null}
         <div className={cn('space-y-1', collapsed && 'flex flex-col items-center gap-1.5')}>
-          {PINNED_CHANNELS.map((p) => (
+          {liveChannels.map((p) => (
             <Link
               key={p.slug}
               href={`/network?channel=${p.slug}`}
@@ -220,6 +221,9 @@ export default function AppShell({ children }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
+  // #125 (S-11): the sidebar's channel list is LIVE — /api/brands replaces
+  // the old hardcoded list; nothing renders until it loads.
+  const { channels: liveChannels } = useBrands();
   const [loggingOut, setLoggingOut] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -270,7 +274,7 @@ export default function AppShell({ children }) {
           <span className="w-2 h-2 rounded-full pulse-dot" style={{ background: '#17b26a' }} />
           {!collapsedState || isMobile ? (
             <span className="text-[11px] text-[#98a2a7] truncate">
-              Engine connected <span className="text-[#6b7671]">· 16 brands</span>
+              Engine connected
             </span>
           ) : null}
         </div>

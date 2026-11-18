@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Film, Search, ArrowUpRight } from 'lucide-react';
 import { YoutubeIcon } from '@/components/BrandIcons';
 import { Card, Chip, PageHeader, PageSkeleton, EmptyState, BrandMark, Segmented } from '@/components/ui';
-import { BRAND_META } from '@/lib/site-data';
+import { useBrands } from '@/components/use-brands'; // #125: live brand marks
 import { when } from '@/lib/utils';
 import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
 import DataTable from '@/components/DataTable';
@@ -17,6 +17,8 @@ const FILTERS = [
 const PLATFORM_ICON = { YouTube: YoutubeIcon };
 
 export default function Videos() {
+  const { bySlug: BRAND } = useBrands(); // #125: live short/accent per slug
+
   const [data, setData] = useState(null);
   const [filter, setFilter] = useState('all');
   const [q, setQ] = useState('');
@@ -77,7 +79,7 @@ export default function Videos() {
           emptySub="No videos match this filter yet."
           pageSize={12}
           columns={[
-            { key: 'brand', label: '', render: (l) => <BrandMark short={BRAND_META[l.slug]?.short || '•'} accent={BRAND_META[l.slug]?.accent || 'var(--faint)'} size={28} /> },
+            { key: 'brand', label: '', render: (l) => <BrandMark short={BRAND[l.slug]?.short || '•'} accent={BRAND[l.slug]?.accent || 'var(--faint)'} size={28} /> },
             { key: 'title', label: 'Title', render: (l) => <span className="block max-w-[340px] truncate font-medium text-fg-primary" title={l.title}>{l.title}</span> },
             { key: 'slug', label: 'Channel', render: (l) => <span className="text-fg-tertiary text-[12px]">{l.slug}</span> },
             { key: 'kind', label: 'Kind', render: (l) => <Chip tone={l.kind === 'Episode' ? 'accent' : l.kind === 'Short' ? 'info' : 'plain'}>{l.kind}</Chip> },

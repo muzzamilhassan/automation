@@ -14,7 +14,7 @@ const jetbrainsMono = JetBrains_Mono({ variable: "--font-jetbrains-mono", subset
 
 export const metadata = {
   title: "Quarry Studio — Command Center",
-  description: "Multi-platform content empire control room · 4 channels, 16 brands, 6 platforms",
+  description: "Multi-platform content control room — live channels, production pipeline & analytics",
 };
 
 export default function RootLayout({ children }) {
