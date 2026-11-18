@@ -49,7 +49,10 @@ function OverviewContent() {
     if (fresh) setRefreshing(true);
     return Promise.allSettled([
       fetch('/api/overview' + (fresh ? '?fresh=1' : '')).then((r) => r.json()),
-      fetch('/api/analytics?slug=all' + (fresh ? '&fresh=1' : '?fresh=1')).then((r) => r.json()),
+      // #119 BUG-1: the non-fresh branch used to append '?fresh=1' onto a URL
+      // that already had '?slug=all' → server parsed slug='all?fresh=1' → null
+      // on every background poll. No param at all when not fresh.
+      fetch('/api/analytics?slug=all' + (fresh ? '&fresh=1' : '')).then((r) => r.json()),
     ]).then(([ov, an]) => {
       if (ov.status === 'fulfilled') { setData(ov.value); setErr(false); } else setErr(true);
       const a = an.status === 'fulfilled' ? an.value : null;

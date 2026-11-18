@@ -12,7 +12,15 @@ export async function GET(req) {
   const { default: postgres } = await import('postgres');
   const url = process.env.DATABASE_URL;
   if (!url) return Response.json({ samples: {}, error: 'db unavailable' }, { status: 503 });
-  const sql = postgres(url, { max: 1, idle_timeout: 5 });
+  // #119 BUG-4: the constructor ran OUTSIDE the try — a malformed DATABASE_URL
+  // threw synchronously → raw 500, and the finally-block's sql.end() threw
+  // again. Construction failure now returns the same 503 as a missing URL.
+  let sql;
+  try {
+    sql = postgres(url, { max: 1, idle_timeout: 5 });
+  } catch {
+    return Response.json({ samples: {}, error: 'db unavailable' }, { status: 503 });
+  }
   try {
     const rows = await sql`SELECT family_id, template_id, mp4_url, poster_url, rendered_at FROM template_previews ORDER BY rendered_at DESC`;
     const samples = {};       // keyed by template_id — one row per template
