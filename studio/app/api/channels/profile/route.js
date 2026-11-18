@@ -2,17 +2,24 @@
 // voice, slots). Supports both wizard-added channels and existing living channels.
 import { requireRole, getUser } from '@/lib/route-auth';
 import { appendAudit } from '@/lib/audit';
-import { readRegistry, upsertChannel } from '@/lib/channels-registry';
+import { readRegistry, upsertChannel, stripTokenMaterial } from '@/lib/channels-registry';
+import { canAccessChannelSlug } from '@/lib/access';
 import { STYLE_BY_ID } from '@/lib/styles-catalog';
 import { brands } from '@/lib/data.mjs';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
-  if (!(await requireRole(req, ['owner', 'staff', 'client']))) return Response.json({ error: 'not signed in' }, { status: 401 });
+  const user = await getUser(req);
+  if (!user || !['owner', 'staff', 'client'].includes(user.role)) return Response.json({ error: 'not signed in' }, { status: 401 });
 
   const slug = new URL(req.url).searchParams.get('slug');
   if (!slug) return Response.json({ error: 'missing slug' }, { status: 400 });
+  // #122 R6 (SEC-9 rider): a client may only read their OWN channel's profile
+  // — previously any slug was readable by changing the web address.
+  if (user.role === 'client' && !(await canAccessChannelSlug(user, slug))) {
+    return Response.json({ error: 'this channel is not linked to your account' }, { status: 403 });
+  }
 
   let reg;
   try {
@@ -50,7 +57,8 @@ export async function GET(req) {
   }
 
   if (!entry) return Response.json({ error: 'channel not found' }, { status: 404 });
-  return Response.json({ ok: true, channel: entry });
+  // #122 (SEC-9): the browser never receives tokenEnc — projected entry only
+  return Response.json({ ok: true, channel: stripTokenMaterial(entry) });
 }
 
 export async function POST(req) {
@@ -218,7 +226,8 @@ export async function POST(req) {
     // admin-panel review #8: every mutating route leaves an audit row
     const actor = (await getUser(req).catch(() => null))?.email || 'owner';
     await appendAudit(actor, 'profile-save', `${slug}: ${Object.keys(body).filter((k) => k !== 'slug').join(',')}`);
-    return Response.json({ ok: true, entry });
+    // #122 (SEC-9): the saved entry is echoed WITHOUT token material
+    return Response.json({ ok: true, entry: stripTokenMaterial(entry) });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 502 });
   }

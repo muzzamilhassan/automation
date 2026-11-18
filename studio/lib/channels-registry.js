@@ -90,6 +90,22 @@ export function decryptJSON(s) {
   }
 }
 
+// #122 (SEC-9): API projection — strips exactly the fields that carry token
+// material. No page ever reads them (grep-verified across studio/app); the
+// browser must never receive ciphertext even though it is encrypted — one
+// XSS in a logged-in session would otherwise read every channel's token blob
+// in a single request. Deliberately KEPT: tokenSecret (the GitHub secret
+// NAME — not a value; the wizard's repair instructions display it) and
+// tokenSecretSaved (the boolean the "key saved / secret missing" chip reads).
+// Strip-list on purpose (not the providers route's whitelist): these screens
+// consume many fields, and a whitelist breaks the wizard the day a new field
+// is added and missed.
+export function stripTokenMaterial(entry) {
+  if (!entry || typeof entry !== 'object') return entry;
+  const { tokenEnc: _dropped, tokenEncError: _dropped2, ...rest } = entry;
+  return rest;
+}
+
 // ---------- row <-> entry mapping ----------
 
 function rowToEntry(r) {

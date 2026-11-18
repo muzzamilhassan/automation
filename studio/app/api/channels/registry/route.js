@@ -1,6 +1,6 @@
 // Channels connected through the Studio wizard (yt-mcp/studio-channels.json).
 import { requireRole, getUser } from '@/lib/route-auth';
-import { readRegistry, writeRepoJSON, removeChannel, REGISTRY_MODE, hasGithubToken, registryChannels, decryptJSON } from '@/lib/channels-registry';
+import { readRegistry, writeRepoJSON, removeChannel, REGISTRY_MODE, hasGithubToken, registryChannels, decryptJSON, stripTokenMaterial } from '@/lib/channels-registry';
 import { appendAudit } from '@/lib/audit';
 import { ENV } from '@/lib/data.mjs';
 export const dynamic = 'force-dynamic';
@@ -10,7 +10,8 @@ export async function GET(req) {
   if (!(await requireRole(req, ['owner']))) return Response.json({ error: 'not signed in' }, { status: 401 });
   try {
     const reg = await readRegistry();
-    return Response.json({ channels: reg.channels || [], mode: REGISTRY_MODE, canWriteSecrets: hasGithubToken() });
+    // #122 (SEC-9): the browser never receives tokenEnc — projected rows only
+    return Response.json({ channels: (reg.channels || []).map(stripTokenMaterial), mode: REGISTRY_MODE, canWriteSecrets: hasGithubToken() });
   } catch (e) {
     return Response.json({ error: e.message, channels: [] }, { status: 502 });
   }
