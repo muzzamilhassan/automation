@@ -31,10 +31,12 @@
 
 ## Owner step (one click, not code) — Vercel Attack Challenge Mode
 
-This is a free Vercel platform toggle that challenges suspicious traffic before it reaches the code:
+**DONE 2026-11-18 — the owner enabled it for 24 hours.** Correction to the original guidance: the toggle is an *emergency switch* with a maximum duration of **24 hours** (1h / 24h options) — it auto-expires and can be re-enabled any time. It is NOT a permanent setting; the permanent layer is the code-level rate limiter shipped in this issue.
 
-1. Vercel dashboard → the `quarry-studio` project → **Firewall** tab.
-2. Click **Attack Challenge Mode** → enable (it can be enabled permanently; Vercel only challenges traffic that looks automated/abusive, real browser visitors never see it).
-3. No deploy needed — it takes effect immediately at the platform level.
+What it is and where it sits:
+- **Where:** at Vercel's front door (the edge network), in front of every Studio page and API — it is platform-level, not in our code.
+- **Why:** during the window, Vercel challenges visitors whose traffic looks automated or abusive; bots are stopped at Vercel and never reach the code — so they can't burn YouTube quota, trigger billable Actions, or hammer the AI routes, and don't run up serverless compute. Real browser visitors pass without noticing.
+- **After 24h:** it turns itself off — nothing to renew. If traffic ever looks abusive again, flip it on for another window.
+- **Safe for the fleet:** the autopilot/CI workflows talk to GitHub, Neon and YouTube — never to the Studio URL — so a challenge window breaks nothing in the automation.
 
 Related: [master-key-hardening-qa.md](master-key-hardening-qa.md) (#120), [fail-closed-sweep-qa.md](fail-closed-sweep-qa.md) (#118).
