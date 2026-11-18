@@ -336,7 +336,7 @@ export default function Analytics() {
             title="Views per day"
             sub="Real numbers · last 28 days from YouTube Analytics"
             icon={TrendingUp}
-            right={<Chip tone="ok">real data</Chip>}
+            right={realErr ? <Chip tone="bad">unavailable · retry</Chip> : <Chip tone="ok">real data</Chip>}
           />
           <div className="px-2 pb-2">
             {realErr ? (
@@ -457,7 +457,7 @@ export default function Analytics() {
             title="Viewer search terms"
             sub="What viewers typed into YouTube before finding you · last 28 days"
             icon={Search}
-            right={<Chip tone="ok">real data</Chip>}
+            right={terms !== null ? <Chip tone="ok">real data</Chip> : null}
           />
           <div className="px-2 pb-2">
             {terms === null ? (
