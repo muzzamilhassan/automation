@@ -196,9 +196,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "e7Lu6RJh6BI",
-        "publishAt": "2026-11-18T00:05:00Z",
-        "title": "Save 15% → $100K in 12 Years on $50K Salary"
+        "videoId": "AbOO852x24w",
+        "publishAt": "2026-11-19T00:05:00Z",
+        "title": "Debt Snowball: Cut $12K Debt, Add $1.5K to Savings"
       }
     ],
     "imageDate": "2026-10-18",
@@ -305,6 +305,10 @@
       {
         "t": "Save 15% → $100K in 12 Years on $50K Salary",
         "at": "2026-11-18T00:05:00Z"
+      },
+      {
+        "t": "Debt Snowball: Cut $12K Debt, Add $1.5K to Savings",
+        "at": "2026-11-19T00:05:00Z"
       }
     ],
     "cooldownSeeds": [
@@ -348,7 +352,8 @@
           "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/755751297",
           "startSec": 274.8,
           "durSec": 23.7,
-          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-02.mp4"
+          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-02.mp4",
+          "postedAt": "2026-11-18T03:37:41.231Z"
         },
         {
           "part": 3,
@@ -370,15 +375,15 @@
         }
       ]
     },
-    "clipLastPostDate": "2026-11-17",
+    "clipLastPostDate": "2026-11-18",
     "uploadsToday": {
-      "date": "2026-11-16",
-      "count": 2
+      "date": "2026-11-17",
+      "count": 1
     },
     "reviewGate": {
       "assigned": true,
       "gated": true,
-      "checkedAt": "2026-11-17T08:33:16.970Z"
+      "checkedAt": "2026-11-18T03:37:33.873Z"
     },
     "usedLongSeeds": [
       "Stop Wasting Vegetables! 8 Freezer Tricks That Save You Money | Annie Tips",
@@ -394,7 +399,8 @@
       "Как экономить семейный бюджет?#психолог #психологияотношений #финляндия #шоппинг #семейныеотношения",
       "Why Your First $100K Is the Hardest #Shorts",
       "¿Por qué el albañil NO es millonario? | Activo vs Pasivo, la lección de la máquina de palomitas",
-      "Congress is BLUE! What does that mean for YOUR wallet?? #money #finance #politics #government"
+      "Congress is BLUE! What does that mean for YOUR wallet?? #money #finance #politics #government",
+      "7 Money Rules to Build Wealth in 2027 | Ankur Warikoo"
     ],
     "deepdiveVideo": {
       "videoId": "oXAT8NGLV4Q",
