@@ -42,6 +42,7 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          MASTER_KEY: ${{ secrets.MASTER_KEY }} #120: vault v2 — CI loader needs the master key
           # per-channel refresh tokens — a channel joins the leaderboard by
           # adding its secret here (data-driven discovery in the script; the
           # slug list is never hardcoded). Channels whose token lacks

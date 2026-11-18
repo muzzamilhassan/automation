@@ -32,13 +32,41 @@ export function hasGithubToken() {
 
 // ---------- encrypted token at rest (dashboard read-back for wizard channels) ----------
 
-function encKey() {
-  return crypto.createHash('sha256').update(String(process.env.STUDIO_PASSWORD || ENV.YOUTUBE_CLIENT_SECRET || 'quarry-connect')).digest();
+// #120 (SEC-8, wave-2 design): the token key no longer hangs off the login
+// password. Two domain-separated derivations, mirroring keys-vault.js (#104):
+//   v2 (preferred) : sha256('quarry-studio-tokens-v2|' + MASTER_KEY)
+//   v1 (legacy)    : sha256(STUDIO_PASSWORD || YOUTUBE_CLIENT_SECRET)
+// The old literal 'quarry-connect' fallback is DELETED — with no key material
+// at all, encrypt/decrypt refuse instead of silently using a public string.
+// No format change: the version is discovered by trying derivations (v2 first).
+export function masterEncKey() {
+  return crypto.createHash('sha256').update('quarry-studio-tokens-v2|' + String(process.env.MASTER_KEY || '')).digest();
+}
+
+export function legacyEncKey() {
+  const material = String(process.env.STUDIO_PASSWORD || ENV.YOUTUBE_CLIENT_SECRET || '');
+  if (!material) return null;
+  return crypto.createHash('sha256').update(material).digest();
+}
+
+let legacyWarned = false;
+
+function tokenEncKey() {
+  if (process.env.MASTER_KEY) return masterEncKey();
+  const legacy = legacyEncKey();
+  if (!legacy) return null;
+  if (!legacyWarned) {
+    legacyWarned = true;
+    console.warn('[registry] DEPRECATED: MASTER_KEY is not set — tokenEnc uses the legacy login-password derivation. Set MASTER_KEY, then run scripts/migrate-master-key.mjs (#120).');
+  }
+  return legacy;
 }
 
 export function encryptJSON(obj) {
+  const key = tokenEncKey();
+  if (!key) throw new Error('no key material for token encryption (set MASTER_KEY, or STUDIO_PASSWORD for the legacy derivation)');
   const iv = crypto.randomBytes(12);
-  const c = crypto.createCipheriv('aes-256-gcm', encKey(), iv);
+  const c = crypto.createCipheriv('aes-256-gcm', key, iv);
   const ct = Buffer.concat([c.update(JSON.stringify(obj), 'utf8'), c.final()]);
   return [iv.toString('base64'), c.getAuthTag().toString('base64'), ct.toString('base64')].join('.');
 }
@@ -46,9 +74,17 @@ export function encryptJSON(obj) {
 export function decryptJSON(s) {
   try {
     const [iv, tag, ct] = String(s).split('.').map((p) => Buffer.from(p, 'base64'));
-    const d = crypto.createDecipheriv('aes-256-gcm', encKey(), iv);
-    d.setAuthTag(tag);
-    return JSON.parse(Buffer.concat([d.update(ct), d.final()]).toString('utf8'));
+    const attempts = process.env.MASTER_KEY
+      ? [masterEncKey(), legacyEncKey()].filter(Boolean)
+      : [legacyEncKey()].filter(Boolean);
+    for (const key of attempts) {
+      try {
+        const d = crypto.createDecipheriv('aes-256-gcm', key, iv);
+        d.setAuthTag(tag);
+        return JSON.parse(Buffer.concat([d.update(ct), d.final()]).toString('utf8'));
+      } catch { /* wrong derivation — try the next */ }
+    }
+    return null;
   } catch {
     return null;
   }
@@ -287,10 +323,14 @@ export async function upsertChannel(entry, message) {
       console.error('[registry] db upsert failed — repo fallback:', String(e.message).slice(0, 100));
     }
   }
-  // repo fallback (original logic)
+  // repo fallback (original logic). #120 R4: this path used to push the full
+  // entry — tokenEnc included — into the committed registry file when the DB
+  // was down (the sync path was fixed in the 2026-11-13 audit #8; this
+  // fallback was missed). tokenEnc never reaches the repo.
+  const { tokenEnc: _dropped, ...repoEntry } = entry;
   const reg = await readRegistryRepo();
   const channels = (reg.channels || []).filter((c) => c.slug !== entry.slug);
-  channels.push({ ...entry, kit });
+  channels.push({ ...repoEntry, kit });
   channels.sort((a, b) => a.slug.localeCompare(b.slug));
   return writeRegistry({ channels }, message || `studio: connect channel ${entry.slug}`);
 }
@@ -384,10 +424,13 @@ export async function setChannelCron(slug, cron, message) {
 }
 
 export async function writeRegistry(registry, message) {
-  const body = JSON.stringify(registry, null, 2) + '\n';
+  // #120 R4 (belt and suspenders): whatever the caller sends, tokenEnc never
+  // lands in git — stripped here unconditionally, on every entry.
+  const clean = { ...registry, channels: (registry?.channels || []).map(({ tokenEnc: _never, ...c }) => c) };
+  const body = JSON.stringify(clean, null, 2) + '\n';
   if (!CLOUD) {
     fs.writeFileSync(path.join(ROOT, 'yt-mcp', 'studio-channels.json'), body);
-    await mirrorFeedBestEffort(registry?.channels);
+    await mirrorFeedBestEffort(clean.channels);
     return { ok: true, mode: 'local' };
   }
   const cur = await fetch(`https://api.github.com/repos/${REPO}/contents/${REG_PATH}?ref=main`, {
@@ -405,7 +448,7 @@ export async function writeRegistry(registry, message) {
     }),
   });
   if (!res.ok) throw new Error(`github ${res.status} committing registry: ${(await res.text()).slice(0, 120)}`);
-  await mirrorFeedBestEffort(registry?.channels);
+  await mirrorFeedBestEffort(clean.channels);
   return { ok: true, mode: 'cloud' };
 }
 

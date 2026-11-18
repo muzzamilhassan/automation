@@ -100,6 +100,7 @@ jobs:
           GITHUB_PAT: ${{ secrets.GITHUB_PAT || secrets.SECRET_WRITER_PAT }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          MASTER_KEY: ${{ secrets.MASTER_KEY }} #120: vault v2 — CI loader needs the master key
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
           YT_TOKEN_QUOTEQUARRY: ${{ secrets.YT_TOKEN_QUOTEQUARRY }}
           YT_TOKEN_INVESTORS_COMPASS: ${{ secrets.YT_TOKEN_INVESTORS_COMPASS }}

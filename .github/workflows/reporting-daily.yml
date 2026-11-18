@@ -98,6 +98,7 @@ jobs:
         env:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          MASTER_KEY: ${{ secrets.MASTER_KEY }} #120: vault v2 — CI loader needs the master key
           FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
         run: node daily-excel-report.mjs --channel "$SLUG"
 

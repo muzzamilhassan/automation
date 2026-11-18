@@ -36,6 +36,7 @@ jobs:
         env:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          MASTER_KEY: ${{ secrets.MASTER_KEY }} #120: vault v2 — CI loader needs the master key
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           YT_TOKEN_INVESTORS_COMPASS: ${{ secrets.YT_TOKEN_INVESTORS_COMPASS }}
           YT_TOKEN_MONEY_RULEBOOK: ${{ secrets.YT_TOKEN_MONEY_RULEBOOK }}
