@@ -4,6 +4,7 @@
 // instantly. Every lookup also updates last_used (throttled to 1/minute).
 import crypto from 'node:crypto';
 import { db, dbReady } from './db.mjs';
+import { parseSessionCookie } from './session.js';
 
 const DAY_MS = 86400000;
 
@@ -162,5 +163,39 @@ export async function cleanupSessions(dbClient, { days = 30, dry = false } = {})
     return rows.length;
   } catch {
     return 0;
+  }
+}
+
+// #116 (2026-11-18 audit, BUG-3/SEC-2): Sign Out must revoke the CURRENT
+// session. The A1 cookie is `hex(json{t,e,r,n,x}).hmac` — DOTTED — and the
+// revocable opaque token lives only inside the signed claims; the old
+// logout dot-gate (`!token.includes('.')`) therefore skipped every
+// current-format cookie and the Neon row stayed live for its full 30 days.
+// This parses the dotted cookie (HMAC-verified) and revokes by claims.t;
+// bare pre-A1 tokens (no dot) are revoked directly as before. Returns true
+// when a revocable token was identified and the UPDATE ran; false for
+// missing/malformed/tampered cookies (logout itself must never fail).
+// Pass dbClient (the `(sql, params)` contract, see the admin functions
+// above) to test against a stub; default runs on the module pool.
+function safeDecode(v) {
+  try { return decodeURIComponent(String(v || '')).trim(); } catch { return ''; }
+}
+
+export async function revokeSessionFromCookie(cookieVal, dbClient = null) {
+  const val = safeDecode(cookieVal);
+  if (!val) return false;
+  const claims = val.includes('.') ? await parseSessionCookie(val) : { t: val };
+  if (!claims?.t || !String(claims.t).trim()) return false;
+  const hash = sha256(claims.t);
+  try {
+    if (typeof dbClient === 'function') {
+      await dbClient(`UPDATE sessions SET revoked = TRUE WHERE token_hash = $1`, [hash]);
+    } else {
+      if (!dbReady) return false;
+      await db`UPDATE sessions SET revoked = TRUE WHERE token_hash = ${hash}`;
+    }
+    return true;
+  } catch {
+    return false;
   }
 }

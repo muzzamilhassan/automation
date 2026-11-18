@@ -5,7 +5,7 @@
 //   t = opaque session token (DB-backed, revocable) · e = email · r = role
 //   n = name · x = expiry ms
 // Legacy pre-A1 cookies (HMAC json without t) still parse via parseSession.
-import { hmacToken } from './auth-token';
+import { hmacToken } from './auth-token.js';
 
 // #58: key material is STUDIO_PASSWORD ONLY. The old fallback chain
 // (YOUTUBE_CLIENT_SECRET — held by every CI workflow — and the in-repo
