@@ -99,7 +99,7 @@ test('P0-15: the wizard can actually start autopilot', () => {
 });
 
 test('P0-16: create reads ?template=', () => {
-  assert.match(read('studio/app/create/page.js'), /searchParams\.get\('template'\)/);
+  assert.match(read('studio/app/create/page.js'), /location\.search\)\.get\('template'\)/);
 });
 
 test('P0-17: channel links land on /channels#slug and the page highlights the card', () => {
