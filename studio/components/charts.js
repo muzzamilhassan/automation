@@ -224,7 +224,7 @@ export function RetentionBars({ rows, goal }) {
               {r.name}
             </span>
             {r.live === false ? (
-              <span className="text-[10.5px] text-faint">no data — needs analytics access</span>
+              <span className="text-t-10 text-faint">no data — needs analytics access</span>
             ) : (
               <span className="tnum font-bold" style={{ color: r.pct >= goal ? 'var(--ok)' : 'var(--ink)' }}>
                 {r.pct}%
@@ -244,7 +244,7 @@ export function RetentionBars({ rows, goal }) {
           </div>
         </div>
       ))}
-      <div className="flex items-center justify-between text-[10.5px] text-faint pt-1">
+      <div className="flex items-center justify-between text-t-10 text-faint pt-1">
         <span>0%</span>
         <span className="font-bold" style={{ color: 'var(--ink)' }}>▲ goal {goal}%</span>
         <span>100% watched</span>

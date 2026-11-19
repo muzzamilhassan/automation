@@ -91,14 +91,14 @@ function Notifications({ open, onClose, warnings }) {
         <div className="max-h-[320px] overflow-y-auto">
           {warnings.status === 'error' ? (
             <div className="px-4 py-6 text-center">
-              <p className="text-[12.5px] font-semibold text-fg-primary">Can&apos;t check alerts right now</p>
-              <p className="text-[11.5px] text-fg-tertiary mt-1">Status unknown — this is not an all-clear.</p>
-              <button className="text-[11.5px] text-accent underline mt-2" onClick={() => warnings.retry?.()}>Retry</button>
+              <p className="text-t-12 font-semibold text-fg-primary">Can&apos;t check alerts right now</p>
+              <p className="text-t-11 text-fg-tertiary mt-1">Status unknown — this is not an all-clear.</p>
+              <button className="text-t-11 text-accent underline mt-2" onClick={() => warnings.retry?.()}>Retry</button>
             </div>
           ) : !warnings.canSee || rows.length === 0 ? (
             <div className="px-4 py-6 text-center">
-              <p className="text-[12.5px] font-semibold text-fg-primary">Nothing needs attention</p>
-              <p className="text-[11.5px] text-fg-tertiary mt-1">{warnings.canSee ? 'All probes are quiet — no open warnings.' : 'Alerts are an owner/staff surface.'}</p>
+              <p className="text-t-12 font-semibold text-fg-primary">Nothing needs attention</p>
+              <p className="text-t-11 text-fg-tertiary mt-1">{warnings.canSee ? 'All probes are quiet — no open warnings.' : 'Alerts are an owner/staff surface.'}</p>
             </div>
           ) : rows.map((w) => {
             const Icon = SEV_ICON[w.severity] || Info;
@@ -106,15 +106,15 @@ function Notifications({ open, onClose, warnings }) {
               <Link key={w.id} href="/warnings" onClick={onClose} className="flex gap-3 px-4 py-3 border-b border-border-tertiary last:border-0 hover:bg-bg-secondary transition-colors">
                 <Icon size={15} className={cn('shrink-0 mt-0.5', SEV_COLOR[w.severity] || COLOR.info)} />
                 <span className="min-w-0">
-                  <span className="block text-[12.5px] font-semibold text-fg-primary">{w.title}</span>
-                  <span className="block text-[11px] text-fg-tertiary mt-0.5 font-mono truncate">{w.severity}{w.channel_id ? ` · ${w.channel_id}` : ''}</span>
+                  <span className="block text-t-12 font-semibold text-fg-primary">{w.title}</span>
+                  <span className="block text-t-11 text-fg-tertiary mt-0.5 font-mono truncate">{w.severity}{w.channel_id ? ` · ${w.channel_id}` : ''}</span>
                 </span>
               </Link>
             );
           })}
         </div>
         {warnings.canSee ? (
-          <Link href="/warnings" onClick={onClose} className="block px-4 py-2.5 border-t border-border-tertiary text-[11.5px] text-accent hover:underline">
+          <Link href="/warnings" onClick={onClose} className="block px-4 py-2.5 border-t border-border-tertiary text-t-11 text-accent hover:underline">
             open the warning triage →
           </Link>
         ) : null}
@@ -156,12 +156,12 @@ function NavGroups({ collapsed, onNavigate, studioCount, opsCount }) {
                     <>
                       <span className="truncate flex-1">{i.label}</span>
                       {i.href === '/studio' && studioCount ? (
-                        <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-accent/20 text-accent">
+                        <span className="ml-auto px-1.5 py-0.5 rounded-full text-t-10 font-bold bg-accent/20 text-accent">
                           {studioCount}
                         </span>
                       ) : null}
                       {i.href === '/operations' && opsCount ? (
-                        <span className="ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-error-solid/20 text-error-primary">
+                        <span className="ml-auto px-1.5 py-0.5 rounded-full text-t-10 font-bold bg-error-solid/20 text-error-primary">
                           {opsCount}
                         </span>
                       ) : null}
@@ -179,7 +179,7 @@ function NavGroups({ collapsed, onNavigate, studioCount, opsCount }) {
         {!collapsed ? (
           <div className="qs-side-group flex items-center justify-between">
             <span>Channels</span>
-            <Link href="/network?tab=channels" className="text-[10px] lowercase text-[#6b7671] hover:text-[#98a2a7]">
+            <Link href="/network?tab=channels" className="text-t-10 lowercase text-[#6b7671] hover:text-[#98a2a7]">
               manage →
             </Link>
           </div>
@@ -192,7 +192,7 @@ function NavGroups({ collapsed, onNavigate, studioCount, opsCount }) {
               onClick={onNavigate}
               title={`${p.label} (${p.short})`}
               className={cn(
-                'flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] text-[#98a2a7] hover:text-white hover:bg-white/5 transition-colors',
+                'flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-t-12 text-[#98a2a7] hover:text-white hover:bg-white/5 transition-colors',
                 collapsed && 'px-1 py-1'
               )}
             >
@@ -210,7 +210,7 @@ function NavGroups({ collapsed, onNavigate, studioCount, opsCount }) {
           href="https://muzzamilhassan.github.io/quarrystudio/dashboard.html"
           target="_blank"
           rel="noreferrer"
-          className="flex items-center gap-2 px-2 text-[11.5px] text-[#6b7671] hover:text-[#98a2a7] transition-colors"
+          className="flex items-center gap-2 px-2 text-t-11 text-[#6b7671] hover:text-[#98a2a7] transition-colors"
           title="TikTok dashboard"
         >
           <ExternalLink size={12} />
@@ -233,7 +233,7 @@ function Brand({ collapsed }) {
       {!collapsed ? (
         <span className="min-w-0">
           <span className="block font-display font-bold text-[15px] tracking-tight text-white leading-none">Quarry Studio</span>
-          <span className="block text-[10.5px] text-[#6b7671] mt-0.5">Command Center</span>
+          <span className="block text-t-10 text-[#6b7671] mt-0.5">Command Center</span>
         </span>
       ) : null}
     </Link>
@@ -351,7 +351,7 @@ export default function AppShell({ children }) {
               <Menu size={16} />
             </button>
 
-            <div className="hidden md:flex items-center gap-1.5 text-[13px] min-w-0">
+            <div className="hidden md:flex items-center gap-1.5 text-t-13 min-w-0">
               <Activity size={13} className="text-fg-quaternary" />
               <Link href="/" className="text-fg-quaternary hover:text-fg-secondary transition-colors">Quarry Studio</Link>
               <span className="text-fg-quaternary">/</span>
@@ -372,8 +372,8 @@ export default function AppShell({ children }) {
               style={{ width: 210 }}
             >
               <Search size={14} />
-              <span className="text-[12.5px]">Search or run…</span>
-              <span className="ml-auto font-mono text-[10.5px] text-fg-quaternary border border-border-tertiary rounded px-1 py-px">⌘K</span>
+              <span className="text-t-12">Search or run…</span>
+              <span className="ml-auto font-mono text-t-10 text-fg-quaternary border border-border-tertiary rounded px-1 py-px">⌘K</span>
             </button>
             <button className="sm:hidden icon-btn" onClick={() => setPaletteOpen(true)} aria-label="Search">
               <Search size={15.5} />
@@ -402,7 +402,7 @@ export default function AppShell({ children }) {
 
             <div className="relative">
               <button
-                className="flex items-center justify-center w-8 h-8 rounded-full font-display font-bold text-[12px] shrink-0 cursor-pointer relative before:absolute before:-inset-1 before:content-[''] transition-transform duration-100 ease-out hover:scale-105 active:scale-[0.96]"
+                className="flex items-center justify-center w-8 h-8 rounded-full font-display font-bold text-t-12 shrink-0 cursor-pointer relative before:absolute before:-inset-1 before:content-[''] transition-transform duration-100 ease-out hover:scale-105 active:scale-[0.96]"
                 style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
                 onClick={() => setUserOpen((o) => !o)}
                 aria-label="Account menu"
@@ -415,13 +415,13 @@ export default function AppShell({ children }) {
                   <div className="fixed inset-0 z-40" onClick={() => setUserOpen(false)} />
                   <div className="absolute right-0 top-[calc(100%+10px)] w-[220px] rounded-lg border border-border-secondary bg-bg-primary shadow-xl overflow-hidden z-50 pop-in">
                     <div className="px-4 py-3 border-b border-border-tertiary">
-                      <p className="text-[12.5px] font-semibold text-fg-primary">{me?.name || me?.email || 'Signed in'}</p>
-                      <p className="text-[11px] text-fg-quaternary mt-0.5">{me?.email || ''}{me?.role ? ` · ${me.role}` : ''}</p>
+                      <p className="text-t-12 font-semibold text-fg-primary">{me?.name || me?.email || 'Signed in'}</p>
+                      <p className="text-t-11 text-fg-quaternary mt-0.5">{me?.email || ''}{me?.role ? ` · ${me.role}` : ''}</p>
                     </div>
                     <button
                       onClick={logout}
                       disabled={loggingOut}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12.5px] font-semibold transition-colors hover:bg-bg-secondary disabled:opacity-50 text-error-primary"
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-t-12 font-semibold transition-colors hover:bg-bg-secondary disabled:opacity-50 text-error-primary"
                     >
                       <LogOut size={14} />
                       {loggingOut ? 'Signing out…' : 'Log out'}
@@ -437,7 +437,7 @@ export default function AppShell({ children }) {
           <div key={pathname} className="fade-up">
             {children}
           </div>
-          <footer className="mt-14 pb-6 flex items-center justify-between text-[11px] text-fg-quaternary">
+          <footer className="mt-14 pb-6 flex items-center justify-between text-t-11 text-fg-quaternary">
             <span>Quarry Studio · runs on GitHub Actions · nothing lives on this PC</span>
             <span className="font-mono">v4.0 · Dreams UI</span>
           </footer>

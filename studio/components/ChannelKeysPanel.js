@@ -75,29 +75,29 @@ export default function ChannelKeysPanel({ slug }) {
       </div>
 
       {meta?.updated ? (
-        <div className="flex gap-2 items-start mb-3 text-[11.5px] text-muted">
+        <div className="flex gap-2 items-start mb-3 text-t-11 text-muted">
           <Info size={12} className="shrink-0 mt-0.5" style={{ color: 'var(--info)' }} />
           <span>Last change {String(meta.updated).slice(0, 16).replace('T', ' ')} UTC · by {meta.updatedBy || '—'} · every change is also in the audit log and git history.</span>
         </div>
       ) : null}
 
       {loadErr ? (
-        <div className="flex items-center gap-2 text-[12px] py-1" style={{ color: 'var(--bad)' }}>
+        <div className="flex items-center gap-2 text-t-12 py-1" style={{ color: 'var(--bad)' }}>
           <XCircle size={13} className="shrink-0" /> {loadErr}
         </div>
       ) : loading || !providers ? (
-        <div className="flex items-center gap-2 text-muted text-[12px] py-4"><Loader2 size={14} className="animate-spin" /> Loading…</div>
+        <div className="flex items-center gap-2 text-muted text-t-12 py-4"><Loader2 size={14} className="animate-spin" /> Loading…</div>
       ) : (
         <div className="space-y-2">
           {Object.entries(providers).map(([p, v]) => (
             <div key={p} className="rounded-xl border border-white/10 bg-black/20 p-3">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold text-[12.5px] text-ink">{v.label}</span>
-                <span className="text-[10.5px] px-2 py-0.5 rounded-full border border-white/10 text-muted">{v.hint}</span>
+                <span className="font-semibold text-t-12 text-ink">{v.label}</span>
+                <span className="text-t-10 px-2 py-0.5 rounded-full border border-white/10 text-muted">{v.hint}</span>
                 {v.set ? (
-                  <span className="ml-auto text-[11px] flex items-center gap-1" style={{ color: 'var(--ok)' }}><CheckCircle2 size={12} /> {v.masked}</span>
+                  <span className="ml-auto text-t-11 flex items-center gap-1" style={{ color: 'var(--ok)' }}><CheckCircle2 size={12} /> {v.masked}</span>
                 ) : (
-                  <span className="ml-auto text-[11px] text-faint">not set — shared key is used</span>
+                  <span className="ml-auto text-t-11 text-faint">not set — shared key is used</span>
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-2 mt-2">
@@ -106,13 +106,13 @@ export default function ChannelKeysPanel({ slug }) {
                   placeholder={v.set ? 'paste a new key to replace' : `paste ${v.label.split(' ')[0]} key…`}
                   value={inputs[p] || ''}
                   onChange={(e) => setInputs((s) => ({ ...s, [p]: e.target.value }))}
-                  className="flex-1 min-w-[200px] text-[12.5px] px-3 py-1.5 rounded-lg border border-white/10 bg-black/20"
+                  className="flex-1 min-w-[200px] text-t-12 px-3 py-1.5 rounded-lg border border-white/10 bg-black/20"
                   autoComplete="new-password"
                 />
                 <button
                   onClick={() => save(p)}
                   disabled={busy === p}
-                  className="text-[11px] font-medium px-2.5 py-1.5 rounded-lg border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-50 flex items-center gap-1"
+                  className="text-t-11 font-medium px-2.5 py-1.5 rounded-lg border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-50 flex items-center gap-1"
                 >
                   {busy === p ? <Loader2 size={12} className="animate-spin" /> : <KeyRound size={12} />} Save &amp; test
                 </button>
@@ -120,18 +120,18 @@ export default function ChannelKeysPanel({ slug }) {
                   <button
                     onClick={() => remove(p)}
                     disabled={busy === p}
-                    className="text-[11px] px-2 py-1.5 rounded-lg border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-50"
+                    className="text-t-11 px-2 py-1.5 rounded-lg border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-50"
                     title="remove — shared key takes over again"
                   >
                     <Trash2 size={12} />
                   </button>
                 ) : null}
-                <a href={v.url} target="_blank" rel="noreferrer" className="text-[11px] text-muted hover:text-ink flex items-center gap-1 ml-auto">
+                <a href={v.url} target="_blank" rel="noreferrer" className="text-t-11 text-muted hover:text-ink flex items-center gap-1 ml-auto">
                   get a key <ExternalLink size={10} />
                 </a>
               </div>
               {msg[p] ? (
-                <p className="text-[11px] mt-2 flex items-center gap-1" style={{ color: msg[p].ok ? 'var(--ok)' : 'var(--bad)' }}>
+                <p className="text-t-11 mt-2 flex items-center gap-1" style={{ color: msg[p].ok ? 'var(--ok)' : 'var(--bad)' }}>
                   {msg[p].ok ? <CheckCircle2 size={11} /> : <XCircle size={11} />} {msg[p].text}
                 </p>
               ) : null}
@@ -140,7 +140,7 @@ export default function ChannelKeysPanel({ slug }) {
         </div>
       )}
 
-      <div className="flex gap-2 items-start mt-3 text-[11px] text-muted leading-relaxed">
+      <div className="flex gap-2 items-start mt-3 text-t-11 text-muted leading-relaxed">
         <Info size={12} className="shrink-0 mt-0.5" style={{ color: 'var(--info)' }} />
         <span>
           Channel keys run <span className="text-ink font-medium">before</span> the shared keys; if a channel has no key for a provider, the shared key is used. A saved key is encrypted with AES-256-GCM and can only be replaced or removed — never viewed again.

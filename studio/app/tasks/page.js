@@ -43,8 +43,8 @@ export default function Tasks() {
       <div>
         <PageHeader icon={SquareKanban} title="Tasks" sub="Live operations queue" />
         <Card className="p-8 text-center">
-          <p className="text-[13px] font-semibold text-ink">Owner / staff only</p>
-          <p className="text-[12px] text-faint mt-1">The live task queue (warnings + approvals) is a staff surface.</p>
+          <p className="text-t-13 font-semibold text-ink">Owner / staff only</p>
+          <p className="text-t-12 text-faint mt-1">The live task queue (warnings + approvals) is a staff surface.</p>
         </Card>
       </div>
     );
@@ -62,27 +62,27 @@ export default function Tasks() {
             </span>
             <div className="min-w-0 flex-1">
               <h2 className="section-title truncate">Open warnings</h2>
-              <p className="text-[11px] text-faint">{warnings === 'denied' ? '—' : `${open.length} unresolved`}</p>
+              <p className="text-t-11 text-faint">{warnings === 'denied' ? '—' : `${open.length} unresolved`}</p>
             </div>
           </div>
           {warnings === 'denied' ? (
-            <p className="text-[12px] text-faint px-1">Not available for your role.</p>
+            <p className="text-t-12 text-faint px-1">Not available for your role.</p>
           ) : warnings === 'error' ? (
-            <p className="text-[12px] px-1" style={{ color: 'var(--bad)' }}>Can&apos;t check right now — status unknown, not an all-clear.</p>
+            <p className="text-t-12 px-1" style={{ color: 'var(--bad)' }}>Can&apos;t check right now — status unknown, not an all-clear.</p>
           ) : open.length === 0 ? (
-            <p className="text-[12px] text-faint px-1">Nothing unresolved — all probes quiet.</p>
+            <p className="text-t-12 text-faint px-1">Nothing unresolved — all probes quiet.</p>
           ) : (
             <ul className="space-y-1">
               {open.slice(0, 8).map((w) => (
                 <li key={w.id} className="inset-tile px-3 py-2 flex items-center gap-2.5">
                   <Chip tone={sevTone[w.severity] || 'plain'} dot>{w.severity}</Chip>
-                  <span className="min-w-0 flex-1 text-[12px] text-ink truncate">{w.title}</span>
-                  {w.channel_id ? <span className="text-[10.5px] text-faint font-mono truncate max-w-[90px]">{w.channel_id}</span> : null}
+                  <span className="min-w-0 flex-1 text-t-12 text-ink truncate">{w.title}</span>
+                  {w.channel_id ? <span className="text-t-10 text-faint font-mono truncate max-w-[90px]">{w.channel_id}</span> : null}
                 </li>
               ))}
             </ul>
           )}
-          {warnings !== 'denied' ? <Link href="/warnings" className="inline-block mt-3 text-[11.5px] text-accent hover:underline">full triage →</Link> : null}
+          {warnings !== 'denied' ? <Link href="/warnings" className="inline-block mt-3 text-t-11 text-accent hover:underline">full triage →</Link> : null}
         </Card>
 
         <Card hover className="p-5">
@@ -92,26 +92,26 @@ export default function Tasks() {
             </span>
             <div className="min-w-0 flex-1">
               <h2 className="section-title truncate">Awaiting your approval</h2>
-              <p className="text-[11px] text-faint">{pending === 'denied' ? '—' : `${scripts.length} held scripts`}</p>
+              <p className="text-t-11 text-faint">{pending === 'denied' ? '—' : `${scripts.length} held scripts`}</p>
             </div>
           </div>
           {pending === 'denied' ? (
-            <p className="text-[12px] text-faint px-1">Not available for your role.</p>
+            <p className="text-t-12 text-faint px-1">Not available for your role.</p>
           ) : pending === 'error' ? (
-            <p className="text-[12px] px-1" style={{ color: 'var(--bad)' }}>Can&apos;t check right now — status unknown.</p>
+            <p className="text-t-12 px-1" style={{ color: 'var(--bad)' }}>Can&apos;t check right now — status unknown.</p>
           ) : scripts.length === 0 ? (
-            <p className="text-[12px] text-faint px-1">Review queue is clear — nothing waiting.</p>
+            <p className="text-t-12 text-faint px-1">Review queue is clear — nothing waiting.</p>
           ) : (
             <ul className="space-y-1">
               {scripts.slice(0, 8).map((s, i) => (
                 <li key={s.id || i} className="inset-tile px-3 py-2 flex items-center gap-2.5">
-                  <span className="min-w-0 flex-1 text-[12px] text-ink truncate">{s.title || s.topic || s.id}</span>
-                  {s.slug ? <span className="text-[10.5px] text-faint font-mono truncate max-w-[90px]">{s.slug}</span> : null}
+                  <span className="min-w-0 flex-1 text-t-12 text-ink truncate">{s.title || s.topic || s.id}</span>
+                  {s.slug ? <span className="text-t-10 text-faint font-mono truncate max-w-[90px]">{s.slug}</span> : null}
                 </li>
               ))}
             </ul>
           )}
-          {pending !== 'denied' ? <Link href="/review" className="inline-block mt-3 text-[11.5px] text-accent hover:underline">review queue →</Link> : null}
+          {pending !== 'denied' ? <Link href="/review" className="inline-block mt-3 text-t-11 text-accent hover:underline">review queue →</Link> : null}
         </Card>
 
         <Card hover className="p-5">
@@ -121,19 +121,19 @@ export default function Tasks() {
             </span>
             <div className="min-w-0 flex-1">
               <h2 className="section-title truncate">Recently resolved</h2>
-              <p className="text-[11px] text-faint">{warnings === 'denied' ? '—' : `${resolved.length} in the recent tail`}</p>
+              <p className="text-t-11 text-faint">{warnings === 'denied' ? '—' : `${resolved.length} in the recent tail`}</p>
             </div>
           </div>
           {warnings === 'denied' ? (
-            <p className="text-[12px] text-faint px-1">Not available for your role.</p>
+            <p className="text-t-12 text-faint px-1">Not available for your role.</p>
           ) : resolved.length === 0 ? (
-            <p className="text-[12px] text-faint px-1">No resolved warnings yet.</p>
+            <p className="text-t-12 text-faint px-1">No resolved warnings yet.</p>
           ) : (
             <ul className="space-y-1">
               {resolved.slice(0, 6).map((w) => (
                 <li key={w.id} className="inset-tile px-3 py-2 flex items-center gap-2.5">
                   <Circle size={12} className="text-faint shrink-0" />
-                  <span className="min-w-0 flex-1 text-[12px] text-faint truncate">{w.title}</span>
+                  <span className="min-w-0 flex-1 text-t-12 text-faint truncate">{w.title}</span>
                 </li>
               ))}
             </ul>

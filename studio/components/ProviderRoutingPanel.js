@@ -120,14 +120,14 @@ export default function ProviderRoutingPanel({ slug }) {
 
   if (loadErr) {
     return (
-      <div className="inset-tile p-4 mt-1 flex items-center gap-2 text-[12px]" style={{ color: 'var(--bad)' }}>
+      <div className="inset-tile p-4 mt-1 flex items-center gap-2 text-t-12" style={{ color: 'var(--bad)' }}>
         <XCircle size={14} className="shrink-0" /> Provider routing unavailable: {loadErr}
       </div>
     );
   }
   if (!data) {
     return (
-      <div className="inset-tile p-4 mt-1 flex items-center gap-2 text-muted text-[12px]">
+      <div className="inset-tile p-4 mt-1 flex items-center gap-2 text-muted text-t-12">
         <Loader2 size={14} className="animate-spin" /> Loading provider routing…
       </div>
     );
@@ -143,7 +143,7 @@ export default function ProviderRoutingPanel({ slug }) {
         <Route size={12} /> Provider routing
         {!isOwner ? <Chip tone="info">read-only — owner only</Chip> : null}
       </div>
-      <p className="text-[11.5px] text-muted mb-3">
+      <p className="text-t-11 text-muted mb-3">
         {slug
           ? 'Per-capability provider priority for this channel. Channel overrides run before workspace defaults; the local baseline lanes always remain as the last resort.'
           : 'Workspace defaults — the fallback chain every channel uses when it has no override of its own. Local baseline lanes always remain as the last resort.'}
@@ -154,22 +154,22 @@ export default function ProviderRoutingPanel({ slug }) {
         <div className="flex items-center gap-1.5 mb-3">
           <button
             onClick={() => { setLayer('channel'); setMsg(null); }}
-            className={`text-[11px] px-2.5 py-1 rounded-lg border transition ${activeLayer === 'channel' ? 'border-white/20 bg-white/10 text-ink font-semibold' : 'border-white/10 text-muted hover:text-ink hover:bg-white/5'}`}
+            className={`text-t-11 px-2.5 py-1 rounded-lg border transition ${activeLayer === 'channel' ? 'border-white/20 bg-white/10 text-ink font-semibold' : 'border-white/10 text-muted hover:text-ink hover:bg-white/5'}`}
           >
             This channel (override)
           </button>
           <button
             onClick={() => { setLayer('default'); setMsg(null); }}
-            className={`text-[11px] px-2.5 py-1 rounded-lg border transition ${activeLayer === 'default' ? 'border-white/20 bg-white/10 text-ink font-semibold' : 'border-white/10 text-muted hover:text-ink hover:bg-white/5'}`}
+            className={`text-t-11 px-2.5 py-1 rounded-lg border transition ${activeLayer === 'default' ? 'border-white/20 bg-white/10 text-ink font-semibold' : 'border-white/10 text-muted hover:text-ink hover:bg-white/5'}`}
           >
             Workspace default
           </button>
-          {activeLayer === 'channel' ? <span className="text-[10.5px] text-faint ml-1">empty rows fall through to the workspace default</span> : null}
+          {activeLayer === 'channel' ? <span className="text-t-10 text-faint ml-1">empty rows fall through to the workspace default</span> : null}
         </div>
       ) : null}
 
       {data.routesError ? (
-        <div className="flex items-start gap-1.5 mb-3 text-[11.5px]" style={{ color: 'var(--warn, #d97706)' }}>
+        <div className="flex items-start gap-1.5 mb-3 text-t-11" style={{ color: 'var(--warn, #d97706)' }}>
           <Info size={12} className="mt-0.5 shrink-0" />
           <span>Routing store unavailable ({data.routesError}) — chains below are empty and resolution falls back to the catalog baseline order until Neon is reachable.</span>
         </div>
@@ -188,18 +188,18 @@ export default function ProviderRoutingPanel({ slug }) {
           return (
             <div key={cap} className="rounded-xl border border-white/10 bg-black/20 p-3">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[12.5px] font-semibold text-ink">{CAP_LABEL[cap] || cap}</span>
+                <span className="text-t-12 font-semibold text-ink">{CAP_LABEL[cap] || cap}</span>
                 {locals.map((p) => (
                   <Chip key={p.id} tone="plain" className="font-mono"><LockKeyhole size={10} className="inline mr-1 -mt-px" />{p.label} always available</Chip>
                 ))}
               </div>
 
               {covering.length === 0 ? (
-                <p className="text-[11.5px] text-faint mt-2">
+                <p className="text-t-11 text-faint mt-2">
                   No provider covers this capability yet — nothing to route (the vault-adds lane lights it up when a key for a covering provider lands).
                 </p>
               ) : chain.length === 0 ? (
-                <p className="text-[11.5px] text-muted mt-2">
+                <p className="text-t-11 text-muted mt-2">
                   {activeLayer === 'channel'
                     ? 'No channel override — the workspace default chain (then the catalog baseline order) is used.'
                     : 'No workspace routes yet — providers run in the catalog baseline order.'}
@@ -211,16 +211,16 @@ export default function ProviderRoutingPanel({ slug }) {
                     const key = `${cap}:${r.provider_id}`;
                     return (
                       <div key={r.id} className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5">
-                        <span className="tnum text-[10.5px] text-faint w-5 shrink-0">{i + 1}.</span>
-                        <span className="text-[12px] text-ink font-medium truncate">{p?.label || r.provider_id}</span>
-                        <span className="text-[10px] text-faint font-mono">prio {r.priority}</span>
+                        <span className="tnum text-t-10 text-faint w-5 shrink-0">{i + 1}.</span>
+                        <span className="text-t-12 text-ink font-medium truncate">{p?.label || r.provider_id}</span>
+                        <span className="text-t-10 text-faint font-mono">prio {r.priority}</span>
                         {slug && activeLayer === 'channel' ? <Chip tone="accent">override</Chip> : null}
                         {isOwner ? (
                           <span className="ml-auto flex items-center gap-1 shrink-0">
                             <button
                               onClick={() => reorder(cap, i, -1)}
                               disabled={Boolean(busy) || i === 0}
-                              className="text-[11px] px-1.5 py-1 rounded-md border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-40"
+                              className="text-t-11 px-1.5 py-1 rounded-md border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-40"
                               title="Move up (higher priority)"
                             >
                               <ArrowUp size={11} />
@@ -228,7 +228,7 @@ export default function ProviderRoutingPanel({ slug }) {
                             <button
                               onClick={() => reorder(cap, i, 1)}
                               disabled={Boolean(busy) || i === chain.length - 1}
-                              className="text-[11px] px-1.5 py-1 rounded-md border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-40"
+                              className="text-t-11 px-1.5 py-1 rounded-md border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-40"
                               title="Move down (lower priority)"
                             >
                               <ArrowDown size={11} />
@@ -236,7 +236,7 @@ export default function ProviderRoutingPanel({ slug }) {
                             <button
                               onClick={() => removeProvider(cap, r.provider_id)}
                               disabled={Boolean(busy)}
-                              className="text-[11px] px-1.5 py-1 rounded-md border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-40"
+                              className="text-t-11 px-1.5 py-1 rounded-md border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-40"
                               title="Remove from the chain"
                             >
                               {busy === key ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
@@ -255,7 +255,7 @@ export default function ProviderRoutingPanel({ slug }) {
                   <select
                     value={pick[cap] || ''}
                     onChange={(e) => setPick((p) => ({ ...p, [cap]: e.target.value }))}
-                    className="text-[11.5px] px-2 py-1.5 rounded-lg border border-line bg-surface"
+                    className="text-t-11 px-2 py-1.5 rounded-lg border border-line bg-surface"
                   >
                     <option value="">— add a provider to the chain —</option>
                     {addable.map((p) => (
@@ -265,7 +265,7 @@ export default function ProviderRoutingPanel({ slug }) {
                   <button
                     onClick={() => addProvider(cap)}
                     disabled={!pick[cap] || Boolean(busy)}
-                    className="text-[11px] font-medium px-2.5 py-1.5 rounded-lg border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-50 flex items-center gap-1"
+                    className="text-t-11 font-medium px-2.5 py-1.5 rounded-lg border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-50 flex items-center gap-1"
                     title="Append to the end of the chain (lowest priority of the chain)"
                   >
                     {busy.startsWith(`${cap}:`) ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />} Add
@@ -275,7 +275,7 @@ export default function ProviderRoutingPanel({ slug }) {
 
               {/* effective resolution preview (channel mount only) */}
               {resolvedList ? (
-                <p className="text-[10.5px] text-faint mt-2 font-mono">
+                <p className="text-t-10 text-faint mt-2 font-mono">
                   {resolvedList.length
                     ? `effective: ${resolvedList.map((r) => `${r.providerId}${r.source === 'channel' ? ' (channel)' : ' (default)'}`).join(' → ')} → ${locals.map((p) => p.id).join(' → ') || 'baseline'}`
                     : `effective: catalog baseline order → ${locals.map((p) => p.id).join(' → ') || 'baseline'}`}
@@ -287,7 +287,7 @@ export default function ProviderRoutingPanel({ slug }) {
       </div>
 
       {msg ? (
-        <div className={`mt-3 rounded-xl border p-2.5 text-[12px] ${msg.ok ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-red-500/30 bg-red-500/10'}`}>
+        <div className={`mt-3 rounded-xl border p-2.5 text-t-12 ${msg.ok ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-red-500/30 bg-red-500/10'}`}>
           <div className="flex items-start gap-1.5">
             {msg.ok ? <CheckCircle2 size={13} className="mt-0.5 text-emerald-400 shrink-0" /> : <XCircle size={13} className="mt-0.5 text-red-400 shrink-0" />}
             <span className={msg.ok ? 'text-emerald-300' : 'text-red-300'}>{msg.text}</span>

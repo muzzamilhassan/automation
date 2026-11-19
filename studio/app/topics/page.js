@@ -127,8 +127,8 @@ export default function TopicDesk() {
                     <div key={v.title} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-2 transition-colors">
                       <Flame size={13} className="text-orange-400 shrink-0" />
                       <span className="flex-1 min-w-0">
-                        <span className="block text-[12px] font-medium text-ink truncate">{v.title}</span>
-                        <span className="block text-[10.5px] text-faint">{v.channel} · {fmt(v.views)} views in 14d</span>
+                        <span className="block text-t-12 font-medium text-ink truncate">{v.title}</span>
+                        <span className="block text-t-10 text-faint">{v.channel} · {fmt(v.views)} views in 14d</span>
                       </span>
                       <ButtonUtility size="sm" color="tertiary" tooltip="Approve this theme" isDisabled={busy} icon={Plus} onClick={() => addTopics([{ kind: 'seed', text: v.title }])} />
                     </div>
@@ -137,14 +137,14 @@ export default function TopicDesk() {
                     <div key={t.term} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-2 transition-colors">
                       <Search size={13} className="text-accent shrink-0" />
                       <span className="flex-1 min-w-0">
-                        <span className="block text-[12px] font-medium text-ink truncate">{t.term}</span>
-                        <span className="block text-[10.5px] text-faint">real viewer search · {fmt(t.views)} views</span>
+                        <span className="block text-t-12 font-medium text-ink truncate">{t.term}</span>
+                        <span className="block text-t-10 text-faint">real viewer search · {fmt(t.views)} views</span>
                       </span>
                       <ButtonUtility size="sm" color="tertiary" tooltip="Approve this search" isDisabled={busy} icon={Plus} onClick={() => addTopics([{ kind: 'search', text: t.term }])} />
                     </div>
                   ))}
                   {!(data?.trends || []).length && !(data?.terms || []).length ? (
-                    <p className="text-[12px] text-faint px-3 py-8 text-center">
+                    <p className="text-t-12 text-faint px-3 py-8 text-center">
                       No research yet. The nightly run gathers it automatically — come back after the first run, or add a custom topic below.
                     </p>
                   ) : null}
@@ -192,10 +192,10 @@ export default function TopicDesk() {
               ) : (
                 (data?.queue || []).map((t, i) => (
                   <div key={t.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-2 transition-colors">
-                    <span className="tnum text-[11px] font-bold text-faint w-5 shrink-0">{i + 1}</span>
+                    <span className="tnum text-t-11 font-bold text-faint w-5 shrink-0">{i + 1}</span>
                     <span className="flex-1 min-w-0">
-                      <span className="block text-[12px] font-medium text-ink truncate">{t.text}</span>
-                      <span className="block text-[10.5px] text-faint">
+                      <span className="block text-t-12 font-medium text-ink truncate">{t.text}</span>
+                      <span className="block text-t-10 text-faint">
                         {t.kind === 'seed' ? 'from viral research' : t.kind === 'search' ? 'from viewer searches' : 'your own topic'}
                         {t.addedAt ? ` · added ${t.addedAt.slice(5, 10)}` : ''}
                       </span>
@@ -205,7 +205,7 @@ export default function TopicDesk() {
                 ))
               )}
               {(data?.queue || []).length ? (
-                <p className="text-[11px] text-faint px-3 pt-2">
+                <p className="text-t-11 text-faint px-3 pt-2">
                   <BrandMark short="i" accent={accent} size={14} /> Consumed top-first, one per run. When the queue empties, auto-research takes over.
                 </p>
               ) : null}

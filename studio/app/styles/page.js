@@ -44,8 +44,8 @@ function StyleCard({ s }) {
             </Chip>
           ))}
         </div>
-        <p className="text-[12px] text-muted leading-relaxed mb-2.5">{s.desc}</p>
-        <p className="text-[11px] text-faint">
+        <p className="text-t-12 text-muted leading-relaxed mb-2.5">{s.desc}</p>
+        <p className="text-t-11 text-faint">
           <CheckCircle2 size={11} className="inline mr-1 -mt-0.5" />
           {s.usedBy}
         </p>
@@ -83,7 +83,7 @@ export default function Styles() {
         ))}
       </div>
 
-      <p className="text-[11.5px] text-faint mt-5">
+      <p className="text-t-11 text-faint mt-5">
         Pick a style per channel in the Add Channel wizard. New styles appear here when they graduate from demo to production.
       </p>
     </div>

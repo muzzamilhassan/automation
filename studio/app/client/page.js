@@ -41,8 +41,8 @@ export default function ClientPage() {
         <div className="border border-line rounded-xl p-6 bg-surface max-w-sm text-center">
           <Lock size={18} className="mx-auto mb-2 text-muted" />
           <div className="font-semibold">Client sign-in required</div>
-          <p className="text-[12.5px] text-muted mt-1 leading-relaxed">Sign in with the email your channel manager invited you with.</p>
-          <button onClick={() => router.push('/login?next=/client')} className="mt-4 text-[13px] font-medium px-3.5 py-2 rounded-lg border border-line hover:bg-surface-2">
+          <p className="text-t-12 text-muted mt-1 leading-relaxed">Sign in with the email your channel manager invited you with.</p>
+          <button onClick={() => router.push('/login?next=/client')} className="mt-4 text-t-13 font-medium px-3.5 py-2 rounded-lg border border-line hover:bg-surface-2">
             Go to sign-in
           </button>
         </div>
@@ -56,15 +56,15 @@ export default function ClientPage() {
       <div className="max-w-3xl mx-auto px-5 py-12">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <div className="text-[11px] uppercase tracking-wide text-muted">Quarry Studio · done-for-you</div>
+            <div className="text-t-11 uppercase tracking-wide text-muted">Quarry Studio · done-for-you</div>
             <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight">Your channel, today</h1>
           </div>
-          <a href="/thumbs" className="text-[12px] text-muted hover:text-ink mr-3">Thumbnails →</a>
-          <a href="/" className="text-[12px] text-muted hover:text-ink">Full studio →</a>
+          <a href="/thumbs" className="text-t-12 text-muted hover:text-ink mr-3">Thumbnails →</a>
+          <a href="/" className="text-t-12 text-muted hover:text-ink">Full studio →</a>
         </div>
 
         {!channels.length ? (
-          <div className="border border-line rounded-xl p-5 bg-surface text-[13px] text-muted">
+          <div className="border border-line rounded-xl p-5 bg-surface text-t-13 text-muted">
             No channel is linked to your account yet — your channel manager connects it during onboarding.
           </div>
         ) : (
@@ -76,19 +76,19 @@ export default function ClientPage() {
                   <div className="px-5 pt-5 pb-4 flex items-center gap-2.5 border-b border-line">
                     <span className="w-2.5 h-2.5 rounded-full" style={{ background: c.accent }} />
                     <div className="font-semibold">{c.label}</div>
-                    <span className="ml-auto text-[10.5px] px-2 py-0.5 rounded-full border border-line flex items-center gap-1" style={{ color: c.flowPaused ? 'var(--warn)' : (c.lastRun ? 'var(--ok)' : 'var(--muted)') }}>
+                    <span className="ml-auto text-t-10 px-2 py-0.5 rounded-full border border-line flex items-center gap-1" style={{ color: c.flowPaused ? 'var(--warn)' : (c.lastRun ? 'var(--ok)' : 'var(--muted)') }}>
                       {c.flowPaused ? <><PauseCircle size={11} /> paused</> : (c.lastRun ? <><BadgeCheck size={11} /> engine running</> : <>standby — never run</>)}
                     </span>
                   </div>
                   <div className="px-5 py-4 grid grid-cols-3 gap-2">
-                    <div><div className="text-[10.5px] uppercase tracking-wide text-faint">Subscribers</div><div className="text-lg font-semibold">{fmt(c.yt?.subs)}</div></div>
-                    <div><div className="text-[10.5px] uppercase tracking-wide text-faint">All-time views</div><div className="text-lg font-semibold">{fmt(c.yt?.views)}</div></div>
-                    <div><div className="text-[10.5px] uppercase tracking-wide text-faint">Videos live</div><div className="text-lg font-semibold">{fmt(c.yt?.videos)}</div></div>
+                    <div><div className="text-t-10 uppercase tracking-wide text-faint">Subscribers</div><div className="text-lg font-semibold">{fmt(c.yt?.subs)}</div></div>
+                    <div><div className="text-t-10 uppercase tracking-wide text-faint">All-time views</div><div className="text-lg font-semibold">{fmt(c.yt?.views)}</div></div>
+                    <div><div className="text-t-10 uppercase tracking-wide text-faint">Videos live</div><div className="text-lg font-semibold">{fmt(c.yt?.videos)}</div></div>
                   </div>
                   <div className="px-5 pb-5 space-y-3">
                     <div className="inset-tile p-3 flex gap-2.5 items-start">
                       <Clock size={13} className="shrink-0 mt-0.5" style={{ color: 'var(--info)' }} />
-                      <p className="text-[12.5px] text-muted leading-relaxed">
+                      <p className="text-t-12 text-muted leading-relaxed">
                         Last production run: <span className="text-ink font-medium">{day(c.lastRun)}</span>
                         {upcoming ? ' · new videos are scheduled and will go public at their slot times.' : ' · the next video is being researched and produced.'}
                       </p>
@@ -96,11 +96,11 @@ export default function ClientPage() {
                     <KeysInline slug={c.slug} />
                     {c.todayTopics?.length ? (
                       <div className="inset-tile p-3">
-                        <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-faint mb-1.5"><Sparkles size={11} /> Topics in production</div>
+                        <div className="flex items-center gap-1.5 text-t-11 uppercase tracking-wide text-faint mb-1.5"><Sparkles size={11} /> Topics in production</div>
                         {c.todayTopics.slice(0, 3).map((t, i) => (
-                          <div key={i} className="text-[12.5px] text-muted truncate">· {t}</div>
+                          <div key={i} className="text-t-12 text-muted truncate">· {t}</div>
                         ))}
-                        <a href="/topics" className="inline-block mt-2 text-[12px] font-medium" style={{ color: 'var(--accent)' }}>Approve or swap topics →</a>
+                        <a href="/topics" className="inline-block mt-2 text-t-12 font-medium" style={{ color: 'var(--accent)' }}>Approve or swap topics →</a>
                       </div>
                     ) : null}
                   </div>
@@ -109,7 +109,7 @@ export default function ClientPage() {
             })}
           </div>
         )}
-        <p className="mt-8 text-[11px] text-faint">Stats update every few minutes · questions? message your channel manager.</p>
+        <p className="mt-8 text-t-11 text-faint">Stats update every few minutes · questions? message your channel manager.</p>
       </div>
     </main>
   );
@@ -170,14 +170,14 @@ function KeysInline({ slug }) {
 
   return (
     <div className="border-t border-line pt-3">
-      <button onClick={() => { const n = !open; setOpen(n); if (n) load(); }} className="flex items-center gap-1.5 text-[12px] font-medium" style={{ color: 'var(--accent)' }}>
+      <button onClick={() => { const n = !open; setOpen(n); if (n) load(); }} className="flex items-center gap-1.5 text-t-12 font-medium" style={{ color: 'var(--accent)' }}>
         <KeyRound size={12} /> {open ? 'Hide API keys' : 'Manage API keys'}
       </button>
       {open && providers ? (
         <div className="mt-2 space-y-2">
           {Object.entries(providers).map(([p, v]) => (
             <div key={p} className="inset-tile p-2.5">
-              <div className="flex items-center gap-2 text-[12px]">
+              <div className="flex items-center gap-2 text-t-12">
                 <span className="font-medium text-ink">{v.label}</span>
                 {v.set ? (
                   <span className="ml-auto flex items-center gap-1" style={{ color: 'var(--ok)' }}><CheckCircle2 size={11} /> {v.masked}</span>
@@ -192,29 +192,29 @@ function KeysInline({ slug }) {
                   placeholder={v.set ? 'paste a new key to replace' : 'paste your key…'}
                   value={inputs[p] || ''}
                   onChange={(e) => setInputs((s) => ({ ...s, [p]: e.target.value }))}
-                  className="flex-1 min-w-[180px] text-[12px] px-2.5 py-1.5 rounded-lg border border-line bg-bg-soft"
+                  className="flex-1 min-w-[180px] text-t-12 px-2.5 py-1.5 rounded-lg border border-line bg-bg-soft"
                   autoComplete="off"
                 />
-                <button onClick={() => save(p)} disabled={busy === p} className="text-[11.5px] font-medium px-2.5 py-1.5 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-50">
+                <button onClick={() => save(p)} disabled={busy === p} className="text-t-11 font-medium px-2.5 py-1.5 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-50">
                   {busy === p ? '…' : 'Save & test'}
                 </button>
                 {v.set ? (
-                  <button onClick={() => remove(p)} disabled={busy === p} className="text-[11.5px] px-2 py-1.5 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-50" title="remove - shared key resumes">
+                  <button onClick={() => remove(p)} disabled={busy === p} className="text-t-11 px-2 py-1.5 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-50" title="remove - shared key resumes">
                     <XCircle size={12} />
                   </button>
                 ) : null}
               </div>
               {msg[p] ? (
-                <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: msg[p].ok ? 'var(--ok)' : 'var(--bad)' }}>
+                <p className="text-t-11 mt-1 flex items-center gap-1" style={{ color: msg[p].ok ? 'var(--ok)' : 'var(--bad)' }}>
                   {msg[p].ok ? <CheckCircle2 size={11} /> : <XCircle size={11} />} {msg[p].text}
                 </p>
               ) : null}
             </div>
           ))}
-          <p className="text-[10.5px] text-faint leading-relaxed">Your keys run before the studio&apos;s shared keys. They are encrypted and never shown again after saving. A dead key is dropped automatically and the shared key covers — you get an alert.</p>
+          <p className="text-t-10 text-faint leading-relaxed">Your keys run before the studio&apos;s shared keys. They are encrypted and never shown again after saving. A dead key is dropped automatically and the shared key covers — you get an alert.</p>
         </div>
       ) : null}
-      {open && !providers ? <p className="text-[11.5px] text-muted mt-2">Loading…</p> : null}
+      {open && !providers ? <p className="text-t-11 text-muted mt-2">Loading…</p> : null}
     </div>
   );
 }

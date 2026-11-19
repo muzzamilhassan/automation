@@ -21,11 +21,11 @@ function PlatformRow({ icon: Icon, color, label, handle, followers, extra }) {
         <Icon size={14} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[12px] font-semibold text-ink truncate">{label}</span>
-        <span className="block text-[11px] text-faint font-mono truncate">{handle}</span>
+        <span className="block text-t-12 font-semibold text-ink truncate">{label}</span>
+        <span className="block text-t-11 text-faint font-mono truncate">{handle}</span>
       </span>
-      {extra ? <span className="text-[11px] text-faint hidden sm:block tnum">{extra}</span> : null}
-      <span className="tnum text-[12px] font-bold text-ink shrink-0">{followers}</span>
+      {extra ? <span className="text-t-11 text-faint hidden sm:block tnum">{extra}</span> : null}
+      <span className="tnum text-t-12 font-bold text-ink shrink-0">{followers}</span>
     </div>
   );
 }
@@ -91,7 +91,7 @@ export default function Channels() {
       </PageHeader>
 
       {flowMsg ? (
-        <div role="status" aria-live="polite" className="text-[12px] mb-3" style={{ color: flowMsg.tone === 'bad' ? 'var(--bad)' : 'var(--ok, #10b981)' }}>
+        <div role="status" aria-live="polite" className="text-t-12 mb-3" style={{ color: flowMsg.tone === 'bad' ? 'var(--bad)' : 'var(--ok, #10b981)' }}>
           {flowMsg.text}
         </div>
       ) : null}
@@ -108,7 +108,7 @@ export default function Channels() {
                   <BrandMark short={meta?.short || '•'} accent={c.accent} size={44} />
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="font-display text-[17px] font-bold tracking-tight text-ink text-balance">{c.label}</h2>
+                      <h2 className="font-display text-t-16 font-bold tracking-tight text-ink text-balance">{c.label}</h2>
                       {c.flowPaused ? <Chip tone="warn">PAUSED</Chip> : <Chip tone="ok" dot>ACTIVE</Chip>}
                       <ButtonUtility
                         size="sm"
@@ -149,7 +149,7 @@ export default function Channels() {
                         <ButtonUtility size="sm" color="tertiary" icon={PenLine} />
                       </Link>
                     </div>
-                    <p className="text-[12px] text-muted mt-0.5">{c.niche}</p>
+                    <p className="text-t-12 text-muted mt-0.5">{c.niche}</p>
                   </div>
                 </div>
                 {c.yt && !c.yt.error ? (
@@ -173,7 +173,7 @@ export default function Channels() {
                 {c.ig ? (
                   <PlatformRow icon={InstagramIcon} color="#ec4899" label="Instagram" handle={`@${c.ig.username}`} followers={fmt(c.ig.followers)} extra={`${c.ig.posts} posts`} />
                 ) : null}
-                {!c.yt && !c.fb && !c.ig ? <p className="text-[12px] text-faint px-3 py-3">No accounts linked yet.</p> : null}
+                {!c.yt && !c.fb && !c.ig ? <p className="text-t-12 text-faint px-3 py-3">No accounts linked yet.</p> : null}
               </div>
 
               {/* brand config */}
@@ -182,21 +182,21 @@ export default function Channels() {
                   <div className="flex items-center gap-1.5 overline mb-1.5">
                     <Mic size={11} /> Voice
                   </div>
-                  <p className="text-[11.5px] text-muted font-mono truncate" title={c.voice}>{c.voice || 'default'}</p>
+                  <p className="text-t-11 text-muted font-mono truncate" title={c.voice}>{c.voice || 'default'}</p>
                 </div>
                 <div className="inset-tile p-3">
                   <div className="flex items-center gap-1.5 overline mb-1.5">
                     <Music size={11} /> Music mood
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {moods.length ? moods.map((m) => <Chip key={m} tone="accent">{m}</Chip>) : <span className="text-[11.5px] text-faint">—</span>}
+                    {moods.length ? moods.map((m) => <Chip key={m} tone="accent">{m}</Chip>) : <span className="text-t-11 text-faint">—</span>}
                   </div>
                 </div>
                 <div className="inset-tile p-3">
                   <div className="flex items-center gap-1.5 overline mb-1.5">
                     <Clock size={11} /> Slots UTC
                   </div>
-                  <p className="text-[11.5px] text-muted font-mono tnum">
+                  <p className="text-t-11 text-muted font-mono tnum">
                     {c.slots.length ? c.slots.join(' · ') : '—'}
                     {c.longSlot ? <span className="text-accent"> + {c.longSlot}</span> : null}
                   </p>
@@ -228,8 +228,8 @@ export default function Channels() {
               >
                 <BrandMark short={BRAND[c.slug]?.short || '•'} accent={c.accent} size={28} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[11.5px] font-semibold text-ink truncate">{c.label}</p>
-                  <p className="text-[10.5px] text-faint truncate">{c.niche}</p>
+                  <p className="text-t-11 font-semibold text-ink truncate">{c.label}</p>
+                  <p className="text-t-10 text-faint truncate">{c.niche}</p>
                 </div>
                 <KeyRound size={12} className={parkedKeys === c.slug ? 'text-ink shrink-0' : 'text-faint shrink-0'} />
               </button>

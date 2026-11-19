@@ -30,7 +30,7 @@ function PosterTile({ draft, onOpen }) {
       <div className="rounded-xl border border-dashed border-line bg-surface-2 aspect-video flex flex-col items-center justify-center gap-1.5 px-4 text-center">
         <Film size={20} className="text-faint" />
         <span className="text-xs font-medium text-muted">No sample render yet</span>
-        <span className="text-[11px] text-faint">Run Template Previews to generate a demo video</span>
+        <span className="text-t-11 text-faint">Run Template Previews to generate a demo video</span>
       </div>
     );
   }
@@ -57,7 +57,7 @@ function PosterTile({ draft, onOpen }) {
           style={{ background: 'linear-gradient(135deg, #111827 0%, #1e1b4b 100%)' }}
         >
           <Film size={24} className="opacity-70" />
-          <span className="text-[11px] font-mono uppercase tracking-wider opacity-75">
+          <span className="text-t-11 font-mono uppercase tracking-wider opacity-75">
             {draft.style || draft.theme || 'Sample MP4 Ready'}
           </span>
         </div>
@@ -69,11 +69,11 @@ function PosterTile({ draft, onOpen }) {
       {/* Top-left Format Pill */}
       <div className="pointer-events-none absolute top-2.5 left-2.5 z-10">
         {isFullStory ? (
-          <span className="px-2 py-0.5 rounded-md bg-emerald-950/85 text-emerald-300 border border-emerald-500/40 backdrop-blur-sm text-[10.5px] font-medium flex items-center gap-1 shadow-sm">
+          <span className="px-2 py-0.5 rounded-md bg-emerald-950/85 text-emerald-300 border border-emerald-500/40 backdrop-blur-sm text-t-10 font-medium flex items-center gap-1 shadow-sm">
             <BookOpen size={11} className="text-emerald-400" /> Full Story
           </span>
         ) : (
-          <span className="px-2 py-0.5 rounded-md bg-purple-950/85 text-purple-300 border border-purple-500/40 backdrop-blur-sm text-[10.5px] font-medium flex items-center gap-1 shadow-sm">
+          <span className="px-2 py-0.5 rounded-md bg-purple-950/85 text-purple-300 border border-purple-500/40 backdrop-blur-sm text-t-10 font-medium flex items-center gap-1 shadow-sm">
             <ListOrdered size={11} className="text-purple-400" /> Chapter Breakdown
           </span>
         )}
@@ -88,17 +88,17 @@ function PosterTile({ draft, onOpen }) {
 
       {/* Top-right style/theme pill */}
       {draft.theme || draft.style ? (
-        <span className="pointer-events-none absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md bg-black/70 text-white/95 border border-white/15 backdrop-blur-sm text-[10.5px] font-mono">
+        <span className="pointer-events-none absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md bg-black/70 text-white/95 border border-white/15 backdrop-blur-sm text-t-10 font-mono">
           {draft.style || draft.theme}
         </span>
       ) : null}
 
       {/* Bottom caption */}
-      <div className="pointer-events-none absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between gap-2 text-[11px] text-white/90">
+      <div className="pointer-events-none absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between gap-2 text-t-11 text-white/90">
         <span className="px-2 py-0.5 rounded-md bg-black/65 backdrop-blur-sm font-medium">
           Sample · {new Date(draft.preview.renderedAt).toLocaleDateString()}
         </span>
-        <span className="px-2 py-0.5 rounded-md bg-black/65 backdrop-blur-sm text-[10.5px] font-semibold opacity-90 group-hover:opacity-100 flex items-center gap-1">
+        <span className="px-2 py-0.5 rounded-md bg-black/65 backdrop-blur-sm text-t-10 font-semibold opacity-90 group-hover:opacity-100 flex items-center gap-1">
           <Sparkles size={11} className="text-amber-400" /> Hook Media Active
         </span>
       </div>
@@ -306,7 +306,7 @@ export default function DraftsInboxPage() {
             <ListOrdered size={13} /> Chapter Breakdowns ({chaptersCount})
           </button>
         </div>
-        <div className="text-[11px] text-muted">
+        <div className="text-t-11 text-muted">
           {filterFormat === 'full_story'
             ? 'Continuous documentary stories with seamless narrative arc and zero chapter divider cards'
             : filterFormat === 'chapters'
@@ -342,11 +342,11 @@ export default function DraftsInboxPage() {
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 {d.narrativeFormat === 'full_story' ? (
-                  <span className="px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                  <span className="px-2 py-0.5 rounded-md text-t-10 font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
                     <BookOpen size={11} /> Full Story
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-purple-500/15 text-purple-400 border border-purple-500/30 flex items-center gap-1">
+                  <span className="px-2 py-0.5 rounded-md text-t-10 font-semibold bg-purple-500/15 text-purple-400 border border-purple-500/30 flex items-center gap-1">
                     <ListOrdered size={11} /> Chapters
                   </span>
                 )}
@@ -360,7 +360,7 @@ export default function DraftsInboxPage() {
               </div>
             </div>
 
-            <div className="text-[11.5px] text-muted flex items-center gap-1.5 bg-surface-2 px-2.5 py-1.5 rounded-lg border border-line">
+            <div className="text-t-11 text-muted flex items-center gap-1.5 bg-surface-2 px-2.5 py-1.5 rounded-lg border border-line">
               <span className="font-semibold text-ink/90">
                 {d.narrativeFormat === 'full_story' ? 'Arc:' : 'Structure:'}
               </span>
@@ -382,7 +382,7 @@ export default function DraftsInboxPage() {
                   {d.hasChapters ? 'Chapter Breakdown (Checked)' : 'Full Story (Default)'}
                 </span>
               </label>
-              <span className={`text-[10.5px] font-mono px-2 py-0.5 rounded font-medium ${d.hasChapters ? 'text-purple-300 bg-purple-500/20' : 'text-emerald-300 bg-emerald-500/20'}`}>
+              <span className={`text-t-10 font-mono px-2 py-0.5 rounded font-medium ${d.hasChapters ? 'text-purple-300 bg-purple-500/20' : 'text-emerald-300 bg-emerald-500/20'}`}>
                 {d.hasChapters ? '10 Chapters' : '0 Chapters'}
               </span>
             </div>
@@ -406,7 +406,7 @@ export default function DraftsInboxPage() {
             <PosterTile draft={d} onOpen={openPreview} />
 
             {d.disclaimer ? (
-              <div className="text-[11px] text-faint leading-snug">{d.disclaimer}</div>
+              <div className="text-t-11 text-faint leading-snug">{d.disclaimer}</div>
             ) : null}
 
             <div className="mt-auto flex gap-2 pt-1">
@@ -451,15 +451,15 @@ export default function DraftsInboxPage() {
                     {preview.templateId}
                   </h2>
                   {preview.narrativeFormat === 'full_story' ? (
-                    <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center gap-1">
+                    <span className="px-2 py-0.5 rounded-md text-t-11 font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center gap-1">
                       <BookOpen size={12} /> Full Story (Continuous Arc)
                     </span>
                   ) : (
-                    <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-purple-500/20 text-purple-400 border border-purple-500/40 flex items-center gap-1">
+                    <span className="px-2 py-0.5 rounded-md text-t-11 font-semibold bg-purple-500/20 text-purple-400 border border-purple-500/40 flex items-center gap-1">
                       <ListOrdered size={12} /> Chapter Breakdown (10 Parts)
                     </span>
                   )}
-                  <label className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-surface-3 border border-line cursor-pointer text-[11px] font-semibold hover:border-purple-500/50 transition select-none">
+                  <label className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-surface-3 border border-line cursor-pointer text-t-11 font-semibold hover:border-purple-500/50 transition select-none">
                     <input
                       type="checkbox"
                       checked={Boolean(preview.hasChapters)}
@@ -533,7 +533,7 @@ export default function DraftsInboxPage() {
                     Sample pattern: “{String(preview.titles[0]).replace(/^"|"$/g, '')}”
                   </div>
                 ) : null}
-                <div className="text-[11px] text-faint mt-0.5 truncate">
+                <div className="text-t-11 text-faint mt-0.5 truncate">
                   {preview.formatDescription || (preview.narrativeFormat === 'full_story' ? 'Full continuous story arc (0 chapters)' : 'Structured 10-part chapters')}
                 </div>
               </div>

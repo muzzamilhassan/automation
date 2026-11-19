@@ -689,3 +689,13 @@ p, .sub-text {
 .qs-rail .qs-side-link span {
   display: none;
 }
+
+/* ---------------- P1 slice 4: the scale as utilities ----------------
+   One class per scale step; the text-[...] one-offs migrate to these.
+   10/11/12/13/14/16 px — the 6 fractional sizes collapse into their step. */
+.t-10 { font-size: var(--text-2xs); }
+.t-11 { font-size: var(--text-xs); }
+.t-12 { font-size: var(--text-sm); }
+.t-13 { font-size: var(--text-base); }
+.t-14 { font-size: var(--text-md); }
+.t-16 { font-size: var(--text-lg); }

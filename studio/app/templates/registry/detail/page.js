@@ -109,16 +109,16 @@ export default function TemplateDetailPage() {
             {invalidEntry ? (
               isOwner ? (
                 <div className="inset-tile p-3">
-                  <p className="text-[12px] font-semibold text-ink mb-1.5">Schema v1 errors</p>
+                  <p className="text-t-12 font-semibold text-ink mb-1.5">Schema v1 errors</p>
                   <ul className="space-y-1">
                     {invalidEntry.errors.map((e, i) => (
-                      <li key={i} className="text-[11.5px] text-muted font-mono">— {e}</li>
+                      <li key={i} className="text-t-11 text-muted font-mono">— {e}</li>
                     ))}
                   </ul>
                 </div>
               ) : (
                 <div className="inset-tile p-3">
-                  <p className="text-[12px] text-muted">
+                  <p className="text-t-12 text-muted">
                     {invalidEntry.errors.length} schema v1 error{invalidEntry.errors.length === 1 ? '' : 's'} — owner view for details.
                   </p>
                 </div>
@@ -126,7 +126,7 @@ export default function TemplateDetailPage() {
             ) : (
               <EmptyState icon={Layers} title={`"${template}" has no registry metadata`} sub="Ids without a registry block stay out of browse and assignment by design." />
             )}
-            <Link href="/templates/registry" className="inline-flex items-center gap-1 text-[12px] text-muted hover:text-ink mt-4">
+            <Link href="/templates/registry" className="inline-flex items-center gap-1 text-t-12 text-muted hover:text-ink mt-4">
               <ArrowLeft size={13} /> Back to the registry catalog
             </Link>
           </div>
@@ -142,7 +142,7 @@ export default function TemplateDetailPage() {
   return (
     <div className="space-y-5">
       <div>
-        <Link href="/templates/registry" className="inline-flex items-center gap-1 text-[12px] text-muted hover:text-ink mb-3">
+        <Link href="/templates/registry" className="inline-flex items-center gap-1 text-t-12 text-muted hover:text-ink mb-3">
           <ArrowLeft size={13} /> Template Registry
         </Link>
         <PageHeader
@@ -162,8 +162,8 @@ export default function TemplateDetailPage() {
           <div className="flex items-start gap-2.5">
             <AlertTriangle size={15} className="text-amber-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-[12.5px] font-semibold text-ink">Deprecated{reg.deprecated_on ? ` since ${reg.deprecated_on}` : ''}</p>
-              <p className="text-[11.5px] text-muted mt-0.5">
+              <p className="text-t-12 font-semibold text-ink">Deprecated{reg.deprecated_on ? ` since ${reg.deprecated_on}` : ''}</p>
+              <p className="text-t-11 text-muted mt-0.5">
                 New assignments are blocked by the validator. Channels already assigned keep producing and keep resolving within their pinned major — migrate them to a successor style when ready.
               </p>
             </div>
@@ -188,20 +188,20 @@ export default function TemplateDetailPage() {
                 return (
                   <div key={u.channel_id} className="rounded-xl border border-white/10 bg-black/20 p-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[12.5px] font-semibold text-ink">{labels[u.channel_id] || u.channel_id}</span>
-                      <span className="text-[10.5px] text-faint font-mono">{u.channel_id}</span>
+                      <span className="text-t-12 font-semibold text-ink">{labels[u.channel_id] || u.channel_id}</span>
+                      <span className="text-t-10 text-faint font-mono">{u.channel_id}</span>
                       <Chip tone="plain" className="font-mono">pin v{u.pinned_version} (major {u.pinned_major})</Chip>
                     </div>
-                    <p className="text-[10.5px] text-faint mt-1 font-mono">assigned {String(u.assigned_at || '').slice(0, 16).replace('T', ' ')} UTC</p>
+                    <p className="text-t-10 text-faint mt-1 font-mono">assigned {String(u.assigned_at || '').slice(0, 16).replace('T', ' ')} UTC</p>
                     {update ? (
                       <div className="mt-2 rounded-lg border border-sky-500/30 bg-sky-500/10 p-2.5 flex flex-wrap items-center gap-2">
                         <ArrowUpCircle size={13} className="text-sky-400 shrink-0" />
-                        <span className="text-[11.5px] text-ink font-medium">Major update available: v{reg.version} — still pinned to {u.pinned_major}.</span>
+                        <span className="text-t-11 text-ink font-medium">Major update available: v{reg.version} — still pinned to {u.pinned_major}.</span>
                         {isOwner ? (
                           <button
                             onClick={() => repin(u.channel_id, curMajor)}
                             disabled={busy === u.channel_id}
-                            className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500 text-sky-300 hover:text-black border border-sky-500/30 transition disabled:opacity-50 flex items-center gap-1"
+                            className="ml-auto text-t-11 font-semibold px-2.5 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500 text-sky-300 hover:text-black border border-sky-500/30 transition disabled:opacity-50 flex items-center gap-1"
                           >
                             {busy === u.channel_id ? <Loader2 size={11} className="animate-spin" /> : <ArrowUpCircle size={11} />} Re-pin to v{curMajor}
                           </button>
@@ -213,18 +213,18 @@ export default function TemplateDetailPage() {
               })
             )}
             {majorPending.length > 0 && curMajor !== null ? (
-              <p className="text-[11px] text-faint mt-1">
+              <p className="text-t-11 text-faint mt-1">
                 {majorPending.length} channel{majorPending.length === 1 ? '' : 's'} not yet on the latest major — majors never auto-adopt.
               </p>
             ) : null}
             {msg ? (
-              <div className={`rounded-xl border p-2.5 text-[12px] flex items-start gap-1.5 ${msg.ok ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-red-500/30 bg-red-500/10'}`}>
+              <div className={`rounded-xl border p-2.5 text-t-12 flex items-start gap-1.5 ${msg.ok ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-red-500/30 bg-red-500/10'}`}>
                 {msg.ok ? <CheckCircle2 size={13} className="mt-0.5 text-emerald-400 shrink-0" /> : <XCircle size={13} className="mt-0.5 text-red-400 shrink-0" />}
                 <span className={msg.ok ? 'text-emerald-300' : 'text-red-300'}>{msg.text}</span>
               </div>
             ) : null}
             {data?.error ? (
-              <p className="text-[11px] text-faint mt-1">Usage list could not be read from the database: {data.error}</p>
+              <p className="text-t-11 text-faint mt-1">Usage list could not be read from the database: {data.error}</p>
             ) : null}
           </div>
         </Card>
@@ -234,27 +234,27 @@ export default function TemplateDetailPage() {
           <CardHead title="Registry block" sub="Schema v1 — travels with every generation record" icon={ShieldCheck} />
           <div className="px-5 pb-5 space-y-3">
             <div className="inset-tile p-3 space-y-1.5">
-              <div className="flex items-center gap-2 text-[11.5px] text-muted">
+              <div className="flex items-center gap-2 text-t-11 text-muted">
                 <span className="overline w-24 shrink-0">Template id</span>
                 <span className="font-mono truncate">{t.templateId}</span>
               </div>
-              <div className="flex items-center gap-2 text-[11.5px] text-muted">
+              <div className="flex items-center gap-2 text-t-11 text-muted">
                 <span className="overline w-24 shrink-0">Family</span>
                 <span className="font-mono truncate">{t.family}</span>
               </div>
-              <div className="flex items-center gap-2 text-[11.5px] text-muted">
+              <div className="flex items-center gap-2 text-t-11 text-muted">
                 <span className="overline w-24 shrink-0">Niches</span>
                 <span className="flex flex-wrap gap-1">{(reg.niches || []).map((n) => <Chip key={n} tone="plain">{n}</Chip>)}</span>
               </div>
-              <div className="flex items-center gap-2 text-[11.5px] text-muted">
+              <div className="flex items-center gap-2 text-t-11 text-muted">
                 <span className="overline w-24 shrink-0">Formats</span>
                 <span className="font-mono">{(reg.formats || []).join(' · ')}</span>
               </div>
-              <div className="flex items-center gap-2 text-[11.5px] text-muted">
+              <div className="flex items-center gap-2 text-t-11 text-muted">
                 <span className="overline w-24 shrink-0">Renderer</span>
                 <span className="font-mono">{reg.renderer}</span>
               </div>
-              <div className="flex items-center gap-2 text-[11.5px] text-muted">
+              <div className="flex items-center gap-2 text-t-11 text-muted">
                 <span className="overline w-24 shrink-0">Capabilities</span>
                 <span className="flex flex-wrap gap-1">
                   {(reg.required_capabilities || []).length
@@ -270,7 +270,7 @@ export default function TemplateDetailPage() {
               <div className="inset-tile p-3">
                 <ul className="space-y-1">
                   {(reg.variation_rules || []).map((r, i) => (
-                    <li key={i} className="text-[11.5px] text-muted">— {r}</li>
+                    <li key={i} className="text-t-11 text-muted">— {r}</li>
                   ))}
                 </ul>
               </div>
@@ -279,7 +279,7 @@ export default function TemplateDetailPage() {
             {/* safety block (AC-7 display half) */}
             <div>
               <p className="overline mb-1.5">Safety</p>
-              <div className="inset-tile p-3 flex flex-wrap items-center gap-2 text-[11.5px] text-muted">
+              <div className="inset-tile p-3 flex flex-wrap items-center gap-2 text-t-11 text-muted">
                 <span className="flex items-center gap-1">
                   {reg.safety?.required_sources
                     ? <><CheckCircle2 size={12} className="text-emerald-400" /> sources required</>
@@ -301,9 +301,9 @@ export default function TemplateDetailPage() {
               <div className="inset-tile p-3">
                 <ul className="space-y-1.5">
                   {(reg.changelog || []).map((e, i) => (
-                    <li key={i} className="text-[11.5px] flex gap-2">
-                      <span className="font-mono text-[10.5px] text-faint shrink-0">{e.date}</span>
-                      <span className="font-mono text-[10.5px] shrink-0" style={{ color: 'var(--accent)' }}>v{e.version}</span>
+                    <li key={i} className="text-t-11 flex gap-2">
+                      <span className="font-mono text-t-10 text-faint shrink-0">{e.date}</span>
+                      <span className="font-mono text-t-10 shrink-0" style={{ color: 'var(--accent)' }}>v{e.version}</span>
                       <span className="text-muted">{e.note}</span>
                     </li>
                   ))}

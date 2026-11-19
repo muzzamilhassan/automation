@@ -47,7 +47,7 @@ export default function TabNav({
             id={`tab-${t.id}`}
             onClick={() => handleSelect(t.id)}
             className={cn(
-              'group relative flex items-center gap-2 px-3.5 py-2.5 text-[13px] font-semibold whitespace-nowrap transition-colors duration-150 ease-out cursor-pointer',
+              'group relative flex items-center gap-2 px-3.5 py-2.5 text-t-13 font-semibold whitespace-nowrap transition-colors duration-150 ease-out cursor-pointer',
               selected
                 ? 'text-ink'
                 : 'text-muted hover:text-ink hover:bg-surface-2/60 rounded-t-lg'
@@ -66,7 +66,7 @@ export default function TabNav({
             {t.badge != null && t.badge !== '' ? (
               <span
                 className={cn(
-                  'ml-1 text-[10.5px] font-bold px-1.5 py-0.2 rounded-full tnum',
+                  'ml-1 text-t-10 font-bold px-1.5 py-0.2 rounded-full tnum',
                   t.badgeTone === 'bad'
                     ? 'bg-bad/15 text-bad'
                     : t.badgeTone === 'warn'

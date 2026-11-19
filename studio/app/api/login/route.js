@@ -1,4 +1,3 @@
-import { authToken } from '@/lib/auth-token';
 import { signSessionCookie } from '@/lib/session';
 import { createSession, recentFailures, recordLoginAttempt } from '@/lib/session-db';
 import { accessList } from '@/lib/access';
@@ -37,14 +36,15 @@ export async function POST(req) {
   // the email='owner' placeholder broke the sessions list guard)
   const ownerUser = (await accessList().catch(() => [])).find((u) => u.role === 'owner') || { email: 'owner', role: 'owner', name: 'Owner' };
   const { token } = await createSession({ email: ownerUser.email, role: 'owner', name: ownerUser.name || 'Owner', userAgent: ua, ip });
-  const legacy = await authToken(expected);
   console.log(`[audit] password sign-in: ${ownerUser.email} (owner)`);
 
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
   const res = Response.json({ ok: true, role: 'owner' });
   const maxAge = 60 * 60 * 24 * 30;
-  // legacy cookie kept for backward compatibility; A1 opaque session is primary
-  res.headers.append('Set-Cookie', `qs_key=${legacy}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`);
+  // #117: the legacy qs_key cookie (a password-equivalent accepted forever,
+  // unrevocable, offline-crackable) is no longer minted — the A1 qs_session
+  // cookie is the only login credential. Logout still clears any stale
+  // qs_key left in old browsers.
   if (token) {
     // signed claims wrapper: the Edge gate verifies cheaply, the routes
     // resolve the real (revocable) session from the opaque token inside

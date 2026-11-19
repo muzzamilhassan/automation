@@ -91,16 +91,16 @@ export default function Social() {
                   <div key={c.slug} className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-surface-2 transition-colors">
                     <BrandMark short={BRAND[c.slug]?.short} accent={c.accent} size={34} />
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[13px] font-semibold text-ink truncate">{c.label}</span>
-                      <span className="block text-[11px] text-faint font-mono truncate">
+                      <span className="block text-t-13 font-semibold text-ink truncate">{c.label}</span>
+                      <span className="block text-t-11 text-faint font-mono truncate">
                         {row ? `@${row.handle || row.username || row.name}` : 'not linked'}
                       </span>
                     </span>
-                    <span className="flex items-center gap-2 text-[11px] text-faint hidden sm:flex">
+                    <span className="flex items-center gap-2 text-t-11 text-faint hidden sm:flex">
                       <Icon size={13} style={{ color }} />
                     </span>
                     <span className="text-right shrink-0">
-                      <span className="block tnum text-[13px] font-bold text-ink">{row ? fmt(tab === 'youtube' ? row.subs : row.followers) : '—'}</span>
+                      <span className="block tnum text-t-13 font-bold text-ink">{row ? fmt(tab === 'youtube' ? row.subs : row.followers) : '—'}</span>
                       <span className="block overline">{tab === 'youtube' ? 'subs' : 'followers'}</span>
                     </span>
                   </div>
@@ -115,26 +115,26 @@ export default function Social() {
                   </span>
                   <div className="min-w-0">
                     <p className="text-[13.5px] font-bold text-ink">@arzo22345 · “Poetic Home”</p>
-                    <p className="text-[11.5px] text-faint">UK account · posts as Quarry Studio app</p>
+                    <p className="text-t-11 text-faint">UK account · posts as Quarry Studio app</p>
                   </div>
                   <Chip tone="ok" dot>LIVE</Chip>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-2.5">
                   <div className="inset-tile p-3">
                     <p className="overline mb-1">Shorts slots</p>
-                    <p className="text-[12px] text-muted">4 posts/day via <code className="font-mono text-accent">tiktok-post.yml</code></p>
+                    <p className="text-t-12 text-muted">4 posts/day via <code className="font-mono text-accent">tiktok-post.yml</code></p>
                   </div>
                   <div className="inset-tile p-3">
                     <p className="overline mb-1">Clip engine</p>
-                    <p className="text-[12px] text-muted">Long-forms auto-cut into 1-min parts · 1 part/day</p>
+                    <p className="text-t-12 text-muted">Long-forms auto-cut into 1-min parts · 1 part/day</p>
                   </div>
                   <div className="inset-tile p-3">
                     <p className="overline mb-1">Queue</p>
-                    <p className="text-[12px] text-muted">Parts drip out one per day automatically</p>
+                    <p className="text-t-12 text-muted">Parts drip out one per day automatically</p>
                   </div>
                   <div className="inset-tile p-3">
                     <p className="overline mb-1">Branding</p>
-                    <p className="text-[12px] text-muted">“Quote Quarry” naming pending in the app</p>
+                    <p className="text-t-12 text-muted">“Quote Quarry” naming pending in the app</p>
                   </div>
                 </div>
               </div>
@@ -148,13 +148,13 @@ export default function Social() {
                   </span>
                   <div className="min-w-0">
                     <p className="text-[13.5px] font-bold text-ink">{qqThreadsHandle ? '@' + qqThreadsHandle : '—'}</p>
-                    <p className="text-[11.5px] text-faint">1 QQ reel per day · restored Sep 20</p>
+                    <p className="text-t-11 text-faint">1 QQ reel per day · restored Sep 20</p>
                   </div>
                   <Chip tone="warn" dot>token expiring</Chip>
                 </div>
                 <div className="inset-tile p-3 flex gap-2.5">
                   <AlertTriangle size={14} className="shrink-0 mt-0.5" style={{ color: 'var(--warn)' }} />
-                  <p className="text-[12px] text-muted leading-relaxed">
+                  <p className="text-t-12 text-muted leading-relaxed">
                     The token is valid until about <span className="font-semibold text-ink">Oct 29</span>. Refresh it before
                     then or posting stops silently. Files are hosted on uguu.se (tmpfiles.org serves HTML — known trap).
                   </p>
@@ -170,13 +170,13 @@ export default function Social() {
                   </span>
                   <div className="min-w-0">
                     <p className="text-[13.5px] font-bold text-ink">NIAZRA · personal API</p>
-                    <p className="text-[11.5px] text-faint">No review needed · ~1 year token</p>
+                    <p className="text-t-11 text-faint">No review needed · ~1 year token</p>
                   </div>
                   <Chip tone="info" dot>waiting on you</Chip>
                 </div>
                 <div className="inset-tile p-3 flex gap-2.5">
                   <OctagonAlert size={14} className="shrink-0 mt-0.5" style={{ color: 'var(--info)' }} />
-                  <p className="text-[12px] text-muted leading-relaxed">
+                  <p className="text-t-12 text-muted leading-relaxed">
                     Code and CI are wired and pushed. To finish: paste the App ID + secret, then the OAuth tunnel runs once
                     (port 3003) and the PINTEREST secrets get stored.
                   </p>
@@ -211,7 +211,7 @@ export default function Social() {
 
           <Card>
             <CardHead title="Timing strategy" sub="US-anchored slots = money slots" icon={Clock} />
-            <div className="px-4 pb-4 space-y-2 text-[12px] text-muted">
+            <div className="px-4 pb-4 space-y-2 text-t-12 text-muted">
               <p>· Slot 3 (US prime evening) is the money slot — protect it.</p>
               <p>· IG posts at 7:20 AM / 11:20 AM / 6:20 PM ET.</p>
               <p>· TikTok posts at production time (~4:40 AM ET) — scheduled slots are the planned fix.</p>
@@ -230,8 +230,8 @@ function Note({ tone, title, children }) {
     <div className="inset-tile p-3 flex gap-2.5">
       <Icon size={14} className="shrink-0 mt-0.5" style={{ color: NOTE_COLOR[tone] }} />
       <div className="min-w-0">
-        <p className="text-[12px] font-semibold text-ink">{title}</p>
-        <p className="text-[11.5px] text-muted leading-relaxed mt-0.5">{children}</p>
+        <p className="text-t-12 font-semibold text-ink">{title}</p>
+        <p className="text-t-11 text-muted leading-relaxed mt-0.5">{children}</p>
       </div>
     </div>
   );

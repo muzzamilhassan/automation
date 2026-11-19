@@ -55,11 +55,11 @@ export default function SlideoutDrawer({
           {/* Header */}
           <div className="flex items-start justify-between px-6 py-4.5 border-b border-line shrink-0">
             <div>
-              <h2 id="drawer-title" className="font-display text-[16px] font-bold text-ink tracking-tight">
+              <h2 id="drawer-title" className="font-display text-t-16 font-bold text-ink tracking-tight">
                 {title}
               </h2>
               {description ? (
-                <p className="text-[12px] text-muted mt-0.5 leading-relaxed">
+                <p className="text-t-12 text-muted mt-0.5 leading-relaxed">
                   {description}
                 </p>
               ) : null}
