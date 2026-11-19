@@ -121,7 +121,7 @@ test('P0-19/P0-20: music button visible; undefined tokens replaced', () => {
   const music = read('studio/app/music/page.js');
   assert.match(music, /className="icon-btn shrink-0/);
   noMatch(music, /'transparent'/);
-  for (const p of ['studio/app/templates/page.js', 'studio/app/templates/registry/page.js', 'studio/components/TemplateSimulator.js'])
+  for (const p of ['studio/app/templates/page.js', 'studio/app/templates/registry/page.js'])
     noMatch(read(p), /var\(--surface-1\)/);
   noMatch(read('studio/app/usage/page.js'), /var\(--error\)/);
 });

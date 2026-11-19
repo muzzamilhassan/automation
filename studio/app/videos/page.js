@@ -366,7 +366,9 @@ function Library() {
               <button type="button" className="btn btn-sm btn-outline shrink-0" onClick={() => setNonce((n) => n + 1)}>
                 <RotateCw size={13} aria-hidden /> Retry
               </button>
-            ) : null}
+            ) : (
+              <a href="/login?next=/videos" className="btn btn-sm btn-primary shrink-0">Sign in</a>
+            )}
           </div>
         </Card>
       ) : (

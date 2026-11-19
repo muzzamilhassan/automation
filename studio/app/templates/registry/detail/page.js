@@ -6,7 +6,7 @@
 // pipeline records travel with. Opened from the registry browser via
 // ?template=<id> (the registry key — Phase 5 T2f rename of ?family=); house
 // pattern reads the query string directly (channels/add).
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import {
   Layers, ArrowLeft, RefreshCw, AlertTriangle, ArrowUpCircle, CheckCircle2,
@@ -15,27 +15,27 @@ import {
 import { PageHeader, Card, CardHead, Chip, PageSkeleton, EmptyState } from '@/components/ui';
 import { Button } from '@/components/untitledui/base/buttons/button';
 
+const noopSubscribe = () => () => {};
+
 function majorOf(version) {
   const n = parseInt(String(version || '').split('.')[0], 10);
   return Number.isInteger(n) ? n : null;
 }
 
 export default function TemplateDetailPage() {
-  const [template, setTemplate] = useState(null);   // the registry key from ?template=
+  // the registry key from ?template= — null during SSR/hydration, then the
+  // real query string (no setState-in-effect round trip)
+  const search = useSyncExternalStore(noopSubscribe, () => window.location.search, () => null);
+  const q = search === null ? null : new URLSearchParams(search);
+  const template = q ? (q.get('template') || '') : null;
   const [data, setData] = useState(null);
   const [loadErr, setLoadErr] = useState(null);
   const [labels, setLabels] = useState({});     // channel slug -> display label
   const [busy, setBusy] = useState('');         // channelId currently re-pinning
   const [msg, setMsg] = useState(null);         // { ok, text }
 
-  useEffect(() => {
-    const q = new URLSearchParams(window.location.search);
-    setTemplate(q.get('template') || '');
-  }, []);
-
-  const load = () => {
+  const fetchView = useCallback(() => {
     if (template === null) return;
-    setLoadErr(null);
     fetch(`/api/templates?template=${encodeURIComponent(template || '')}`)
       .then(async (r) => {
         const d = await r.json();
@@ -43,8 +43,9 @@ export default function TemplateDetailPage() {
         setData(d);
       })
       .catch((e) => setLoadErr(String(e.message || e)));
-  };
-  useEffect(() => { load(); }, [template]);
+  }, [template]);
+  useEffect(() => { fetchView(); }, [fetchView]);
+  const load = () => { setLoadErr(null); fetchView(); };
 
   // channel display labels for the usage list (graceful fallback to raw ids)
   useEffect(() => {
@@ -158,9 +159,9 @@ export default function TemplateDetailPage() {
 
       {/* AC-6: deprecation notice */}
       {reg.deprecated ? (
-        <Card className="border border-amber-500/30 bg-amber-500/10 p-4">
+        <Card className="rounded-xl border p-4" style={{ borderColor: 'color-mix(in srgb, var(--warn) 34%, transparent)', background: 'color-mix(in srgb, var(--warn) 8%, transparent)' }}>
           <div className="flex items-start gap-2.5">
-            <AlertTriangle size={15} className="text-amber-400 shrink-0 mt-0.5" />
+            <AlertTriangle size={15} className="shrink-0 mt-0.5" style={{ color: 'var(--warn-ink)' }} />
             <div>
               <p className="t-12 font-semibold text-ink">Deprecated{reg.deprecated_on ? ` since ${reg.deprecated_on}` : ''}</p>
               <p className="t-11 text-muted mt-0.5">
@@ -186,7 +187,7 @@ export default function TemplateDetailPage() {
               usage.map((u) => {
                 const update = curMajor !== null && u.pinned_major < curMajor;
                 return (
-                  <div key={u.channel_id} className="rounded-xl border border-white/10 bg-black/20 p-3">
+                  <div key={u.channel_id} className="inset-tile p-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="t-12 font-semibold text-ink">{labels[u.channel_id] || u.channel_id}</span>
                       <span className="t-10 text-faint font-mono">{u.channel_id}</span>
@@ -194,8 +195,8 @@ export default function TemplateDetailPage() {
                     </div>
                     <p className="t-10 text-faint mt-1 font-mono">assigned {String(u.assigned_at || '').slice(0, 16).replace('T', ' ')} UTC</p>
                     {update ? (
-                      <div className="mt-2 rounded-lg border border-sky-500/30 bg-sky-500/10 p-2.5 flex flex-wrap items-center gap-2">
-                        <ArrowUpCircle size={13} className="text-sky-400 shrink-0" />
+                      <div className="mt-2 rounded-lg border p-2.5 flex flex-wrap items-center gap-2" style={{ borderColor: 'color-mix(in srgb, var(--info) 34%, transparent)', background: 'color-mix(in srgb, var(--info) 8%, transparent)' }}>
+                        <ArrowUpCircle size={13} className="shrink-0" style={{ color: 'var(--info-ink)' }} />
                         <span className="t-11 text-ink font-medium">Major update available: v{reg.version} — still pinned to {u.pinned_major}.</span>
                         {isOwner ? (
                           <button
@@ -218,9 +219,9 @@ export default function TemplateDetailPage() {
               </p>
             ) : null}
             {msg ? (
-              <div className={`rounded-xl border p-2.5 t-12 flex items-start gap-1.5 ${msg.ok ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-red-500/30 bg-red-500/10'}`}>
-                {msg.ok ? <CheckCircle2 size={13} className="mt-0.5 text-emerald-400 shrink-0" /> : <XCircle size={13} className="mt-0.5 text-red-400 shrink-0" />}
-                <span className={msg.ok ? 'text-emerald-300' : 'text-red-300'}>{msg.text}</span>
+              <div className="rounded-xl border p-2.5 t-12 flex items-start gap-1.5" style={{ borderColor: `color-mix(in srgb, var(${msg.ok ? '--ok' : '--bad'}) 34%, transparent)`, background: `color-mix(in srgb, var(${msg.ok ? '--ok' : '--bad'}) 8%, transparent)` }}>
+                {msg.ok ? <CheckCircle2 size={13} className="mt-0.5 shrink-0" style={{ color: 'var(--ok-ink)' }} /> : <XCircle size={13} className="mt-0.5 shrink-0" style={{ color: 'var(--bad-ink)' }} />}
+                <span style={{ color: `var(${msg.ok ? '--ok-ink' : '--bad-ink'})` }}>{msg.text}</span>
               </div>
             ) : null}
             {data?.error ? (
@@ -282,7 +283,7 @@ export default function TemplateDetailPage() {
               <div className="inset-tile p-3 flex flex-wrap items-center gap-2 t-11 text-muted">
                 <span className="flex items-center gap-1">
                   {reg.safety?.required_sources
-                    ? <><CheckCircle2 size={12} className="text-emerald-400" /> sources required</>
+                    ? <><CheckCircle2 size={12} style={{ color: 'var(--ok-ink)' }} /> sources required</>
                     : <><XCircle size={12} className="text-faint" /> sources not required</>}
                 </span>
                 {(reg.safety?.review_required || []).length ? (

@@ -264,7 +264,7 @@ export default function AppShell({ children }) {
 
   // Bare pages — no sidebar, no topbar: login, the public /proof sales page,
   // and the DFY client workspace (it has its own minimal chrome).
-  if (pathname === '/login' || pathname === '/proof' || pathname === '/client') return <>{children}</>;
+  if (pathname === '/login' || pathname === '/proof' || pathname === '/client') return <ConfirmProvider>{children}</ConfirmProvider>;
 
   const logout = async () => {
     setLoggingOut(true);

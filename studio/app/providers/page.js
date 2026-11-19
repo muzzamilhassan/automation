@@ -8,9 +8,12 @@
 // read-back), a key probe for providers the vault has no slot for yet, and
 // the workspace-default routing editor (ProviderRoutingPanel).
 // Owner writes, staff read-only (both enforced server-side by the APIs).
+// Round 2: each catalog row is a calm summary; the add-key / probe form opens
+// in a Drawer ("Manage key") instead of sitting expanded inside every row.
 import { useEffect, useMemo, useState } from 'react';
-import { PlugZap, KeyRound, Loader2, CheckCircle2, XCircle, Info, ExternalLink, LockKeyhole, FlaskConical } from 'lucide-react';
-import { Card, CardHead, Chip, PageHeader, PageSkeleton } from '@/components/ui';
+import { PlugZap, KeyRound, Loader2, CheckCircle2, XCircle, Info, ExternalLink, LockKeyhole, FlaskConical, RefreshCw, Settings2 } from 'lucide-react';
+import { Card, CardHead, Chip, PageHeader, PageSkeleton, EmptyState } from '@/components/ui';
+import Drawer from '@/components/Drawer';
 import ProviderRoutingPanel from '@/components/ProviderRoutingPanel';
 
 const LICENSE_TONE = { free: 'ok', 'free-with-caveats': 'warn', paid: 'bad' };
@@ -31,6 +34,7 @@ export default function ProvidersPage() {
   const [loadErr, setLoadErr] = useState(null);
   const [keyForm, setKeyForm] = useState({});  // providerId -> { slug, key, busy, msg:{ok,text} }
   const [probe, setProbe] = useState({});      // providerId -> { busy, msg:{ok,text} }
+  const [managing, setManaging] = useState(null); // provider id whose key drawer is open
 
   const load = () => {
     setLoadErr(null);
@@ -65,7 +69,7 @@ export default function ProvidersPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slug: form.slug, provider: id, key }),
       });
-      const d = await r.json();
+      const d = await r.json().catch(() => ({}));
       setForm(id, { busy: false, key: '', msg: d.ok ? { ok: true, text: `saved ${d.masked} on ${form.slug} — tested live at save` } : { ok: false, text: d.error || `rejected (${r.status})` } });
       if (d.ok) load();
     } catch (e) {
@@ -84,7 +88,7 @@ export default function ProvidersPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'test-key', providerId: id, key }),
       });
-      const d = await r.json();
+      const d = await r.json().catch(() => ({}));
       setProbe((s) => ({ ...s, [id]: { busy: false, msg: d.ok ? { ok: true, text: 'key works — nothing stored' } : { ok: false, text: `rejected: ${d.detail || 'unknown error'}` } } }));
     } catch (e) {
       setProbe((s) => ({ ...s, [id]: { busy: false, msg: { ok: false, text: String(e.message || e) } } }));
@@ -95,9 +99,11 @@ export default function ProvidersPage() {
     return (
       <div>
         <PageHeader icon={PlugZap} title="Providers" sub="BYOK catalog, keys & per-task routing" />
-        <div className="card p-5 flex items-center gap-2 t-12" style={{ color: 'var(--bad)' }}>
-          <XCircle size={14} className="shrink-0" /> Providers unavailable: {loadErr}
-        </div>
+        <Card className="p-4">
+          <EmptyState icon={XCircle} title="Can't load providers right now" sub={`${loadErr} — your keys and routing are unchanged; only this view couldn't read them.`}>
+            <button className="btn btn-outline btn-sm mt-3" onClick={load}><RefreshCw size={13} /> Retry</button>
+          </EmptyState>
+        </Card>
       </div>
     );
   }
@@ -120,13 +126,12 @@ export default function ProvidersPage() {
             const channelKeys = keysByProvider[p.id] || [];
             const configured = p.envSet || channelKeys.length > 0 || p.local;
             const form = formOf(p.id);
-            const probeState = probe[p.id];
             return (
-              <div key={p.id} className="rounded-xl border border-white/10 bg-black/20 p-3">
+              <div key={p.id} className="rounded-xl border border-line bg-surface-2 p-3 min-w-0">
                 {/* head row */}
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="t-13 font-semibold text-ink">{p.label}</span>
-                  <span className="t-10 px-2 py-0.5 rounded-full border border-white/10 text-faint font-mono">{p.id}</span>
+                  <span className="t-10 px-2 py-0.5 rounded-full border border-line text-faint font-mono">{p.id}</span>
                   {p.capabilities.map((c) => <Chip key={c} tone="accent">{c}</Chip>)}
                   <Chip tone={LICENSE_TONE[p.licenseClass] || 'plain'}>{p.licenseClass}</Chip>
                   {p.local ? <Chip tone="plain"><LockKeyhole size={10} className="inline mr-1 -mt-px" />local — no key</Chip>
@@ -146,7 +151,7 @@ export default function ProvidersPage() {
                 </div>
                 <p className="t-11 text-muted mt-1.5 leading-relaxed">{p.notes}</p>
                 {p.id === 'hf' ? (
-                  <div className="flex items-start gap-1.5 mt-1.5 t-11" style={{ color: 'var(--warn, #d97706)' }}>
+                  <div className="flex items-start gap-1.5 mt-1.5 t-11" style={{ color: 'var(--warn-ink)' }}>
                     <Info size={12} className="mt-0.5 shrink-0" />
                     <span>licenseClass paid — disqualified as a free lane 2026-10-28 (zero monthly credits on free); kept in the projection only so Phase-1 vault-adds rulings stay byte-identical.</span>
                   </div>
@@ -157,79 +162,22 @@ export default function ProvidersPage() {
                   <div className="mt-2 space-y-1">
                     {channelKeys.map((k) => (
                       <div key={k.slug} className="flex flex-wrap items-center gap-2 t-11">
-                        <KeyRound size={11} className="shrink-0" style={{ color: 'var(--ok)' }} />
+                        <KeyRound size={11} className="shrink-0" style={{ color: 'var(--ok-ink)' }} />
                         <span className="text-ink font-medium">{k.slug}</span>
-                        <span className="font-mono" style={{ color: 'var(--ok)' }}>{k.masked}</span>
+                        <span className="font-mono" style={{ color: 'var(--ok-ink)' }}>{k.masked}</span>
                         {k.updated ? <span className="text-faint">tested {String(k.updated).slice(0, 16).replace('T', ' ')} UTC · by {k.updatedBy || '—'}</span> : null}
                       </div>
                     ))}
                   </div>
                 ) : null}
 
-                {/* add-key flow (owner only; vault-tracked providers) */}
-                {isOwner && p.vaultKey ? (
-                  <div className="flex flex-wrap items-center gap-2 mt-2">
-                    <select
-                      value={form.slug || ''}
-                      onChange={(e) => setForm(p.id, { slug: e.target.value })}
-                      className="t-11 px-2 py-1.5 rounded-lg border border-line bg-surface"
-                    >
-                      <option value="">{channels.length ? '— channel for this key —' : '— no channels yet —'}</option>
-                      {channels.map((c) => (
-                        <option key={c.slug} value={c.slug}>{c.label || c.slug}{c.active === false ? ' (parked)' : ''}</option>
-                      ))}
-                    </select>
-                    <input
-                      type="password"
-                      autoComplete="new-password"
-                      placeholder={`paste ${p.label.split(' ')[0].toLowerCase()} key…`}
-                      value={form.key || ''}
-                      onChange={(e) => setForm(p.id, { key: e.target.value })}
-                      className="flex-1 min-w-[180px] t-12 px-3 py-1.5 rounded-lg border border-white/10 bg-black/20"
-                    />
-                    <button
-                      onClick={() => saveKey(p.id)}
-                      disabled={form.busy || !channels.length}
-                      className="btn btn-outline btn-sm"
-                    >
-                      {form.busy ? <Loader2 size={11} className="animate-spin" /> : <KeyRound size={11} />} Save &amp; test
+                {isOwner && !p.local ? (
+                  <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                    <button className="btn btn-outline btn-sm" onClick={() => setManaging(p.id)}>
+                      <Settings2 size={12} /> {p.vaultKey ? 'Manage key' : 'Test a key'}
                     </button>
-                    <a href={VAULT_GET_URL[p.id]} target="_blank" rel="noreferrer" className="t-11 text-muted hover:text-ink flex items-center gap-1">
-                      get a key <ExternalLink size={10} />
-                    </a>
+                    {form.msg?.ok ? <span className="t-11 flex items-center gap-1" style={{ color: 'var(--ok-ink)' }}><CheckCircle2 size={11} /> {form.msg.text}</span> : null}
                   </div>
-                ) : null}
-
-                {/* probe-only flow (owner only; not yet vault-tracked) */}
-                {isOwner && !p.vaultKey && !p.local ? (
-                  <div className="flex flex-wrap items-center gap-2 mt-2">
-                    <input
-                      type="password"
-                      autoComplete="new-password"
-                      placeholder={`paste ${p.label.split(' ')[0].toLowerCase()} key to probe…`}
-                      value={form.key || ''}
-                      onChange={(e) => setForm(p.id, { key: e.target.value })}
-                      className="flex-1 min-w-[180px] t-12 px-3 py-1.5 rounded-lg border border-white/10 bg-black/20"
-                    />
-                    <button
-                      onClick={() => testOnly(p.id)}
-                      disabled={probeState?.busy}
-                      className="btn btn-outline btn-sm"
-                    >
-                      {probeState?.busy ? <Loader2 size={11} className="animate-spin" /> : <FlaskConical size={11} />} Test only
-                    </button>
-                    <span className="t-10 text-faint">no vault slot yet — this key rides the pipeline env ({p.envVar}); probing never stores it</span>
-                  </div>
-                ) : null}
-                {probeState?.msg ? (
-                  <p className="t-11 mt-2 flex items-center gap-1" style={{ color: probeState.msg.ok ? 'var(--ok)' : 'var(--bad)' }}>
-                    {probeState.msg.ok ? <CheckCircle2 size={11} /> : <XCircle size={11} />} {probeState.msg.text}
-                  </p>
-                ) : null}
-                {form.msg ? (
-                  <p className="t-11 mt-2 flex items-center gap-1" style={{ color: form.msg.ok ? 'var(--ok)' : 'var(--bad)' }}>
-                    {form.msg.ok ? <CheckCircle2 size={11} /> : <XCircle size={11} />} {form.msg.text}
-                  </p>
                 ) : null}
               </div>
             );
@@ -244,6 +192,86 @@ export default function ProvidersPage() {
           <ProviderRoutingPanel />
         </div>
       </Card>
+
+      <KeyDrawer
+        provider={catalog.find((p) => p.id === managing) || null}
+        onClose={() => setManaging(null)}
+        channels={channels}
+        form={managing ? formOf(managing) : {}}
+        setForm={(patch) => setForm(managing, patch)}
+        probeState={managing ? probe[managing] : null}
+        onSave={() => saveKey(managing)}
+        onProbe={() => testOnly(managing)}
+      />
     </div>
+  );
+}
+
+// The add-key (vault-tracked) or probe-only (env-riding) form, one provider at
+// a time. Props only — every hook value lives in ProvidersPage.
+function KeyDrawer({ provider: p, onClose, channels, form, setForm, probeState, onSave, onProbe }) {
+  const getUrl = p ? VAULT_GET_URL[p.id] : null;
+  const msg = p?.vaultKey ? form.msg : probeState?.msg;
+  return (
+    <Drawer
+      open={!!p}
+      onClose={onClose}
+      title={p ? (p.vaultKey ? `${p.label} key` : `Test a ${p.label} key`) : ''}
+      description={p ? (p.vaultKey ? 'Saved per channel: tested live, encrypted, shown masked forever after.' : `No vault slot yet — this provider rides the pipeline env (${p.envVar}). Probing never stores the key.`) : ''}
+      icon={KeyRound}
+      size="sm"
+      footer={p ? (
+        <>
+          <button className="btn btn-outline" onClick={onClose}>Close</button>
+          {p.vaultKey ? (
+            <button className="btn btn-primary" onClick={onSave} disabled={form.busy || !channels.length || !form.slug || !(form.key || '').trim()}>
+              {form.busy ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />} Save &amp; test
+            </button>
+          ) : (
+            <button className="btn btn-primary" onClick={onProbe} disabled={probeState?.busy || !(form.key || '').trim()}>
+              {probeState?.busy ? <Loader2 size={14} className="animate-spin" /> : <FlaskConical size={14} />} Test only
+            </button>
+          )}
+        </>
+      ) : null}
+    >
+      {p ? (
+        <div className="space-y-4">
+          {p.vaultKey ? (
+            <div>
+              <label className="block t-12 font-semibold text-ink mb-1.5" htmlFor="pk-channel">Channel</label>
+              <select id="pk-channel" value={form.slug || ''} onChange={(e) => setForm({ slug: e.target.value })} className="input w-full">
+                <option value="">{channels.length ? '— channel for this key —' : '— no channels yet —'}</option>
+                {channels.map((c) => (
+                  <option key={c.slug} value={c.slug}>{c.label || c.slug}{c.active === false ? ' (parked)' : ''}</option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+          <div>
+            <label className="block t-12 font-semibold text-ink mb-1.5" htmlFor="pk-key">API key</label>
+            <input
+              id="pk-key"
+              type="password"
+              autoComplete="new-password"
+              placeholder={`paste ${p.label.split(' ')[0].toLowerCase()} key…`}
+              value={form.key || ''}
+              onChange={(e) => setForm({ key: e.target.value })}
+              className="input w-full"
+            />
+            {getUrl ? (
+              <a href={getUrl} target="_blank" rel="noreferrer" className="t-11 text-muted hover:text-ink inline-flex items-center gap-1 mt-1.5">
+                Get a key from {p.label} <ExternalLink size={10} />
+              </a>
+            ) : null}
+          </div>
+          {msg ? (
+            <p className="t-12 flex items-center gap-1.5" role={msg.ok ? 'status' : 'alert'} style={{ color: msg.ok ? 'var(--ok-ink)' : 'var(--bad-ink)' }}>
+              {msg.ok ? <CheckCircle2 size={13} /> : <XCircle size={13} />} {msg.text}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </Drawer>
   );
 }

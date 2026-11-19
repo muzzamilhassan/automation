@@ -16,6 +16,8 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), selec
 
 export default function Drawer({ open, onClose, title, description, icon: Icon, size = 'md', footer, children }) {
   const panelRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
   const titleId = useId();
   const descId = useId();
 
@@ -30,9 +32,12 @@ export default function Drawer({ open, onClose, title, description, icon: Icon, 
       (first || panelRef.current)?.focus();
     }, 30);
     const onKey = (e) => {
+      // A confirm dialog on top owns the keyboard — Escape must close IT,
+      // not the drawer underneath.
+      if (document.querySelector('[role="alertdialog"]')) return;
       if (e.key === 'Escape') {
         e.preventDefault();
-        onClose?.();
+        onCloseRef.current?.();
         return;
       }
       if (e.key !== 'Tab' || !panelRef.current) return;
@@ -55,7 +60,7 @@ export default function Drawer({ open, onClose, title, description, icon: Icon, 
       document.body.style.overflow = orig;
       if (opener && typeof opener.focus === 'function') opener.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

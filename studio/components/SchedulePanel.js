@@ -1,39 +1,48 @@
 'use client';
-// #100 — per-channel production scheduling panel: doc days, short days,
-// shorts source, live quota projection. Writes through /api/channels/schedule
-// (owner/staff); the engine reads yt-mcp/cadence.json (overlay merged last in
-// lib/brand-resolve.mjs).
+// #100 — per-channel production scheduling: doc days, short days, shorts
+// source, gate cron and the live quota projection. Writes through
+// /api/channels/schedule (owner/staff); the engine reads yt-mcp/cadence.json
+// (overlay merged last in lib/brand-resolve.mjs).
+//
+// Round 2: rendered inside a Drawer via ChannelDrawers. `frame(body, footer)`
+// lets the drawer own the layout (sticky Save in its footer); without a frame
+// the panel falls back to a plain inline tile.
 import { useCallback, useEffect, useState } from 'react';
-import { CalendarDays, AlertTriangle } from 'lucide-react';
+import { CalendarDays, AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/untitledui/base/buttons/button';
-import { Chip } from '@/components/ui';
+import { Chip, Progress } from '@/components/ui';
 import { projection, DAY_NAMES } from '@/lib/schedule-projection';
 
-const PER_UPLOAD = 1700;
+const TONE_INK = { error: 'var(--bad-ink)', warn: 'var(--warn-ink)', ok: 'var(--ok-ink)' };
 
-function DayPicker({ label, days, onToggle }) {
+function DayPicker({ label, hint, days, onToggle }) {
   return (
-    <div>
-      <div className="overline mb-1.5">{label}</div>
-      <div className="flex flex-wrap gap-1">
+    <fieldset className="min-w-0">
+      <legend className="t-13 font-semibold text-ink">{label}</legend>
+      {hint ? <p className="t-11 text-faint mt-0.5 mb-2">{hint}</p> : null}
+      <div className="flex flex-wrap gap-1.5">
         {DAY_NAMES.map((d) => {
           const on = days.includes(d);
           return (
             <button
               key={d}
               type="button"
+              data-kit="toggle"
+              aria-pressed={on}
               onClick={() => onToggle(d)}
-              className={`px-2.5 py-1 rounded-md t-11 font-semibold border transition-colors ${
-                on ? 'border-transparent text-white bg-[#1a1d24]' : 'border-[--border] text-muted hover:text-ink'
-              }`}
-              style={on ? { background: '#2b6cb0' } : undefined}
+              className="min-w-[44px] h-8 px-2.5 rounded-md t-12 font-semibold border transition-colors"
+              style={
+                on
+                  ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: 'var(--accent-ink)' }
+                  : { borderColor: 'var(--line-strong)', color: 'var(--muted)', background: 'var(--surface)' }
+              }
             >
               {d}
             </button>
           );
         })}
       </div>
-    </div>
+    </fieldset>
   );
 }
 
@@ -60,7 +69,7 @@ function deriveModelParams(serverProj) {
   return out;
 }
 
-export default function SchedulePanel({ slug, accent }) {
+export default function SchedulePanel({ slug, frame }) {
   const [schedule, setSchedule] = useState(null);
   const [serverProj, setServerProj] = useState(null);
   const [gateCron, setGateCron] = useState('');
@@ -126,7 +135,7 @@ export default function SchedulePanel({ slug, accent }) {
       else {
         if (j.projection) setServerProj(j.projection);
         if (j.gateCron) setGateCron(j.gateCron);
-        setMsg({ tone: 'ok', text: 'saved — next runs pick this up' });
+        setMsg({ tone: 'ok', text: 'Saved — the next runs pick this up.' });
         const saveWarnings = [...new Set([...(j.projection?.warnings || []), ...(j.warnings || [])])];
         if (saveWarnings.length) setMsg({ tone: 'warn', text: saveWarnings.join(' ') });
       }
@@ -137,95 +146,120 @@ export default function SchedulePanel({ slug, accent }) {
     }
   };
 
-  const toneColor = proj.tone === 'over' ? '#e11d48' : proj.tone === 'warn' ? '#d97706' : '#10b981';
+  const barColor = proj.tone === 'over' ? 'var(--bad)' : proj.tone === 'warn' ? 'var(--warn)' : 'var(--ok)';
+  const loading = !schedule && !loadError;
 
-  return (
-    <div className="inset-tile p-4 mt-1">
-      <div className="flex items-center gap-2 overline mb-3">
-        <CalendarDays size={12} /> Production scheduling
-        <Chip tone={proj.tone === 'over' ? 'bad' : proj.tone === 'warn' ? 'warn' : 'ok'}>
-          {proj.worstDayUnits}/{proj.budget} units worst day ({proj.pct}%)
-        </Chip>
-      </div>
-
+  const body = (
+    <div className="space-y-6 min-w-0">
       {loadError ? (
-        <div role="alert" className="flex items-center gap-2 t-12 mb-3" style={{ color: 'var(--bad)' }}>
-          <AlertTriangle size={13} />
-          <span>Couldn&apos;t load this channel&apos;s schedule ({loadError}) — saving is disabled so nothing gets overwritten.</span>
-          <button type="button" className="underline" onClick={retry}>Retry</button>
-        </div>
-      ) : null}
-
-      <div className="grid sm:grid-cols-2 gap-4 mb-3">
-        <DayPicker label="Long-form days (docs/week)" days={draft.docDays} onToggle={toggleDay('docDays')} />
-        <DayPicker label="Shorts days (clips posted these days)" days={draft.shortDays} onToggle={toggleDay('shortDays')} />
-      </div>
-
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <span className="overline">Shorts source:</span>
-        {['generated', 'clips'].map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => setSchedule((s0) => ({ ...s0, shortsSource: s }))}
-            className={`px-3 py-1 rounded-md t-11 font-semibold border transition-colors ${
-              draft.shortsSource === s ? 'border-transparent text-white' : 'border-[--border] text-muted hover:text-ink'
-            }`}
-            style={draft.shortsSource === s ? { background: accent || '#2b6cb0' } : undefined}
-          >
-            {s === 'clips' ? 'Clips from long-forms' : 'Generated daily'}
+        <div role="alert" className="flex flex-wrap items-center gap-2 t-13" style={{ color: 'var(--bad-ink)' }}>
+          <AlertTriangle size={14} className="shrink-0" />
+          <span className="min-w-0 flex-1">Couldn&apos;t load this channel&apos;s schedule ({loadError}) — saving is disabled so nothing gets overwritten.</span>
+          <button type="button" className="btn btn-outline btn-sm" onClick={retry}>
+            <RefreshCw size={13} /> Retry
           </button>
-        ))}
-      </div>
-
-      <div className="mb-3 flex items-center gap-2 flex-wrap">
-        <span className="overline">Autopilot gate cron (UTC):</span>
-        <input
-          type="text"
-          value={gateCron}
-          onChange={(e) => setGateCron(e.target.value)}
-          placeholder="e.g. 13 2 * * *"
-          className="px-2.5 py-1 rounded-md border border-[--border] bg-black/20 font-mono t-11 text-ink w-36"
-        />
-        {cronState.valid && cronState.label ? (
-          <span className="t-11 text-muted font-mono">{cronState.label}</span>
-        ) : !cronState.valid ? (
-          <span className="t-11 text-red-400">Use M H * * * (0-59, 0-23)</span>
-        ) : null}
-      </div>
-
-      <div className="mb-3">
-        <div className="h-1.5 rounded-full bg-black/30 overflow-hidden">
-          <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, proj.pct)}%`, background: toneColor }} />
-        </div>
-        <p className="t-11 text-muted mt-1">
-          Busiest day: {proj.worstDayUploads} uploads ≈ {proj.worstDayUnits.toLocaleString()} units · ~{proj.weeklyUploads} uploads/week · shared pool {proj.budget.toLocaleString()} units/day
-        </p>
-      </div>
-
-      {msg ? (
-        <div className={`flex items-start gap-1.5 t-12 mb-2 ${msg.tone === 'error' ? 'text-red-400' : msg.tone === 'warn' ? 'text-amber-400' : 'text-emerald-400'}`}>
-          {msg.tone === 'warn' ? <AlertTriangle size={13} className="mt-0.5" /> : null}
-          <span>{msg.text}</span>
         </div>
       ) : null}
+      {loading ? <p className="t-12 text-muted">Loading this channel&apos;s schedule…</p> : null}
+
+      {/* quota first: it is what limits every choice below */}
+      <section aria-label="Daily upload quota" className="space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="t-13 font-semibold text-ink">Daily YouTube upload quota</span>
+          <Chip tone={proj.tone === 'over' ? 'bad' : proj.tone === 'warn' ? 'warn' : 'ok'}>
+            {proj.pct}% on the busiest day
+          </Chip>
+        </div>
+        <Progress pct={proj.pct} color={barColor} />
+        <p className="t-11 text-faint tnum">
+          Busiest day: {proj.worstDayUploads} uploads ≈ {proj.worstDayUnits.toLocaleString()} of {proj.budget.toLocaleString()} units · ~{proj.weeklyUploads} uploads a week (shared pool)
+        </p>
+      </section>
+
+      <DayPicker label="Long-form days" hint="Days a full-length video is made." days={draft.docDays} onToggle={toggleDay('docDays')} />
+      <DayPicker label="Shorts days" hint="Days Shorts are posted." days={draft.shortDays} onToggle={toggleDay('shortDays')} />
+
+      <fieldset className="min-w-0">
+        <legend className="t-13 font-semibold text-ink">Where Shorts come from</legend>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+          {['generated', 'clips'].map((s) => {
+            const on = draft.shortsSource === s;
+            return (
+              <button
+                key={s}
+                type="button"
+                data-kit="toggle"
+                aria-pressed={on}
+                onClick={() => setSchedule((s0) => ({ ...s0, shortsSource: s }))}
+                className="text-left rounded-lg border p-3 transition-colors min-w-0"
+                style={on ? { borderColor: 'var(--accent)', background: 'var(--accent-soft)' } : { borderColor: 'var(--line-strong)' }}
+              >
+                <span className="block t-13 font-semibold text-ink">{s === 'clips' ? 'Clips from long-forms' : 'Made fresh each day'}</span>
+                <span className="block t-11 text-faint mt-0.5">
+                  {s === 'clips' ? 'Cut from this channel’s long videos.' : 'A new Short is generated for each slot.'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
+
+      <div className="min-w-0">
+        <label htmlFor={`gate-cron-${slug}`} className="t-13 font-semibold text-ink">Autopilot start time (advanced)</label>
+        <p className="t-11 text-faint mt-0.5 mb-2">A daily cron in UTC, written as minute hour * * *. Leave empty to keep the current time.</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            id={`gate-cron-${slug}`}
+            type="text"
+            value={gateCron}
+            onChange={(e) => setGateCron(e.target.value)}
+            placeholder="e.g. 13 2 * * *"
+            aria-invalid={!cronState.valid}
+            className="input font-mono w-full sm:w-48"
+          />
+          {cronState.valid && cronState.label ? (
+            <span className="t-12 text-muted font-mono">runs at {cronState.label}</span>
+          ) : !cronState.valid ? (
+            <span className="t-12" style={{ color: 'var(--bad-ink)' }}>Use M H * * * (minute 0-59, hour 0-23)</span>
+          ) : null}
+        </div>
+      </div>
 
       {modelWarnings.length ? (
-        <div className="flex items-start gap-1.5 t-12 mb-2 text-amber-400">
-          <AlertTriangle size={13} className="mt-0.5" />
-          <span>{modelWarnings.join(' ')}</span>
+        <div className="flex items-start gap-1.5 t-12" style={{ color: 'var(--warn-ink)' }}>
+          <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+          <span className="min-w-0">{modelWarnings.join(' ')}</span>
         </div>
       ) : null}
 
       {proj.blocked ? (
-        <p className="t-12 text-red-400 mb-2">
-          Over budget: the busiest day would exceed the shared daily pool — spread days or lower the cadence before saving.
+        <p className="t-12" style={{ color: 'var(--bad-ink)' }}>
+          Over budget: the busiest day would exceed the shared daily pool — spread the days out or lower the cadence before saving.
         </p>
       ) : null}
+    </div>
+  );
 
+  const footer = (
+    <>
+      {msg ? (
+        <p role="status" aria-live="polite" className="mr-auto min-w-0 flex-1 basis-full sm:basis-0 flex items-start gap-1.5 t-12" style={{ color: TONE_INK[msg.tone] }}>
+          {msg.tone === 'ok' ? <CheckCircle2 size={13} className="mt-0.5 shrink-0" /> : <AlertTriangle size={13} className="mt-0.5 shrink-0" />}
+          <span className="min-w-0">{msg.text}</span>
+        </p>
+      ) : null}
       <Button color="primary" onClick={save} isDisabled={saving || Boolean(loadError) || !schedule || proj.blocked || !cronState.valid}>
-        {saving ? 'Saving…' : 'Save scheduling'}
+        {saving ? 'Saving…' : 'Save schedule'}
       </Button>
+    </>
+  );
+
+  if (frame) return frame(body, footer);
+  return (
+    <div className="inset-tile p-4 mt-1 space-y-4">
+      <div className="flex items-center gap-2 overline"><CalendarDays size={12} /> Production scheduling</div>
+      {body}
+      <div className="flex flex-wrap items-center justify-end gap-2">{footer}</div>
     </div>
   );
 }

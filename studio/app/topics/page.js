@@ -1,11 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { ListChecks, Flame, Search, Plus, X, PenLine, RefreshCw, Clock3 } from 'lucide-react';
+import Link from 'next/link';
+import { ListChecks, Flame, Search, Plus, X, PenLine, RefreshCw, Clock3, AlertTriangle } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, PageSkeleton, EmptyState, BrandMark, Segmented } from '@/components/ui';
 import { useBrands } from '@/components/use-brands'; // #125: live brand marks
 import { fmt } from '@/lib/utils';
-import { Button } from '@/components/untitledui/base/buttons/button';
-import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
 
 // 10-05 PHASE B — TOPIC DESK: research proposes, you approve, the nightly run
 // consumes your picks first (one per slot per day) before auto-research.
@@ -20,6 +19,9 @@ export default function TopicDesk() {
   const [loading, setLoading] = useState(false);
   const [manual, setManual] = useState('');
   const [busy, setBusy] = useState(false);
+  // a failed read is NOT "no research / empty queue" — say so (honesty doctrine)
+  const [loadErr, setLoadErr] = useState('');
+  const [actErr, setActErr] = useState('');
 
   useEffect(() => {
     fetch('/api/overview').then((r) => r.json()).then(setOv).catch(() => setOv({ channels: [] }));
@@ -45,10 +47,14 @@ export default function TopicDesk() {
   const load = async () => {
     if (!sel) return;
     setLoading(true);
-    await fetch('/api/topics?slug=' + sel)
-      .then((r) => r.json())
-      .then(setData)
-      .catch(() => setData(null))
+    setLoadErr('');
+    await fetch('/api/topics?slug=' + encodeURIComponent(sel))
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || d.error) throw new Error(d.error || `the server answered ${r.status}`);
+        setData(d);
+      })
+      .catch((e) => { setData(null); setLoadErr(e.message || 'network error'); })
       .finally(() => setLoading(false));
   };
   useEffect(() => {
@@ -62,31 +68,33 @@ export default function TopicDesk() {
     };
   }, [sel]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const addTopics = async (topics) => {
+  // shared POST: a refused/failed write is shown, never swallowed
+  const post = async (body, what) => {
     setBusy(true);
+    setActErr('');
     try {
       const r = await fetch('/api/topics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug: sel, action: 'add', topics }),
+        body: JSON.stringify({ slug: sel, ...body }),
       });
-      const d = await r.json();
-      if (d.ok) setData((x) => ({ ...(x || {}), queue: d.queue }));
-    } catch { }
-    setBusy(false);
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) throw new Error(d.error || `the server answered ${r.status}`);
+      setData((x) => ({ ...(x || {}), queue: d.queue }));
+      return true;
+    } catch (e) {
+      setActErr(`Couldn't ${what} — ${e.message || 'network error'}. Nothing changed.`);
+      return false;
+    } finally {
+      setBusy(false);
+    }
   };
-  const removeTopic = async (id) => {
-    setBusy(true);
-    try {
-      const r = await fetch('/api/topics', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug: sel, action: 'remove', id }),
-      });
-      const d = await r.json();
-      if (d.ok) setData((x) => ({ ...(x || {}), queue: d.queue }));
-    } catch { }
-    setBusy(false);
+  const addTopics = (topics) => post({ action: 'add', topics }, 'add that topic');
+  const removeTopic = (id) => post({ action: 'remove', id }, 'remove that topic');
+  const addManual = async () => {
+    const text = manual.trim();
+    if (!text) return;
+    if (await addTopics([{ kind: 'custom', text }])) setManual('');
   };
 
   if (!ov || !reg) return <PageSkeleton />;
@@ -95,9 +103,9 @@ export default function TopicDesk() {
   return (
     <div>
       <PageHeader icon={ListChecks} title="Topic Desk" sub="Research proposes → you approve → the nightly run makes exactly these first. One topic = one slot.">
-        <Button color="secondary" onClick={load} isDisabled={loading} iconLeading={<RefreshCw size={16} className={loading ? 'animate-spin' : ''} />}>
-          Refresh
-        </Button>
+        <button className="btn btn-outline" onClick={load} disabled={loading || !sel}>
+          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
+        </button>
       </PageHeader>
 
       {options.length ? (
@@ -105,10 +113,28 @@ export default function TopicDesk() {
           <Segmented options={options} value={sel} onChange={setSel} />
         </div>
       ) : (
-        <EmptyState icon={ListChecks} title="No channels yet" sub="Connect a channel first (Channels → New channel)." />
+        <Card className="p-4">
+          <EmptyState icon={ListChecks} title="No channels yet" sub="Connect a channel first — topics are queued per channel.">
+            <Link href="/channels/add" className="btn btn-primary btn-sm mt-3"><Plus size={14} /> Add a channel</Link>
+          </EmptyState>
+        </Card>
       )}
 
-      {sel ? (
+      {actErr ? <p className="t-13 mb-4" role="alert" style={{ color: 'var(--bad-ink)' }}>{actErr}</p> : null}
+      {sel && loadErr && !loading ? (
+        <Card className="p-5 mb-4">
+          <div className="flex items-start gap-3 flex-wrap">
+            <AlertTriangle size={18} style={{ color: 'var(--bad-ink)' }} className="shrink-0 mt-0.5" aria-hidden />
+            <div className="min-w-0 flex-1">
+              <p className="t-14 font-semibold text-ink">Can&apos;t load this channel&apos;s topics right now</p>
+              <p className="t-12 text-muted mt-1">{loadErr} — the queue is not empty, it just couldn&apos;t be read. The nightly run is unaffected.</p>
+            </div>
+            <button className="btn btn-sm btn-outline shrink-0" onClick={load}><RefreshCw size={13} /> Retry</button>
+          </div>
+        </Card>
+      ) : null}
+
+      {sel && !loadErr ? (
         <div className="grid lg:grid-cols-2 gap-4">
           {/* candidates */}
           <Card className="overflow-hidden">
@@ -125,12 +151,12 @@ export default function TopicDesk() {
                 <>
                   {(data?.trends || []).slice(0, 8).map((v) => (
                     <div key={v.title} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-2 transition-colors">
-                      <Flame size={13} className="text-orange-400 shrink-0" />
+                      <Flame size={13} className="shrink-0" style={{ color: 'var(--warn)' }} />
                       <span className="flex-1 min-w-0">
                         <span className="block t-12 font-medium text-ink truncate">{v.title}</span>
                         <span className="block t-10 text-faint">{v.channel} · {fmt(v.views)} views in 14d</span>
                       </span>
-                      <ButtonUtility size="sm" color="tertiary" tooltip="Approve this theme" isDisabled={busy} icon={Plus} onClick={() => addTopics([{ kind: 'seed', text: v.title }])} />
+                      <button className="icon-btn shrink-0" title="Approve this theme" aria-label={`Approve theme: ${v.title}`} disabled={busy} onClick={() => addTopics([{ kind: 'seed', text: v.title }])}><Plus size={15} /></button>
                     </div>
                   ))}
                   {(data?.terms || []).slice(0, 8).map((t) => (
@@ -140,7 +166,7 @@ export default function TopicDesk() {
                         <span className="block t-12 font-medium text-ink truncate">{t.term}</span>
                         <span className="block t-10 text-faint">real viewer search · {fmt(t.views)} views</span>
                       </span>
-                      <ButtonUtility size="sm" color="tertiary" tooltip="Approve this search" isDisabled={busy} icon={Plus} onClick={() => addTopics([{ kind: 'search', text: t.term }])} />
+                      <button className="icon-btn shrink-0" title="Approve this search" aria-label={`Approve search: ${t.term}`} disabled={busy} onClick={() => addTopics([{ kind: 'search', text: t.term }])}><Plus size={15} /></button>
                     </div>
                   ))}
                   {!(data?.trends || []).length && !(data?.terms || []).length ? (
@@ -150,25 +176,21 @@ export default function TopicDesk() {
                   ) : null}
 
                   <div className="px-3 pb-3 pt-3 mt-2 border-t border-line">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
                       <PenLine size={13} className="text-faint shrink-0" />
                       <input
-                        className="input flex-1"
+                        className="input flex-1 min-w-0"
                         placeholder="Your own topic — full idea or instruction…"
                         value={manual}
                         onChange={(e) => setManual(e.target.value)}
+                        aria-label="Your own topic"
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter' && manual.trim()) { addTopics([{ kind: 'custom', text: manual.trim() }]); setManual(''); }
+                          if (e.key === 'Enter') addManual();
                         }}
                       />
-                      <Button
-                        color="primary"
-                        isDisabled={busy || !manual.trim()}
-                        onClick={() => { addTopics([{ kind: 'custom', text: manual.trim() }]); setManual(''); }}
-                        iconLeading={<Plus size={16} />}
-                      >
-                        Add
-                      </Button>
+                      <button className="btn btn-primary shrink-0" disabled={busy || !manual.trim()} onClick={addManual}>
+                        <Plus size={16} /> Add
+                      </button>
                     </div>
                   </div>
                 </>
@@ -182,7 +204,7 @@ export default function TopicDesk() {
               title="Approved queue"
               sub="The nightly run takes these first — one per day/slot — then auto-research fills the rest"
               icon={Clock3}
-              right={<Chip tone="ok">{(data?.queue || []).length} waiting</Chip>}
+              right={data ? <Chip tone="ok">{(data.queue || []).length} waiting</Chip> : null}
             />
             <div className="px-2 pb-2">
               {loading ? (
@@ -200,7 +222,7 @@ export default function TopicDesk() {
                         {t.addedAt ? ` · added ${t.addedAt.slice(5, 10)}` : ''}
                       </span>
                     </span>
-                    <ButtonUtility size="sm" color="tertiary" tooltip="Remove from queue" isDisabled={busy} icon={X} onClick={() => removeTopic(t.id)} />
+                    <button className="icon-btn shrink-0" title="Remove from queue" aria-label={`Remove topic: ${t.text}`} disabled={busy} onClick={() => removeTopic(t.id)}><X size={15} /></button>
                   </div>
                 ))
               )}

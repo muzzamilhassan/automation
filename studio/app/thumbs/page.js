@@ -2,8 +2,15 @@
 // Thumbnail Studio — /thumbs. Pick channel → video → template → customize
 // (title, accent word, chip, eyebrow, accent color, photo) → live preview at
 // full + mobile size with a legibility checklist → attach to the video.
+// Round 2: live-YouTube actions confirm in the real dialog, the channel's
+// brand defaults + face library open in a Drawer (not stacked inline), the
+// "+ rotation" control is a real button (it was a clickable span nested in
+// the template button), and failed reads say so instead of looking empty.
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, Image as ImageIcon, Smartphone as Mobile, CheckCircle2, XCircle, Search, Upload, Wand2, Paperclip, Sparkles, FlaskConical, Trophy, BarChart3, Palette, Layers, Shuffle } from 'lucide-react';
+import { Loader2, Image as ImageIcon, Smartphone as Mobile, CheckCircle2, XCircle, Search, Upload, Wand2, Paperclip, Sparkles, FlaskConical, Trophy, BarChart3, Palette, Layers, Shuffle, Plus, X, AlertTriangle } from 'lucide-react';
+import { PageHeader, Card, EmptyState } from '@/components/ui';
+import Drawer from '@/components/Drawer';
+import { useConfirm } from '@/components/ConfirmDialog';
 
 const CATS = [
   { id: 'all', label: 'All' },
@@ -28,7 +35,11 @@ function matchesCategory(tplCat, tab) {
 export default function ThumbsPage() {
   // #125 (S-10): channels are LIVE from /api/overview — no hardcoded list,
   // no fake error fallback. Empty = honest "connect a channel" state.
+  const confirm = useConfirm();
   const [channels, setChannels] = useState([]);
+  // 'loading' | 'error' | 'ok' — an empty list alone can't tell "none" from "failed"
+  const [chanState, setChanState] = useState('loading');
+  const [kitOpen, setKitOpen] = useState(false); // brand defaults + face library drawer
   const [slug, setSlug] = useState('');
   const [accent, setAccent] = useState('#E8C15A');
   const [brand, setBrand] = useState('');
@@ -135,20 +146,29 @@ export default function ThumbsPage() {
 
 
   const saveBranding = async () => {
-    const r = await fetch('/api/thumbs/branding', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slug, accent, shade, chip, eyebrow, template, templateRotation: rotation }),
-    });
-    const d = await r.json();
-    setBrandMsg(d.ok ? { ok: true, text: 'brand defaults saved — the editor opens with them from now on' } : { ok: false, text: d.error || 'save failed' });
+    try {
+      const r = await fetch('/api/thumbs/branding', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug, accent, shade, chip, eyebrow, template, templateRotation: rotation }),
+      });
+      const d = await r.json().catch(() => ({}));
+      setBrandMsg(d.ok ? { ok: true, text: 'brand defaults saved — the editor opens with them from now on' } : { ok: false, text: d.error || `save failed (${r.status})` });
+    } catch (e) {
+      setBrandMsg({ ok: false, text: `save failed — ${e.message || 'network error'}` });
+    }
   };
 
   const loadFaces = async (s) => {
     if (!s) return;
     try {
-      const d = await (await fetch('/api/thumbs/faces?slug=' + encodeURIComponent(s))).json();
+      const r = await fetch('/api/thumbs/faces?slug=' + encodeURIComponent(s));
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) throw new Error(d.error || `HTTP ${r.status}`);
       setFaces(d.faces || []);
-    } catch { setFaces([]); }
+    } catch (e) {
+      setFaces([]);
+      setFaceMsg({ ok: false, text: `couldn't load the face library — ${e.message || 'network error'}` });
+    }
   };
 
   const uploadFace = async (file) => {
@@ -173,11 +193,25 @@ export default function ThumbsPage() {
   };
 
   const removeFace = async (idx) => {
+    const ok = await confirm({
+      title: `Remove face ${idx + 1} from the library?`,
+      body: 'Future thumbnails for this channel stop using it. Thumbnails already on YouTube are not changed.',
+      confirmLabel: 'Remove face',
+      tone: 'danger',
+    });
+    if (!ok) return;
     setFaceBusy(true);
+    setFaceMsg(null);
     try {
-      await fetch('/api/thumbs/faces?slug=' + encodeURIComponent(slug) + '&idx=' + idx, { method: 'DELETE' });
+      const r = await fetch('/api/thumbs/faces?slug=' + encodeURIComponent(slug) + '&idx=' + idx, { method: 'DELETE' });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.error || `HTTP ${r.status}`);
+      }
       loadFaces(slug);
-    } catch { }
+    } catch (e) {
+      setFaceMsg({ ok: false, text: `couldn't remove that face — ${e.message || 'network error'}` });
+    }
     setFaceBusy(false);
   };
 
@@ -299,7 +333,13 @@ export default function ThumbsPage() {
   const attach = async () => {
     if (!preview || !video) return;
     // P0-14: this changes a LIVE YouTube thumbnail - confirm with the cost.
-    if (!window.confirm(`Replace the live thumbnail of "${video.title.slice(0, 50)}" on YouTube? This goes live shortly (changes limited ~10/day).`)) return;
+    const ok = await confirm({
+      title: `Replace the live thumbnail of "${video.title.slice(0, 50)}" on YouTube?`,
+      body: 'This goes live shortly (changes limited ~10/day).',
+      confirmLabel: 'Replace live thumbnail',
+      tone: 'danger',
+    });
+    if (!ok) return;
     setAttaching(true);
     setAttachMsg(null);
     try {
@@ -308,7 +348,7 @@ export default function ThumbsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slug, videoId: video.videoId, imageDataUrl: preview.image }),
       });
-      const d = await r.json();
+      const d = await r.json().catch(() => ({}));
       setAttachMsg(d.ok ? { ok: true, text: `Attached to "${video.title.slice(0, 40)}…" — live on YouTube shortly.` } : { ok: false, text: d.error });
     } catch (e) {
       setAttachMsg({ ok: false, text: e.message });
@@ -367,9 +407,10 @@ export default function ThumbsPage() {
     setPreview((p) => (p ? { ...p, image: v.image } : p));
   };
 
+  // a failed read is 'error' (shown as unavailable), never an empty list
   const loadTests = () => {
-    fetch(`/api/thumbs/abresults?slug=${encodeURIComponent(slug)}`).then((r) => r.json()).then((d) => setTests(d.tests || [])).catch(() => setTests([]));
-    fetch(`/api/thumbs/performance?slug=${encodeURIComponent(slug)}`).then((r) => r.json()).then((d) => setPerf(d.videos || [])).catch(() => setPerf([]));
+    fetch(`/api/thumbs/abresults?slug=${encodeURIComponent(slug)}`).then((r) => (r.ok ? r.json() : Promise.reject(new Error()))).then((d) => setTests(d.tests || [])).catch(() => setTests('error'));
+    fetch(`/api/thumbs/performance?slug=${encodeURIComponent(slug)}`).then((r) => (r.ok ? r.json() : Promise.reject(new Error()))).then((d) => setPerf(d.videos || [])).catch(() => setPerf('error'));
   };
 
   useEffect(() => { if (slug) loadTests(); }, [slug]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -383,17 +424,27 @@ export default function ThumbsPage() {
   const startTest = async () => {
     if (!video) { setAbMsg({ ok: false, text: 'pick a video first' }); return; }
     if (abVariants.length < 2) { setAbMsg({ ok: false, text: 'add at least 2 variants' }); return; }
+    // starting a test replaces the LIVE thumbnail with variant A right away
+    const ok = await confirm({
+      title: `Start an A/B test on "${video.title.slice(0, 50)}"?`,
+      body: `Variant A replaces the live YouTube thumbnail now, then the variants swap every ${abInterval}h.`,
+      confirmLabel: 'Start test',
+      tone: 'danger',
+    });
+    if (!ok) return;
     setAbBusy('start');
     try {
       const r = await fetch('/api/thumbs/abstart', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slug, videoId: video.videoId, title: video.title, intervalHours: abInterval, variants: abVariants }),
       });
-      const d = await r.json();
+      const d = await r.json().catch(() => ({}));
       setAbMsg(d.ok
         ? { ok: true, text: `Test live — variant A attached, swapping every ${abInterval}h. Results appear below within a day.` }
-        : { ok: false, text: d.error });
+        : { ok: false, text: d.error || `couldn't start the test (${r.status})` });
       if (d.ok) { setAbVariants([]); loadTests(); }
+    } catch (e) {
+      setAbMsg({ ok: false, text: `couldn't start the test — ${e.message || 'network error'}` });
     } finally {
       setAbBusy('');
     }
@@ -401,8 +452,17 @@ export default function ThumbsPage() {
 
   const stopTest = async (vid) => {
     setAbBusy(vid);
-    await fetch('/api/thumbs/abstop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId: vid }) });
-    loadTests();
+    try {
+      const r = await fetch('/api/thumbs/abstop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId: vid }) });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.error || `HTTP ${r.status}`);
+      }
+      setAbMsg({ ok: true, text: 'test stopped — the current thumbnail stays' });
+      loadTests();
+    } catch (e) {
+      setAbMsg({ ok: false, text: `couldn't stop the test — ${e.message || 'network error'}` });
+    }
     setAbBusy('');
   };
 
@@ -411,7 +471,7 @@ export default function ThumbsPage() {
 
   useEffect(() => {
     fetch('/api/overview')
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
       .then((d) => {
         const source = (d.controlChannels?.length ? d.controlChannels : d.channels) || [];
         const list = source.map((c) => ({
@@ -421,24 +481,51 @@ export default function ThumbsPage() {
           brand: c.label || c.slug,
         }));
         setChannels(list);
+        setChanState('ok');
         if (list.length) pickChannel(list[0]);
       })
       .catch(() => {
         setChannels([]); // #125: honest empty on failure — never fake channels
+        setChanState('error'); // …and the page says it failed, not "no channels"
       });
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const header = (
+    <PageHeader icon={ImageIcon} title="Thumbnails" sub="Design from templates, preview at mobile size, attach straight to YouTube.">
+      {channels.length ? (
+        <>
+          <label className="sr-only" htmlFor="thumbs-channel">Channel</label>
+          <select id="thumbs-channel" value={slug} onChange={(e) => pickChannel(channels.find((c) => c.slug === e.target.value) || channels[0])} className="input">
+            {channels.map((c) => <option key={c.slug} value={c.slug}>{c.label}</option>)}
+          </select>
+          <button className="btn btn-outline" onClick={() => setKitOpen(true)} disabled={!slug}>
+            <Palette size={15} /> Brand defaults &amp; faces
+          </button>
+        </>
+      ) : null}
+    </PageHeader>
+  );
+  if (chanState === 'loading') {
+    return <div>{header}<div className="skeleton h-96 rounded-2xl" /></div>;
+  }
+  if (chanState === 'error' || !channels.length) {
+    return (
+      <div>
+        {header}
+        <Card className="p-4">
+          {chanState === 'error' ? (
+            <EmptyState icon={AlertTriangle} title="Can't load your channels right now" sub="Thumbnails already on YouTube are unaffected — only this page couldn't read the channel list. Reload to try again." />
+          ) : (
+            <EmptyState icon={ImageIcon} title="No channels yet" sub="Connect a channel first — thumbnails attach to its videos." />
+          )}
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <div>
-          <h1 className="font-[family-name:var(--font-display)] text-xl font-bold tracking-tight flex items-center gap-2"><ImageIcon size={18} /> Thumbnails</h1>
-          <p className="t-12 text-muted mt-0.5">Design from templates, preview at mobile size, attach straight to YouTube.</p>
-        </div>
-        <select value={slug} onChange={(e) => pickChannel(channels.find((c) => c.slug === e.target.value) || channels[0])} className="ml-auto t-13 px-3 py-2 rounded-lg border border-line bg-surface">
-          {channels.map((c) => <option key={c.slug} value={c.slug}>{c.label}</option>)}
-        </select>
-      </div>
+      {header}
 
       <div className="grid lg:grid-cols-[1fr_420px] gap-5">
         {/* Left column: video pick + controls */}
@@ -450,13 +537,13 @@ export default function ThumbsPage() {
             ) : (
               <>
               <div className="flex items-center gap-2 mb-2">
-                <button onClick={() => { setSelMode(!selMode); setSelected([]); }}
+                <button onClick={() => { setSelMode(!selMode); setSelected([]); }} aria-pressed={selMode}
                   className={`t-11 px-2 py-1 rounded-lg border flex items-center gap-1.5 ${selMode ? 'border-accent text-ink' : 'border-line text-muted hover:border-line-strong'}`}>
                   <Layers size={11} /> {selMode ? 'Selecting for bulk redesign' : 'Bulk redesign'}
                 </button>
                 {selMode ? <span className="t-11 text-muted">{selected.length} selected · uses the template + colors set below</span> : null}
                 {selMode && selected.length ? (
-                  <button onClick={() => { if (!window.confirm(`Redesign and replace ${selected.length} LIVE YouTube thumbnail${selected.length === 1 ? '' : 's'} right now?`)) return; runBulk(); }} disabled={bulkBusy} className="btn btn-outline btn-sm ml-auto">
+                  <button onClick={async () => { if (!(await confirm({ title: `Redesign and replace ${selected.length} LIVE YouTube thumbnail${selected.length === 1 ? '' : 's'} right now?`, body: 'Uses the template + colors set below. Changes are limited to ~10 per channel per day.', confirmLabel: 'Redesign live thumbnails', tone: 'danger' }))) return; runBulk(); }} disabled={bulkBusy} className="btn btn-outline btn-sm ml-auto">
                     {bulkBusy ? <Loader2 size={11} className="animate-spin" /> : <Layers size={11} />} Redesign {selected.length}
                   </button>
                 ) : null}
@@ -471,7 +558,7 @@ export default function ThumbsPage() {
                         /* eslint-disable-next-line @next/next/no-img-element */
                         <img src={v.thumb} alt="" className="w-full aspect-video object-cover opacity-70" />
                       ) : (
-                        <div className="w-full aspect-video bg-neutral-900 flex items-center justify-center text-muted"><ImageIcon size={18} className="opacity-40" /></div>
+                        <div className="w-full aspect-video bg-surface-2 flex items-center justify-center text-muted"><ImageIcon size={18} className="opacity-40" /></div>
                       )}
                       {selected.includes(v.videoId) ? <span className="absolute top-1 right-1"><CheckCircle2 size={14} style={{ color: 'var(--accent)' }} /></span> : null}
                       <div className="p-1.5 t-10 text-muted leading-tight line-clamp-2">{v.title}</div>
@@ -483,7 +570,7 @@ export default function ThumbsPage() {
                         /* eslint-disable-next-line @next/next/no-img-element */
                         <img src={v.thumb} alt="" className="w-full aspect-video object-cover" />
                       ) : (
-                        <div className="w-full aspect-video bg-neutral-900 flex items-center justify-center text-muted"><ImageIcon size={18} className="opacity-40" /></div>
+                        <div className="w-full aspect-video bg-surface-2 flex items-center justify-center text-muted"><ImageIcon size={18} className="opacity-40" /></div>
                       )}
                       <div className="p-1.5 t-10 text-muted leading-tight line-clamp-2">{v.title}</div>
                     </button>
@@ -496,7 +583,7 @@ export default function ThumbsPage() {
                   <p className="t-11 text-muted mt-1">Type your custom headline in Step 2 to design and preview thumbnails.</p>
                 </div>
               ) : null}
-              {bulkMsg ? <p className="t-11 mt-2" style={{ color: bulkMsg.ok ? 'var(--ok)' : 'var(--bad)' }}>{bulkMsg.text}</p> : null}
+              {bulkMsg ? <p className="t-11 mt-2" style={{ color: bulkMsg.ok ? 'var(--ok-ink)' : 'var(--bad-ink)' }}>{bulkMsg.text}</p> : null}
               </>
             )}
           </div>
@@ -515,9 +602,9 @@ export default function ThumbsPage() {
               {Array.from(new Map(tpls.map((t) => [t.id, t])).values())
                 .filter((t) => matchesCategory(t.category, catTab))
                 .map((t) => (
-                <button key={t.id} onClick={() => pickTemplate(t)}
-                  className={`group relative text-left p-2 rounded-xl border transition-all ${template === t.id ? 'border-accent bg-surface-2 ring-2 ring-accent/30 shadow-md' : 'border-line hover:border-line-strong bg-surface hover:bg-surface-2'}`}>
-                  <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-neutral-950 mb-2 border border-line">
+                <div key={t.id} className={`group relative p-2 rounded-xl border transition-all ${template === t.id ? 'border-accent bg-surface-2 ring-2 ring-accent/30 shadow-md' : 'border-line hover:border-line-strong bg-surface hover:bg-surface-2'}`}>
+                <button data-kit="tile" onClick={() => pickTemplate(t)} aria-pressed={template === t.id} className="block w-full text-left">
+                  <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-black mb-2 border border-line">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={`/api/thumbs/demo?id=${encodeURIComponent(t.id)}&accent=${encodeURIComponent(accent)}`}
@@ -526,7 +613,7 @@ export default function ThumbsPage() {
                       loading="lazy"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
-                    <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/75 backdrop-blur-sm text-[8.5px] font-mono text-white/90 uppercase tracking-wider">
+                    <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/75 t-10 font-mono text-white/90 uppercase tracking-wider">
                       {t.category}
                     </span>
                     {template === t.id ? (
@@ -535,27 +622,30 @@ export default function ThumbsPage() {
                       </span>
                     ) : null}
                   </div>
-                  <div className="flex items-center justify-between gap-1 mb-0.5">
-                    <span className="t-12 font-bold text-ink truncate">{t.label}</span>
-                    <span
-                      onClick={(e) => { e.stopPropagation(); addToRotation(t.id); }}
-                      title="add to this channel's thumbnail rotation"
-                      className="shrink-0 text-[8.5px] px-1.5 py-0.5 rounded-full border border-line text-muted hover:text-ink hover:border-line-strong cursor-pointer bg-surface/80">
-                      + rot
-                    </span>
-                  </div>
-                  <div className="t-10 text-muted leading-tight line-clamp-1">{t.desc}</div>
+                  <span className="block t-12 font-bold text-ink truncate">{t.label}</span>
+                  <span className="block t-10 text-muted leading-tight line-clamp-1">{t.desc}</span>
                 </button>
+                <button
+                  type="button"
+                  data-kit="chip"
+                  onClick={() => addToRotation(t.id)}
+                  disabled={rotation.includes(t.id) || rotation.length >= 10}
+                  title={rotation.includes(t.id) ? 'already in this channel\'s rotation' : 'add to this channel\'s thumbnail rotation'}
+                  aria-label={`Add ${t.label} to the thumbnail rotation`}
+                  className="absolute left-3 top-3 t-10 px-1.5 py-0.5 rounded-full border border-line text-muted hover:text-ink hover:border-line-strong bg-surface flex items-center gap-0.5 disabled:opacity-50">
+                  <Plus size={10} /> {rotation.includes(t.id) ? 'in rotation' : 'rotation'}
+                </button>
+                </div>
               ))}
             </div>
             {rotation.length ? (
               <div className="mb-2.5 border border-line rounded-lg p-2">
-                <div className="t-10 text-muted mb-1.5">Template rotation — bulk redesign cycles these per video ({rotation.length} queued, click × to remove):</div>
+                <div className="t-10 text-muted mb-1.5">Template rotation — bulk redesign cycles these per video ({rotation.length} queued, click × to remove · save it under Brand defaults):</div>
                 <div className="flex flex-wrap gap-1.5">
                   {rotation.map((id) => (
                     <span key={id} className="t-10 px-2 py-0.5 rounded-full bg-bg-soft border border-line flex items-center gap-1">
                       {(tpls.find((t) => t.id === id) || {}).label || id}
-                      <button data-kit="chip-close" aria-label={'Remove ' + ((tpls.find((t) => t.id === id) || {}).label || id) + ' from rotation'} onClick={() => removeFromRotation(id)} className="text-muted hover:text-ink font-bold">×</button>
+                      <button data-kit="chip-close" aria-label={'Remove ' + ((tpls.find((t) => t.id === id) || {}).label || id) + ' from rotation'} onClick={() => removeFromRotation(id)} className="text-muted hover:text-ink"><X size={11} /></button>
                     </span>
                   ))}
                 </div>
@@ -631,7 +721,7 @@ export default function ThumbsPage() {
                   ))}
                 </div>
               ) : null}
-              {photoDataUrl ? <p className="t-11 mt-1 flex items-center gap-1" style={{ color: 'var(--ok)' }}><CheckCircle2 size={11} /> uploaded photo in use</p> : null}
+              {photoDataUrl ? <p className="t-11 mt-1 flex items-center gap-1" style={{ color: 'var(--ok-ink)' }}><CheckCircle2 size={11} /> uploaded photo in use</p> : null}
               <div className="mt-3 border-t border-line pt-2.5">
                 <span className="t-11 text-muted flex items-center gap-1.5 mb-1.5"><Sparkles size={11} /> Or generate an AI background (no text — the template adds it)</span>
                 <div className="flex flex-wrap gap-1.5 mb-1.5">
@@ -651,48 +741,10 @@ export default function ThumbsPage() {
                     {aiBusy ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />} Generate (~15s)
                   </button>
                 </div>
-                {aiMsg ? <p className="t-11 mt-1" style={{ color: aiMsg.ok ? 'var(--ok)' : 'var(--bad)' }}>{aiMsg.text}</p> : null}
+                {aiMsg ? <p className="t-11 mt-1" style={{ color: aiMsg.ok ? 'var(--ok-ink)' : 'var(--bad-ink)' }}>{aiMsg.text}</p> : null}
               </div>
             </div>
 
-          <div className="border border-line rounded-xl bg-surface p-4">
-            <div className="t-11 uppercase tracking-wide text-muted mb-2 flex items-center gap-1.5"><Palette size={12} /> Brand defaults for this channel</div>
-            <p className="t-11 text-muted mb-2.5">Saves the current template + colors + chip as this channel&apos;s defaults — the editor opens with them every time.</p>
-            <button onClick={saveBranding} className="btn btn-outline">
-              <Palette size={13} /> Save current look as default
-            </button>
-            {brandMsg ? <p className="t-11 mt-2" style={{ color: brandMsg.ok ? 'var(--ok)' : 'var(--bad)' }}>{brandMsg.text}</p> : null}
-          </div>
-
-          <div className="border border-line rounded-xl bg-surface p-4">
-            <div className="t-11 uppercase tracking-wide text-muted mb-2 flex items-center gap-1.5"><Palette size={12} /> Your face library — appears on every thumbnail</div>
-            <p className="t-11 text-muted mb-2.5">Upload your face once; every thumbnail this channel renders adds it as a crisp circle cutout. Upload several and they rotate — one per video. Bulk redesign rotates them too.</p>
-            <div className="flex items-center gap-2">
-              <input
-                ref={faceInputRef}
-                type="file" accept="image/jpeg,image/png" className="hidden"
-                onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) uploadFace(f); e.target.value = ''; }}
-              />
-              <button onClick={() => faceInputRef.current && faceInputRef.current.click()} disabled={faceBusy || !slug}
-                className="btn btn-outline">
-                {faceBusy ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />} Upload face image
-              </button>
-              {faces && faces.length ? <span className="t-11 text-muted">{faces.length} in the library{faces.length > 1 ? ' — rotating' : ''}</span> : null}
-            </div>
-            {faces && faces.length ? (
-              <div className="flex flex-wrap gap-2 mt-2.5">
-                {faces.map((f, i) => (
-                  <span key={f.file} className="relative">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={f.dataUrl} alt={'face ' + (i + 1)} className="w-14 h-14 rounded-full object-cover border-2 border-line" />
-                    <button data-kit="chip-close" onClick={() => removeFace(i)} title="remove" aria-label={'Remove face ' + (i + 1)}
-                      className="absolute -top-1 -right-1 w-5 h-5 leading-none t-11 rounded-full bg-surface border border-line text-muted hover:text-ink">×</button>
-                  </span>
-                ))}
-              </div>
-            ) : null}
-            {faceMsg ? <p className="t-11 mt-2" style={{ color: faceMsg.ok ? 'var(--ok)' : 'var(--bad)' }}>{faceMsg.text}</p> : null}
-          </div>
           </div>
         </div>
 
@@ -701,12 +753,12 @@ export default function ThumbsPage() {
           <div className="border border-line rounded-xl bg-surface p-4">
             <div className="t-11 uppercase tracking-wide text-muted mb-2">4 · Preview {previewing ? '· rendering…' : ''}</div>
             {previewing && !preview ? (
-              <div className="flex flex-col items-center justify-center gap-2 aspect-video bg-neutral-950 rounded-lg border border-line text-muted py-12">
+              <div className="flex flex-col items-center justify-center gap-2 aspect-video bg-black rounded-lg border border-line text-muted py-12">
                 <Loader2 size={24} className="animate-spin text-accent" />
                 <span className="t-12">Rendering live thumbnail preview…</span>
               </div>
             ) : previewErr ? (
-              <p className="t-12" style={{ color: 'var(--bad)' }}>{previewErr}</p>
+              <p className="t-12" role="alert" style={{ color: 'var(--bad-ink)' }}>{previewErr}</p>
             ) : previewHint && !preview ? (
               <p className="t-12 py-4 text-center" style={{ color: 'var(--muted)' }}>{previewHint}</p>
             ) : preview ? (
@@ -735,13 +787,13 @@ export default function ThumbsPage() {
                     <img src={preview.image} alt="mobile preview" className="w-[168px] rounded border border-line" />
                   </div>
                   <div className="t-11 space-y-1.5">
-                    <div className="flex items-center gap-1.5" style={{ color: ck?.wordsOk ? 'var(--ok)' : 'var(--warn)' }}>
+                    <div className="flex items-center gap-1.5" style={{ color: ck?.wordsOk ? 'var(--ok-ink)' : 'var(--warn-ink)' }}>
                       {ck?.wordsOk ? <CheckCircle2 size={12} /> : <XCircle size={12} />} {words} word{words === 1 ? '' : 's'} (≤7 recommended)
                     </div>
-                    <div className="flex items-center gap-1.5" style={{ color: ck?.photoOk ? 'var(--ok)' : 'var(--warn)' }}>
+                    <div className="flex items-center gap-1.5" style={{ color: ck?.photoOk ? 'var(--ok-ink)' : 'var(--warn-ink)' }}>
                       {ck?.photoOk ? <CheckCircle2 size={12} /> : <XCircle size={12} />} {template === 'poster' ? 'panel layout' : 'photo set'}
                     </div>
-                    <div className="flex items-center gap-1.5" style={{ color: ck?.sizeOk ? 'var(--ok)' : 'var(--bad)' }}>
+                    <div className="flex items-center gap-1.5" style={{ color: ck?.sizeOk ? 'var(--ok-ink)' : 'var(--bad-ink)' }}>
                       {ck?.sizeOk ? <CheckCircle2 size={12} /> : <XCircle size={12} />} {(preview.bytes / 1024).toFixed(0)} KB (limit 2 MB)
                     </div>
                   </div>
@@ -763,7 +815,7 @@ export default function ThumbsPage() {
             </button>
             <p className="t-10 text-faint mt-2">Goes live on YouTube within minutes · max 10 attaches per channel per day.</p>
             {attachMsg ? (
-              <p className="t-12 mt-2 flex items-start gap-1.5" style={{ color: attachMsg.ok ? 'var(--ok)' : 'var(--bad)' }}>
+              <p className="t-12 mt-2 flex items-start gap-1.5" style={{ color: attachMsg.ok ? 'var(--ok-ink)' : 'var(--bad-ink)' }}>
                 {attachMsg.ok ? <CheckCircle2 size={13} className="shrink-0 mt-0.5" /> : <XCircle size={13} className="shrink-0 mt-0.5" />} {attachMsg.text}
               </p>
             ) : null}
@@ -789,11 +841,13 @@ export default function ThumbsPage() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img key={i} src={v} alt={`variant ${i}`} className="w-16 rounded border border-line" />
                 ))}
-                <button onClick={() => setAbVariants([])} className="t-11 text-muted hover:text-ink underline underline-offset-2 self-center">clear</button>
+                <button onClick={() => setAbVariants([])} className="btn btn-ghost btn-sm self-center">Clear</button>
               </div>
             ) : null}
-            {abMsg ? <p className="t-11 mt-2" style={{ color: abMsg.ok ? 'var(--ok)' : 'var(--bad)' }}>{abMsg.text}</p> : null}
-            {tests?.length ? (
+            {abMsg ? <p className="t-11 mt-2" style={{ color: abMsg.ok ? 'var(--ok-ink)' : 'var(--bad-ink)' }}>{abMsg.text}</p> : null}
+            {tests === 'error' ? (
+              <p className="t-11 mt-2" style={{ color: 'var(--bad-ink)' }}>Can&apos;t load running tests right now — not &ldquo;no tests&rdquo;.</p>
+            ) : tests?.length ? (
               <div className="mt-3 space-y-2">
                 {tests.map((t) => (
                   <div key={t.videoId} className="inset-tile p-2.5">
@@ -812,22 +866,26 @@ export default function ThumbsPage() {
                       ))}
                     </div>
                     {!t.ended ? (
-                      <button onClick={() => stopTest(t.videoId)} disabled={abBusy === t.videoId} className="t-11 text-muted hover:text-ink underline underline-offset-2 mt-1.5 disabled:opacity-50">
-                        stop test (keep current)
+                      <button onClick={() => stopTest(t.videoId)} disabled={abBusy === t.videoId} className="btn btn-outline btn-sm mt-2">
+                        {abBusy === t.videoId ? <Loader2 size={11} className="animate-spin" /> : null} Stop test (keep current)
                       </button>
                     ) : null}
                   </div>
                 ))}
               </div>
-            ) : (
+            ) : tests === null ? null : (
               <p className="t-11 text-faint mt-2">No tests yet — add 2+ designs above and start. Views/day per variant appears within a day.</p>
             )}
           </div>
 
           <div className="border border-line rounded-xl bg-surface p-4">
             <div className="t-11 uppercase tracking-wide text-muted mb-2 flex items-center gap-1.5"><BarChart3 size={12} /> Performance · last 28 days</div>
-            {!perf ? (
+            {perf === 'error' ? (
+              <p className="t-12" style={{ color: 'var(--bad-ink)' }}>Can&apos;t load performance right now.</p>
+            ) : !perf ? (
               <div className="flex items-center gap-2 text-muted t-12"><Loader2 size={12} className="animate-spin" /> Loading…</div>
+            ) : !perf.length ? (
+              <p className="t-12 text-faint">No videos with data in the last 28 days yet.</p>
             ) : (
               <div className="space-y-1.5">
                 {perf.map((v) => (
@@ -841,10 +899,60 @@ export default function ThumbsPage() {
                 ))}
               </div>
             )}
-            <p className="t-10 text-faint mt-2">{perf ? 'Ranked by views per day · real CTR unlocks when the channel joins YPP.' : ''}</p>
+            <p className="t-10 text-faint mt-2">{Array.isArray(perf) && perf.length ? 'Ranked by views per day · real CTR unlocks when the channel joins YPP.' : ''}</p>
           </div>
         </div>
       </div>
+
+      <Drawer
+        open={kitOpen}
+        onClose={() => setKitOpen(false)}
+        title="Brand defaults & faces"
+        description={`${brand || slug} — what every new thumbnail for this channel starts from`}
+        icon={Palette}
+        size="md"
+      >
+        <div className="space-y-5">
+          <section>
+            <h3 className="t-13 font-semibold text-ink mb-1 flex items-center gap-1.5"><Palette size={13} /> Brand defaults for this channel</h3>
+            <p className="t-11 text-muted mb-2.5">Saves the current template + colors + chip as this channel&apos;s defaults — the editor opens with them every time.</p>
+            <button onClick={saveBranding} className="btn btn-outline">
+              <Palette size={13} /> Save current look as default
+            </button>
+            {brandMsg ? <p className="t-11 mt-2" style={{ color: brandMsg.ok ? 'var(--ok-ink)' : 'var(--bad-ink)' }}>{brandMsg.text}</p> : null}
+          </section>
+
+          <section className="border-t border-line pt-5">
+            <h3 className="t-13 font-semibold text-ink mb-1 flex items-center gap-1.5"><Upload size={13} /> Your face library — appears on every thumbnail</h3>
+            <p className="t-11 text-muted mb-2.5">Upload your face once; every thumbnail this channel renders adds it as a crisp circle cutout. Upload several and they rotate — one per video. Bulk redesign rotates them too.</p>
+            <div className="flex items-center gap-2">
+              <input
+                ref={faceInputRef}
+                type="file" accept="image/jpeg,image/png" className="hidden"
+                onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) uploadFace(f); e.target.value = ''; }}
+              />
+              <button onClick={() => faceInputRef.current && faceInputRef.current.click()} disabled={faceBusy || !slug}
+                className="btn btn-outline">
+                {faceBusy ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />} Upload face image
+              </button>
+              {faces && faces.length ? <span className="t-11 text-muted">{faces.length} in the library{faces.length > 1 ? ' — rotating' : ''}</span> : null}
+            </div>
+            {faces && faces.length ? (
+              <div className="flex flex-wrap gap-2 mt-2.5">
+                {faces.map((f, i) => (
+                  <span key={f.file} className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={f.dataUrl} alt={'face ' + (i + 1)} className="w-14 h-14 rounded-full object-cover border-2 border-line" />
+                    <button data-kit="chip-close" onClick={() => removeFace(i)} disabled={faceBusy} title="Remove" aria-label={'Remove face ' + (i + 1)}
+                      className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-surface border border-line text-muted hover:text-ink flex items-center justify-center"><X size={11} /></button>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            {faceMsg ? <p className="t-11 mt-2" style={{ color: faceMsg.ok ? 'var(--ok-ink)' : 'var(--bad-ink)' }}>{faceMsg.text}</p> : null}
+          </section>
+        </div>
+      </Drawer>
     </div>
   );
 }

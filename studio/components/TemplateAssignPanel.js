@@ -1,7 +1,6 @@
 'use client';
 // Per-channel template assignment panel (issue #102 Phase 1, Task 8).
-// Lives inside the Channels page cards (same pattern as SchedulePanel) and
-// talks to the Task 7 API: GET /api/templates?channel=<slug> for the view,
+// Talks to the Task 7 API: GET /api/templates?channel=<slug> for the view,
 // POST/DELETE /api/templates/assign for writes. Owner gets assign/unassign/
 // re-pin controls; staff sees the same view read-only (AC-9). The picker
 // orders templates niche-first (AC-10) using the channelConfig the API
@@ -12,10 +11,14 @@
 // for a template keys on templateId — the registry key. Assignment rows are
 // DB rows whose family_id column stores that same key (dual meaning
 // documented in template-registry-db.js).
+//
+// Round 2: rendered inside a Drawer via ChannelDrawers; `frame(body, footer)`
+// puts "Assign & pin" in the drawer's sticky footer.
 import { useEffect, useMemo, useState } from 'react';
-import { Layers, AlertTriangle, CheckCircle2, XCircle, Loader2, Trash2, ArrowUpCircle, Info } from 'lucide-react';
+import { Layers, AlertTriangle, CheckCircle2, XCircle, Loader2, Trash2, ArrowUpCircle, Info, RefreshCw, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import { Chip } from '@/components/ui';
+import { useConfirm } from '@/components/ConfirmDialog';
 
 const CAP_LABEL = {
   'script-gen': 'script generation (LLM)',
@@ -28,7 +31,7 @@ const CAP_LABEL = {
 export function friendlyReason({ code, detail }) {
   if (typeof code === 'string' && code.startsWith('missing_capability:')) {
     const cap = code.slice('missing_capability:'.length);
-    return `Missing capability: no ${CAP_LABEL[cap] || cap} provider is configured for this channel. Fix: add a key in this channel's API keys panel (key icon on its Channels card).`;
+    return `Missing capability: no ${CAP_LABEL[cap] || cap} provider is configured for this channel. Fix: add a key under Manage → API keys on this channel's card.`;
   }
   switch (code) {
     case 'format_mismatch':
@@ -73,21 +76,22 @@ function highestInMajor(t, major) {
   return versions[0] || null;
 }
 
-export default function TemplateAssignPanel({ slug }) {
+export default function TemplateAssignPanel({ slug, frame }) {
+  const confirm = useConfirm();
   const [data, setData] = useState(null);       // GET /api/templates?channel=
   const [loadErr, setLoadErr] = useState(null);
-  const [assignOpen, setAssignOpen] = useState(false);
   const [templateId, setTemplateId] = useState('');
   const [pinnedMajor, setPinnedMajor] = useState('');
   const [busy, setBusy] = useState('');         // templateId currently writing
   const [msg, setMsg] = useState(null);         // { ok, text, reasons? }
 
+  // state is only set when the request settles (never synchronously in the effect)
   const load = () => {
-    setLoadErr(null);
     fetch(`/api/templates?channel=${encodeURIComponent(slug)}`)
       .then(async (r) => {
         const d = await r.json();
         if (!r.ok) throw new Error(d.error || `request failed (${r.status})`);
+        setLoadErr(null);
         setData(d);
       })
       .catch((e) => setLoadErr(String(e.message || e)));
@@ -143,7 +147,6 @@ export default function TemplateAssignPanel({ slug }) {
         setMsg({ ok: false, text: d.error || `assignment failed (${r.status})` });
       } else {
         setMsg({ ok: true, text: `Assigned — pinned major ${d.pinnedMajor}, resolving v${d.resolvedVersion}.` });
-        setAssignOpen(false);
         setTemplateId('');
         setPinnedMajor('');
         load();
@@ -157,7 +160,7 @@ export default function TemplateAssignPanel({ slug }) {
 
   const unassign = async (tid) => {
     // admin-panel review #8: confirm before changing what the channel produces
-    if (!window.confirm(`Unassign template "${tid}" from ${slug}? The channel falls back to its normal engine path.`)) return;
+    if (!(await confirm({ title: `Unassign "${tid}"?`, body: `${slug} falls back to its normal engine path. You can assign a template again any time.`, confirmLabel: 'Unassign', tone: 'danger' }))) return;
     setBusy(tid);
     setMsg(null);
     try {
@@ -196,120 +199,149 @@ export default function TemplateAssignPanel({ slug }) {
     }
   };
 
-  if (loadErr) {
+  const wrap = (body, footer) => {
+    if (frame) return frame(body, footer);
     return (
-      <div className="inset-tile p-4 mt-1 flex items-center gap-2 t-12" style={{ color: 'var(--bad)' }}>
-        <XCircle size={14} className="shrink-0" /> Template registry unavailable: {loadErr}
+      <div className="inset-tile p-4 mt-1 space-y-4">
+        <div className="flex items-center gap-2 overline"><Layers size={12} /> Template registry</div>
+        {body}
+        {footer ? <div className="flex flex-wrap items-center justify-end gap-2">{footer}</div> : null}
+      </div>
+    );
+  };
+
+  if (loadErr) {
+    return wrap(
+      <div role="alert" className="flex flex-wrap items-center gap-2 t-13" style={{ color: 'var(--bad-ink)' }}>
+        <XCircle size={14} className="shrink-0" />
+        <span className="min-w-0 flex-1">Template registry unavailable: {loadErr}</span>
+        <button type="button" className="btn btn-outline btn-sm" onClick={() => { setLoadErr(null); load(); }}><RefreshCw size={13} /> Retry</button>
       </div>
     );
   }
   if (!data) {
-    return (
-      <div className="inset-tile p-4 mt-1 flex items-center gap-2 text-muted t-12">
+    return wrap(
+      <div className="flex items-center gap-2 text-muted t-13">
         <Loader2 size={14} className="animate-spin" /> Loading template assignment…
       </div>
     );
   }
 
-  return (
-    <div className="inset-tile p-4 mt-1">
-      <div className="flex items-center gap-2 overline mb-3">
-        <Layers size={12} /> Template registry
-        {!isOwner ? <Chip tone="info">read-only — owner only</Chip> : null}
-      </div>
+  const picked = templateId ? byTemplate.get(templateId) : null;
+
+  const body = (
+    <div className="space-y-6 min-w-0">
+      {!isOwner ? (
+        <p className="flex items-start gap-1.5 t-12 text-muted">
+          <Info size={13} className="mt-0.5 shrink-0" style={{ color: 'var(--info-ink)' }} />
+          <span>Read-only — only the owner can assign or change templates.</span>
+        </p>
+      ) : null}
 
       {/* current assignments */}
-      {assignments.length === 0 ? (
-        <p className="t-12 text-muted mb-3">
-          No registry template assigned — this channel runs its normal engine path. {isOwner ? 'Assign one below to pin a version.' : ''}
-        </p>
-      ) : (
-        <div className="space-y-2 mb-3">
-          {assignments.map((a) => {
-            // DB row shape: the family_id column stores the registry key (T1
-            // dual meaning) — a.family_id IS the template's templateId.
-            const t = byTemplate.get(a.family_id);
-            const curMajor = t ? majorOf(t.registry.version) : null;
-            const majorUpdate = curMajor !== null && curMajor > a.pinned_major;
-            const autoVersion = t ? highestInMajor(t, a.pinned_major) : null;
-            const autoAdopt = autoVersion && autoVersion !== a.pinned_version;
-            return (
-              <div key={`${a.family_id}`} className="rounded-xl border border-white/10 bg-black/20 p-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="t-12 font-semibold text-ink">{t ? t.name : a.family_id}</span>
-                  <Chip tone="accent" className="font-mono">pin v{a.pinned_version} (major {a.pinned_major})</Chip>
-                  {t?.registry.deprecated ? <Chip tone="warn">deprecated</Chip> : null}
-                  {isOwner ? (
-                    <button
-                      onClick={() => unassign(a.family_id)}
-                      disabled={busy === a.family_id}
-                      className="btn btn-outline btn-sm ml-auto"
-                      title="Unassign — the channel falls back to its normal engine path"
-                    >
-                      {busy === a.family_id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />} Unassign
-                    </button>
-                  ) : null}
-                </div>
-                <p className="t-10 text-faint mt-1 font-mono">
-                  assigned by {a.assigned_by || '—'} · {String(a.assigned_at || '').slice(0, 16).replace('T', ' ')} UTC
-                </p>
-
-                {/* AC-6: deprecation notice — existing production continues */}
-                {t?.registry.deprecated ? (
-                  <div className="flex items-start gap-1.5 mt-2 t-11" style={{ color: 'var(--warn, #d97706)' }}>
-                    <AlertTriangle size={12} className="mt-0.5 shrink-0" />
-                    <span>Deprecated{t.registry.deprecated_on ? ` since ${t.registry.deprecated_on}` : ''} — existing production keeps running; migrate to a newer style when ready.</span>
+      <section className="space-y-2 min-w-0">
+        <h3 className="t-13 font-semibold text-ink">Assigned template</h3>
+        {assignments.length === 0 ? (
+          <p className="t-12 text-muted">
+            None — this channel runs its normal engine path.{isOwner ? ' Pick one below to pin a version.' : ''}
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {assignments.map((a) => {
+              // DB row shape: the family_id column stores the registry key (T1
+              // dual meaning) — a.family_id IS the template's templateId.
+              const t = byTemplate.get(a.family_id);
+              const curMajor = t ? majorOf(t.registry.version) : null;
+              const majorUpdate = curMajor !== null && curMajor > a.pinned_major;
+              const autoVersion = t ? highestInMajor(t, a.pinned_major) : null;
+              const autoAdopt = autoVersion && autoVersion !== a.pinned_version;
+              return (
+                <li key={`${a.family_id}`} className="rounded-lg border border-[var(--line)] p-3 min-w-0">
+                  <div className="flex flex-wrap items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="t-13 font-semibold text-ink break-words">{t ? t.name : a.family_id}</p>
+                      <p className="t-11 text-faint mt-0.5 font-mono break-all">
+                        v{a.pinned_version} · major {a.pinned_major} · by {a.assigned_by || '—'} · {String(a.assigned_at || '').slice(0, 16).replace('T', ' ')} UTC
+                      </p>
+                    </div>
+                    {t?.registry.deprecated ? <Chip tone="warn">deprecated</Chip> : null}
+                    {isOwner ? (
+                      <button
+                        type="button"
+                        onClick={() => unassign(a.family_id)}
+                        disabled={busy === a.family_id}
+                        className="btn btn-danger btn-sm"
+                      >
+                        {busy === a.family_id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />} Unassign
+                      </button>
+                    ) : null}
                   </div>
-                ) : null}
 
-                {/* AC-5: major updates wait for explicit consent */}
-                {majorUpdate ? (
-                  <div className="mt-2 rounded-lg border border-sky-500/30 bg-sky-500/10 p-2.5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <ArrowUpCircle size={13} className="text-sky-400 shrink-0" />
-                      <span className="t-11 text-ink font-medium">
-                        Major update available: v{curMajor} is published — this channel stays pinned to {a.pinned_major} until you adopt it.
+                  {/* AC-6: deprecation notice — existing production continues */}
+                  {t?.registry.deprecated ? (
+                    <p className="flex items-start gap-1.5 mt-2 t-12" style={{ color: 'var(--warn-ink)' }}>
+                      <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+                      <span className="min-w-0">Deprecated{t.registry.deprecated_on ? ` since ${t.registry.deprecated_on}` : ''} — existing production keeps running; move to a newer style when ready.</span>
+                    </p>
+                  ) : null}
+
+                  {/* AC-5: major updates wait for explicit consent */}
+                  {majorUpdate ? (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md p-2.5" style={{ background: 'color-mix(in srgb, var(--info) 10%, transparent)' }}>
+                      <ArrowUpCircle size={14} className="shrink-0" style={{ color: 'var(--info-ink)' }} />
+                      <span className="t-12 text-ink min-w-0 flex-1">
+                        v{curMajor} is out — this channel stays on major {a.pinned_major} until you adopt it.
                       </span>
                       {isOwner ? (
                         <button
+                          type="button"
                           onClick={() => repin(a.family_id, curMajor)}
                           disabled={busy === a.family_id}
-                          className="btn btn-primary btn-sm ml-auto"
+                          className="btn btn-outline btn-sm"
                         >
-                          {busy === a.family_id ? <Loader2 size={11} className="animate-spin" /> : <ArrowUpCircle size={11} />} Re-pin to v{curMajor}
+                          {busy === a.family_id ? <Loader2 size={12} className="animate-spin" /> : <ArrowUpCircle size={12} />} Re-pin to v{curMajor}
                         </button>
                       ) : null}
                     </div>
-                  </div>
-                ) : null}
+                  ) : null}
 
-                {/* AC-5: minor/patch auto-adopt note */}
-                {autoAdopt ? (
-                  <div className="flex items-start gap-1.5 mt-2 t-11 text-muted">
-                    <Info size={12} className="mt-0.5 shrink-0" style={{ color: 'var(--accent)' }} />
-                    <span>Minor/patch updates auto-adopt — the next generation resolves v{autoVersion} (no action needed).</span>
-                  </div>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-      )}
+                  {/* AC-5: minor/patch auto-adopt note */}
+                  {autoAdopt ? (
+                    <p className="flex items-start gap-1.5 mt-2 t-12 text-muted">
+                      <Info size={13} className="mt-0.5 shrink-0" style={{ color: 'var(--accent)' }} />
+                      <span className="min-w-0">Minor and patch updates adopt automatically — the next video uses v{autoVersion}.</span>
+                    </p>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
       {/* assign flow (owner only) */}
       {isOwner ? (
-        assignOpen ? (
-          <div className="rounded-xl border border-white/10 bg-black/20 p-3 space-y-2.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="overline">Assign template</span>
-              {channelNiches.length ? <Chip tone="plain">channel niches: {channelNiches.join(', ')}</Chip> : null}
+        <section className="space-y-3 min-w-0">
+          <h3 className="t-13 font-semibold text-ink">{assignments.length ? 'Assign a different template' : 'Assign a template'}</h3>
+          {channelNiches.length ? (
+            <div className="min-w-0">
+              <p className="t-11 text-faint mb-1.5">This channel&apos;s niches (matching templates are starred ★ and listed first)</p>
+              <div className="flex flex-wrap gap-1.5">
+                {channelNiches.map((n) => (
+                  <Chip key={n} tone="plain" className="max-w-full whitespace-normal break-words">{n}</Chip>
+                ))}
+              </div>
             </div>
+          ) : null}
+          <div className="min-w-0">
+            <label htmlFor={`tpl-pick-${slug}`} className="block t-12 font-medium text-muted mb-1">Template</label>
             <select
+              id={`tpl-pick-${slug}`}
               value={templateId}
               onChange={(e) => pickTemplate(e.target.value)}
-              className="w-full t-13 px-3 py-2 rounded-lg border border-line bg-surface"
+              className="input w-full"
             >
-              <option value="">— pick a template (this channel&apos;s niches first) —</option>
+              <option value="">Pick a template…</option>
               {orderedTemplates.map((t) => {
                 const nicheHit = (t.registry?.niches || []).some((n) => channelNiches.includes(n));
                 const fmtMiss = !(t.registry?.formats || []).some((f) => channelFormats.includes(f));
@@ -320,61 +352,63 @@ export default function TemplateAssignPanel({ slug }) {
                 );
               })}
             </select>
-            {templateId && byTemplate.get(templateId) ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="overline">Pinned major</span>
-                <select
-                  value={pinnedMajor}
-                  onChange={(e) => setPinnedMajor(e.target.value)}
-                  className="t-13 px-3 py-2 rounded-lg border border-line bg-surface"
-                >
-                  {availableMajors(byTemplate.get(templateId)).map((m) => (
-                    <option key={m} value={m}>{m} {m === majorOf(byTemplate.get(templateId).registry.version) ? '(current)' : ''}</option>
-                  ))}
-                </select>
-                {byTemplate.get(templateId).registry.deprecated ? (
-                  <span className="t-11 flex items-center gap-1" style={{ color: 'var(--warn, #d97706)' }}>
-                    <AlertTriangle size={12} /> deprecated — the validator blocks new assignments
-                  </span>
-                ) : null}
-              </div>
-            ) : null}
-            <div className="flex items-center gap-2">
-              <Button color="primary" onClick={assign} disabled={!templateId || pinnedMajor === '' || (!!busy && busy === templateId)}>
-                {busy && busy === templateId ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Assign &amp; pin
-              </Button>
-              <button
-                onClick={() => { setAssignOpen(false); setTemplateId(''); setPinnedMajor(''); setMsg(null); }}
-                className="btn btn-outline"
-              >
-                Cancel
-              </button>
-            </div>
           </div>
-        ) : (
-          <Button color="secondary" onClick={() => { setAssignOpen(true); setMsg(null); }} iconLeading={<Layers size={15} />}>
-            Assign template
-          </Button>
-        )
-      ) : null}
-
-      {/* empty registry (REGISTRY_META is seeded in Task 10) */}
-      {!assignments.length && !templates.length ? (
-        <p className="t-11 text-faint mt-2">No registry templates yet — seeds land in Task 10.</p>
+          {picked ? (
+            <div className="min-w-0">
+              <label htmlFor={`tpl-major-${slug}`} className="block t-12 font-medium text-muted mb-1">Pinned major version</label>
+              <select
+                id={`tpl-major-${slug}`}
+                value={pinnedMajor}
+                onChange={(e) => setPinnedMajor(e.target.value)}
+                className="input w-full sm:w-48"
+              >
+                {availableMajors(picked).map((m) => (
+                  <option key={m} value={m}>{m} {m === majorOf(picked.registry.version) ? '(current)' : ''}</option>
+                ))}
+              </select>
+              <p className="t-11 text-faint mt-1">Minor and patch updates inside this major adopt automatically.</p>
+              <a
+                href={`/templates/registry/detail?template=${encodeURIComponent(picked.templateId)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 t-12 text-muted hover:text-ink mt-2"
+              >
+                See this template&apos;s details <ExternalLink size={11} />
+              </a>
+              {picked.registry.deprecated ? (
+                <p className="t-12 flex items-center gap-1 mt-1.5" style={{ color: 'var(--warn-ink)' }}>
+                  <AlertTriangle size={13} /> Deprecated — the validator blocks new assignments.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          {!templates.length ? (
+            <p className="t-12 text-muted">No registry templates exist yet, so there is nothing to assign.</p>
+          ) : null}
+        </section>
       ) : null}
 
       {/* result / validation messages */}
       {msg ? (
-        <div className={`mt-3 rounded-xl border p-2.5 t-12 ${msg.ok ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-red-500/30 bg-red-500/10'}`}>
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-lg border p-3 t-12"
+          style={{
+            borderColor: `color-mix(in srgb, ${msg.ok ? 'var(--ok)' : 'var(--bad)'} 35%, transparent)`,
+            background: `color-mix(in srgb, ${msg.ok ? 'var(--ok)' : 'var(--bad)'} 8%, transparent)`,
+            color: msg.ok ? 'var(--ok-ink)' : 'var(--bad-ink)',
+          }}
+        >
           <div className="flex items-start gap-1.5">
-            {msg.ok ? <CheckCircle2 size={13} className="mt-0.5 text-emerald-400 shrink-0" /> : <XCircle size={13} className="mt-0.5 text-red-400 shrink-0" />}
-            <span className={msg.ok ? 'text-emerald-300' : 'text-red-300'}>{msg.text}</span>
+            {msg.ok ? <CheckCircle2 size={13} className="mt-0.5 shrink-0" /> : <XCircle size={13} className="mt-0.5 shrink-0" />}
+            <span className="min-w-0">{msg.text}</span>
           </div>
           {Array.isArray(msg.reasons) && msg.reasons.length ? (
-            <ul className="mt-1.5 space-y-1 pl-5">
+            <ul className="mt-1.5 space-y-1 pl-5 list-disc">
               {msg.reasons.map((r, i) => (
-                <li key={i} className="list-disc text-red-300 marker:text-red-400">
-                  <span className="font-mono t-10 mr-1 opacity-80">{r.code}</span> {friendlyReason(r)}
+                <li key={i} className="break-words">
+                  <span className="font-mono t-11 mr-1 opacity-80">{r.code}</span> {friendlyReason(r)}
                 </li>
               ))}
             </ul>
@@ -383,4 +417,20 @@ export default function TemplateAssignPanel({ slug }) {
       ) : null}
     </div>
   );
+
+  const assigning = !!busy && busy === templateId;
+  const footer = isOwner && templates.length ? (
+    <>
+      {templateId ? (
+        <button type="button" className="btn btn-outline" onClick={() => { setTemplateId(''); setPinnedMajor(''); setMsg(null); }}>
+          Clear
+        </button>
+      ) : null}
+      <Button color="primary" onClick={assign} isDisabled={!templateId || pinnedMajor === '' || assigning}>
+        {assigning ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Assign &amp; pin
+      </Button>
+    </>
+  ) : null;
+
+  return wrap(body, footer);
 }

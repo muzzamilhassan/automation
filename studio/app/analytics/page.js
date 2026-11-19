@@ -22,7 +22,6 @@ import { RetentionBars, MiniBars } from '@/components/charts';
 import { RETENTION_GOAL } from '@/lib/site-data';
 import { useBrands } from '@/components/use-brands'; // #125: live brand marks
 import { fmt } from '@/lib/utils';
-import { Button } from '@/components/untitledui/base/buttons/button';
 import DataTable from '@/components/DataTable';
 
 // #106 S5: snapshot-backed section (nightly analytics_snapshots — zero live
@@ -41,33 +40,50 @@ export default function Analytics() {
   const [terms, setTerms] = useState(null);
   const [termsErr, setTermsErr] = useState(false);
   const [reports, setReports] = useState([]);
+  const [reportsErr, setReportsErr] = useState(false);
   const [snap, setSnap] = useState(null);
+  const [snapErr, setSnapErr] = useState(false);
   const [snapDays, setSnapDays] = useState(28);
   const [reAuthing, setReAuthing] = useState(null);
+  const [reAuthErr, setReAuthErr] = useState('');
+  const [ovErr, setOvErr] = useState(false);
 
+  // a failed read is "unavailable", never "no snapshots yet" (honesty doctrine)
   const loadSnap = (days = snapDays) => {
+    setSnapErr(false);
     fetch('/api/analytics/leaderboard?days=' + days)
-      .then((r) => r.json())
-      .then(setSnap)
-      .catch(() => setSnap(null));
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
+      .then((d) => { if (d?.error) throw new Error(d.error); setSnap(d); })
+      .catch(() => { setSnap(null); setSnapErr(true); });
   };
+  // deferred a tick: loaders set state, which must not run synchronously in an effect
   useEffect(() => {
-    loadSnap(snapDays);
+    let alive = true;
+    Promise.resolve().then(() => { if (alive) loadSnap(snapDays); });
+    return () => { alive = false; };
   }, [snapDays]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startReAuth = async (slug) => {
     setReAuthing(slug);
+    setReAuthErr('');
     try {
       const r = await fetch('/api/oauth/start');
-      const d = await r.json();
-      if (r.ok && d.url) window.location.assign(d.url);
-    } catch { }
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.url) {
+        window.location.assign(d.url);
+        return;
+      }
+      setReAuthErr(d.error || `Couldn't start the Google sign-in (the server answered ${r.status}).`);
+    } catch (e) {
+      setReAuthErr(`Couldn't start the Google sign-in — ${e.message || 'network error'}.`);
+    }
     setReAuthing(null);
   };
 
   useEffect(() => {
-    fetch('/api/overview').then((r) => r.json()).then(setData).catch(() => setData({ totals: {}, channels: [] }));
-    fetch('/api/reports').then((r) => r.json()).then((d) => setReports(d.reports || [])).catch(() => {});
+    // overview failure keeps the page usable but its totals read "—", never 0
+    fetch('/api/overview').then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))).then(setData).catch(() => { setOvErr(true); setData({ totals: {}, channels: [] }); });
+    fetch('/api/reports').then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))).then((d) => setReports(d.reports || [])).catch(() => setReportsErr(true));
   }, []);
   const load = (fresh = false) => {
     setReal(null);
@@ -86,7 +102,9 @@ export default function Analytics() {
       .catch(() => { setTerms([]); setTermsErr(true); });
   };
   useEffect(() => {
-    load();
+    let alive = true;
+    Promise.resolve().then(() => { if (alive) load(); });
+    return () => { alive = false; };
   }, [sel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!data) return <PageSkeleton />;
@@ -118,17 +136,18 @@ export default function Analytics() {
   const keywords = (terms || []).filter((k) => k && k.term);
   const platformSlices = sel === 'all'
     ? [
-        { name: 'YouTube', value: totals.ytSubs || 0, color: '#ff4444' },
-        { name: 'Facebook', value: totals.fbFollowers || 0, color: '#3b82f6' },
-        { name: 'Instagram', value: totals.igFollowers || 0, color: '#ec4899' },
+        { name: 'YouTube', value: totals.ytSubs || 0, color: 'var(--bad)' },
+        { name: 'Facebook', value: totals.fbFollowers || 0, color: 'var(--info)' },
+        { name: 'Instagram', value: totals.igFollowers || 0, color: 'var(--accent)' },
       ]
     : [
-        { name: 'YouTube', value: selChannel?.yt?.subs || 0, color: '#ff4444' },
-        { name: 'Facebook', value: selChannel?.fb?.followers || 0, color: '#3b82f6' },
-        { name: 'Instagram', value: selChannel?.ig?.followers || 0, color: '#ec4899' },
+        { name: 'YouTube', value: selChannel?.yt?.subs || 0, color: 'var(--bad)' },
+        { name: 'Facebook', value: selChannel?.fb?.followers || 0, color: 'var(--info)' },
+        { name: 'Instagram', value: selChannel?.ig?.followers || 0, color: 'var(--accent)' },
       ];
   const platformTotal = platformSlices.reduce((a, s) => a + s.value, 0) || 1;
-  const subsShown = sel === 'all' ? totals.ytSubs || 0 : selChannel?.yt?.subs || 0;
+  // null (unknown) renders "—" in StatCard — never a fake 0
+  const subsShown = ovErr ? null : sel === 'all' ? totals.ytSubs ?? null : selChannel?.yt?.subs ?? null;
   const liveRows = retentionRows.filter((r) => r.live);
   const best = [...liveRows].sort((a, b) => b.pct - a.pct)[0];
   const worst = liveRows.length > 1 ? [...liveRows].sort((a, b) => a.pct - b.pct)[0] : null;
@@ -155,10 +174,12 @@ export default function Analytics() {
           value={sel}
           onChange={setSel}
         />
-        <Button color="secondary" onClick={() => load(true)} iconLeading={<RefreshCw size={16} />}>Refresh</Button>
+        <button className="btn btn-outline" onClick={() => { load(true); loadSnap(snapDays); }}>
+          <RefreshCw size={16} /> Refresh
+        </button>
         {selChannel ? (
           <span className="flex items-center gap-2 t-12 text-muted">
-            <BrandMark short={BRAND[sel]?.short} accent={selChannel.accent} size={20} />
+            <BrandMark short={BRAND[sel]?.short || '•'} accent={selChannel.accent || 'var(--accent)'} size={20} />
             {selChannel.label}
           </span>
         ) : null}
@@ -173,7 +194,7 @@ export default function Analytics() {
             title="Channel leaderboard"
             sub={`Nightly snapshots · ranked by views · last ${snapDays} days`}
             icon={Trophy}
-            right={snapThrough ? <Chip tone="info" dot>data through {snapThrough}</Chip> : <Chip tone="warn">no snapshots yet</Chip>}
+            right={snapErr ? <Chip tone="bad">unavailable</Chip> : snapThrough ? <Chip tone="info" dot>data through {snapThrough}</Chip> : snap ? <Chip tone="warn">no snapshots yet</Chip> : null}
           />
           <div className="px-5 pb-5">
             <div className="mb-3">
@@ -199,7 +220,7 @@ export default function Analytics() {
                         <td>
                           <span className="flex items-center gap-2.5">
                             <BrandMark short={brandOf(r.channelId).short} accent={brandOf(r.channelId).accent} size={24} />
-                            <span className="font-semibold">{r.channelId}</span>
+                            <span className="font-semibold">{BRAND[r.channelId]?.label || r.channelId}</span>
                           </span>
                         </td>
                         <td className="tnum font-bold text-ink">{fmt(r.views)}</td>
@@ -217,6 +238,12 @@ export default function Analytics() {
                   </tbody>
                 </table>
               </div>
+            ) : snapErr ? (
+              <EmptyState icon={Trophy} title="Can't load the leaderboard right now" sub="The snapshots weren't readable — this is not an empty leaderboard.">
+                <button className="btn btn-outline btn-sm mt-3" onClick={() => loadSnap(snapDays)}><RefreshCw size={13} /> Retry</button>
+              </EmptyState>
+            ) : !snap ? (
+              <div className="space-y-2">{[0, 1, 2, 3].map((i) => <div key={i} className="skeleton h-6" />)}</div>
             ) : (
               <EmptyState icon={Trophy} title="No snapshots yet" sub="The nightly analytics job (05:17 UTC) fills this after its first run." />
             )}
@@ -231,7 +258,9 @@ export default function Analytics() {
             right={snapThrough ? <Chip tone="info" dot>data through {snapThrough}</Chip> : null}
           />
           <div className="px-5 pb-5">
-            {winRows.length ? (
+            {snapErr ? (
+              <p className="t-12 text-faint py-6 text-center">Unavailable right now — couldn&apos;t read the snapshots.</p>
+            ) : winRows.length ? (
               <div className="space-y-1.5">
                 {winRows.map((e) => (
                   <div key={e.kind + ':' + e.key} className="flex items-center justify-between gap-2 t-12">
@@ -266,24 +295,20 @@ export default function Analytics() {
             right={<Chip tone="warn" dot>owner action</Chip>}
           />
           <div className="px-2 pb-2">
+            {reAuthErr ? <p className="t-12 px-3 pb-2" role="alert" style={{ color: 'var(--bad-ink)' }}>{reAuthErr}</p> : null}
             {snap.reAuth.map((c) => (
               <div key={c.slug} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-2 transition-colors">
                 <BrandMark short={brandOf(c.slug).short} accent={brandOf(c.slug).accent} size={26} />
                 <span className="min-w-0 flex-1">
-                  <span className="block t-12 font-semibold text-ink">{c.slug}</span>
+                  <span className="block t-12 font-semibold text-ink">{BRAND[c.slug]?.label || c.slug}</span>
                   <span className="block t-10 text-faint truncate">
                     {c.error || 'scope missing'}{c.checkedAt ? ` · probed ${String(c.checkedAt).slice(0, 10)}` : ''}
                   </span>
                 </span>
                 {isOwner ? (
-                  <Button
-                    color="secondary"
-                    onClick={() => startReAuth(c.slug)}
-                    isDisabled={reAuthing === c.slug}
-                    iconLeading={<RefreshCw size={14} className={reAuthing === c.slug ? 'animate-spin' : ''} />}
-                  >
-                    Re-auth
-                  </Button>
+                  <button className="btn btn-outline btn-sm shrink-0" onClick={() => startReAuth(c.slug)} disabled={reAuthing === c.slug}>
+                    <RefreshCw size={14} className={reAuthing === c.slug ? 'animate-spin' : ''} /> Re-auth
+                  </button>
                 ) : (
                   <Chip tone="warn">owner action required</Chip>
                 )}
@@ -297,7 +322,7 @@ export default function Analytics() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
         <StatCard icon={Eye} label="Views · 28 days" value={real ? real.totals?.views ?? null : null} fmt={fmt} color="var(--info)" iconBg="color-mix(in srgb, var(--info) 12%, transparent)" />
         <StatCard icon={Clock} label="Watch time · hours" value={real ? real.totals?.watchHours ?? null : null} fmt={(v) => Number(v).toLocaleString('en-US')} color="var(--ok)" iconBg="color-mix(in srgb, var(--ok) 12%, transparent)" />
-        <StatCard icon={UserPlus} label="Subs gained · 28 days" value={real ? real.totals?.subsGained ?? null : null} fmt={(v) => Number(v).toLocaleString('en-US')} color="#ec4899" iconBg="color-mix(in srgb, #ec4899 12%, transparent)" />
+        <StatCard icon={UserPlus} label="Subs gained · 28 days" value={real ? real.totals?.subsGained ?? null : null} fmt={(v) => Number(v).toLocaleString('en-US')} color="var(--accent)" iconBg="var(--accent-soft)" />
         <StatCard icon={Users} label="Subscribers · total" value={subsShown} fmt={fmt} />
       </div>
 
@@ -308,7 +333,7 @@ export default function Analytics() {
             title="Average watched"
             sub={retentionLive ? 'Live from YouTube Analytics · last 28 days' : 'Live where the channel has analytics data — the rest say “no data”'}
             icon={Target}
-            right={<Chip tone={retentionLive ? 'ok' : 'warn'}>{retentionLive ? 'live data' : 'partial data'}</Chip>}
+            right={realErr ? <Chip tone="bad">unavailable</Chip> : real ? <Chip tone={retentionLive ? 'ok' : 'warn'}>{retentionLive ? 'live data' : 'partial data'}</Chip> : null}
           />
           <div className="px-5 pb-5">
             <RetentionBars rows={retentionRows} goal={RETENTION_GOAL} />
@@ -320,7 +345,7 @@ export default function Analytics() {
                   {worst?.pct}%. Pick a channel above to see it alone.
                 </p>
               </div>
-            ) : (
+            ) : best ? (
               <div className="inset-tile p-3 mt-4 flex gap-2.5">
                 <Info size={14} className="shrink-0 mt-0.5" style={{ color: best?.pct >= RETENTION_GOAL ? 'var(--ok)' : 'var(--warn)' }} />
                 <p className="t-11 text-muted leading-relaxed">
@@ -329,7 +354,7 @@ export default function Analytics() {
                     : `Below the ${RETENTION_GOAL}% goal — the first 2 seconds still lose people.`}
                 </p>
               </div>
-            )}
+            ) : null}
           </div>
         </Card>
 
@@ -339,11 +364,14 @@ export default function Analytics() {
             title="Views per day"
             sub="Real numbers · last 28 days from YouTube Analytics"
             icon={TrendingUp}
-            right={realErr ? <Chip tone="bad">unavailable · retry</Chip> : !real ? null : real.coverage?.failed?.length ? <Chip tone="warn">{real.coverage.ok.length} of {real.coverage.ok.length + real.coverage.failed.length} channels</Chip> : <Chip tone="ok">real data</Chip>}
+            right={realErr ? <Chip tone="bad">unavailable</Chip> : !real ? null : real.coverage?.failed?.length ? <Chip tone="warn">{real.coverage.ok.length} of {real.coverage.ok.length + real.coverage.failed.length} channels</Chip> : <Chip tone="ok">real data</Chip>}
           />
           <div className="px-2 pb-2">
             {realErr ? (
-              <p className="t-12 text-faint px-4 py-10 text-center">Analytics data unavailable right now — try Refresh in a minute.</p>
+              <div className="px-4 py-10 text-center">
+                <p className="t-12 text-faint">Analytics data unavailable right now — not zero, just unreadable.</p>
+                <button className="btn btn-outline btn-sm mt-3" onClick={() => load(true)}><RefreshCw size={13} /> Retry</button>
+              </div>
             ) : !real ? (
               <div className="px-4 py-10 space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="skeleton h-5" />)}</div>
             ) : real.daily.length ? (
@@ -362,7 +390,11 @@ export default function Analytics() {
         <Card>
           <CardHead title="Shorts vs long-form" sub="Views in the last 28 days" icon={Scissors} />
           <div className="px-5 pb-5">
-            {splitTotal ? (
+            {realErr ? (
+              <p className="t-12 text-faint py-6 text-center">Unavailable right now.</p>
+            ) : !real ? (
+              <div className="skeleton h-16" />
+            ) : splitTotal ? (
               <>
                 <div className="flex h-3.5 rounded-full overflow-hidden border border-line mb-3">
                   <div style={{ width: shortPct + '%', background: 'var(--accent)' }} />
@@ -403,7 +435,9 @@ export default function Analytics() {
                 </div>
               );
             })}
-            {!(real?.audience?.countries || []).length ? <p className="t-12 text-faint py-4 text-center">No audience data yet.</p> : null}
+            {!(real?.audience?.countries || []).length ? (
+              <p className="t-12 text-faint py-4 text-center">{realErr ? 'Unavailable right now.' : !real ? 'Loading…' : 'No audience data yet.'}</p>
+            ) : null}
           </div>
         </Card>
 
@@ -411,7 +445,10 @@ export default function Analytics() {
         <Card>
           <CardHead title="Who watches" sub="Age groups and gender, 28 days" icon={Users} />
           <div className="px-5 pb-5">
-            <div className="flex gap-2 mb-3">
+            {!(real?.audience?.age || []).length && !(real?.audience?.gender || []).length ? (
+              <p className="t-12 text-faint py-4 text-center">{realErr ? 'Unavailable right now.' : !real ? 'Loading…' : 'No audience data yet.'}</p>
+            ) : null}
+            <div className="flex flex-wrap gap-2 mb-3">
               {(real?.audience?.gender || []).map((g) => (
                 <span key={g.key} className="inset-tile px-2.5 py-1.5 t-11 font-semibold text-ink">
                   {GENDER_NAME[g.key] || g.key}: {Math.round((g.views / genderTotal) * 100)}%
@@ -446,11 +483,11 @@ export default function Analytics() {
                 <div key={s.name} className="flex items-center gap-2 t-12">
                   <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: s.color }} />
                   <span className="text-muted">{s.name}</span>
-                  <span className="ml-auto tnum font-bold text-ink">{s.value ? fmt(s.value) : '—'}</span>
+                  <span className="ml-auto tnum font-bold text-ink">{s.value && !ovErr ? fmt(s.value) : '—'}</span>
                 </div>
               ))}
             </div>
-            <p className="t-10 text-faint mt-3">Followers, not views. Total {fmt(platformTotal)}.</p>
+            <p className="t-10 text-faint mt-3">Followers, not views.{ovErr ? ' Live totals unavailable right now.' : ` Total ${fmt(platformTotal)}.`}</p>
           </div>
         </Card>
 
@@ -465,6 +502,11 @@ export default function Analytics() {
           <div className="px-2 pb-2">
             {terms === null ? (
               <div className="px-3 py-6 space-y-2">{[...Array(5)].map((_, i) => <div key={i} className="skeleton h-5" />)}</div>
+            ) : termsErr ? (
+              <div className="px-3 py-6 text-center">
+                <p className="t-12 text-faint">Search terms unavailable right now — not an empty list.</p>
+                <button className="btn btn-outline btn-sm mt-3" onClick={() => load(true)}><RefreshCw size={13} /> Retry</button>
+              </div>
             ) : (
               <DataTable
                 label="Viewer search terms"
@@ -475,9 +517,9 @@ export default function Analytics() {
                 pageSize={8}
                 columns={[
                   { key: 'term', label: 'Search term', rowHeader: true, render: (k) => (
-                    <span className="flex items-center gap-2 t-12 font-medium text-fg-primary truncate"><Search size={12} className="text-fg-quaternary shrink-0" /> {k.term}</span>
+                    <span className="flex items-center gap-2 t-12 font-medium text-ink truncate"><Search size={12} className="text-faint shrink-0" /> {k.term}</span>
                   ) },
-                  { key: 'views', label: 'Views', render: (k) => <span className="tnum font-semibold t-12 text-fg-primary">{fmt(k.views)}</span> },
+                  { key: 'views', label: 'Views', render: (k) => <span className="tnum font-semibold t-12 text-ink">{fmt(k.views)}</span> },
                 ]}
               />
             )}
@@ -488,7 +530,9 @@ export default function Analytics() {
         <Card>
           <CardHead title="Reports" sub="Daily Excel reports from the reporting pipeline" icon={FileSpreadsheet} />
           <div className="px-3 pb-3">
-            {reports.length === 0 ? (
+            {reportsErr ? (
+              <p className="t-12 text-faint py-6 text-center">Can&apos;t list reports right now.</p>
+            ) : reports.length === 0 ? (
               <p className="t-12 text-faint py-6 text-center">No reports in the repo yet — the reporting pipeline drops them here.</p>
             ) : (
               reports.slice(0, 8).map((r) => (

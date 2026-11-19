@@ -2,7 +2,7 @@
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Sparkles, ClipboardCheck, ListChecks, Image as ImageIcon, Clapperboard } from 'lucide-react';
-import { PageHeader } from '@/components/ui';
+import { PageHeader, PageSkeleton } from '@/components/ui';
 import TabNav from '@/components/TabNav';
 import ReviewDeskPage from '@/app/review/page';
 import TopicDesk from '@/app/topics/page';
@@ -50,7 +50,7 @@ function StudioContent() {
 
 export default function StudioHub() {
   return (
-    <Suspense fallback={<div className="p-8 text-faint">Loading Studio…</div>}>
+    <Suspense fallback={<PageSkeleton />}>
       <StudioContent />
     </Suspense>
   );

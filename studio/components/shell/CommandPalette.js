@@ -48,16 +48,26 @@ export default function CommandPalette({ open, onClose }) {
   const [q, setQ] = useState('');
   const [idx, setIdx] = useState(0);
   const [chans, setChans] = useState(null); // null = not loaded yet
+  // P0-13: production runs need a second-Enter confirm, an inline result, and
+  // navigation only on success. Declared BEFORE channelRuns reads `armed` —
+  // reading a const in its temporal dead zone threw as soon as channels loaded.
+  const [armed, setArmed] = useState(null);
+  const [note, setNote] = useState('');
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const inputRef = useRef(null);
 
   useEffect(() => {
-    if (open) {
+    if (!open) return undefined;
+    // reset on each open (deferred: no synchronous setState inside an effect)
+    const t = setTimeout(() => {
       setQ('');
       setIdx(0);
-      setTimeout(() => inputRef.current?.focus(), 20);
-    }
+      setArmed(null); // a confirm armed in a previous visit never carries over
+      setNote('');
+      inputRef.current?.focus();
+    }, 20);
+    return () => clearTimeout(t);
   }, [open]);
 
   // T4d (#106): one run entry per registry channel, labeled by the registry
@@ -68,7 +78,7 @@ export default function CommandPalette({ open, onClose }) {
   useEffect(() => {
     if (!open || chans) return;
     fetch('/api/overview')
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
       .then((d) => setChans((d?.controlChannels || d?.channels || []).map((c) => ({ slug: c.slug, label: c.label || c.slug }))))
       .catch(() => setChans([]));
   }, [open, chans]);
@@ -120,11 +130,6 @@ export default function CommandPalette({ open, onClose }) {
       run: () => setTheme(theme === 'dark' ? 'light' : 'dark'),
     },
   ].filter((i) => [i.label, i.sub, ...(i.keywords || [])].join(' ').toLowerCase().includes(q.toLowerCase()));
-
-// P0-13: production runs need a second-Enter confirm, an inline result, and
-// navigation only on success.
-const [armed, setArmed] = useState(null);
-const [note, setNote] = useState('');
 
   const pick = (i) => {
     const it = items[i];
@@ -179,7 +184,8 @@ const [note, setNote] = useState('');
               if (e.key === 'Escape') { if (armed) { setArmed(null); setNote(''); } else onClose(); }
             }}
             placeholder="Search pages and actions…"
-            className="flex-1 bg-transparent outline-none text-sm text-ink placeholder:text-faint"
+            aria-label="Search pages and actions"
+            className="flex-1 min-w-0 bg-transparent outline-none t-14 text-ink placeholder:text-faint"
           />
           <span className="kbd">ESC</span>
         </div>
@@ -188,13 +194,14 @@ const [note, setNote] = useState('');
         ) : null}
         <div className="max-h-[46vh] overflow-y-auto py-2">
           {items.length === 0 ? (
-            <p className="text-xs text-faint px-4 py-6 text-center">Nothing found for “{q}”</p>
+            <p className="t-12 text-faint px-4 py-6 text-center">Nothing found for “{q}”</p>
           ) : (
             items.map((it, i) => {
               const Icon = it.icon;
               return (
                 <button
                   key={it.id}
+                  type="button"
                   onMouseEnter={() => setIdx(i)}
                   onClick={() => pick(i)}
                   className={cn(
@@ -206,7 +213,7 @@ const [note, setNote] = useState('');
                     className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0"
                     style={{
                       background: it.kind === 'run' ? 'color-mix(in srgb, var(--ok) 12%, transparent)' : 'var(--accent-soft)',
-                      color: it.kind === 'run' ? 'var(--ok)' : 'var(--accent)',
+                      color: it.kind === 'run' ? 'var(--ok-ink)' : 'var(--accent)',
                     }}
                   >
                     <Icon size={14} />

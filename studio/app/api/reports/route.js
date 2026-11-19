@@ -38,7 +38,7 @@ export async function GET(req) {
         'X-GitHub-Api-Version': '2022-11-28',
       },
     });
-    if (!res.ok) return Response.json({ reports: [] });
+    if (!res.ok) return Response.json({ reports: [], error: `report storage answered ${res.status}` }, { status: 502 });
     const list = await res.json();
     const rows = (Array.isArray(list) ? list : [])
       .filter((f) => f.name.endsWith('.xlsx'))
@@ -46,6 +46,6 @@ export async function GET(req) {
       .sort((a, b) => b.name.localeCompare(a.name));
     return Response.json({ reports: rows });
   } catch {
-    return Response.json({ reports: [] });
+    return Response.json({ reports: [], error: 'report storage unreachable' }, { status: 502 });
   }
 }

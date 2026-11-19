@@ -10,7 +10,7 @@ test('destructive/bulk actions confirm first', () => {
   const fnHasConfirm = (src, fnStart) => {
     const at = src.indexOf(fnStart);
     assert.ok(at > 0, fnStart);
-    return /window\.confirm\(/.test(src.slice(at, at + 600));
+    return /window\.confirm\(|await confirm\(/.test(src.slice(at, at + 600)); // useConfirm() dialog replaced window.confirm
   };
   assert.ok(fnHasConfirm(read('studio/app/production/page.js'), 'const setAll = async'), 'Pause/Resume everything');
   assert.ok(fnHasConfirm(read('studio/components/TemplateAssignPanel.js'), 'const unassign = async'), 'template unassign');

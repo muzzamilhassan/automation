@@ -156,7 +156,7 @@ export function MultiChart({ series, labels, height = 240, fmt = (v) => v.toLoca
         >
           <div className="overline mb-1.5">{labels[hover]}</div>
           {series.map((s) => (
-            <div key={s.key} className="flex items-center justify-between gap-4 text-xs py-0.5">
+            <div key={s.key} className="flex items-center justify-between gap-4 t-11 py-0.5">
               <span className="flex items-center gap-1.5" style={{ color: s.color }}>
                 <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />
                 {s.name}
@@ -176,7 +176,9 @@ export function Donut({ slices, size = 148, thickness = 16, center }) {
   const total = slices.reduce((a, s) => a + s.value, 0) || 1;
   const r = (size - thickness) / 2;
   const c = 2 * Math.PI * r;
-  let acc = 0;
+  // each slice starts where the previous ones end — precomputed, so render
+  // never mutates a variable inside the map (react-hooks/immutability)
+  const starts = slices.map((_, i) => slices.slice(0, i).reduce((a, s) => a + s.value / total, 0));
   return (
     <div className="relative inline-flex items-center justify-center">
       <svg width={size} height={size} role="img" aria-label="platform split">
@@ -184,8 +186,7 @@ export function Donut({ slices, size = 148, thickness = 16, center }) {
           {slices.map((s, i) => {
             const frac = s.value / total;
             const dash = `${frac * c} ${c}`;
-            const off = -acc * c;
-            acc += frac;
+            const off = -starts[i] * c;
             return (
               <circle
                 key={i}
@@ -218,7 +219,7 @@ export function RetentionBars({ rows, goal }) {
     <div className="space-y-4">
       {rows.map((r) => (
         <div key={r.slug}>
-          <div className="flex items-center justify-between text-xs mb-1.5">
+          <div className="flex items-center justify-between t-11 mb-1.5">
             <span className="flex items-center gap-2 font-semibold text-ink">
               <span className="w-2.5 h-2.5 rounded-sm" style={{ background: r.accent }} />
               {r.name}
@@ -265,7 +266,7 @@ export function MiniBars({ data, color = 'var(--accent)', height = 56, labels })
             className="w-full rounded-t-md transition-[height,opacity] duration-500 ease-out group-hover:opacity-80"
             style={{ height: `${Math.max(4, (v / max) * (height - 14))}px`, background: color, opacity: 0.32 + 0.68 * (v / max) }}
           />
-          {labels ? <span className="text-[9px] text-faint font-mono">{labels[i]}</span> : null}
+          {labels ? <span className="t-10 text-faint font-mono whitespace-nowrap overflow-hidden max-w-full hidden sm:block">{labels[i]}</span> : null}
         </div>
       ))}
     </div>

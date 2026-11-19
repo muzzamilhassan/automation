@@ -52,32 +52,36 @@ export default function Tasks() {
 
   return (
     <div>
-      <PageHeader icon={SquareKanban} title="Tasks" sub={!loaded ? 'loading live queue…' : anyError ? "some sources can't be checked right now — counts may be incomplete" : `${total} open items · ${open.length} warnings · ${scripts.length} awaiting approval`} />
+      <PageHeader icon={SquareKanban} title="Tasks" sub={!loaded || warnings === null || pending === null ? 'loading live queue…' : anyError ? "some sources can't be checked right now — counts may be incomplete" : `${total} open items · ${open.length} warnings · ${scripts.length} awaiting approval`} />
 
       <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-        <Card hover className="p-5">
+        <Card className="p-5">
           <div className="flex items-center gap-3 mb-4">
             <span className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
               <OctagonAlert size={17} />
             </span>
             <div className="min-w-0 flex-1">
               <h2 className="section-title truncate">Open warnings</h2>
-              <p className="t-11 text-faint">{warnings === 'denied' ? '—' : `${open.length} unresolved`}</p>
+              <p className="t-11 text-faint">{warnings === 'denied' || warnings === 'error' ? '—' : warnings === null ? 'checking…' : `${open.length} unresolved`}</p>
             </div>
           </div>
           {warnings === 'denied' ? (
             <p className="t-12 text-faint px-1">Not available for your role.</p>
           ) : warnings === 'error' ? (
-            <p className="t-12 px-1" style={{ color: 'var(--bad)' }}>Can&apos;t check right now — status unknown, not an all-clear.</p>
+            <p className="t-12 px-1" style={{ color: 'var(--bad-ink)' }}>Can&apos;t check right now — status unknown, not an all-clear.</p>
+          ) : warnings === null ? (
+            <div className="space-y-1.5">{[0, 1, 2].map((i) => <div key={i} className="skeleton h-8" />)}</div>
           ) : open.length === 0 ? (
             <p className="t-12 text-faint px-1">Nothing unresolved — all probes quiet.</p>
           ) : (
             <ul className="space-y-1">
               {open.slice(0, 8).map((w) => (
-                <li key={w.id} className="inset-tile px-3 py-2 flex items-center gap-2.5">
-                  <Chip tone={sevTone[w.severity] || 'plain'} dot>{w.severity}</Chip>
-                  <span className="min-w-0 flex-1 t-12 text-ink truncate">{w.title}</span>
-                  {w.channel_id ? <span className="t-10 text-faint font-mono truncate max-w-[90px]">{w.channel_id}</span> : null}
+                <li key={w.id}>
+                  <Link href="/warnings" className="inset-tile px-3 py-2 flex items-center gap-2.5 hover:bg-surface-2 transition-colors">
+                    <Chip tone={sevTone[w.severity] || 'plain'} dot>{w.severity}</Chip>
+                    <span className="min-w-0 flex-1 t-12 text-ink truncate">{w.title}</span>
+                    {w.channel_id ? <span className="t-10 text-faint font-mono truncate max-w-[90px]">{w.channel_id}</span> : null}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -85,28 +89,33 @@ export default function Tasks() {
           {warnings !== 'denied' ? <Link href="/warnings" className="inline-block mt-3 t-11 text-accent hover:underline">full triage →</Link> : null}
         </Card>
 
-        <Card hover className="p-5">
+        <Card className="p-5">
           <div className="flex items-center gap-3 mb-4">
             <span className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
               <ScrollText size={17} />
             </span>
             <div className="min-w-0 flex-1">
               <h2 className="section-title truncate">Awaiting your approval</h2>
-              <p className="t-11 text-faint">{pending === 'denied' ? '—' : `${scripts.length} held scripts`}</p>
+              <p className="t-11 text-faint">{pending === 'denied' || pending === 'error' ? '—' : pending === null ? 'checking…' : `${scripts.length} held scripts`}</p>
             </div>
           </div>
           {pending === 'denied' ? (
             <p className="t-12 text-faint px-1">Not available for your role.</p>
           ) : pending === 'error' ? (
-            <p className="t-12 px-1" style={{ color: 'var(--bad)' }}>Can&apos;t check right now — status unknown.</p>
+            <p className="t-12 px-1" style={{ color: 'var(--bad-ink)' }}>Can&apos;t check right now — status unknown.</p>
+          ) : pending === null ? (
+            <div className="space-y-1.5">{[0, 1].map((i) => <div key={i} className="skeleton h-8" />)}</div>
           ) : scripts.length === 0 ? (
             <p className="t-12 text-faint px-1">Review queue is clear — nothing waiting.</p>
           ) : (
             <ul className="space-y-1">
               {scripts.slice(0, 8).map((s, i) => (
-                <li key={s.id || i} className="inset-tile px-3 py-2 flex items-center gap-2.5">
-                  <span className="min-w-0 flex-1 t-12 text-ink truncate">{s.title || s.topic || s.id}</span>
-                  {s.slug ? <span className="t-10 text-faint font-mono truncate max-w-[90px]">{s.slug}</span> : null}
+                <li key={s.id || i}>
+                  {/* each held script opens straight into its review */}
+                  <Link href={s.id ? `/review?id=${encodeURIComponent(s.id)}` : '/review'} className="inset-tile px-3 py-2 flex items-center gap-2.5 hover:bg-surface-2 transition-colors">
+                    <span className="min-w-0 flex-1 t-12 text-ink truncate">{s.title || s.topic || s.id}</span>
+                    {s.channel_id || s.slug ? <span className="t-10 text-faint font-mono truncate max-w-[90px]">{s.channel_id || s.slug}</span> : null}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -114,18 +123,22 @@ export default function Tasks() {
           {pending !== 'denied' ? <Link href="/review" className="inline-block mt-3 t-11 text-accent hover:underline">review queue →</Link> : null}
         </Card>
 
-        <Card hover className="p-5">
+        <Card className="p-5">
           <div className="flex items-center gap-3 mb-4">
             <span className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
               <CircleCheck size={17} />
             </span>
             <div className="min-w-0 flex-1">
               <h2 className="section-title truncate">Recently resolved</h2>
-              <p className="t-11 text-faint">{warnings === 'denied' ? '—' : `${resolved.length} in the recent tail`}</p>
+              <p className="t-11 text-faint">{warnings === 'denied' || warnings === 'error' ? '—' : warnings === null ? 'checking…' : `${resolved.length} in the recent tail`}</p>
             </div>
           </div>
           {warnings === 'denied' ? (
             <p className="t-12 text-faint px-1">Not available for your role.</p>
+          ) : warnings === 'error' ? (
+            <p className="t-12 px-1" style={{ color: 'var(--bad-ink)' }}>Can&apos;t check right now — status unknown.</p>
+          ) : warnings === null ? (
+            <div className="space-y-1.5">{[0, 1].map((i) => <div key={i} className="skeleton h-8" />)}</div>
           ) : resolved.length === 0 ? (
             <p className="t-12 text-faint px-1">No resolved warnings yet.</p>
           ) : (

@@ -7,11 +7,12 @@ import {
   Lock,
   ListMusic,
   Disc3,
-  Hourglass,
   Volume2,
   Loader2,
+  RefreshCw,
+  AlertTriangle,
 } from 'lucide-react';
-import { Card, CardHead, Chip, PageHeader, BrandMark } from '@/components/ui';
+import { Card, CardHead, Chip, PageHeader, BrandMark, EmptyState, PageSkeleton } from '@/components/ui';
 import { MUSIC_MOODS } from '@/lib/site-data';
 import { useBrands } from '@/components/use-brands'; // #125: live brand marks
 import MUSIC_URLS from '@/lib/music-urls.json';
@@ -20,10 +21,15 @@ import { cn } from '@/lib/utils';
 export default function MusicPage() {
   const { bySlug: BRAND } = useBrands(); // #125: live short/accent per slug
 
-  const [slug, setSlug] = useState('quotequarry');
-  const [chans, setChans] = useState([]); // T4d: registry-driven tabs from the overview payload
+  // no hardcoded default channel: the first live channel is picked once the
+  // overview answers (no-static-maps directive)
+  const [slug, setSlug] = useState('');
+  const [chans, setChans] = useState(null); // T4d: registry-driven tabs from the overview payload
+  const [loadErr, setLoadErr] = useState('');
+  const [nonce, setNonce] = useState(0);
   const [playingTitle, setPlayingTitle] = useState(null);
   const [loadingTitle, setLoadingTitle] = useState(null);
+  const [playErr, setPlayErr] = useState('');
   const audioRef = useRef(null);
 
   const tracks = MUSIC_URLS[slug] || [];
@@ -31,15 +37,19 @@ export default function MusicPage() {
   useEffect(() => {
     let alive = true;
     (async () => {
-      const d = await fetch('/api/overview').then((r) => r.json()).catch(() => null);
+      const d = await fetch('/api/overview').then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      if (!alive) return;
+      if (!d) { setLoadErr("Can't load your channels right now."); return; }
       // Round 1 (#106): controlChannels (unfiltered by the production filter)
       // keeps a channel's tab when its live YouTube read errors.
-      const list = d?.controlChannels || d?.channels || [];
-      if (!alive || !list.length) return;
-      setChans(list.map((c) => ({ slug: c.slug, label: c.label || c.slug, accent: c.accent })));
+      const list = (d?.controlChannels || d?.channels || []).map((c) => ({ slug: c.slug, label: c.label || c.slug, accent: c.accent }));
+      setLoadErr('');
+      setChans(list);
+      // first channel that actually has a pool, else the first channel
+      setSlug((cur) => cur || (list.find((c) => (MUSIC_URLS[c.slug] || []).length) || list[0])?.slug || '');
     })();
     return () => { alive = false; };
-  }, []);
+  }, [nonce]);
 
   // stop audio when leaving the page
   useEffect(() => () => { if (audioRef.current) audioRef.current.pause(); }, []);
@@ -64,9 +74,27 @@ export default function MusicPage() {
     setLoadingTitle(track.title);
     audioRef.current.onplaying = () => { setPlayingTitle(track.title); setLoadingTitle(null); };
     audioRef.current.onended = () => setPlayingTitle(null);
-    audioRef.current.onerror = () => { setLoadingTitle(null); setPlayingTitle(null); };
-    audioRef.current.play().catch(() => setLoadingTitle(null));
+    setPlayErr('');
+    const fail = () => { setLoadingTitle(null); setPlayingTitle(null); setPlayErr(`Couldn't play "${track.title}" — the free source didn't answer. Renders use the stored original, so videos are unaffected.`); };
+    audioRef.current.onerror = fail;
+    audioRef.current.play().catch(fail);
   };
+
+  const header = <PageHeader icon={Music} title="Music" sub="Each channel's own approved tracks — click play to preview (streams from the free source; renders download the original)" />;
+  if (loadErr && !chans) {
+    return (
+      <div>
+        {header}
+        <Card className="p-4">
+          <EmptyState icon={AlertTriangle} title={loadErr} sub="The music pools are fine — only this view couldn't read the channel list.">
+            <button className="btn btn-outline btn-sm mt-3" onClick={() => setNonce((n) => n + 1)}><RefreshCw size={13} /> Retry</button>
+          </EmptyState>
+        </Card>
+      </div>
+    );
+  }
+  if (!chans) return <PageSkeleton />;
+  const moods = MUSIC_MOODS[slug] || null;
 
   return (
     <div>
@@ -78,17 +106,20 @@ export default function MusicPage() {
           {chans.map((c) => (
             <button
               key={c.slug}
+              type="button"
+              aria-pressed={slug === c.slug}
               onClick={() => switchChannel(c.slug)}
-              className={cn('px-3 h-8 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5', slug === c.slug ? 'text-ink' : 'text-faint hover:text-muted')}
+              className={cn('px-3 h-8 rounded-lg t-11 font-semibold transition-colors flex items-center gap-1.5', slug === c.slug ? 'text-ink' : 'text-faint hover:text-muted')}
               style={slug === c.slug ? { background: 'var(--surface-2)', boxShadow: 'inset 0 0 0 1px var(--line-strong)' } : undefined}
             >
-              <BrandMark short={BRAND[c.slug]?.short} accent={c.accent} size={16} />
+              <BrandMark short={BRAND[c.slug]?.short || '•'} accent={c.accent || 'var(--accent)'} size={16} />
               {c.label}
             </button>
           ))}
         </div>
-        <Chip tone="accent">{tracks.length} tracks in this channel's pool</Chip>
+        {slug ? <Chip tone="accent">{tracks.length} tracks in this channel&apos;s pool</Chip> : null}
       </div>
+      {playErr ? <p className="t-12 mb-3" role="alert" style={{ color: 'var(--bad-ink)' }}>{playErr}</p> : null}
 
       <div className="grid lg:grid-cols-3 gap-4">
         {/* playable pool */}
@@ -99,6 +130,9 @@ export default function MusicPage() {
             icon={Lock}
           />
           <div className="px-2 pb-2">
+            {!tracks.length ? (
+              <EmptyState icon={Music} title="No approved tracks for this channel" sub="Videos for this channel render without a pool track until one is added." />
+            ) : null}
             {tracks.map((t) => {
               const isPlaying = playingTitle === t.title;
               const isLoading = loadingTitle === t.title;
@@ -141,22 +175,14 @@ export default function MusicPage() {
 
         {/* side cards */}
         <div className="space-y-4">
-          <Card>
-            <CardHead title="Channel moods" sub="Requested feel per brand" icon={Disc3} />
-            <div className="px-4 pb-4 space-y-3">
-              {Object.entries(MUSIC_MOODS).map(([mslug, moods]) => (
-                <div key={mslug} className="inset-tile p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <BrandMark short={BRAND[mslug]?.short} accent={BRAND[mslug]?.accent} size={22} />
-                    <span className="t-12 font-semibold text-ink truncate">{BRAND[mslug]?.short || mslug}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {moods.map((m) => <Chip key={m} tone="accent">{m}</Chip>)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
+          {moods ? (
+            <Card>
+              <CardHead title="Requested moods" sub="The feel this channel's pool aims for" icon={Disc3} />
+              <div className="px-4 pb-4 flex flex-wrap gap-1.5">
+                {moods.map((m) => <Chip key={m} tone="accent">{m}</Chip>)}
+              </div>
+            </Card>
+          ) : null}
 
           <Card>
             <CardHead title="Rules the engine follows" icon={ListMusic} />
@@ -168,15 +194,6 @@ export default function MusicPage() {
             </div>
           </Card>
 
-          <Card className="p-4 flex items-center gap-3.5">
-            <span className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0" style={{ background: 'color-mix(in srgb, var(--warn) 14%, transparent)', color: 'var(--warn)' }}>
-              <Hourglass size={16} />
-            </span>
-            <div className="min-w-0">
-              <p className="t-12 font-bold text-ink">Old Money Code pool</p>
-              <p className="t-11 text-muted">Its 27 tracks were picked for the old debt theme — consider calmer picks to match the new niche.</p>
-            </div>
-          </Card>
         </div>
       </div>
     </div>

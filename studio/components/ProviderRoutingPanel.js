@@ -1,8 +1,8 @@
 'use client';
 // Per-capability provider routing panel (issue #104 Phase 2 BYOK vault v2,
-// Task 4). Same per-channel panel pattern as SchedulePanel / TemplateAssignPanel /
-// ChannelKeysPanel: mounted inside the Channels page cards while open, or
-// without a slug on the /providers page where it edits the workspace defaults.
+// Task 4). Per channel it opens in a Drawer (ChannelDrawers passes `frame`);
+// without a slug it renders inline on the /providers page, where it edits the
+// workspace defaults.
 //
 // Talks to Task 4's API: GET /api/providers[?channel=<slug>] for catalog +
 // routes + effective resolution, POST /api/providers {action: set-route |
@@ -14,8 +14,9 @@
 // deduped) straight from resolveCapability so what you see is what the
 // pipeline resolves.
 import { useEffect, useMemo, useState } from 'react';
-import { Route, ArrowUp, ArrowDown, Plus, Trash2, Loader2, CheckCircle2, XCircle, Info, LockKeyhole } from 'lucide-react';
-import { Chip } from '@/components/ui';
+import { Route, ArrowUp, ArrowDown, Plus, Trash2, Loader2, CheckCircle2, XCircle, Info, LockKeyhole, RefreshCw } from 'lucide-react';
+import { Chip, Segmented } from '@/components/ui';
+import { useConfirm } from '@/components/ConfirmDialog';
 
 const CAP_LABEL = {
   'script-gen': 'script generation (LLM)',
@@ -26,7 +27,8 @@ const CAP_LABEL = {
 
 const PRIORITY_STEP = 100;
 
-export default function ProviderRoutingPanel({ slug }) {
+export default function ProviderRoutingPanel({ slug, frame }) {
+  const confirm = useConfirm();
   const [data, setData] = useState(null);
   const [loadErr, setLoadErr] = useState(null);
   const [layer, setLayer] = useState('channel');        // 'channel' override vs 'default' (workspace)
@@ -34,12 +36,13 @@ export default function ProviderRoutingPanel({ slug }) {
   const [msg, setMsg] = useState(null);                 // { ok, text }
   const [pick, setPick] = useState({});                 // capability -> providerId chosen in the add select
 
+  // state is only set when the request settles (never synchronously in the effect)
   const load = () => {
-    setLoadErr(null);
     fetch(`/api/providers${slug ? `?channel=${encodeURIComponent(slug)}` : ''}`)
       .then(async (r) => {
         const d = await r.json();
         if (!r.ok) throw new Error(d.error || `request failed (${r.status})`);
+        setLoadErr(null);
         setData(d);
       })
       .catch((e) => setLoadErr(String(e.message || e)));
@@ -110,24 +113,36 @@ export default function ProviderRoutingPanel({ slug }) {
     });
   };
 
-  const removeProvider = (cap, providerId) => {
+  const removeProvider = async (cap, providerId) => {
     // admin-panel review #8: confirm before dropping a provider from a live chain
-    if (!window.confirm(`Remove ${catalog.get(providerId)?.label || providerId} from the ${CAP_LABEL[cap] || cap} chain${activeLayer === 'channel' ? ` for ${slug}` : ' (workspace default)'}?`)) return;
+    if (!(await confirm({ title: `Remove ${catalog.get(providerId)?.label || providerId}?`, body: `It leaves the ${CAP_LABEL[cap] || cap} chain${activeLayer === 'channel' ? ` for ${slug}` : ' (workspace default)'}. You can add it back any time.`, confirmLabel: 'Remove', tone: 'danger' }))) return;
     run(`${cap}:${providerId}`, async () => {
       await post({ action: 'deactivate-route', channelId: activeLayer === 'channel' ? slug : null, capability: cap, providerId });
     });
   };
 
-  if (loadErr) {
+  const wrap = (body) => {
+    if (frame) return frame(body, null);
     return (
-      <div className="inset-tile p-4 mt-1 flex items-center gap-2 t-12" style={{ color: 'var(--bad)' }}>
-        <XCircle size={14} className="shrink-0" /> Provider routing unavailable: {loadErr}
+      <div className="inset-tile p-4 mt-1 space-y-3">
+        <div className="flex flex-wrap items-center gap-2 overline"><Route size={12} /> Provider routing</div>
+        {body}
+      </div>
+    );
+  };
+
+  if (loadErr) {
+    return wrap(
+      <div role="alert" className="flex flex-wrap items-center gap-2 t-13" style={{ color: 'var(--bad-ink)' }}>
+        <XCircle size={14} className="shrink-0" />
+        <span className="min-w-0 flex-1">Provider routing unavailable: {loadErr}</span>
+        <button type="button" className="btn btn-outline btn-sm" onClick={() => { setLoadErr(null); load(); }}><RefreshCw size={13} /> Retry</button>
       </div>
     );
   }
   if (!data) {
-    return (
-      <div className="inset-tile p-4 mt-1 flex items-center gap-2 text-muted t-12">
+    return wrap(
+      <div className="flex items-center gap-2 text-muted t-13">
         <Loader2 size={14} className="animate-spin" /> Loading provider routing…
       </div>
     );
@@ -137,45 +152,40 @@ export default function ProviderRoutingPanel({ slug }) {
     .map((id) => catalog.get(id))
     .filter((p) => p?.local);
 
-  return (
-    <div className="inset-tile p-4 mt-1">
-      <div className="flex flex-wrap items-center gap-2 overline mb-1">
-        <Route size={12} /> Provider routing
-        {!isOwner ? <Chip tone="info">read-only — owner only</Chip> : null}
-      </div>
-      <p className="t-11 text-muted mb-3">
+  return wrap(
+    <div className="space-y-5 min-w-0">
+      <p className="t-12 text-muted">
         {slug
-          ? 'Per-capability provider priority for this channel. Channel overrides run before workspace defaults; the local baseline lanes always remain as the last resort.'
-          : 'Workspace defaults — the fallback chain every channel uses when it has no override of its own. Local baseline lanes always remain as the last resort.'}
+          ? 'Which AI service runs first for each job. This channel’s overrides run before the workspace defaults; the built-in local services are always the last resort.'
+          : 'Workspace defaults — the fallback chain every channel uses when it has no override of its own. The built-in local services are always the last resort.'}
       </p>
+      {!isOwner ? (
+        <p className="flex items-start gap-1.5 t-12 text-muted">
+          <Info size={13} className="mt-0.5 shrink-0" style={{ color: 'var(--info-ink)' }} />
+          <span>Read-only — only the owner can change routing.</span>
+        </p>
+      ) : null}
 
       {/* channel override vs workspace default toggle (per-channel mount only) */}
       {slug ? (
-        <div className="flex items-center gap-1.5 mb-3">
-          <button
-            onClick={() => { setLayer('channel'); setMsg(null); }}
-            className={`t-11 px-2.5 py-1 rounded-lg border transition ${activeLayer === 'channel' ? 'border-white/20 bg-white/10 text-ink font-semibold' : 'border-white/10 text-muted hover:text-ink hover:bg-white/5'}`}
-          >
-            This channel (override)
-          </button>
-          <button
-            onClick={() => { setLayer('default'); setMsg(null); }}
-            className={`t-11 px-2.5 py-1 rounded-lg border transition ${activeLayer === 'default' ? 'border-white/20 bg-white/10 text-ink font-semibold' : 'border-white/10 text-muted hover:text-ink hover:bg-white/5'}`}
-          >
-            Workspace default
-          </button>
-          {activeLayer === 'channel' ? <span className="t-10 text-faint ml-1">empty rows fall through to the workspace default</span> : null}
+        <div className="space-y-1.5">
+          <Segmented
+            value={activeLayer}
+            onChange={(v) => { setLayer(v); setMsg(null); }}
+            options={[{ value: 'channel', label: 'This channel (override)' }, { value: 'default', label: 'Workspace default' }]}
+          />
+          {activeLayer === 'channel' ? <p className="t-11 text-faint">Empty chains fall through to the workspace default.</p> : null}
         </div>
       ) : null}
 
       {data.routesError ? (
-        <div className="flex items-start gap-1.5 mb-3 t-11" style={{ color: 'var(--warn, #d97706)' }}>
-          <Info size={12} className="mt-0.5 shrink-0" />
-          <span>Routing store unavailable ({data.routesError}) — chains below are empty and resolution falls back to the catalog baseline order until Neon is reachable.</span>
-        </div>
+        <p className="flex items-start gap-1.5 t-12" style={{ color: 'var(--warn-ink)' }}>
+          <Info size={13} className="mt-0.5 shrink-0" />
+          <span className="min-w-0">Routing store unavailable ({data.routesError}) — chains below are empty and resolution falls back to the catalog baseline order until the database is reachable.</span>
+        </p>
       ) : null}
 
-      <div className="space-y-2">
+      <div className="divide-y divide-[var(--line)] border-y border-[var(--line)]">
         {caps.map(({ cap }) => {
           const chain = chainFor(cap);
           const locals = localsOf(cap);
@@ -185,116 +195,134 @@ export default function ProviderRoutingPanel({ slug }) {
           const inChain = new Set(chain.map((r) => r.provider_id));
           const addable = covering.filter((p) => !inChain.has(p.id));
           const resolvedList = slug && data.resolved ? data.resolved[cap] || [] : null;
+          const pickId = `route-add-${slug || 'default'}-${cap}`;
           return (
-            <div key={cap} className="rounded-xl border border-white/10 bg-black/20 p-3">
+            <section key={cap} className="py-4 min-w-0 space-y-2">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="t-12 font-semibold text-ink">{CAP_LABEL[cap] || cap}</span>
+                <h3 className="t-13 font-semibold text-ink first-letter:uppercase">{CAP_LABEL[cap] || cap}</h3>
                 {locals.map((p) => (
-                  <Chip key={p.id} tone="plain" className="font-mono"><LockKeyhole size={10} className="inline mr-1 -mt-px" />{p.label} always available</Chip>
+                  <Chip key={p.id} tone="plain" className="max-w-full"><LockKeyhole size={10} className="inline mr-1 -mt-px" />{p.label} always available</Chip>
                 ))}
               </div>
 
               {covering.length === 0 ? (
-                <p className="t-11 text-faint mt-2">
-                  No provider covers this capability yet — nothing to route (the vault-adds lane lights it up when a key for a covering provider lands).
+                <p className="t-12 text-faint">
+                  No provider covers this yet — nothing to route until a key for a covering provider is added.
                 </p>
               ) : chain.length === 0 ? (
-                <p className="t-11 text-muted mt-2">
+                <p className="t-12 text-muted">
                   {activeLayer === 'channel'
                     ? 'No channel override — the workspace default chain (then the catalog baseline order) is used.'
                     : 'No workspace routes yet — providers run in the catalog baseline order.'}
                 </p>
               ) : (
-                <div className="mt-2 space-y-1">
+                <ol className="space-y-1.5">
                   {chain.map((r, i) => {
                     const p = catalog.get(r.provider_id);
                     const key = `${cap}:${r.provider_id}`;
+                    const name = p?.label || r.provider_id;
                     return (
-                      <div key={r.id} className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5">
-                        <span className="tnum t-10 text-faint w-5 shrink-0">{i + 1}.</span>
-                        <span className="t-12 text-ink font-medium truncate">{p?.label || r.provider_id}</span>
-                        <span className="t-10 text-faint font-mono">prio {r.priority}</span>
-                        {slug && activeLayer === 'channel' ? <Chip tone="accent">override</Chip> : null}
+                      <li key={r.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--line)] px-3 py-2 min-w-0">
+                        <span className="tnum t-11 text-faint w-5 shrink-0">{i + 1}.</span>
+                        <span className="t-13 text-ink font-medium truncate min-w-0 flex-1">{name}</span>
+                        <span className="t-11 text-faint font-mono shrink-0">prio {r.priority}</span>
                         {isOwner ? (
-                          <span className="ml-auto flex items-center gap-1 shrink-0">
+                          <span className="flex items-center gap-1 shrink-0">
                             <button
+                              type="button"
                               onClick={() => reorder(cap, i, -1)}
                               disabled={Boolean(busy) || i === 0}
-                              className="btn btn-outline btn-sm"
-                              title="Move up (higher priority)"
-                              aria-label="Move up (higher priority)"
+                              className="icon-btn"
+                              title="Move up (runs earlier)"
+                              aria-label={`Move ${name} up (runs earlier)`}
                             >
-                              <ArrowUp size={11} />
+                              <ArrowUp size={14} />
                             </button>
                             <button
+                              type="button"
                               onClick={() => reorder(cap, i, 1)}
                               disabled={Boolean(busy) || i === chain.length - 1}
-                              className="btn btn-outline btn-sm"
-                              title="Move down (lower priority)"
-                              aria-label="Move down (lower priority)"
+                              className="icon-btn"
+                              title="Move down (runs later)"
+                              aria-label={`Move ${name} down (runs later)`}
                             >
-                              <ArrowDown size={11} />
+                              <ArrowDown size={14} />
                             </button>
                             <button
+                              type="button"
                               onClick={() => removeProvider(cap, r.provider_id)}
                               disabled={Boolean(busy)}
-                              className="btn btn-outline btn-sm"
+                              className="icon-btn"
                               title="Remove from the chain"
-                              aria-label="Remove from the chain"
+                              aria-label={`Remove ${name} from the chain`}
                             >
-                              {busy === key ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
+                              {busy === key ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                             </button>
                           </span>
                         ) : null}
-                      </div>
+                      </li>
                     );
                   })}
-                </div>
+                </ol>
               )}
 
               {/* add provider (owner only) */}
               {isOwner && covering.length > 0 ? (
-                <div className="flex flex-wrap items-center gap-2 mt-2">
-                  <select
-                    value={pick[cap] || ''}
-                    onChange={(e) => setPick((p) => ({ ...p, [cap]: e.target.value }))}
-                    className="t-11 px-2 py-1.5 rounded-lg border border-line bg-surface"
-                  >
-                    <option value="">— add a provider to the chain —</option>
-                    {addable.map((p) => (
-                      <option key={p.id} value={p.id}>{p.label} ({p.envVar})</option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() => addProvider(cap)}
-                    disabled={!pick[cap] || Boolean(busy)}
-                    className="btn btn-outline btn-sm"
-                    title="Append to the end of the chain (lowest priority of the chain)"
-                  >
-                    {busy.startsWith(`${cap}:`) ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />} Add
-                  </button>
-                </div>
+                addable.length ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label htmlFor={pickId} className="sr-only">Add a provider to the {CAP_LABEL[cap] || cap} chain</label>
+                    <select
+                      id={pickId}
+                      value={pick[cap] || ''}
+                      onChange={(e) => setPick((p) => ({ ...p, [cap]: e.target.value }))}
+                      className="input flex-1 min-w-0 basis-56"
+                    >
+                      <option value="">Add a provider to the chain…</option>
+                      {addable.map((p) => (
+                        <option key={p.id} value={p.id}>{p.label} ({p.envVar})</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => addProvider(cap)}
+                      disabled={!pick[cap] || Boolean(busy)}
+                      className="btn btn-outline btn-sm"
+                      title="Adds it to the end of the chain (runs last)"
+                    >
+                      {busy.startsWith(`${cap}:`) ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />} Add
+                    </button>
+                  </div>
+                ) : (
+                  <p className="t-11 text-faint">Every covering provider is already in this chain.</p>
+                )
               ) : null}
 
               {/* effective resolution preview (channel mount only) */}
               {resolvedList ? (
-                <p className="t-10 text-faint mt-2 font-mono">
+                <p className="t-11 text-faint font-mono break-words">
                   {resolvedList.length
                     ? `effective: ${resolvedList.map((r) => `${r.providerId}${r.source === 'channel' ? ' (channel)' : ' (default)'}`).join(' → ')} → ${locals.map((p) => p.id).join(' → ') || 'baseline'}`
                     : `effective: catalog baseline order → ${locals.map((p) => p.id).join(' → ') || 'baseline'}`}
                 </p>
               ) : null}
-            </div>
+            </section>
           );
         })}
       </div>
 
       {msg ? (
-        <div className={`mt-3 rounded-xl border p-2.5 t-12 ${msg.ok ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-red-500/30 bg-red-500/10'}`}>
-          <div className="flex items-start gap-1.5">
-            {msg.ok ? <CheckCircle2 size={13} className="mt-0.5 text-emerald-400 shrink-0" /> : <XCircle size={13} className="mt-0.5 text-red-400 shrink-0" />}
-            <span className={msg.ok ? 'text-emerald-300' : 'text-red-300'}>{msg.text}</span>
-          </div>
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-lg border p-3 t-12 flex items-start gap-1.5"
+          style={{
+            borderColor: `color-mix(in srgb, ${msg.ok ? 'var(--ok)' : 'var(--bad)'} 35%, transparent)`,
+            background: `color-mix(in srgb, ${msg.ok ? 'var(--ok)' : 'var(--bad)'} 8%, transparent)`,
+            color: msg.ok ? 'var(--ok-ink)' : 'var(--bad-ink)',
+          }}
+        >
+          {msg.ok ? <CheckCircle2 size={13} className="mt-0.5 shrink-0" /> : <XCircle size={13} className="mt-0.5 shrink-0" />}
+          <span className="min-w-0">{msg.text}</span>
         </div>
       ) : null}
     </div>

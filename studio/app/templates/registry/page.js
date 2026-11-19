@@ -7,7 +7,7 @@
 // Channels page (TemplateAssignPanel), detail lives at ?template=….
 // Phase 5 T2f (D1/D9 identity split): the card id field is the registry key
 // (templateId); the VISUAL family is the separate "Family" field it binds to.
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Layers, RefreshCw, AlertTriangle, Search, ArrowRight, ShieldCheck, Ban } from 'lucide-react';
 import { PageHeader, Card, Chip, PageSkeleton, EmptyState, Segmented } from '@/components/ui';
@@ -20,8 +20,8 @@ export default function TemplateRegistryPage() {
   const [format, setFormat] = useState('all');
   const [query, setQuery] = useState('');
 
-  const load = () => {
-    setLoadErr(null);
+  // fetch-only (state set in the promise) so the mount effect stays lint-clean
+  const fetchView = useCallback(() => {
     fetch('/api/templates')
       .then(async (r) => {
         const d = await r.json();
@@ -29,10 +29,11 @@ export default function TemplateRegistryPage() {
         setData(d);
       })
       .catch((e) => setLoadErr(String(e.message || e)));
-  };
-  useEffect(() => { load(); }, []);
+  }, []);
+  useEffect(() => { fetchView(); }, [fetchView]);
+  const load = () => { setLoadErr(null); fetchView(); };
 
-  const templates = data?.templates || [];
+  const templates = useMemo(() => data?.templates || [], [data]);
   const invalid = data?.invalid || [];
   const isOwner = data?.role === 'owner';
 
@@ -69,15 +70,16 @@ export default function TemplateRegistryPage() {
         sub={`${templates.length} registry template${templates.length === 1 ? '' : 's'} · versions, niche linkage and capability requirements — assign from a channel's card.`}
       >
         {!isOwner && data?.role ? <Chip tone="info">read-only — owner only</Chip> : null}
+        <Link href="/templates" className="btn btn-outline">Gallery</Link>
         <Link href="/channels"><Button color="secondary">Channels</Button></Link>
         <Button color="secondary" onClick={load} iconLeading={<RefreshCw size={15} />}>Refresh</Button>
       </PageHeader>
 
       {/* invalid-metadata warning strip (owner) — these never appear as cards */}
       {isOwner && invalid.length > 0 ? (
-        <Card className="border border-amber-500/30 bg-amber-500/10 p-4">
+        <Card className="rounded-xl border p-4" style={{ borderColor: 'color-mix(in srgb, var(--warn) 34%, transparent)', background: 'color-mix(in srgb, var(--warn) 8%, transparent)' }}>
           <div className="flex items-start gap-2.5">
-            <AlertTriangle size={15} className="text-amber-400 shrink-0 mt-0.5" />
+            <AlertTriangle size={15} className="shrink-0 mt-0.5" style={{ color: 'var(--warn-ink)' }} />
             <div className="min-w-0">
               <p className="t-12 font-semibold text-ink">{invalid.length} template block{invalid.length === 1 ? '' : 's'} failed registry validation — excluded from browse and assignment.</p>
               <ul className="mt-1.5 space-y-1">
@@ -86,7 +88,7 @@ export default function TemplateRegistryPage() {
                     consumers (T1 dual meaning); the value is the registry key. */}
                 {invalid.map((v) => (
                   <li key={v.familyId} className="t-11 text-muted">
-                    <span className="font-mono t-10 text-amber-300">{v.familyId}</span> — {v.errors.join(' · ')}
+                    <span className="font-mono t-10" style={{ color: 'var(--warn-ink)' }}>{v.familyId}</span> — {v.errors.join(' · ')}
                   </li>
                 ))}
               </ul>
@@ -96,7 +98,7 @@ export default function TemplateRegistryPage() {
       ) : null}
 
       {/* filters: niche + format + search (AC-1) */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-[var(--surface)] p-4 rounded-2xl border border-white/10">
+      <div className="card flex flex-col md:flex-row items-start md:items-center justify-between gap-3 p-4">
         <div className="flex flex-wrap items-center gap-2">
           <span className="overline">Niche</span>
           <select
@@ -125,7 +127,7 @@ export default function TemplateRegistryPage() {
             placeholder="Search registry…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-black/40 border border-white/10 text-ink placeholder:text-muted focus:outline-none focus:border-sky-500"
+            className="input w-full pl-8 t-12"
           />
         </div>
       </div>
@@ -151,7 +153,7 @@ export default function TemplateRegistryPage() {
               <Card key={t.templateId} hover className="p-4 flex flex-col gap-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <h3 className="font-display text-[15px] font-bold tracking-tight text-ink truncate">{t.name}</h3>
+                    <h3 className="font-display t-14 font-bold tracking-tight text-ink truncate">{t.name}</h3>
                     <p className="t-10 text-faint font-mono truncate">{t.templateId}</p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
@@ -201,7 +203,7 @@ export default function TemplateRegistryPage() {
                   </span>
                   <Link
                     href={`/templates/registry/detail?template=${encodeURIComponent(t.templateId)}`}
-                    className="t-11 font-semibold flex items-center gap-1 text-sky-400 hover:underline"
+                    className="btn btn-outline btn-sm"
                   >
                     Detail <ArrowRight size={12} />
                   </Link>

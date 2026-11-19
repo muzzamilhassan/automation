@@ -1,237 +1,158 @@
 'use client';
+// Social — every account the engine posts to, from LIVE data only
+// (/api/overview: YouTube, Facebook, Instagram stats + registry Threads
+// handles). Round 2 removed the hand-written TikTok/Pinterest tabs and the
+// static "platform health" notes: they showed statuses ("LIVE", "token
+// expiring Oct 29") that nothing checked — the honesty doctrine forbids that.
+// Health below is computed from the same payload, so it is never stale.
 import { useEffect, useState } from 'react';
-import {
-  Clock,
-  Share2,
-  Music2,
-  AtSign,
-  Pin,
-  CheckCircle2,
-  AlertTriangle,
-  OctagonAlert,
-  Loader2,
-} from 'lucide-react';
+import Link from 'next/link';
+import { Share2, AtSign, CheckCircle2, AlertTriangle, RefreshCw, ChevronRight } from 'lucide-react';
 import { YoutubeIcon, FacebookIcon, InstagramIcon } from '@/components/BrandIcons';
-import { Card, CardHead, Chip, PageHeader, PageSkeleton, BrandMark, EmptyState } from '@/components/ui';
+import { Card, CardHead, Chip, PageHeader, PageSkeleton, BrandMark, EmptyState, Segmented } from '@/components/ui';
 import { useBrands } from '@/components/use-brands'; // #125: live brand marks
 import { fmt } from '@/lib/utils';
 
-const TABS = [
-  { value: 'youtube', label: 'YouTube' },
-  { value: 'facebook', label: 'Facebook' },
-  { value: 'instagram', label: 'Instagram' },
-  { value: 'tiktok', label: 'TikTok' },
-  { value: 'threads', label: 'Threads' },
-  { value: 'pinterest', label: 'Pinterest' },
+const PLATFORMS = [
+  { value: 'youtube', label: 'YouTube', icon: YoutubeIcon, unit: 'subs' },
+  { value: 'facebook', label: 'Facebook', icon: FacebookIcon, unit: 'followers' },
+  { value: 'instagram', label: 'Instagram', icon: InstagramIcon, unit: 'followers' },
+  { value: 'threads', label: 'Threads', icon: AtSign, unit: null },
 ];
 
-const NOTE_STATUS = { ok: CheckCircle2, warn: AlertTriangle, bad: OctagonAlert, pending: Loader2 };
-const NOTE_COLOR = { ok: 'var(--ok)', warn: 'var(--warn)', bad: 'var(--bad)', pending: 'var(--info)' };
+const stripAt = (h) => String(h || '').replace(/^@/, '');
+
+// one row per channel for the chosen platform — { linked, handle, count, error }
+function accountOf(c, platform) {
+  if (platform === 'youtube') {
+    if (!c.yt) return { linked: false };
+    if (c.yt.error) return { linked: true, error: c.yt.error, handle: c.yt.handle };
+    return { linked: true, handle: c.yt.handle || c.yt.title, count: c.yt.subs };
+  }
+  if (platform === 'facebook') return c.fb ? { linked: true, handle: c.fb.username || c.fb.name, count: c.fb.followers } : { linked: false };
+  if (platform === 'instagram') return c.ig ? { linked: true, handle: c.ig.username, count: c.ig.followers } : { linked: false };
+  return c.threadsHandle ? { linked: true, handle: c.threadsHandle, count: null } : { linked: false };
+}
 
 export default function Social() {
   const { bySlug: BRAND } = useBrands(); // #125: live short/accent per slug
 
   const [data, setData] = useState(null);
+  const [err, setErr] = useState('');
   const [tab, setTab] = useState('youtube');
+  const [nonce, setNonce] = useState(0);
   useEffect(() => {
-    fetch('/api/overview').then((r) => r.json()).then(setData).catch(() => setData({ channels: [] }));
-  }, []);
-  if (!data) return <PageSkeleton />;
-  const active = data.channels.filter((c) => c.active);
-  // T4d (#106): the QQ Threads handle is registry data (overview payload) — no literal
-  const qqThreadsHandle = active.find((c) => c.slug === 'quotequarry')?.threadsHandle || null;
+    let alive = true;
+    fetch('/api/overview')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`the server answered ${r.status}`))))
+      .then((d) => { if (alive) { setData(d); setErr(''); } })
+      .catch((e) => { if (alive) setErr(e.message || 'network error'); });
+    return () => { alive = false; };
+  }, [nonce]);
 
-  const totals = {
-    youtube: active.reduce((a, c) => a + (c.yt?.subs || 0), 0),
-    facebook: active.reduce((a, c) => a + (c.fb?.followers || 0), 0),
-    instagram: active.reduce((a, c) => a + (c.ig?.followers || 0), 0),
-    tiktok: null,
-    threads: null,
-    pinterest: null,
-  };
+  if (err && !data) {
+    return (
+      <div>
+        <PageHeader icon={Share2} title="Social" sub="Every account the engine posts to — live reach and link status" />
+        <Card className="p-4">
+          <EmptyState icon={AlertTriangle} title="Can't load your accounts right now" sub={`${err} — this is not "no accounts", the list just couldn't be read.`}>
+            <button className="btn btn-outline btn-sm mt-3" onClick={() => setNonce((n) => n + 1)}><RefreshCw size={13} /> Retry</button>
+          </EmptyState>
+        </Card>
+      </div>
+    );
+  }
+  if (!data) return <PageSkeleton />;
+  const active = (data.channels || []).filter((c) => c.active);
+  const platform = PLATFORMS.find((p) => p.value === tab) || PLATFORMS[0];
+
+  // per-platform roll-up from the same live payload (never hand-written)
+  const roll = Object.fromEntries(PLATFORMS.map((p) => {
+    const rows = active.map((c) => accountOf(c, p.value));
+    const linked = rows.filter((r) => r.linked);
+    return [p.value, {
+      linked: linked.length,
+      errors: linked.filter((r) => r.error).length,
+      total: p.unit ? linked.reduce((a, r) => a + (r.count || 0), 0) : null,
+    }];
+  }));
 
   return (
     <div>
-      <PageHeader icon={Share2} title="Social" sub="Every account the engine posts to — reach, health and known issues" />
+      <PageHeader icon={Share2} title="Social" sub="Every account the engine posts to — live reach and link status" />
 
-      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-        <div className="inline-flex items-center gap-0.5 p-1 rounded-xl border border-line bg-surface overflow-x-auto max-w-full">
-          {TABS.map((t) => (
-            <button
-              key={t.value}
-              onClick={() => setTab(t.value)}
-              className={`px-3.5 h-8 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
-                tab === t.value ? 'text-ink' : 'text-faint hover:text-muted'
-              }`}
-              style={tab === t.value ? { background: 'var(--surface-2)', boxShadow: 'inset 0 0 0 1px var(--line-strong)' } : undefined}
-            >
-              {t.label}
-              {totals[t.value] !== null ? <span className="ml-1.5 tnum" style={{ color: 'var(--accent)' }}>{fmt(totals[t.value])}</span> : null}
-            </button>
-          ))}
+      <div className="flex items-center gap-3 mb-4 flex-wrap min-w-0">
+        <div className="max-w-full overflow-x-auto">
+          <Segmented
+            options={PLATFORMS.map((p) => ({ value: p.value, label: roll[p.value].total != null && roll[p.value].linked ? `${p.label} · ${fmt(roll[p.value].total)}` : p.label }))}
+            value={tab}
+            onChange={setTab}
+          />
         </div>
-        <Chip tone="info">Funnel platforms — YouTube + Facebook are the money platforms</Chip>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4">
         {/* accounts */}
         <Card className="lg:col-span-2 overflow-hidden">
           <CardHead
-            title={`${TABS.find((t) => t.value === tab)?.label} accounts`}
-            sub={tab === 'tiktok' ? 'Rides the UK account via the Zernio app' : 'Linked to live APIs — numbers refresh every minute'}
-            icon={tab === 'youtube' ? YoutubeIcon : tab === 'facebook' ? FacebookIcon : tab === 'instagram' ? InstagramIcon : tab === 'tiktok' ? Music2 : tab === 'threads' ? AtSign : Pin}
+            title={`${platform.label} accounts`}
+            sub={platform.unit ? 'Live from each platform’s API' : 'Handles from each channel’s destinations (no follower API)'}
+            icon={platform.icon}
           />
           <div className="px-2 pb-2">
-            {(tab === 'youtube' || tab === 'facebook' || tab === 'instagram') &&
-              active.map((c) => {
-                const row = tab === 'youtube' ? c.yt : tab === 'facebook' ? c.fb : c.ig;
-                const Icon = tab === 'youtube' ? YoutubeIcon : tab === 'facebook' ? FacebookIcon : InstagramIcon;
-                const color = tab === 'youtube' ? '#ff4444' : tab === 'facebook' ? '#3b82f6' : '#ec4899';
-                return (
-                  <div key={c.slug} className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-surface-2 transition-colors">
-                    <BrandMark short={BRAND[c.slug]?.short} accent={c.accent} size={34} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block t-13 font-semibold text-ink truncate">{c.label}</span>
-                      <span className="block t-11 text-faint font-mono truncate">
-                        {row ? `@${row.handle || row.username || row.name}` : 'not linked'}
-                      </span>
+            {active.length === 0 ? (
+              <EmptyState icon={Share2} title="No active channels" sub="Accounts appear here once a channel is connected.">
+                <Link href="/channels/add" className="btn btn-primary btn-sm mt-3">Add a channel</Link>
+              </EmptyState>
+            ) : active.map((c) => {
+              const a = accountOf(c, tab);
+              return (
+                <Link key={c.slug} href={`/channels/${c.slug}`} className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-surface-2 transition-colors min-w-0">
+                  <BrandMark short={BRAND[c.slug]?.short || '•'} accent={c.accent || 'var(--accent)'} size={34} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block t-13 font-semibold text-ink truncate">{c.label || c.slug}</span>
+                    <span className="block t-11 text-faint font-mono truncate">
+                      {a.linked ? (a.handle ? `@${stripAt(a.handle)}` : 'linked') : 'not linked'}
                     </span>
-                    <span className="flex items-center gap-2 t-11 text-faint hidden sm:flex">
-                      <Icon size={13} style={{ color }} />
-                    </span>
+                  </span>
+                  {a.error ? (
+                    <Chip tone="bad" className="shrink-0">can&apos;t read stats</Chip>
+                  ) : platform.unit ? (
                     <span className="text-right shrink-0">
-                      <span className="block tnum t-13 font-bold text-ink">{row ? fmt(tab === 'youtube' ? row.subs : row.followers) : '—'}</span>
-                      <span className="block overline">{tab === 'youtube' ? 'subs' : 'followers'}</span>
+                      <span className="block tnum t-13 font-bold text-ink">{a.linked && a.count != null ? fmt(a.count) : '—'}</span>
+                      <span className="block overline">{platform.unit}</span>
                     </span>
-                  </div>
-                );
-              })}
-
-            {tab === 'tiktok' && (
-              <div className="p-3">
-                <div className="inset-tile p-4 flex items-center gap-4 mb-3">
-                  <span className="flex items-center justify-center w-11 h-11 rounded-2xl" style={{ background: 'color-mix(in srgb, #22d3ee 12%, transparent)', color: '#22d3ee' }}>
-                    <Music2 size={20} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-[13.5px] font-bold text-ink">@arzo22345 · “Poetic Home”</p>
-                    <p className="t-11 text-faint">UK account · posts as Quarry Studio app</p>
-                  </div>
-                  <Chip tone="ok" dot>LIVE</Chip>
-                </div>
-                <div className="grid sm:grid-cols-2 gap-2.5">
-                  <div className="inset-tile p-3">
-                    <p className="overline mb-1">Shorts slots</p>
-                    <p className="t-12 text-muted">4 posts/day via <code className="font-mono text-accent">tiktok-post.yml</code></p>
-                  </div>
-                  <div className="inset-tile p-3">
-                    <p className="overline mb-1">Clip engine</p>
-                    <p className="t-12 text-muted">Long-forms auto-cut into 1-min parts · 1 part/day</p>
-                  </div>
-                  <div className="inset-tile p-3">
-                    <p className="overline mb-1">Queue</p>
-                    <p className="t-12 text-muted">Parts drip out one per day automatically</p>
-                  </div>
-                  <div className="inset-tile p-3">
-                    <p className="overline mb-1">Branding</p>
-                    <p className="t-12 text-muted">“Quote Quarry” naming pending in the app</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {tab === 'threads' && (
-              <div className="p-3">
-                <div className="inset-tile p-4 flex items-center gap-4 mb-3">
-                  <span className="flex items-center justify-center w-11 h-11 rounded-2xl" style={{ background: 'var(--surface-2)', color: 'var(--ink)' }}>
-                    <AtSign size={20} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-[13.5px] font-bold text-ink">{qqThreadsHandle ? '@' + qqThreadsHandle : '—'}</p>
-                    <p className="t-11 text-faint">1 QQ reel per day · restored Sep 20</p>
-                  </div>
-                  <Chip tone="warn" dot>token expiring</Chip>
-                </div>
-                <div className="inset-tile p-3 flex gap-2.5">
-                  <AlertTriangle size={14} className="shrink-0 mt-0.5" style={{ color: 'var(--warn)' }} />
-                  <p className="t-12 text-muted leading-relaxed">
-                    The token is valid until about <span className="font-semibold text-ink">Oct 29</span>. Refresh it before
-                    then or posting stops silently. Files are hosted on uguu.se (tmpfiles.org serves HTML — known trap).
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {tab === 'pinterest' && (
-              <div className="p-3">
-                <div className="inset-tile p-4 flex items-center gap-4 mb-3">
-                  <span className="flex items-center justify-center w-11 h-11 rounded-2xl" style={{ background: 'color-mix(in srgb, #e60023 12%, transparent)', color: '#e60023' }}>
-                    <Pin size={20} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-[13.5px] font-bold text-ink">NIAZRA · personal API</p>
-                    <p className="t-11 text-faint">No review needed · ~1 year token</p>
-                  </div>
-                  <Chip tone="info" dot>waiting on you</Chip>
-                </div>
-                <div className="inset-tile p-3 flex gap-2.5">
-                  <OctagonAlert size={14} className="shrink-0 mt-0.5" style={{ color: 'var(--info)' }} />
-                  <p className="t-12 text-muted leading-relaxed">
-                    Code and CI are wired and pushed. To finish: paste the App ID + secret, then the OAuth tunnel runs once
-                    (port 3003) and the PINTEREST secrets get stored.
-                  </p>
-                </div>
-              </div>
-            )}
+                  ) : (
+                    <Chip tone={a.linked ? 'ok' : 'plain'} className="shrink-0">{a.linked ? 'linked' : 'not linked'}</Chip>
+                  )}
+                  <ChevronRight size={15} className="text-faint shrink-0" />
+                </Link>
+              );
+            })}
           </div>
         </Card>
 
-        {/* health panel */}
-        <div className="space-y-4">
-          <Card>
-            <CardHead title="Platform health" sub="What is working and what hurts" icon={AlertTriangle} />
-            <div className="px-4 pb-4 space-y-2.5">
-              <Note tone="bad" title="Facebook reels blackout">
-                ~60 reels on 4 pages = 2 views. Cause: Meta demotes unchanged YT cross-posts. Fix plan waits for your go.
-              </Note>
-              <Note tone="warn" title="Threads token">
-                Valid until ~Oct 29 — refresh before then.
-              </Note>
-              <Note tone="warn" title="FB page names mismatch">
-                Pages say Silent Wealth / Eon Ventures / Boundaries Club — channels say IC / MR / DFD. Rename pending.
-              </Note>
-              <Note tone="ok" title="Instagram verified">
-                All 4 accounts publishing daily; transient errors self-heal at the next slot.
-              </Note>
-              <Note tone="ok" title="TikTok live">
-                Shorts + clip parts flowing through Zernio since Sep 28.
-              </Note>
-            </div>
-          </Card>
-
-          <Card>
-            <CardHead title="Timing strategy" sub="US-anchored slots = money slots" icon={Clock} />
-            <div className="px-4 pb-4 space-y-2 t-12 text-muted">
-              <p>· Slot 3 (US prime evening) is the money slot — protect it.</p>
-              <p>· IG posts at 7:20 AM / 11:20 AM / 6:20 PM ET.</p>
-              <p>· TikTok posts at production time (~4:40 AM ET) — scheduled slots are the planned fix.</p>
-              <p>· CPM depends more on viewer geography than hour.</p>
-            </div>
-          </Card>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Note({ tone, title, children }) {
-  const Icon = NOTE_STATUS[tone] || CheckCircle2;
-  return (
-    <div className="inset-tile p-3 flex gap-2.5">
-      <Icon size={14} className="shrink-0 mt-0.5" style={{ color: NOTE_COLOR[tone] }} />
-      <div className="min-w-0">
-        <p className="t-12 font-semibold text-ink">{title}</p>
-        <p className="t-11 text-muted leading-relaxed mt-0.5">{children}</p>
+        {/* computed health */}
+        <Card className="self-start">
+          <CardHead title="Link status" sub="Computed from live data on every load" icon={CheckCircle2} />
+          <div className="px-4 pb-4 space-y-2.5">
+            {PLATFORMS.map((p) => {
+              const r = roll[p.value];
+              const tone = r.errors ? 'bad' : r.linked === 0 ? 'plain' : r.linked < active.length ? 'warn' : 'ok';
+              const Icon = p.icon;
+              return (
+                <div key={p.value} className="inset-tile p-3 flex items-center gap-2.5 min-w-0">
+                  <Icon size={14} className="shrink-0 text-muted" />
+                  <span className="t-12 font-semibold text-ink flex-1 min-w-0 truncate">{p.label}</span>
+                  <Chip tone={tone} dot>
+                    {r.errors ? `${r.errors} can't be read` : `${r.linked} of ${active.length} linked`}
+                  </Chip>
+                </div>
+              );
+            })}
+            <p className="t-11 text-faint pt-1">Link or fix an account from its channel page.</p>
+          </div>
+        </Card>
       </div>
     </div>
   );

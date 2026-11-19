@@ -7,10 +7,12 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
   Tv, ArrowLeft, RefreshCw, Pause, Play, CalendarDays, Lightbulb, Film, Settings2,
-  PenLine, KeyRound, Image as ImageIcon, BarChart3, Cpu, ExternalLink, AlertTriangle, Lock, SearchX,
+  PenLine, Image as ImageIcon, BarChart3, Cpu, ExternalLink, AlertTriangle, Lock, SearchX,
 } from 'lucide-react';
 import { Card, CardHead, Chip, EmptyState, PageSkeleton, BrandMark } from '@/components/ui';
 import { useBrands } from '@/components/use-brands';
+import ChannelDrawers, { CHANNEL_DRAWERS, drawersFor } from '@/components/ChannelDrawers';
+import { useConfirm } from '@/components/ConfirmDialog';
 import { fmt, timeAgo, when } from '@/lib/utils';
 import {
   channelHealth, levelTone, resolveChannelView, todayProduction, youtubeConnection,
@@ -49,6 +51,19 @@ function Shortcut({ href, icon: Icon, title, sub }) {
         <span className="block t-11 text-faint truncate">{sub}</span>
       </span>
     </Link>
+  );
+}
+
+// Same look as Shortcut, but opens one of the shared channel drawers in place.
+function DrawerShortcut({ icon: Icon, title, sub, onClick }) {
+  return (
+    <button type="button" onClick={onClick} className="inset-tile p-3 flex items-center gap-3 min-w-0 text-left hover:bg-surface-2 transition-colors">
+      <Icon size={16} className="text-muted shrink-0" aria-hidden />
+      <span className="min-w-0">
+        <span className="block t-13 font-semibold text-ink truncate">{title}</span>
+        <span className="block t-11 text-faint truncate">{sub}</span>
+      </span>
+    </button>
   );
 }
 
@@ -113,7 +128,10 @@ export default function ChannelPage() {
   const [data, setData] = useState(null); // null = loading; { error } = failed
   const [role, setRole] = useState(null);
   const [meDone, setMeDone] = useState(false); // wait for the role so a client never flashes "not found"
-  const [confirmPause, setConfirmPause] = useState(false);
+  const confirm = useConfirm();
+  // which shared channel drawer is open (schedule | templates | keys | routing)
+  const [drawer, setDrawer] = useState(null);
+  const closeDrawer = useCallback(() => setDrawer(null), []); // stable: Drawer re-focuses when onClose changes
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
 
@@ -153,7 +171,6 @@ export default function ChannelPage() {
     } catch (e) {
       setMsg({ tone: 'bad', text: `${on ? 'Resume' : 'Pause'} failed — ${String(e?.message || e)}` });
     }
-    setConfirmPause(false);
     setBusy(false);
     // the overview is cached; only the owner may force a fresh pull
     load(role === 'owner');
@@ -225,6 +242,16 @@ export default function ChannelPage() {
   const topicsFromToday = c.lastRun === todayUTC(now);
   const handle = c.yt && !c.yt.error ? (c.yt.handle || c.yt.title) : c.handle;
   const isClient = role === 'client';
+  const drawerKeys = drawersFor(role);
+  const askPause = async () => {
+    const ok = await confirm({
+      title: `Pause ${c.label || slug}?`,
+      body: 'Nothing new will be made. Videos already scheduled on YouTube still publish.',
+      confirmLabel: 'Pause autopilot',
+      tone: 'danger',
+    });
+    if (ok) setFlow(false);
+  };
 
   return (
     <div>
@@ -255,7 +282,7 @@ export default function ChannelPage() {
               <Play size={14} /> Resume autopilot
             </button>
           ) : (
-            <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => setConfirmPause(true)}>
+            <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={askPause}>
               <Pause size={14} /> Pause
             </button>
           )}
@@ -264,16 +291,6 @@ export default function ChannelPage() {
           </button>
         </div>
       </div>
-
-      {confirmPause ? (
-        <Card className="p-4 mb-4">
-          <p className="t-13 text-ink">Pause <b>{c.label || slug}</b>? Nothing new will be made. Videos already scheduled on YouTube still publish.</p>
-          <div className="flex flex-wrap gap-2 mt-3">
-            <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => setFlow(false)}>Pause autopilot</button>
-            <button type="button" className="btn btn-outline btn-sm" onClick={() => setConfirmPause(false)}>Cancel</button>
-          </div>
-        </Card>
-      ) : null}
 
       {msg ? (
         <p role="status" aria-live="polite" className="t-12 mb-3" style={{ color: msg.tone === 'bad' ? 'var(--bad-ink)' : 'var(--ok-ink)' }}>
@@ -323,7 +340,13 @@ export default function ChannelPage() {
       <div className="grid lg:grid-cols-2 gap-4 mb-4">
         {/* today & schedule */}
         <Card>
-          <CardHead title="Today & schedule" icon={CalendarDays} />
+          <CardHead
+            title="Today & schedule"
+            icon={CalendarDays}
+            right={drawerKeys.includes('schedule') ? (
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => setDrawer('schedule')}>Change schedule</button>
+            ) : null}
+          />
           <dl className="px-5 pb-5 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div className="inset-tile p-3 min-w-0">
               <dt className="overline mb-1">Shorts upload slots</dt>
@@ -431,13 +454,17 @@ export default function ChannelPage() {
         <CardHead title="Settings" icon={Settings2} sub="Change how this channel works" />
         <div className="px-5 pb-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
           {!isClient ? <Shortcut href={editHref(slug)} icon={PenLine} title="Edit channel" sub="Niche, video style, voice, schedule" /> : null}
-          <Shortcut href={`/channels#${encodeURIComponent(slug)}`} icon={KeyRound} title="Schedule, keys & routing" sub="Production days, API keys, AI routing" />
+          {drawerKeys.map((k) => (
+            <DrawerShortcut key={k} icon={CHANNEL_DRAWERS[k].icon} title={CHANNEL_DRAWERS[k].label} sub={CHANNEL_DRAWERS[k].description} onClick={() => setDrawer(k)} />
+          ))}
           <Shortcut href="/thumbs" icon={ImageIcon} title="Thumbnails" sub="Thumbnail studio (pick this channel there)" />
           <Shortcut href="/analytics" icon={BarChart3} title="Analytics" sub="Views, watch time, subscribers" />
           {!isClient ? <Shortcut href="/providers" icon={Cpu} title="AI services" sub="Workspace-wide AI providers & keys" /> : null}
           <Shortcut href="/channels" icon={Tv} title="All channels" sub="Back to the channel list" />
         </div>
       </Card>
+
+      <ChannelDrawers slug={slug} label={c.label || slug} open={drawer} onClose={closeDrawer} />
     </div>
   );
 }

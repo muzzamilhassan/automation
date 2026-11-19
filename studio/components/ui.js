@@ -8,7 +8,7 @@ import { Sparkline } from '@/components/charts';
 export function PageHeader({ icon: Icon, title, sub, children }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-4 mb-7">
-      <div className="flex items-center gap-3.5">
+      <div className="flex items-center gap-3.5 min-w-0">
         {Icon ? (
           <div
             className="flex items-center justify-center w-11 h-11 rounded-xl shrink-0"
@@ -17,8 +17,8 @@ export function PageHeader({ icon: Icon, title, sub, children }) {
             <Icon size={21} strokeWidth={2.2} />
           </div>
         ) : null}
-        <div>
-          <h1 className="font-display text-[26px] font-bold leading-tight tracking-tight text-ink text-balance">{title}</h1>
+        <div className="min-w-0">
+          <h1 className="font-display text-[length:var(--text-2xl)] font-bold leading-tight tracking-tight text-ink text-balance">{title}</h1>
           {sub ? <p className="t-13 text-muted mt-0.5 text-pretty">{sub}</p> : null}
         </div>
       </div>
@@ -44,7 +44,7 @@ export function CardHead({ title, sub, icon: Icon, right, className }) {
         {Icon ? <Icon size={16} className="text-muted shrink-0" strokeWidth={2} /> : null}
         <div className="min-w-0">
           <h2 className="section-title truncate text-balance">{title}</h2>
-          {sub ? <p className="text-xs text-muted mt-0.5 truncate text-pretty">{sub}</p> : null}
+          {sub ? <p className="t-11 text-muted mt-0.5 truncate text-pretty">{sub}</p> : null}
         </div>
       </div>
       {right ? <div className="flex items-center gap-2 shrink-0">{right}</div> : null}
@@ -114,7 +114,7 @@ export function StatCard({ icon: Icon, label, value, delta, spark, color = 'var(
           <span
             className="t-11 font-bold tnum px-1.5 py-0.5 rounded-md"
             style={{
-              color: up ? 'var(--ok)' : 'var(--bad)',
+              color: up ? 'var(--ok-ink)' : 'var(--bad-ink)',
               background: up ? 'color-mix(in srgb, var(--ok) 10%, transparent)' : 'color-mix(in srgb, var(--bad) 10%, transparent)',
             }}
           >
@@ -125,7 +125,7 @@ export function StatCard({ icon: Icon, label, value, delta, spark, color = 'var(
       </div>
       <div className="flex items-end justify-between gap-2 mt-2.5">
         {/* Honest: no value (null/undefined) renders "—", never a counted-up 0 */}
-        <div className="stat-num text-[26px] text-ink leading-none">{value == null ? <span className="text-faint">—</span> : fmt ? fmt(shown) : shown.toLocaleString('en-US')}</div>
+        <div className="stat-num text-[length:var(--text-2xl)] text-ink leading-none">{value == null ? <span className="text-faint">—</span> : fmt ? fmt(shown) : shown.toLocaleString('en-US')}</div>
         {spark ? (
           <div className="w-24 h-9 shrink-0 opacity-90">
             <Sparkline data={spark} color={color} />
@@ -181,11 +181,12 @@ export function Segmented({ options, value, onChange, className }) {
       {options.map((o) => (
         <button
           key={o.value}
+          type="button"
           role="tab"
           aria-selected={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn(
-            'px-3 h-7 rounded-lg text-xs font-semibold cursor-pointer transition-[color,background-color,transform] duration-100 ease-out active:scale-[0.96]',
+            'px-3 h-7 rounded-lg t-11 font-semibold whitespace-nowrap cursor-pointer transition-[color,background-color,transform] duration-100 ease-out active:scale-[0.96]',
             value === o.value ? 'text-ink' : 'text-faint hover:text-muted'
           )}
           style={value === o.value ? { background: 'var(--surface-2)', boxShadow: 'inset 0 0 0 1px var(--line-strong)' } : undefined}
@@ -202,6 +203,7 @@ export function Segmented({ options, value, onChange, className }) {
 export function Switch({ checked, onChange, label }) {
   return (
     <button
+      type="button"
       role="switch"
       aria-checked={checked}
       aria-label={label}
@@ -225,7 +227,8 @@ export function Switch({ checked, onChange, label }) {
 
 /* ------------------------------- EmptyState ------------------------------- */
 
-export function EmptyState({ icon: Icon, title, sub }) {
+// children = an optional next step (Retry, "Add a channel") under the copy
+export function EmptyState({ icon: Icon, title, sub, children }) {
   return (
     <div className="flex flex-col items-center justify-center py-14 text-center">
       {Icon ? (
@@ -233,8 +236,9 @@ export function EmptyState({ icon: Icon, title, sub }) {
           <Icon size={22} strokeWidth={1.8} />
         </div>
       ) : null}
-      <p className="text-sm font-semibold text-ink text-balance">{title}</p>
-      {sub ? <p className="text-xs text-faint mt-1 max-w-xs text-pretty">{sub}</p> : null}
+      <p className="t-13 font-semibold text-ink text-balance">{title}</p>
+      {sub ? <p className="t-12 text-faint mt-1 max-w-xs text-pretty">{sub}</p> : null}
+      {children}
     </div>
   );
 }

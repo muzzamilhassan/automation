@@ -38,5 +38,5 @@ test('wiring: overview + clip-queue route use the shared rule; clear keeps good 
   assert.match(route, /withoutBrokenClips\(/);
   assert.doesNotMatch(route, /clips: \[\] \}/, 'never wipe the whole queue');
   const page = fs.readFileSync('studio/app/production/page.js', 'utf8');
-  assert.match(page, /window\.confirm\(/);
+  assert.match(page, /window\.confirm\(|await confirm\(/);
 });

@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { Loader2, ScrollText, ShieldCheck, ThumbsUp, ThumbsDown, RefreshCw, Image as ImageIcon, AlertTriangle, ExternalLink } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, EmptyState } from '@/components/ui';
 import DataTable from '@/components/DataTable';
+import { useConfirm } from '@/components/ConfirmDialog';
 import apiFetch from '@/components/shell/api-fetch';
 import { DISCLOSURE_CATEGORIES } from '@/lib/review-actions.mjs';
 
@@ -54,11 +55,16 @@ export default function ReviewDeskPage() {
   const [note, setNote] = useState('');
   const [disclosure, setDisclosure] = useState({}); // category text -> boolean
   const [banner, setBanner] = useState(null);
+  // approved-but-dispatch-failed (202) keeps the detail open: only THEN is
+  // Redispatch a real action (the route 409s on a script that isn't approved)
+  const [approvedNoDispatch, setApprovedNoDispatch] = useState(false);
+  const confirm = useConfirm();
 
   const load = () => {
     setDetail(null);
     setNote('');
     setDisclosure({});
+    setApprovedNoDispatch(false);
     apiFetch('/api/review')
       .then(async (r) => {
         const d = await r.json();
@@ -67,7 +73,6 @@ export default function ReviewDeskPage() {
       })
       .catch((e) => setErr(e.message));
   };
-  useEffect(load, []);
 
   const open = async (id) => {
     setErr('');
@@ -82,8 +87,22 @@ export default function ReviewDeskPage() {
     }
   };
 
+  // /review?id=<script> opens that script directly (the dispatch-failure
+  // warning and the Tasks list point here). Deferred a tick: both loaders
+  // set state, which must not run synchronously inside an effect.
+  useEffect(() => {
+    let alive = true;
+    Promise.resolve().then(() => {
+      if (!alive) return;
+      load();
+      const id = new URLSearchParams(window.location.search).get('id');
+      if (id) open(id);
+    });
+    return () => { alive = false; };
+  }, []);
+
   const act = async (body, confirmText) => {
-    if (confirmText && !window.confirm(confirmText)) return null;
+    if (confirmText && !(await confirm({ title: 'Reject this script?', body: confirmText, confirmLabel: 'Reject script', tone: 'danger' }))) return null;
     setBusy(body.action);
     setBanner(null);
     try {
@@ -94,7 +113,10 @@ export default function ReviewDeskPage() {
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok && r.status !== 202) throw new Error(d.error || 'failed');
-      if (r.status === 202) setBanner(d.warning || d.error || 'recorded');
+      if (r.status === 202) {
+        setBanner(d.warning || d.error || 'recorded');
+        if (d.approved) setApprovedNoDispatch(true);
+      }
       setBusy('');
       if (r.status !== 202) load();
       return d;
@@ -154,9 +176,9 @@ export default function ReviewDeskPage() {
         sub="Fail-closed script approvals — nothing renders, uploads, or schedules until an owner approves here (staff read + prepare)."
       />
 
-      {err ? <p className="t-13 mb-4" style={{ color: 'var(--bad)' }}>{err}</p> : null}
+      {err && detail ? <p className="t-13 mb-4" role="alert" style={{ color: 'var(--bad-ink)' }}>{err}</p> : null}
       {banner ? (
-        <p className="t-13 mb-4" style={{ color: 'var(--warn, orange)' }}>{banner}</p>
+        <p className="t-13 mb-4" role="status" style={{ color: 'var(--warn-ink)' }}>{banner}</p>
       ) : null}
 
       {!detail && err ? (
@@ -166,7 +188,7 @@ export default function ReviewDeskPage() {
           <button className="btn btn-outline mt-3" onClick={load}>Try again</button>
         </Card>
       ) : !detail && !pending ? (
-        <div className="flex items-center gap-2 text-muted text-sm py-8"><Loader2 size={15} className="animate-spin" /> Loading queue…</div>
+        <div className="flex items-center gap-2 text-muted t-13 py-8"><Loader2 size={15} className="animate-spin" /> Loading queue…</div>
       ) : !detail ? (
         <Card>
           <CardHead icon={ScrollText} title="Awaiting review" sub="held scripts across the network — newest last" />
@@ -200,21 +222,21 @@ export default function ReviewDeskPage() {
               <div className="min-w-0">
                 <h4 className="t-12 font-semibold text-muted mb-2">Script</h4>
                 {disclaimerBlock ? (
-                  <div className="t-12 bg-black/20 rounded-lg p-3 mb-2">
-                    <div className="t-11 font-semibold flex items-center gap-1 mb-1" style={{ color: 'var(--ok, #34d399)' }}>
+                  <div className="t-12 bg-surface-2 border border-line rounded-lg p-3 mb-2">
+                    <div className="t-11 font-semibold flex items-center gap-1 mb-1" style={{ color: 'var(--ok-ink)' }}>
                       <ShieldCheck size={11} /> Compliance — machine-appended to the upload description
                     </div>
                     <div className="whitespace-pre-wrap">{disclaimerBlock}</div>
                   </div>
                 ) : null}
-                <pre className="t-12 whitespace-pre-wrap break-words bg-black/20 rounded-lg p-3 max-h-[420px] overflow-auto">{detail.script.text}</pre>
+                <pre className="t-12 whitespace-pre-wrap break-words bg-surface-2 border border-line rounded-lg p-3 max-h-[420px] overflow-auto">{detail.script.text}</pre>
               </div>
               {/* sources RIGHT (below on phones) */}
               <div className="min-w-0">
                 <h4 className="t-12 font-semibold text-muted mb-2">Sources</h4>
                 <ul className="space-y-2 max-h-[420px] overflow-auto">
                   {detail.sources.map((s) => (
-                    <li key={s.id} className="t-12 bg-black/20 rounded-lg p-3">
+                    <li key={s.id} className="t-12 bg-surface-2 border border-line rounded-lg p-3">
                       <a href={s.url} target="_blank" rel="noreferrer" className="font-medium inline-flex items-center gap-1 break-all">
                         {s.title || s.url} <ExternalLink size={10} />
                       </a>
@@ -305,7 +327,7 @@ export default function ReviewDeskPage() {
                   <div key={c.idx} className="space-y-1">
                     {/* private store: the bytes are served by the route (server-side
                         meta resolution + hash check) — the raw blob URL 401s in a browser */}
-                    {c.url ? <img src={`/api/review?thumb=1&id=${detail.script.id}&idx=${c.idx}`} alt={`candidate ${c.idx}`} className="rounded-lg w-40" /> : <div className="w-40 h-24 bg-black/20 rounded-lg" />}
+                    {c.url ? <img src={`/api/review?thumb=1&id=${detail.script.id}&idx=${c.idx}`} alt={`candidate ${c.idx}`} className="rounded-lg w-40" /> : <div className="w-40 h-24 bg-surface-2 border border-line rounded-lg" />}
                     <div className="flex items-center gap-2">
                       <span className="t-11 text-muted">#{c.idx}</span>
                       {detail.thumbPick?.candidate === c.idx ? <Chip tone="accent" dot>picked</Chip> : null}
@@ -335,8 +357,9 @@ export default function ReviewDeskPage() {
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="review note (recorded on the approval/rejection)"
-                className="w-full t-12 bg-black/20 rounded-lg p-3"
+                className="input w-full t-12"
                 rows={2}
+                aria-label="Review note"
               />
               {/* phones: Approve + Reject share a full-width row of 44px buttons */}
               <div className="flex flex-wrap items-center gap-3">
@@ -354,14 +377,16 @@ export default function ReviewDeskPage() {
                 >
                   {busy === 'reject' ? <Loader2 size={14} className="animate-spin" /> : <ThumbsDown size={14} />} Reject
                 </button>
+                {approvedNoDispatch || detail.script.status === 'approved' ? (
                 <button
                   onClick={() => act({ action: 'redispatch', id: detail.script.id }, null)}
                   disabled={busy === 'redispatch'}
                   className="btn btn-ghost btn-sm min-h-[44px] md:min-h-0 w-full md:w-auto"
                   title="re-trigger the resume dispatch for an approved script (a dispatch failure warning points here)"
                 >
-                  <RefreshCw size={11} /> Redispatch (approved scripts)
+                  <RefreshCw size={11} /> Redispatch the approved run
                 </button>
+                ) : null}
               </div>
             </div>
           </Card>

@@ -5,7 +5,7 @@
 // last 50 usage events. Client component + URLSearchParams per house
 // pattern (window choice is URL state so a refresh keeps the view).
 import { useEffect, useState } from 'react';
-import { Coins, Gauge, Bot, CheckCircle2, XCircle, ReceiptText, CircleAlert } from 'lucide-react';
+import { Coins, Gauge, Bot, CheckCircle2, XCircle, ReceiptText, CircleAlert, RefreshCw } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, PageSkeleton, StatCard, Segmented } from '@/components/ui';
 import DataTable from '@/components/DataTable';
 
@@ -21,24 +21,24 @@ const when = (iso) => (iso ? String(iso).replace('T', ' ').slice(0, 16) : '');
 // One rollup table's shape is identical across the three dimensions.
 const rollupColumns = [
   { key: 'key', label: 'Name', rowHeader: true, render: (r) => (
-    <span className="t-12 font-semibold text-fg-primary font-mono truncate">{none(r.key)}</span>
+    <span className="t-12 font-semibold text-ink font-mono truncate">{none(r.key)}</span>
   ) },
   { key: 'calls', label: 'Calls', render: (r) => (
-    <span className="tnum t-12 text-fg-primary">
+    <span className="tnum t-12 text-ink">
       {fmt(r.calls)}{' '}
-      <span className="text-fg-quaternary">
-        (<span style={{ color: 'var(--ok)' }}>{fmt(r.ok_calls)}</span>
+      <span className="text-faint">
+        (<span style={{ color: 'var(--ok-ink)' }}>{fmt(r.ok_calls)}</span>
         {' / '}
-        <span style={{ color: 'var(--bad)' }}>{fmt(r.fail_calls)}</span>)
+        <span style={{ color: 'var(--bad-ink)' }}>{fmt(r.fail_calls)}</span>)
       </span>
     </span>
   ) },
-  { key: 'tokens', label: 'Tokens', render: (r) => <span className="tnum font-semibold t-12 text-fg-primary">{fmt(r.tokens)}</span> },
+  { key: 'tokens', label: 'Tokens', render: (r) => <span className="tnum font-semibold t-12 text-ink">{fmt(r.tokens)}</span> },
   { key: 'split', label: 'Measured / estimated', render: (r) => (
-    <span className="tnum t-11 text-fg-secondary">
+    <span className="tnum t-11 text-muted">
       {fmt(r.measured_tokens)} / {fmt(r.estimated_tokens)}
       {' '}
-      <span className="text-fg-quaternary">({fmt(r.measured_calls)} / {fmt(r.estimated_calls)} calls)</span>
+      <span className="text-faint">({fmt(r.measured_calls)} / {fmt(r.estimated_calls)} calls)</span>
     </span>
   ) },
 ];
@@ -66,29 +66,37 @@ export default function UsageDashboard() {
   const [sort, setSort] = useState('tokens');
   const [data, setData] = useState(null);
   const [err, setErr] = useState('');
+  const [nonce, setNonce] = useState(0); // Retry bumps this
 
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search);
-    const d = WINDOWS.some((w) => w.value === q.get('days')) ? q.get('days') : '30';
-    setDays(d);
-    if (q.get('days') !== d) {
-      q.set('days', d);
-      window.history.replaceState(null, '', `${window.location.pathname}?${q.toString()}`);
-    }
+    let alive = true;
+    // deferred a tick: no synchronous setState inside an effect
+    Promise.resolve().then(() => {
+      if (!alive) return;
+      const q = new URLSearchParams(window.location.search);
+      const d = WINDOWS.some((w) => w.value === q.get('days')) ? q.get('days') : '30';
+      setDays(d);
+      if (q.get('days') !== d) {
+        q.set('days', d);
+        window.history.replaceState(null, '', `${window.location.pathname}?${q.toString()}`);
+      }
+    });
+    return () => { alive = false; };
   }, []);
 
   useEffect(() => {
     if (!days) return undefined;
-    setData(null);
-    setErr('');
+    let alive = true;
+    Promise.resolve().then(() => { if (alive) { setData(null); setErr(''); } });
     fetch('/api/usage?days=' + days)
       .then(async (r) => {
-        const d = await r.json();
-        if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-        setData(d);
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || `the server answered ${r.status}`);
+        if (alive) setData(d);
       })
-      .catch((e) => setErr(String(e.message || e).slice(0, 160)));
-  }, [days]);
+      .catch((e) => { if (alive) setErr(String(e.message || e).slice(0, 160)); });
+    return () => { alive = false; }; // a stale window's answer never lands on the new one
+  }, [days, nonce]);
 
   const setWindow = (d) => {
     setDays(d);
@@ -118,12 +126,13 @@ export default function UsageDashboard() {
 
       {err ? (
         <Card className="mb-5">
-          <div className="px-5 py-6 flex items-center gap-3">
-            <CircleAlert size={18} style={{ color: 'var(--bad)' }} className="shrink-0" />
-            <div>
-              <p className="t-13 font-semibold text-ink">Usage ledger unavailable</p>
+          <div className="px-5 py-6 flex flex-wrap items-center gap-3">
+            <CircleAlert size={18} style={{ color: 'var(--bad-ink)' }} className="shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="t-13 font-semibold text-ink">Usage ledger unavailable — this is not zero usage</p>
               <p className="t-12 text-muted mt-0.5 font-mono break-all">{err}</p>
             </div>
+            <button className="btn btn-outline btn-sm shrink-0" onClick={() => setNonce((n) => n + 1)}><RefreshCw size={13} /> Retry</button>
           </div>
         </Card>
       ) : null}
@@ -171,20 +180,20 @@ export default function UsageDashboard() {
                 rows={(data.recent || []).map((r) => ({ ...r, id: r.id }))}
                 pageSize={10}
                 columns={[
-                  { key: 'created_at', label: 'When', rowHeader: true, render: (r) => <span className="tnum t-11 text-fg-quaternary">{when(r.created_at)}</span> },
-                  { key: 'provider', label: 'Provider', render: (r) => <span className="t-12 font-semibold text-fg-primary font-mono">{none(r.provider)}</span> },
-                  { key: 'model', label: 'Model', render: (r) => <span className="t-11 text-fg-secondary font-mono">{none(r.model)}</span> },
+                  { key: 'created_at', label: 'When', rowHeader: true, render: (r) => <span className="tnum t-11 text-faint">{when(r.created_at)}</span> },
+                  { key: 'provider', label: 'Provider', render: (r) => <span className="t-12 font-semibold text-ink font-mono">{none(r.provider)}</span> },
+                  { key: 'model', label: 'Model', render: (r) => <span className="t-11 text-muted font-mono">{none(r.model)}</span> },
                   { key: 'capability', label: 'Capability', render: (r) => <Chip>{none(r.capability)}</Chip> },
-                  { key: 'channel_id', label: 'Channel', render: (r) => <span className="t-11 text-fg-secondary font-mono">{none(r.channel_id)}</span> },
+                  { key: 'channel_id', label: 'Channel', render: (r) => <span className="t-11 text-muted font-mono">{none(r.channel_id)}</span> },
                   { key: 'tokens', label: 'Tokens', render: (r) => (
-                    <span className="tnum t-12 font-semibold text-fg-primary">
-                      {fmt(r.tokens)} <span className="t-10 font-normal text-fg-quaternary">{r.usage_source}</span>
+                    <span className="tnum t-12 font-semibold text-ink">
+                      {fmt(r.tokens)} <span className="t-10 font-normal text-faint">{r.usage_source}</span>
                     </span>
                   ) },
                   { key: 'ok', label: 'Status', render: (r) => (
                     <Chip tone={r.ok ? 'ok' : 'bad'}>{r.ok ? 'ok' : `fail${r.error_class ? ` · ${r.error_class}` : ''}`}</Chip>
                   ) },
-                  { key: 'job_id', label: 'Job', render: (r) => <span className="tnum t-11 text-fg-quaternary font-mono">{none(r.job_id)}</span> },
+                  { key: 'job_id', label: 'Job', render: (r) => <span className="tnum t-11 text-faint font-mono">{none(r.job_id)}</span> },
                 ]}
               />
             </div>

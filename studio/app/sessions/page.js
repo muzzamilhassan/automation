@@ -10,6 +10,7 @@ import { Loader2, MonitorSmartphone, Ban } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, StatCard } from '@/components/ui';
 import DataTable from '@/components/DataTable';
 import apiFetch from '@/components/shell/api-fetch';
+import { useConfirm } from '@/components/ConfirmDialog';
 
 const when = (iso) => (iso ? String(iso).replace('T', ' ').slice(0, 16) : '—');
 
@@ -18,14 +19,15 @@ export default function SessionsAdminPage() {
   const [current, setCurrent] = useState(0);
   const [err, setErr] = useState('');
   const [busyId, setBusyId] = useState(null);
+  const confirm = useConfirm();
 
   const load = () => {
     // apiFetch: a 401 here means this device's session was revoked/expired —
     // the wrapper sends it to /login instantly (AC-P4-29's redirect half).
     apiFetch('/api/sessions?scope=all')
       .then(async (r) => {
-        const d = await r.json();
-        if (!r.ok || d.error) setErr(d.error || 'failed');
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || d.error) setErr(d.error || `the server answered ${r.status}`);
         else {
           setSessions(d.sessions || []);
           setCurrent(d.current || 0);
@@ -37,7 +39,13 @@ export default function SessionsAdminPage() {
 
   const revoke = async (row) => {
     const self = row.id === current;
-    if (!window.confirm(`Revoke ${row.email}'s session${row.device ? ` (${row.device})` : ''}? That device loses access on its very next request.${self ? ' This is YOUR current device — you will be signed out.' : ''}`)) return;
+    const ok = await confirm({
+      title: `Revoke ${row.email}'s session?`,
+      body: `${row.device ? `${row.device} — ` : ''}that device loses access on its very next request.${self ? ' This is YOUR current device — you will be signed out.' : ''}`,
+      confirmLabel: 'Revoke session',
+      tone: 'danger',
+    });
+    if (!ok) return;
     setBusyId(row.id);
     setErr('');
     try {
@@ -105,7 +113,7 @@ export default function SessionsAdminPage() {
     },
     {
       key: 'action',
-      label: '',
+      label: 'Action',
       render: (r) => (r.dead
         ? <span className="text-faint t-11">—</span>
         : (
@@ -128,13 +136,19 @@ export default function SessionsAdminPage() {
         sub="Every sign-in across the studio — revoke any device, effective on its next request. Dead rows clean up after 30 days."
       />
 
-      {err ? <p className="t-13 mb-4" style={{ color: 'var(--bad)' }}>{err}</p> : null}
+      {err && sessions ? <p className="t-13 mb-4" role="alert" style={{ color: 'var(--bad-ink)' }}>{err}</p> : null}
 
-      {!sessions ? (
-        <div className="flex items-center gap-2 text-muted text-sm py-8"><Loader2 size={15} className="animate-spin" /> Loading sessions…</div>
+      {err && !sessions ? (
+        <Card className="p-5 text-center">
+          <p className="t-13 font-semibold text-ink">Can&apos;t load sessions</p>
+          <p className="t-12 text-faint mt-1">{err}</p>
+          <button className="btn btn-outline btn-sm mt-3" onClick={() => { setErr(''); load(); }}>Try again</button>
+        </Card>
+      ) : !sessions ? (
+        <div className="flex items-center gap-2 text-muted t-13 py-8"><Loader2 size={15} className="animate-spin" /> Loading sessions…</div>
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-4 mb-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
             <StatCard icon={MonitorSmartphone} label="Active sessions" value={live.length} />
             <StatCard icon={MonitorSmartphone} label="Users signed in" value={users} />
             <StatCard icon={Ban} label="Expired / revoked" value={dead.length} color="var(--bad)" iconBg="color-mix(in srgb, var(--bad) 10%, transparent)" />

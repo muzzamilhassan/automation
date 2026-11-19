@@ -3,65 +3,69 @@
 // and last activity in one screen. Data: /api/users (assembles Neon users +
 // audit log + registry bindings + encrypted-keys presence).
 import { useEffect, useState } from 'react';
-import { Loader2, Users as UsersIcon, KeyRound, Tv, Activity, ShieldCheck } from 'lucide-react';
+import { Loader2, Users as UsersIcon, KeyRound, Tv, Activity, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Card } from '@/components/ui';
+import Drawer from '@/components/Drawer';
 
 const fmtDay = (s) => (s ? String(s).slice(0, 16).replace('T', ' ') : '—');
 
 export default function UsersPage() {
   const [data, setData] = useState(null);
   const [err, setErr] = useState('');
-  const [open, setOpen] = useState(null); // email of expanded row
+  const [open, setOpen] = useState(null); // email whose activity drawer is open
+  const [nonce, setNonce] = useState(0); // Retry bumps this
 
   useEffect(() => {
     fetch('/api/users')
       .then(async (r) => {
-        const d = await r.json();
-        if (!r.ok || d.error) setErr(d.error || 'failed');
-        else setData(d);
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || d.error) setErr(d.error || `the server answered ${r.status}`);
+        else { setErr(''); setData(d); }
       })
       .catch((e) => setErr(e.message));
-  }, []);
+  }, [nonce]);
+  const openUser = data?.users?.find((u) => u.email === open) || null;
 
   return (
     <div>
       <div className="mb-4">
-        <h1 className="font-[family-name:var(--font-display)] text-xl font-bold tracking-tight flex items-center gap-2"><UsersIcon size={18} /> Users</h1>
+        <h2 className="font-display t-16 font-bold tracking-tight text-ink flex items-center gap-2"><UsersIcon size={18} /> Users</h2>
         <p className="t-12 text-muted mt-0.5">Super admin view — every account, their channels, keys, sessions and last activity.</p>
       </div>
 
       {err ? (
-        <p className="t-13" style={{ color: 'var(--bad)' }}>{err}</p>
+        <Card className="p-5 text-center">
+          <p className="t-13 font-semibold text-ink">Can&apos;t load users</p>
+          <p className="t-12 text-faint mt-1">{err}</p>
+          <button className="btn btn-outline btn-sm mt-3" onClick={() => setNonce((n) => n + 1)}><RefreshCw size={13} /> Try again</button>
+        </Card>
       ) : !data ? (
-        <div className="flex items-center gap-2 text-muted text-sm py-8"><Loader2 size={15} className="animate-spin" /> Loading users…</div>
+        <div className="flex items-center gap-2 text-muted t-13 py-8"><Loader2 size={15} className="animate-spin" /> Loading users…</div>
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-3 mb-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
             <div className="inset-tile p-4">
               <div className="t-11 uppercase tracking-wide text-muted">Accounts</div>
-              <div className="text-2xl font-bold mt-1 font-[family-name:var(--font-display)]">{data.users.length}</div>
+              <div className="text-[length:var(--text-xl)] font-bold mt-1 font-display text-ink tnum">{data.users.length}</div>
             </div>
             <div className="inset-tile p-4">
               <div className="t-11 uppercase tracking-wide text-muted">Active sessions</div>
-              <div className="text-2xl font-bold mt-1 font-[family-name:var(--font-display)]">{data.totalSessions}</div>
+              <div className="text-[length:var(--text-xl)] font-bold mt-1 font-display text-ink tnum">{data.totalSessions}</div>
             </div>
             <div className="inset-tile p-4">
               <div className="t-11 uppercase tracking-wide text-muted">Client channels bound</div>
-              <div className="text-2xl font-bold mt-1 font-[family-name:var(--font-display)]">{data.users.reduce((a, u) => a + u.channels.length, 0)}</div>
+              <div className="text-[length:var(--text-xl)] font-bold mt-1 font-display text-ink tnum">{data.users.reduce((a, u) => a + u.channels.length, 0)}</div>
             </div>
           </div>
 
           <div className="space-y-3">
             {data.users.map((u) => {
-              const expanded = open === u.email;
-              const acts = expanded
-                ? (data._audit || []).filter((a) => String(a.actor || '').toLowerCase() === u.email.toLowerCase()).slice(0, 8)
-                : [];
               return (
                 <div key={u.email} className="border border-line rounded-xl bg-surface p-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <div>
-                      <div className="text-[13.5px] font-semibold">{u.name || u.email}</div>
-                      <div className="t-11 text-muted">{u.email}</div>
+                    <div className="min-w-0">
+                      <div className="t-14 font-semibold text-ink truncate">{u.name || u.email}</div>
+                      <div className="t-11 text-muted truncate">{u.email}</div>
                     </div>
                     <span className="ml-auto t-10 px-2 py-0.5 rounded-full border border-line flex items-center gap-1" style={{ color: u.role === 'owner' ? 'var(--accent)' : 'var(--muted)' }}>
                       <ShieldCheck size={11} /> {u.role}
@@ -92,23 +96,12 @@ export default function UsersPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 mt-2.5">
-                    <span className="t-11 text-muted flex items-center gap-1"><Activity size={11} /> Last action: {u.lastAction ? `${fmtDay(u.lastAction.at)} · ${u.lastAction.action}` : 'none recorded'}</span>
-                    <button onClick={() => setOpen(expanded ? null : u.email)} className="ml-auto t-11 font-medium text-accent underline underline-offset-2" aria-expanded={expanded}>
-                      {expanded ? 'Hide activity' : 'Recent activity'}
+                  <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                    <span className="t-11 text-muted flex items-center gap-1 min-w-0"><Activity size={11} /> Last action: {u.lastAction ? `${fmtDay(u.lastAction.at)} · ${u.lastAction.action}` : 'none recorded'}</span>
+                    <button onClick={() => setOpen(u.email)} className="btn btn-outline btn-sm ml-auto">
+                      Recent activity
                     </button>
                   </div>
-                  {expanded ? (
-                    <div className="inset-tile p-2.5 mt-2 space-y-1">
-                      {u.recentActivity?.length
-                        ? u.recentActivity.map((a, i) => (
-                          <div key={i} className="t-11 text-muted">
-                            <span className="text-faint">{fmtDay(a.at)}</span> · <span className="text-ink">{a.action}</span>{a.detail ? ` — ${a.detail}` : ''}
-                          </div>
-                        ))
-                        : <p className="t-11 text-muted">No recorded activity yet.</p>}
-                    </div>
-                  ) : null}
                 </div>
               );
             })}
@@ -123,6 +116,27 @@ export default function UsersPage() {
           ) : null}
         </>
       )}
+
+      <Drawer
+        open={!!openUser}
+        onClose={() => setOpen(null)}
+        title={openUser ? `${openUser.name || openUser.email} — recent activity` : ''}
+        description={openUser?.email}
+        icon={Activity}
+        size="md"
+      >
+        {openUser?.recentActivity?.length ? (
+          <ul className="space-y-1.5">
+            {openUser.recentActivity.map((a, i) => (
+              <li key={i} className="inset-tile px-3 py-2 t-12 text-muted">
+                <span className="text-faint tnum">{fmtDay(a.at)}</span> · <span className="text-ink font-medium">{a.action}</span>{a.detail ? ` — ${a.detail}` : ''}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="t-12 text-muted">No recorded activity yet.</p>
+        )}
+      </Drawer>
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { STYLE_CATALOG } from '@/lib/styles-catalog';
 function StyleCard({ s }) {
   const live = s.status === 'live';
   return (
-    <Card hover className="overflow-hidden">
+    <Card className="overflow-hidden">
       <div className="relative" style={{ background: 'var(--surface-2)' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -35,7 +35,7 @@ function StyleCard({ s }) {
       </div>
       <div className="p-4">
         <div className="flex items-center justify-between gap-2 mb-1.5">
-          <h3 className="font-display text-[15px] font-bold tracking-tight text-ink">{s.name}</h3>
+          <h3 className="font-display t-16 font-bold tracking-tight text-ink">{s.name}</h3>
         </div>
         <div className="flex flex-wrap gap-1 mb-2">
           {s.formats.map((f) => (

@@ -30,6 +30,7 @@ import TabNav from '@/components/TabNav';
 import Analytics from '@/app/analytics/page';
 import { useBrands } from '@/components/use-brands'; // #125: live brand marks
 import { useOpenWarnings } from '@/components/use-open-warnings'; // #126: live alerts
+import { useMe } from '@/components/use-me'; // P0-7: greet the signed-in user, never a hardcoded name
 import { fmt, fmtFull } from '@/lib/utils';
 import { deriveVerdict, channelToday, nextSlot, fmtIn, reviewStatusFromHttp } from '@/lib/cockpit-verdict.mjs';
 
@@ -118,6 +119,7 @@ function TodayRow({ channels, marks, now }) {
 function OverviewContent() {
   const { bySlug: BRAND } = useBrands(); // #125 (hooks live HERE — every use is in this component): live short/accent per slug
   const { rows: openWarningRows, canSee: warningsCanSee, status: warnStatus, retry: warnRetry } = useOpenWarnings(); // #126: live alerts
+  const me = useMe();
   const searchParams = useSearchParams();
   const tabFromQuery = searchParams.get('tab');
   const activeTab = tabFromQuery && OVERVIEW_TABS.some((tab) => tab.id === tabFromQuery) ? tabFromQuery : 'pulse';
@@ -167,13 +169,19 @@ function OverviewContent() {
     };
   }, [tick]);
 
-  if (err)
+  if (err && !data)
     return (
-      <EmptyState
-        icon={RefreshCw}
-        title="Could not reach the engine"
-        sub="The /api/overview endpoint did not answer. Check that the studio server is running, then retry."
-      />
+      <Card className="p-4">
+        <EmptyState
+          icon={AlertTriangle}
+          title="Can't load today's overview"
+          sub="The studio didn't answer, so nothing here is known right now — this is not an all-clear. Your channels keep running on their schedules."
+        >
+          <button className="btn btn-outline btn-sm mt-3" onClick={() => load(true)} disabled={refreshing}>
+            <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} /> Retry
+          </button>
+        </EmptyState>
+      </Card>
     );
   if (!data) return <PageSkeleton />;
 
@@ -206,7 +214,7 @@ function OverviewContent() {
       <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
         <div className="min-w-0">
           <h1 className="font-display text-2xl font-semibold tracking-tight text-ink leading-tight text-balance">
-            {greet}, Muzzamil
+            {greet}{me?.name ? `, ${String(me.name).split(/\s+/)[0]}` : ''}
           </h1>
           <p className="t-13 text-muted mt-0.5 flex flex-wrap items-center gap-1.5 text-pretty">
             <CalendarDays size={13} className="text-muted" />
@@ -224,6 +232,10 @@ function OverviewContent() {
           <Link href="/runs" className="btn btn-primary"><Zap size={16} />Pipelines</Link>
         </div>
       </div>
+
+      {err ? (
+        <p className="t-12 mb-3" role="status" style={{ color: 'var(--warn-ink)' }}>Couldn&apos;t refresh just now — showing the last overview that loaded.</p>
+      ) : null}
 
       {/* the morning answer — always first */}
       <VerdictBanner verdict={verdict} onRetry={() => { warnRetry?.(); load(); }} />
@@ -253,7 +265,7 @@ function OverviewContent() {
             right={analyticsCoverage ? (
               analyticsCoverage.failed?.length === 0 ? <Chip tone="ok">YouTube · {new Date(analyticsCoverage.fetchedAt).toLocaleDateString()}</Chip>
                 : analyticsCoverage.ok?.length ? <Chip tone="warn">{analyticsCoverage.ok.length} of {analyticsCoverage.ok.length + analyticsCoverage.failed.length} channels</Chip>
-                  : <Chip tone="bad">YouTube unavailable · <button className="underline" onClick={() => load(true)}>Retry</button></Chip>
+                  : <Chip tone="bad">YouTube unavailable · <button type="button" className="underline" onClick={() => load(true)}>Retry</button></Chip>
             ) : null}
           />
           <div className="px-3 pb-3">
@@ -269,7 +281,7 @@ function OverviewContent() {
                       <div key={c.slug} className="inset-tile p-2.5 min-w-0">
                         <div className="flex items-center gap-1.5 mb-1">
                           <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c.accent }} />
-                          <span className="overline truncate">{BRAND[c.slug]?.short}</span>
+                          <span className="overline truncate">{BRAND[c.slug]?.short || c.label || c.slug}</span>
                         </div>
                         <div className="tnum t-13 font-bold text-ink">{t ? fmt(t.views) : <span className="text-faint">—</span>}</div>
                         <div className="t-10 text-faint">views · 28d{t ? '' : ' · unavailable'}</div>
@@ -297,7 +309,7 @@ function OverviewContent() {
               <div className="px-4 py-8 text-center">
                 <p className="t-12 font-semibold text-ink">Can&apos;t check warnings right now</p>
                 <p className="t-11 text-faint mt-1">Status unknown — this is not an all-clear.</p>
-                <button className="t-11 text-accent underline mt-2" onClick={() => warnRetry?.()}>Retry</button>
+                <button className="btn btn-outline btn-sm mt-3" onClick={() => warnRetry?.()}><RefreshCw size={13} /> Retry</button>
               </div>
             ) : openWarningRows.length === 0 ? (
               <div className="px-4 py-8 text-center">
@@ -306,7 +318,7 @@ function OverviewContent() {
               </div>
             ) : openWarningRows.slice(0, 4).map((w) => (
               <Link key={w.id} href="/warnings" className="flex gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-2 transition-colors">
-                <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: w.severity === 'blocking' ? 'var(--bad)' : 'var(--warn, #E8C15A)' }} />
+                <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: w.severity === 'blocking' ? 'var(--bad)' : 'var(--warn)' }} />
                 <span className="min-w-0">
                   <span className="block t-12 font-semibold text-ink leading-snug">{w.title}</span>
                   <span className="block t-11 text-faint mt-0.5 font-mono truncate">{w.severity}{w.channel_id ? ` · ${w.channel_id}` : ''}</span>
@@ -324,10 +336,10 @@ function OverviewContent() {
         <StatCard delay={0} icon={Users} label="YT subs" value={totals.ytSubs} fmt={fmt} />
         <StatCard delay={1} icon={Eye} label="YT views" value={totals.ytViews} fmt={fmt} delta={viewsDelta} spark={daily.map((d) => d.views)} color="var(--info)" iconBg="color-mix(in srgb, var(--info) 12%, transparent)" />
         <StatCard delay={2} icon={Film} label="Videos" value={totals.ytVideos} fmt={fmt} />
-        <StatCard delay={3} icon={FacebookIcon} label="FB followers" value={totals.fbFollowers} fmt={fmt} color="#3b82f6" iconBg="color-mix(in srgb, #3b82f6 12%, transparent)" />
+        <StatCard delay={3} icon={FacebookIcon} label="FB followers" value={totals.fbFollowers} fmt={fmt} color="var(--info)" iconBg="color-mix(in srgb, var(--info) 12%, transparent)" />
         {/* no IG data = no tile (StatCard would draw a null as 0) */}
         {totals.igFollowers > 0 ? (
-          <StatCard delay={4} icon={InstagramIcon} label="IG followers" value={totals.igFollowers} fmt={fmt} color="#ec4899" iconBg="color-mix(in srgb, #ec4899 12%, transparent)" />
+          <StatCard delay={4} icon={InstagramIcon} label="IG followers" value={totals.igFollowers} fmt={fmt} color="var(--accent)" iconBg="var(--accent-soft)" />
         ) : null}
       </div>
 
@@ -433,7 +445,7 @@ function OverviewContent() {
               <div key={slug} className="py-2.5 border-b border-line last:border-0 min-w-0">
                 <div className="flex items-center gap-2 mb-1.5">
                   <BrandMark short={BRAND[slug]?.short || '•'} accent={BRAND[slug]?.accent || 'var(--faint)'} size={20} />
-                  <span className="t-12 font-semibold text-ink">{slug}</span>
+                  <span className="t-12 font-semibold text-ink">{BRAND[slug]?.label || slug}</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5 mb-1.5">
                   {t.keywords.map((k) => (
