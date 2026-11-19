@@ -120,7 +120,7 @@ test('P0-19/P0-20: music button visible; undefined tokens replaced', () => {
 });
 
 test('P0-21: .icon-btn lives in @layer components (utilities can override)', () => {
-  assert.match(read('studio/app/globals.css'), /@layer components \{\n\.icon-btn/);
+  assert.match(read('studio/app/globals.css'), /@layer components \{\r?\n\.icon-btn/);
 });
 
 test('P0-23: the ntfy topic is not printed in the UI', () => {
