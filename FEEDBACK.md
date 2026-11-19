@@ -11,11 +11,15 @@ Status labels: 🆕 new · 🔍 looking into it · 💡 proposal ready (needs yo
 ---
 
 ## 📝 New feedback
-<!-- Write below this line. One bullet per item. Example:
-- 2026-11-20 — The Runs page is too busy on my phone, I only want to see failures.
--->
-
--
+- such as when add new channel like yt-bot so want to select its thubmails so already build in thubmails templates are not showing there
+- remove all extra detail form dashboard all extra boxes and cards 
+- and on every page breadcump should be shown
+- warning alert are showing on alot of pages and on alot of ways please remove them from unnessary ways
+- currently when i move to channel page so it showing me active channels but also on each showing some waring also
+- when click on some of manage option 1st one is schedule so when i click on it so it oepn drawer which is not best UI and also not scrollable and on every heading showing description also i wnat less text
+- autopilot start time where daily corn will be run is not fully understandalbe how i will koow best timing i wnat AI should show me best times and also avalibe slots whcih are not using other channels so we can pick that.
+- then on template drawer totaly bad UI/UX when template showing jsut text not its demos so how we will know hwich template is best also as you know i were added two option story based and chapers based true false so that option should show there 
+- when click on open channel button so its oepn new page i wnat it should show me same drwaer for it also where 
 
 ---
 
@@ -28,6 +32,42 @@ Status labels: 🆕 new · 🔍 looking into it · 💡 proposal ready (needs yo
 - **Your decision needed:** yes/no — …
 -->
 
+_2026-11-19 — answers to your first 9 items. Reply "approve all" in chat (or tick the ones you want: e.g. "approve A, B, D") and I'll build them._
+
+### A. Choose thumbnail designs when adding a channel (item 1) — 💡 proposal ready
+- **You said:** when adding a channel like YT-BOT I want to pick its thumbnails, but the built-in thumbnail templates don't show.
+- **What I found:** the automation ALREADY supports a per-channel list of chosen thumbnail designs (`thumbTemplates` — it rotates through them on uploads), but no screen lets you set it. The wizard's Thumbnails step only edits text.
+- **My recommendation:** the Thumbnails step (and a "Thumbnails" drawer under Manage) shows every built-in design as a real rendered sample in your channel's colours; you tick the ones you like (2–5), they rotate automatically. Saved to the channel, used from the next upload.
+
+### B. A much simpler dashboard (item 2) — 💡 proposal ready
+- **You said:** remove all the extra boxes and cards from the dashboard.
+- **What I found:** Today has 8 sections (verdict, channels today, 5 KPI tiles, chart, needs-attention, production table, researched topics, trend radar).
+- **My recommendation:** keep only 3 things: **(1)** the one-line verdict ("All good" / "N things need you"), **(2)** one compact row per channel (made today? next slot), **(3)** the views chart. Move topics + trend radar to each channel's page and to Analytics; drop the KPI tiles (they're on Analytics) and the duplicate needs-attention card.
+
+### C. Breadcrumb on every page (item 3) — 💡 proposal ready
+- **What I found:** the breadcrumb is hidden on phones and only shows one level ("Channels"), never "Channels / Money Rulebook / Schedule".
+- **My recommendation:** a full breadcrumb on every page incl. phones (e.g. `Channels › Money Rulebook`), each part clickable.
+
+### D. Warnings shown in too many places (items 4 + 5) — 💡 proposal ready
+- **What I found:** real problems currently appear in up to 6 places: bell, Inbox badge, home verdict, home needs-attention card, the phone bar, and a warning line on every channel card (that card line also shows "not run today" before a slot even happened).
+- **My recommendation:** exactly **2 places**: the **bell** (with count) and the **Inbox page**. Home shows only the one-line verdict. Channel cards show a small red dot only when that channel has a real problem — no warning text on healthy channels.
+
+### E. Better drawers: scrolling, less text (item 6) — 💡 proposal ready
+- **You said:** the Schedule drawer isn't the best UI, doesn't scroll, and every heading has a description — you want less text.
+- **My recommendation:** fix scrolling inside every drawer (I'll test it in a real browser on desktop + phone), remove the description lines under headings (keep one short line at the top only), tighter layout.
+
+### F. AI best times + free slots (item 7) — 💡 proposal ready
+- **You said:** I don't understand when the daily run happens or what the best time is; I want AI to suggest best times and show which slots other channels don't use.
+- **My recommendation:** the schedule picker becomes a simple 24-hour timeline in YOUR time: slots other channels already use are greyed "taken", 3 suggested times are highlighted ("⭐ best — your audience is most active", based on your real YouTube Analytics where available, else the niche default), and you click to pick. The raw cron text disappears.
+
+### G. Template drawer with real demos + Story/Chapters choice (item 8) — 💡 proposal ready
+- **You said:** the template drawer is just text — no demos; and the Story-based vs Chapters option should be there.
+- **My recommendation:** the channel's Templates drawer shows the same real preview cards as the Templates gallery (poster + video on hover), and each has a clear **Full story / Chapters** switch before you assign it.
+
+### H. "Open channel" as a drawer (item 9) — 💡 proposal ready
+- **You said:** clicking Open channel goes to a new page; you want a drawer instead.
+- **My recommendation:** "Open channel" opens a large drawer with the channel's health, today, schedule and quick actions, without leaving the Channels list. (The full page stays reachable via a "full page ↗" link in the drawer.)
+
 ---
 
 ## 📋 Status board
@@ -35,4 +75,12 @@ Status labels: 🆕 new · 🔍 looking into it · 💡 proposal ready (needs yo
 |---|------|--------|--------------|
 | 1 | Only real notifications (189 → 5) | ✅ done & live | quiet notes never badge or buzz the phone |
 | 2 | Quote Quarry couldn't be turned back on | ✅ done & live | resumed + root cause fixed |
-| 3 | Money Rulebook approved videos never published (Nov 14/17/18) | 🛠️ approved, building | fixes in progress; those 3 videos are SKIPPED (not republished) per your decision |
+| 3 | Money Rulebook approved videos never published (Nov 14/17/18) | ✅ done & live | failed renders now alert; 45→75 min limit; voice-timing fallback; nightly "approved but never published" check; approvals can't cancel each other. The 3 videos were SKIPPED per your decision |
+| 4 | A. Pick thumbnail designs per channel | 💡 proposal ready | needs your OK |
+| 5 | B. Simpler dashboard (3 sections) | 💡 proposal ready | needs your OK |
+| 6 | C. Full breadcrumb on every page | 💡 proposal ready | needs your OK |
+| 7 | D. Warnings only in bell + Inbox | 💡 proposal ready | needs your OK |
+| 8 | E. Drawers scroll, less text | 💡 proposal ready | needs your OK |
+| 9 | F. AI best times + free slots timeline | 💡 proposal ready | needs your OK |
+| 10 | G. Template drawer with real demos + Story/Chapters | 💡 proposal ready | needs your OK |
+| 11 | H. Open channel in a drawer | 💡 proposal ready | needs your OK |
