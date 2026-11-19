@@ -58,6 +58,11 @@
   --accent: #7c3aed;
   --accent-ink: #ffffff;
   --accent-soft: rgba(124, 58, 237, 0.12);
+  /* P1: chip/status text colors that pass contrast on tinted backgrounds */
+  --ok-ink: #047857;
+  --warn-ink: #b45309;
+  --bad-ink: #b91c1c;
+  --info-ink: #1d4ed8;
   --ok: #10b981;
   --warn: #f59e0b;
   --bad: #ef4444;
@@ -77,10 +82,14 @@
   --line-strong: rgba(255, 255, 255, 0.16);
   --ink: #f8fafc;
   --muted: #94a3b8;
-  --faint: #64748b;
+  --faint: #8b9bb0; /* P1: was #64748b (~3.2:1) — now ~4.8:1 on dark surfaces */
   --accent: #C9B7EF;
   --accent-ink: #0a0a0a;
   --accent-soft: rgba(201, 183, 239, 0.16);
+  --ok-ink: #34d399;
+  --warn-ink: #fbbf24;
+  --bad-ink: #f87171;
+  --info-ink: #60a5fa;
   --ok: #10b981;
   --warn: #f59e0b;
   --bad: #ef4444;
@@ -198,17 +207,17 @@ body {
 .chip-ok {
   border-color: color-mix(in srgb, var(--ok) 32%, transparent);
   background: color-mix(in srgb, var(--ok) 10%, transparent);
-  color: var(--ok);
+  color: var(--ok-ink);
 }
 .chip-warn {
   border-color: color-mix(in srgb, var(--warn) 34%, transparent);
   background: color-mix(in srgb, var(--warn) 10%, transparent);
-  color: var(--warn);
+  color: var(--warn-ink);
 }
 .chip-bad {
   border-color: color-mix(in srgb, var(--bad) 34%, transparent);
   background: color-mix(in srgb, var(--bad) 10%, transparent);
-  color: var(--bad);
+  color: var(--bad-ink);
 }
 .chip-info {
   border-color: color-mix(in srgb, var(--info) 34%, transparent);

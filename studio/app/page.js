@@ -177,8 +177,8 @@ function OverviewContent() {
                           <span className="w-2 h-2 rounded-full" style={{ background: c.accent }} />
                           <span className="overline truncate">{BRAND[c.slug]?.short}</span>
                         </div>
-                        <div className="tnum text-[13px] font-bold text-ink">{fmt(t?.views || 0)}</div>
-                        <div className="text-[10px] text-faint">views · 28d</div>
+                        <div className="tnum text-[13px] font-bold text-ink">{t ? fmt(t.views) : <span className="text-faint">—</span>}</div>
+                        <div className="text-[10px] text-faint">views · 28d{t ? '' : ' · unavailable'}</div>
                       </div>
                     );
                   })}

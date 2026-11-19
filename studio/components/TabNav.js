@@ -72,7 +72,7 @@ export default function TabNav({
                     : t.badgeTone === 'warn'
                     ? 'bg-warn/15 text-warn'
                     : selected
-                    ? 'bg-accent/20 text-accent-ink dark:text-accent'
+                    ? 'bg-accent/20 text-accent-ink dark:text-accent-ink'
                     : 'bg-surface-2 text-faint'
                 )}
               >
