@@ -21,10 +21,10 @@ const when = (iso) => (iso ? String(iso).replace('T', ' ').slice(0, 16) : '');
 // One rollup table's shape is identical across the three dimensions.
 const rollupColumns = [
   { key: 'key', label: 'Name', rowHeader: true, render: (r) => (
-    <span className="text-t-12 font-semibold text-fg-primary font-mono truncate">{none(r.key)}</span>
+    <span className="t-12 font-semibold text-fg-primary font-mono truncate">{none(r.key)}</span>
   ) },
   { key: 'calls', label: 'Calls', render: (r) => (
-    <span className="tnum text-t-12 text-fg-primary">
+    <span className="tnum t-12 text-fg-primary">
       {fmt(r.calls)}{' '}
       <span className="text-fg-quaternary">
         (<span style={{ color: 'var(--ok)' }}>{fmt(r.ok_calls)}</span>
@@ -33,9 +33,9 @@ const rollupColumns = [
       </span>
     </span>
   ) },
-  { key: 'tokens', label: 'Tokens', render: (r) => <span className="tnum font-semibold text-t-12 text-fg-primary">{fmt(r.tokens)}</span> },
+  { key: 'tokens', label: 'Tokens', render: (r) => <span className="tnum font-semibold t-12 text-fg-primary">{fmt(r.tokens)}</span> },
   { key: 'split', label: 'Measured / estimated', render: (r) => (
-    <span className="tnum text-t-11 text-fg-secondary">
+    <span className="tnum t-11 text-fg-secondary">
       {fmt(r.measured_tokens)} / {fmt(r.estimated_tokens)}
       {' '}
       <span className="text-fg-quaternary">({fmt(r.measured_calls)} / {fmt(r.estimated_calls)} calls)</span>
@@ -121,8 +121,8 @@ export default function UsageDashboard() {
           <div className="px-5 py-6 flex items-center gap-3">
             <CircleAlert size={18} style={{ color: 'var(--bad)' }} className="shrink-0" />
             <div>
-              <p className="text-t-13 font-semibold text-ink">Usage ledger unavailable</p>
-              <p className="text-t-12 text-muted mt-0.5 font-mono break-all">{err}</p>
+              <p className="t-13 font-semibold text-ink">Usage ledger unavailable</p>
+              <p className="t-12 text-muted mt-0.5 font-mono break-all">{err}</p>
             </div>
           </div>
         </Card>
@@ -134,8 +134,8 @@ export default function UsageDashboard() {
             <span className="flex items-center justify-center w-12 h-12 rounded-2xl mb-4" style={{ background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--accent)' }}>
               <ReceiptText size={22} />
             </span>
-            <p className="text-t-14 font-semibold text-ink">No usage recorded yet — events appear after the first routed AI call</p>
-            <p className="text-t-12 text-muted mt-1.5 max-w-md leading-relaxed">
+            <p className="t-14 font-semibold text-ink">No usage recorded yet — events appear after the first routed AI call</p>
+            <p className="t-12 text-muted mt-1.5 max-w-md leading-relaxed">
               Every routed call (script-gen, tts, captions, search) writes one row to the usage ledger with its provider, model, tokens and measured-vs-estimated flag. Generate a documentary or a Short and this dashboard fills in.
             </p>
           </div>
@@ -171,20 +171,20 @@ export default function UsageDashboard() {
                 rows={(data.recent || []).map((r) => ({ ...r, id: r.id }))}
                 pageSize={10}
                 columns={[
-                  { key: 'created_at', label: 'When', rowHeader: true, render: (r) => <span className="tnum text-t-11 text-fg-quaternary">{when(r.created_at)}</span> },
-                  { key: 'provider', label: 'Provider', render: (r) => <span className="text-t-12 font-semibold text-fg-primary font-mono">{none(r.provider)}</span> },
-                  { key: 'model', label: 'Model', render: (r) => <span className="text-t-11 text-fg-secondary font-mono">{none(r.model)}</span> },
+                  { key: 'created_at', label: 'When', rowHeader: true, render: (r) => <span className="tnum t-11 text-fg-quaternary">{when(r.created_at)}</span> },
+                  { key: 'provider', label: 'Provider', render: (r) => <span className="t-12 font-semibold text-fg-primary font-mono">{none(r.provider)}</span> },
+                  { key: 'model', label: 'Model', render: (r) => <span className="t-11 text-fg-secondary font-mono">{none(r.model)}</span> },
                   { key: 'capability', label: 'Capability', render: (r) => <Chip>{none(r.capability)}</Chip> },
-                  { key: 'channel_id', label: 'Channel', render: (r) => <span className="text-t-11 text-fg-secondary font-mono">{none(r.channel_id)}</span> },
+                  { key: 'channel_id', label: 'Channel', render: (r) => <span className="t-11 text-fg-secondary font-mono">{none(r.channel_id)}</span> },
                   { key: 'tokens', label: 'Tokens', render: (r) => (
-                    <span className="tnum text-t-12 font-semibold text-fg-primary">
-                      {fmt(r.tokens)} <span className="text-t-10 font-normal text-fg-quaternary">{r.usage_source}</span>
+                    <span className="tnum t-12 font-semibold text-fg-primary">
+                      {fmt(r.tokens)} <span className="t-10 font-normal text-fg-quaternary">{r.usage_source}</span>
                     </span>
                   ) },
                   { key: 'ok', label: 'Status', render: (r) => (
                     <Chip tone={r.ok ? 'ok' : 'bad'}>{r.ok ? 'ok' : `fail${r.error_class ? ` · ${r.error_class}` : ''}`}</Chip>
                   ) },
-                  { key: 'job_id', label: 'Job', render: (r) => <span className="tnum text-t-11 text-fg-quaternary font-mono">{none(r.job_id)}</span> },
+                  { key: 'job_id', label: 'Job', render: (r) => <span className="tnum t-11 text-fg-quaternary font-mono">{none(r.job_id)}</span> },
                 ]}
               />
             </div>

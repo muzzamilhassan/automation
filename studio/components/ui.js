@@ -19,7 +19,7 @@ export function PageHeader({ icon: Icon, title, sub, children }) {
         ) : null}
         <div>
           <h1 className="font-display text-[26px] font-bold leading-tight tracking-tight text-ink text-balance">{title}</h1>
-          {sub ? <p className="text-t-13 text-muted mt-0.5 text-pretty">{sub}</p> : null}
+          {sub ? <p className="t-13 text-muted mt-0.5 text-pretty">{sub}</p> : null}
         </div>
       </div>
       {children ? <div className="flex items-center gap-2 flex-wrap">{children}</div> : null}
@@ -112,7 +112,7 @@ export function StatCard({ icon: Icon, label, value, delta, spark, color = 'var(
         </div>
         {delta !== undefined && delta !== null ? (
           <span
-            className="text-t-11 font-bold tnum px-1.5 py-0.5 rounded-md"
+            className="t-11 font-bold tnum px-1.5 py-0.5 rounded-md"
             style={{
               color: up ? 'var(--ok)' : 'var(--bad)',
               background: up ? 'color-mix(in srgb, var(--ok) 10%, transparent)' : 'color-mix(in srgb, var(--bad) 10%, transparent)',

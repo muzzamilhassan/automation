@@ -385,9 +385,9 @@ export default function AddChannel() {
           <div className="flex items-start gap-2.5">
             <AlertTriangle size={16} className="text-red-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-t-13 font-semibold text-ink">Connect problem</p>
-              <p className="text-t-12 text-muted mt-1 break-words">{error}</p>
-              <p className="text-t-11 text-faint mt-2">
+              <p className="t-13 font-semibold text-ink">Connect problem</p>
+              <p className="t-12 text-muted mt-1 break-words">{error}</p>
+              <p className="t-11 text-faint mt-2">
                 Reconnect errors like <span className="font-mono">redirect_uri_mismatch</span> mean the callback URL is not registered yet — see
                 “One-time Google setup” below.
               </p>
@@ -404,8 +404,8 @@ export default function AddChannel() {
             <div className="flex items-start gap-2.5">
               <Layers size={15} className="text-accent shrink-0 mt-0.5" />
               <div>
-                <p className="text-t-12 font-semibold text-ink">Multiple Gmails, multiple channels — all fine.</p>
-                <p className="text-t-12 text-muted mt-1 leading-relaxed">
+                <p className="t-12 font-semibold text-ink">Multiple Gmails, multiple channels — all fine.</p>
+                <p className="t-12 text-muted mt-1 leading-relaxed">
                   Every connect is a fresh Google login: choose <b>any of your Gmail accounts</b>, then <b>any of its YouTube channels</b>, and Allow.
                   Connect Mail A&apos;s channel today, Mail B&apos;s tomorrow — they all land in the same registry and run on the same autopilot, each
                   with its own key, niche, template and schedule. To add another channel on the same Gmail, run this wizard again and pick a different
@@ -428,7 +428,7 @@ export default function AddChannel() {
             ) : (
               <div className="space-y-2">
                 <div className="flex gap-2">
-                  <input readOnly value={linkUrl} onFocus={(e) => e.target.select()} className="input flex-1 font-mono text-t-11" />
+                  <input readOnly value={linkUrl} onFocus={(e) => e.target.select()} className="input flex-1 font-mono t-11" />
                   <button
                     className="btn btn-primary shrink-0"
                     onClick={async () => {
@@ -442,7 +442,7 @@ export default function AddChannel() {
                     <X size={14} />
                   </button>
                 </div>
-                <p className="text-t-11 text-faint leading-relaxed">
+                <p className="t-11 text-faint leading-relaxed">
                   Paste this in the browser where your Gmail is logged in → choose the account → choose the channel → Allow. The link works ONCE and
                   expires in 15 minutes — treat it like a password. After allowing, finish Step 2 (niche + template) here in this browser.
                 </p>
@@ -462,10 +462,10 @@ export default function AddChannel() {
           />
           {secretWarning ? (
             <div className="inset-tile p-3 mb-4" style={{ borderColor: '#f59e0b55' }}>
-              <p className="text-t-12 text-muted">
+              <p className="t-12 text-muted">
                 <b className="text-ink">Warning:</b> the GitHub token secret could not be written ({secretWarning}). The channel is registered, but CI
                 can&apos;t use it until the secret <span className="font-mono">{entry?.tokenSecret}</span> exists. Run locally:{' '}
-                <span className="font-mono text-t-11">gh secret set {entry?.tokenSecret} {'<'} token.json</span>
+                <span className="font-mono t-11">gh secret set {entry?.tokenSecret} {'<'} token.json</span>
               </p>
             </div>
           ) : null}
@@ -484,7 +484,7 @@ export default function AddChannel() {
                   <button
                     key={n}
                     type="button"
-                    className="inset-tile px-2.5 py-1 text-t-11 font-semibold text-muted hover:text-ink rounded-md transition-[color,border-color,background-color,transform] duration-100 ease-out cursor-pointer active:scale-[0.96]"
+                    className="inset-tile px-2.5 py-1 t-11 font-semibold text-muted hover:text-ink rounded-md transition-[color,border-color,background-color,transform] duration-100 ease-out cursor-pointer active:scale-[0.96]"
                     style={form.niche === n ? { color: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
                     onClick={() => {
                       const subs = NICHE_MAP[n] || [];
@@ -499,17 +499,17 @@ export default function AddChannel() {
                   </button>
                 ))}
               </div>
-              <p className="text-t-10 text-faint mt-1.5">One tap = niche filled + smart sub-niches auto-loaded. Or type your own.</p>
+              <p className="t-10 text-faint mt-1.5">One tap = niche filled + smart sub-niches auto-loaded. Or type your own.</p>
             </div>
 
             {/* 10-16 PRODUCT SCALE: Sub-niches field */}
             <label className="block sm:col-span-2">
               <div className="flex items-center justify-between mb-1.5">
                 <span className="overline block">Sub-niches & Content Pillars (Comma separated)</span>
-                <span className="text-t-11 text-faint">Daily research automatically rotates across these pillars</span>
+                <span className="t-11 text-faint">Daily research automatically rotates across these pillars</span>
               </div>
               <textarea
-                className="input w-full font-mono text-t-12"
+                className="input w-full font-mono t-12"
                 rows={2}
                 value={form.subNiches}
                 onChange={(e) => setForm({ ...form, subNiches: e.target.value })}
@@ -517,7 +517,7 @@ export default function AddChannel() {
               />
               {NICHE_MAP[form.niche]?.length ? (
                 <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                  <span className="text-t-11 text-muted mr-1">Recommended pillars:</span>
+                  <span className="t-11 text-muted mr-1">Recommended pillars:</span>
                   {NICHE_MAP[form.niche].map((sn) => {
                     const currentSubs = form.subNiches.split(',').map((s) => s.trim().toLowerCase());
                     const active = currentSubs.includes(sn.toLowerCase());
@@ -525,7 +525,7 @@ export default function AddChannel() {
                       <button
                         key={sn}
                         type="button"
-                        className="inset-tile px-2 py-0.5 text-t-10 font-medium rounded-md transition-[color,border-color,background-color,transform] duration-100 ease-out cursor-pointer active:scale-[0.96]"
+                        className="inset-tile px-2 py-0.5 t-10 font-medium rounded-md transition-[color,border-color,background-color,transform] duration-100 ease-out cursor-pointer active:scale-[0.96]"
                         style={active ? { color: 'var(--accent)', borderColor: 'var(--accent)' } : { color: 'var(--muted)' }}
                         onClick={() => {
                           if (active) {
@@ -543,7 +543,7 @@ export default function AddChannel() {
                   })}
                 </div>
               ) : null}
-              <p className="text-t-10 text-faint mt-1.5">
+              <p className="t-10 text-faint mt-1.5">
                 The research engine searches YouTube for live viral videos in each sub-niche, ensuring your channel never runs out of fresh, high-performing ideas.
               </p>
             </label>
@@ -553,7 +553,7 @@ export default function AddChannel() {
             <div className="sm:col-span-2">
               <div className="flex items-center justify-between mb-1.5">
                 <span className="overline block">Video template</span>
-                <span className="text-t-11 text-faint">Previews are real frames from actual renders</span>
+                <span className="t-11 text-faint">Previews are real frames from actual renders</span>
               </div>
               <div className="grid sm:grid-cols-2 gap-2">
                 {STYLE_CATALOG.map((s) => {
@@ -572,19 +572,19 @@ export default function AddChannel() {
                       <img src={s.preview} alt="" className="w-14 h-14 rounded-md object-cover shrink-0" style={{ background: 'var(--surface-2)' }} />
                       <span className="min-w-0 flex-1 block">
                         <span className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-t-12 font-bold" style={selected ? { color: 'var(--accent)' } : undefined}>{s.name}</span>
+                          <span className="t-12 font-bold" style={selected ? { color: 'var(--accent)' } : undefined}>{s.name}</span>
                           <Chip tone={s.status === 'live' ? 'ok' : 'warn'}>{s.status}</Chip>
                           {recommended ? <Chip tone="accent">★ Recommended for this niche</Chip> : null}
                         </span>
-                        <span className="text-t-11 text-muted mt-1 leading-snug block">{s.desc}</span>
-                        <span className="text-t-10 text-faint mt-1 block">{s.formats.join(' · ')}</span>
+                        <span className="t-11 text-muted mt-1 leading-snug block">{s.desc}</span>
+                        <span className="t-10 text-faint mt-1 block">{s.formats.join(' · ')}</span>
                       </span>
                     </button>
                   );
                 })}
               </div>
               {nicheRec ? (
-                <p className="text-t-11 text-faint mt-1.5">
+                <p className="t-11 text-faint mt-1.5">
                   Suggested for your niche: <b className="text-muted">{STYLE_BY_ID[nicheRec.style]?.name}</b> — {nicheRec.reason}. Nothing is chosen
                   for you; click that card if you want it.
                 </p>
@@ -598,7 +598,7 @@ export default function AddChannel() {
               <div className="sm:col-span-2">
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="overline block">Production templates ({tplView.templates.length})</span>
-                  <span className="text-t-11 text-faint">Hover a card to watch its demo · “Use” assigns it to this channel</span>
+                  <span className="t-11 text-faint">Hover a card to watch its demo · “Use” assigns it to this channel</span>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-2">
                   {tplView.templates.map((t) => {
@@ -613,14 +613,14 @@ export default function AddChannel() {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="text-t-12 font-bold text-ink truncate">{t.name}</p>
-                            <p className="text-t-11 text-muted mt-0.5 line-clamp-2 leading-snug">{t.catalog?.desc}</p>
+                            <p className="t-12 font-bold text-ink truncate">{t.name}</p>
+                            <p className="t-11 text-muted mt-0.5 line-clamp-2 leading-snug">{t.catalog?.desc}</p>
                             <div className="flex flex-wrap gap-1 mt-1.5">
                               {(t.registry?.formats || []).slice(0, 3).map((f) => (
                                 <Chip key={f} tone="accent">{f}</Chip>
                               ))}
                               {src?.mp4 ? (
-                                <span className="text-t-10 text-faint inline-flex items-center gap-0.5">
+                                <span className="t-10 text-faint inline-flex items-center gap-0.5">
                                   <Play size={9} /> demo
                                 </span>
                               ) : null}
@@ -640,13 +640,13 @@ export default function AddChannel() {
                         <div className="flex items-center gap-2 mt-2">
                           <button
                             type="button"
-                            className="btn btn-outline text-t-11 px-2.5 py-1"
+                            className="btn btn-outline t-11 px-2.5 py-1"
                             onClick={() => assignTemplate(t.templateId)}
                             disabled={!connectedSlug || a?.state === 'assigning' || a?.state === 'done'}
                           >
                             {a?.state === 'assigning' ? 'Assigning…' : a?.state === 'done' ? 'Assigned ✓' : 'Use for this channel'}
                           </button>
-                          {a?.state === 'error' ? <span className="text-t-10 text-red-400 truncate">{a.msg}</span> : null}
+                          {a?.state === 'error' ? <span className="t-10 text-red-400 truncate">{a.msg}</span> : null}
                         </div>
                       </div>
                     );
@@ -670,8 +670,8 @@ export default function AddChannel() {
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setForm({ ...form, voice: v.id }); }}
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="text-t-12 font-medium truncate">{v.label}</div>
-                      <div className="text-t-10 font-mono text-white/45 truncate">{v.id}</div>
+                      <div className="t-12 font-medium truncate">{v.label}</div>
+                      <div className="t-10 font-mono text-white/45 truncate">{v.id}</div>
                     </div>
                     {v.demo ? (
                       <button
@@ -686,7 +686,7 @@ export default function AddChannel() {
                   </div>
                 ))}
               </div>
-              <span className="text-t-10 text-white/40 mt-1.5 block">Demos all say the same line — compare them fairly. Clicking a voice picks it; typing keeps a custom id.</span>
+              <span className="t-10 text-white/40 mt-1.5 block">Demos all say the same line — compare them fairly. Clicking a voice picks it; typing keeps a custom id.</span>
             </div>
             <label className="block">
               <span className="overline block mb-1.5">Accent color</span>
@@ -706,10 +706,10 @@ export default function AddChannel() {
               </select>
               {suggestionText(audience) ? (
                 <div className="mt-2 rounded-lg border border-sky-400/40 bg-sky-400/10 px-2.5 py-2">
-                  <div className="text-t-12 text-sky-200">{suggestionText(audience)}</div>
+                  <div className="t-12 text-sky-200">{suggestionText(audience)}</div>
                   <button
                     type="button"
-                    className="mt-1.5 text-t-11 font-medium text-sky-300 hover:text-sky-200 underline underline-offset-2"
+                    className="mt-1.5 t-11 font-medium text-sky-300 hover:text-sky-200 underline underline-offset-2"
                     onClick={() => {
                       const s = suggestionFor(audience);
                       if (s) setForm({ ...form, slots: s.utc });
@@ -719,7 +719,7 @@ export default function AddChannel() {
                   </button>
                 </div>
               ) : null}
-              <span className="text-t-10 text-white/40 mt-1.5 block">Presets are a starting point for new channels — later, suggestions can come from your own YouTube Analytics viewer hours.</span>
+              <span className="t-10 text-white/40 mt-1.5 block">Presets are a starting point for new channels — later, suggestions can come from your own YouTube Analytics viewer hours.</span>
             </div>
             <label className="block">
               <span className="overline block mb-1.5">Short slot UTC (evening is best)</span>
@@ -737,15 +737,15 @@ export default function AddChannel() {
               <button className="btn btn-outline w-full sm:w-auto" onClick={autoFillKit} disabled={fillingKit}>
                 <Sparkles size={14} /> {fillingKit ? 'Drafting…' : 'Auto-fill brand kit from niche'}
               </button>
-              {kitMood ? <span className="text-t-11 text-faint ml-2">music mood: {kitMood}</span> : null}
-              {kitNote ? <span className="text-t-11 text-amber-300/80 ml-2">{kitNote}</span> : null}
+              {kitMood ? <span className="t-11 text-faint ml-2">music mood: {kitMood}</span> : null}
+              {kitNote ? <span className="t-11 text-amber-300/80 ml-2">{kitNote}</span> : null}
               {kitDraft ? (
                 <div className="mt-3 rounded-xl border border-sky-400/40 bg-sky-400/5 p-3">
                   <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className="text-t-12 font-medium text-sky-200">AI draft — review each field, then apply what you like</span>
+                    <span className="t-12 font-medium text-sky-200">AI draft — review each field, then apply what you like</span>
                     <div className="flex gap-2">
-                      <button type="button" className="text-t-11 font-medium text-sky-300 hover:text-sky-200 underline underline-offset-2" onClick={applyAllDraftFields}>Apply all</button>
-                      <button type="button" className="text-t-11 text-white/50 hover:text-white/80 underline underline-offset-2" onClick={() => setKitDraft(null)}>Discard</button>
+                      <button type="button" className="t-11 font-medium text-sky-300 hover:text-sky-200 underline underline-offset-2" onClick={applyAllDraftFields}>Apply all</button>
+                      <button type="button" className="t-11 text-white/50 hover:text-white/80 underline underline-offset-2" onClick={() => setKitDraft(null)}>Discard</button>
                     </div>
                   </div>
                   <div className="grid gap-1.5">
@@ -760,18 +760,18 @@ export default function AddChannel() {
                     ].map(([key, label, value]) => (
                       <div key={key} className="flex items-start gap-2 rounded-lg border border-white/10 px-2.5 py-1.5">
                         <div className="min-w-0 flex-1">
-                          <div className="text-t-10 text-white/45">{label}</div>
-                          <div className="text-t-12 text-white/85 line-clamp-2">{value || '—'}</div>
+                          <div className="t-10 text-white/45">{label}</div>
+                          <div className="t-12 text-white/85 line-clamp-2">{value || '—'}</div>
                         </div>
                         {kitDraft.applied[key] ? (
-                          <span className="shrink-0 text-t-11 text-emerald-400 font-medium pt-1">Applied ✓</span>
+                          <span className="shrink-0 t-11 text-emerald-400 font-medium pt-1">Applied ✓</span>
                         ) : (
-                          <button type="button" className="shrink-0 text-t-11 font-medium text-sky-300 hover:text-sky-200 underline underline-offset-2 pt-1" onClick={() => applyDraftField(key)}>Apply</button>
+                          <button type="button" className="shrink-0 t-11 font-medium text-sky-300 hover:text-sky-200 underline underline-offset-2 pt-1" onClick={() => applyDraftField(key)}>Apply</button>
                         )}
                       </div>
                     ))}
                   </div>
-                  <span className="text-t-10 text-white/40 mt-2 block">Drafted by AI (Groq) from your niche. Nothing here touches the form until you press Apply.</span>
+                  <span className="t-10 text-white/40 mt-2 block">Drafted by AI (Groq) from your niche. Nothing here touches the form until you press Apply.</span>
                 </div>
               ) : null}
             </div>
@@ -814,7 +814,7 @@ export default function AddChannel() {
                   <input className="input w-full font-mono" value={form.tiktokHandle} onChange={(e) => setForm({ ...form, tiktokHandle: e.target.value })} placeholder="@channel" />
                 </label>
               </div>
-              <p className="text-t-10 text-faint mt-1.5">
+              <p className="t-10 text-faint mt-1.5">
                 The FB page ID is the numeric page form (or the new UC… form) — the page must be linked to the FB token for posting. Handles are saved
                 without the leading @. Leave a field empty when the channel has no account there — the lanes skip it honestly.
               </p>
@@ -840,7 +840,7 @@ export default function AddChannel() {
           {linkUrl ? (
             <div className="mt-3 space-y-2">
               <div className="flex gap-2">
-                <input readOnly value={linkUrl} onFocus={(e) => e.target.select()} className="input flex-1 font-mono text-t-11" />
+                <input readOnly value={linkUrl} onFocus={(e) => e.target.select()} className="input flex-1 font-mono t-11" />
                 <button
                   className="btn btn-primary shrink-0"
                   onClick={async () => {
@@ -854,7 +854,7 @@ export default function AddChannel() {
                   <X size={14} />
                 </button>
               </div>
-              <p className="text-t-11 text-faint leading-relaxed">
+              <p className="t-11 text-faint leading-relaxed">
                 Paste this in the browser where <b>{entry?.handle || 'this channel'}</b>&apos;s Gmail is logged in → choose that account → choose the same
                 channel → Allow. Works once · 15 minutes. This upgrades the stored key — your settings here are kept.
               </p>
@@ -869,8 +869,8 @@ export default function AddChannel() {
           <div className="flex items-start gap-3">
             <CheckCircle2 size={20} className="text-emerald-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-t-14 font-bold text-ink">{started ? 'Autopilot started ✓ — the nightly run produces from tonight' : 'Saved ✓ — autopilot is OFF. Press “Save & start autopilot” (or Resume on Channels) when you want it to produce.'}</p>
-              <p className="text-t-12 text-muted mt-1 leading-relaxed">
+              <p className="t-14 font-bold text-ink">{started ? 'Autopilot started ✓ — the nightly run produces from tonight' : 'Saved ✓ — autopilot is OFF. Press “Save & start autopilot” (or Resume on Channels) when you want it to produce.'}</p>
+              <p className="t-12 text-muted mt-1 leading-relaxed">
                 {started ? (
                   <>
                     <b className="text-ink">{form.label || connectedSlug}</b> is live: 1 short per day at your slot, weekly episode on {form.docDay},
@@ -917,12 +917,12 @@ export default function AddChannel() {
           <div className="px-4 pb-4 space-y-2">
             {reg.channels.map((c) => (
               <div key={c.slug} className="inset-tile p-3 flex items-center gap-3">
-                <span className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center text-t-11 font-bold" style={{ background: `${c.accent}22`, color: c.accent }}>
+                <span className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center t-11 font-bold" style={{ background: `${c.accent}22`, color: c.accent }}>
                   {(c.label || c.slug).slice(0, 2).toUpperCase()}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-t-12 font-semibold text-ink truncate">{c.label || c.slug}</p>
-                  <p className="text-t-11 text-faint truncate font-mono">
+                  <p className="t-12 font-semibold text-ink truncate">{c.label || c.slug}</p>
+                  <p className="t-11 text-faint truncate font-mono">
                     {c.handle || c.channelId} · key: {c.tokenSecret}
                   </p>
                 </div>
@@ -997,13 +997,13 @@ export default function AddChannel() {
                 ) : null}
                 <div className="inset-tile p-3 mt-2 rounded-lg">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-t-13 font-bold text-ink">{t.name}</p>
+                    <p className="t-13 font-bold text-ink">{t.name}</p>
                     <button type="button" className="icon-btn w-7 h-7 rounded-md shrink-0" onClick={closePreview} title="Close (Esc)">
                       <X size={13} />
                     </button>
                   </div>
-                  <p className="text-t-11 text-muted mt-1 leading-relaxed">{t.catalog?.desc}</p>
-                  {t.catalog?.usedFor ? <p className="text-t-10 text-faint mt-1">{t.catalog.usedFor}</p> : null}
+                  <p className="t-11 text-muted mt-1 leading-relaxed">{t.catalog?.desc}</p>
+                  {t.catalog?.usedFor ? <p className="t-10 text-faint mt-1">{t.catalog.usedFor}</p> : null}
                   <button
                     type="button"
                     className="btn btn-primary w-full mt-2"
@@ -1012,7 +1012,7 @@ export default function AddChannel() {
                   >
                     {a?.state === 'assigning' ? 'Assigning…' : a?.state === 'done' ? 'Assigned ✓ — picked for this channel' : 'Use for this channel'}
                   </button>
-                  {a?.state === 'error' ? <p className="text-t-10 text-red-400 mt-1">{a.msg}</p> : null}
+                  {a?.state === 'error' ? <p className="t-10 text-red-400 mt-1">{a.msg}</p> : null}
                 </div>
               </div>
             );
@@ -1026,7 +1026,7 @@ export default function AddChannel() {
           <CardHead title="One-time Google setup" sub="If the login fails with redirect_uri_mismatch, register the callback URLs" icon={Settings2} />
         </button>
         {showSetup ? (
-          <div className="px-4 pb-4 text-t-12 text-muted leading-relaxed">
+          <div className="px-4 pb-4 t-12 text-muted leading-relaxed">
             <ol className="list-decimal ml-4 space-y-1.5">
               <li>
                 Open <span className="font-mono text-ink">console.cloud.google.com → APIs &amp; Services → Credentials</span> and open the OAuth client whose

@@ -43,7 +43,7 @@ function ThemeCard({ value, label, icon: Icon, current, onPick, preview }) {
         {preview}
       </div>
       <div className="flex items-center justify-between">
-        <span className="flex items-center gap-1.5 text-t-12 font-semibold text-ink">
+        <span className="flex items-center gap-1.5 t-12 font-semibold text-ink">
           <Icon size={13} /> {label}
         </span>
         {active ? (
@@ -238,29 +238,29 @@ function SettingsContent() {
               preview={<MiniPreview dark />}
             />
           </div>
-          <p className="text-t-11 text-faint mt-3">
+          <p className="t-11 text-faint mt-3">
             Your choice is saved in this browser. Dark is the house style — light theme is in beta until the Phase 1 pass.
           </p>
 
           <div className="overline mt-7 mb-3">Typography</div>
           <div className="grid sm:grid-cols-3 gap-2.5">
             <div className="inset-tile p-3">
-              <p className="text-t-11 text-faint mt-0.5">UI + body text</p>
+              <p className="t-11 text-faint mt-0.5">UI + body text</p>
             </div>
             <div className="inset-tile p-3">
-              <p className="text-t-11 text-faint mt-0.5">Headlines + big numbers</p>
+              <p className="t-11 text-faint mt-0.5">Headlines + big numbers</p>
             </div>
             <div className="inset-tile p-3">
-              <p className="text-t-12 font-semibold text-ink" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>JetBrains Mono</p>
-              <p className="text-t-11 text-faint mt-0.5">Times, logs, IDs</p>
+              <p className="t-12 font-semibold text-ink" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>JetBrains Mono</p>
+              <p className="t-11 text-faint mt-0.5">Times, logs, IDs</p>
             </div>
           </div>
 
           <div className="overline mt-7 mb-3">Notifications</div>
           <div className="space-y-2.5">
             <div className="inset-tile px-3.5 py-3">
-              <p className="text-t-12 font-semibold text-ink">Phone pushes (ntfy)</p>
-              <p className="text-t-11 text-faint mt-0.5">On - milestone pings + the daily report go to your private ntfy topic. (These were fake switches that saved nothing; real preferences come with Phase 2.)</p>
+              <p className="t-12 font-semibold text-ink">Phone pushes (ntfy)</p>
+              <p className="t-11 text-faint mt-0.5">On - milestone pings + the daily report go to your private ntfy topic. (These were fake switches that saved nothing; real preferences come with Phase 2.)</p>
             </div>
           </div>
         </Card>
@@ -273,7 +273,7 @@ function SettingsContent() {
               <span className="section-title">Engine</span>
               <Chip tone="ok" dot className="ml-auto">connected</Chip>
             </div>
-            <div className="space-y-2 text-t-12 text-muted">
+            <div className="space-y-2 t-12 text-muted">
               <p className="flex justify-between"><span>Live site</span><code className="font-mono text-accent">quarry-studio.vercel.app</code></p>
               <p className="flex justify-between"><span>Local dev</span><code className="font-mono text-accent">localhost:3000</code></p>
               <p className="flex justify-between"><span>Production runs</span><span>GitHub Actions (cloud-only)</span></p>
@@ -282,7 +282,7 @@ function SettingsContent() {
             </div>
             <div className="inset-tile p-3 mt-3 flex gap-2.5">
               <ShieldAlert size={14} className="shrink-0 mt-0.5" style={{ color: 'var(--warn)' }} />
-              <p className="text-t-11 text-muted leading-relaxed">
+              <p className="t-11 text-muted leading-relaxed">
                 The automation repo flips back to private on Oct 1 (auto-task). Rendering lives on the public
                 quarry-render repo permanently.
               </p>
@@ -293,7 +293,7 @@ function SettingsContent() {
             <div className="flex items-center gap-2 mb-3">
               <Plug size={15} className="text-faint" />
               <span className="section-title">Integrations</span>
-            <span className="text-t-10 text-faint">static list - not live status</span>
+            <span className="t-10 text-faint">static list - not live status</span>
             </div>
             <div className="space-y-1">
               {INTEGRATIONS.map((i) => {
@@ -302,8 +302,8 @@ function SettingsContent() {
                   <div key={i.name} className="flex items-center gap-2.5 py-1.5">
                     <Chip tone={st.tone} dot className="w-[86px] justify-center">{st.label}</Chip>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-t-12 font-semibold text-ink truncate">{i.name}</span>
-                      <span className="block text-t-10 text-faint truncate">{i.note}</span>
+                      <span className="block t-12 font-semibold text-ink truncate">{i.name}</span>
+                      <span className="block t-10 text-faint truncate">{i.note}</span>
                     </span>
                   </div>
                 );
@@ -316,7 +316,7 @@ function SettingsContent() {
               <Bell size={15} className="text-faint" />
               <span className="section-title">Safety rules the engine obeys</span>
             </div>
-            <ul className="space-y-1.5 text-t-11 text-muted leading-relaxed list-none">
+            <ul className="space-y-1.5 t-11 text-muted leading-relaxed list-none">
               <li>· Every upload passes duration, title and duplicate gates — fail closed.</li>
               <li>· Never re-upload the same file (strike risk).</li>
               <li>· Nothing posts to Facebook without your approval first.</li>
@@ -334,18 +334,18 @@ function SettingsContent() {
           icon={Users}
         />
         {team === 'forbidden' ? (
-          <p className="text-t-12 text-faint px-1">Team management is owner-only.</p>
+          <p className="t-12 text-faint px-1">Team management is owner-only.</p>
         ) : (
           <>
             <div className="space-y-1.5 mb-4">
               {(Array.isArray(team) ? team : []).map((u) => (
                 <div key={u.email} className="flex items-center gap-3 inset-tile px-3 py-2.5">
-                  <span className="flex items-center justify-center w-7 h-7 rounded-lg text-t-11 font-bold shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                  <span className="flex items-center justify-center w-7 h-7 rounded-lg t-11 font-bold shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
                     {(u.name || u.email).slice(0, 2).toUpperCase()}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-t-12 font-semibold text-ink truncate">{u.name || u.email}</span>
-                    <span className="block text-t-10 text-faint truncate">{u.email}</span>
+                    <span className="block t-12 font-semibold text-ink truncate">{u.name || u.email}</span>
+                    <span className="block t-10 text-faint truncate">{u.email}</span>
                   </span>
                   <Chip tone={u.role === 'owner' ? 'ok' : 'accent'}>{u.role}</Chip>
                   {u.role !== 'owner' ? (
@@ -367,8 +367,8 @@ function SettingsContent() {
               </select>
               <Button color="primary" onClick={addMember} isDisabled={teamBusy || !newEmail.trim()} iconLeading={<Plus size={16} />}>Add</Button>
             </div>
-            {teamErr ? <p className="text-t-11 mt-2" style={{ color: 'var(--bad)' }}>{teamErr}</p> : null}
-            <p className="text-t-11 text-faint mt-3">
+            {teamErr ? <p className="t-11 mt-2" style={{ color: 'var(--bad)' }}>{teamErr}</p> : null}
+            <p className="t-11 text-faint mt-3">
               New members sign in with Google on the login page — their email must match exactly. Owners are added by editing the invite file in the repo.
             </p>
           </>
@@ -382,7 +382,7 @@ function SettingsContent() {
           sub="Verified and prepared here — the value itself is changed on Vercel, then every device signs out automatically on the next deploy."
           icon={ShieldAlert}
         />
-        {pwErr ? <p className="text-t-12 px-1 mb-2" style={{ color: 'var(--bad)' }}>{pwErr}</p> : null}
+        {pwErr ? <p className="t-12 px-1 mb-2" style={{ color: 'var(--bad)' }}>{pwErr}</p> : null}
         {!pwResult ? (
           <>
             <div className="grid gap-2 mt-1" style={{ maxWidth: 420 }}>
@@ -392,22 +392,22 @@ function SettingsContent() {
             </div>
             <div className="flex items-center gap-2 mt-3">
               <Button color="primary" onClick={rotatePw} isDisabled={pwBusy || !pwCurrent || !pwNew || !pwConfirm}>Verify &amp; prepare rotation</Button>
-              <span className="text-t-11 text-faint">Changing the password is safe — channel tokens live under the master key now (#120).</span>
+              <span className="t-11 text-faint">Changing the password is safe — channel tokens live under the master key now (#120).</span>
             </div>
           </>
         ) : (
           <div className="mt-1 space-y-2">
-            <p className="text-t-12" style={{ color: 'var(--ok, #22c55e)' }}>
+            <p className="t-12" style={{ color: 'var(--ok, #22c55e)' }}>
               Ready — {pwResult.scanned} token row{pwResult.scanned === 1 ? '' : 's'} checked, {pwResult.migrated} re-protected{pwResult.unreadable ? `, ${pwResult.unreadable} already unreadable (pre-existing, rotation-safe)` : ''}. Now finish on Vercel:
             </p>
-            <ol className="text-t-12 text-faint list-decimal pl-5 space-y-1">
+            <ol className="t-12 text-faint list-decimal pl-5 space-y-1">
               {pwResult.steps.map((s, i) => <li key={i}>{s}</li>)}
             </ol>
-            <a className="text-t-12 underline" style={{ color: 'var(--accent)' }} href={pwResult.dashboardUrl} target="_blank" rel="noreferrer">
+            <a className="t-12 underline" style={{ color: 'var(--accent)' }} href={pwResult.dashboardUrl} target="_blank" rel="noreferrer">
               Open Vercel environment variables →
             </a>
-            {pwResult.warning ? <p className="text-t-11 text-faint">{pwResult.warning}</p> : null}
-            <p className="text-t-11 text-faint">
+            {pwResult.warning ? <p className="t-11 text-faint">{pwResult.warning}</p> : null}
+            <p className="t-11 text-faint">
               Redeployed and signed in with the new password? Done. (Changed your mind? Simply don&apos;t touch Vercel — nothing has changed yet.)
             </p>
           </div>
@@ -424,14 +424,14 @@ function SettingsContent() {
             <Button color="secondary" onClick={revokeAll} isDisabled={secBusy || !sessions?.length}>Sign out everywhere</Button>
           }
         />
-        {secErr ? <p className="text-t-12 px-1 mb-2" style={{ color: 'var(--bad)' }}>{secErr}</p> : null}
+        {secErr ? <p className="t-12 px-1 mb-2" style={{ color: 'var(--bad)' }}>{secErr}</p> : null}
         <div className="space-y-1.5">
           {(sessions || []).map((s) => (
             <div key={s.id} className="flex items-center gap-3 inset-tile px-3 py-2.5">
               <MonitorSmartphone size={14} className="text-faint shrink-0" />
               <span className="min-w-0 flex-1">
-                <span className="block text-t-12 font-medium text-ink truncate">{s.device || 'Unknown device'}</span>
-                <span className="block text-t-10 text-faint">
+                <span className="block t-12 font-medium text-ink truncate">{s.device || 'Unknown device'}</span>
+                <span className="block t-10 text-faint">
                   signed in {s.created ? new Date(s.created).toLocaleDateString() : '—'} · last used {s.lastUsed ? new Date(s.lastUsed).toLocaleString() : '—'}
                   {s.ip ? ` · ${s.ip}` : ''}
                 </span>
@@ -439,7 +439,7 @@ function SettingsContent() {
             </div>
           ))}
           {sessions && !sessions.length ? (
-            <p className="text-t-12 text-faint px-1 py-2">No active sessions found for your account yet — sign out and back in once to register this device.</p>
+            <p className="t-12 text-faint px-1 py-2">No active sessions found for your account yet — sign out and back in once to register this device.</p>
           ) : null}
         </div>
       </Card>

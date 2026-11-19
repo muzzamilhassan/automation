@@ -79,14 +79,14 @@ export default function TemplateRegistryPage() {
           <div className="flex items-start gap-2.5">
             <AlertTriangle size={15} className="text-amber-400 shrink-0 mt-0.5" />
             <div className="min-w-0">
-              <p className="text-t-12 font-semibold text-ink">{invalid.length} template block{invalid.length === 1 ? '' : 's'} failed registry validation — excluded from browse and assignment.</p>
+              <p className="t-12 font-semibold text-ink">{invalid.length} template block{invalid.length === 1 ? '' : 's'} failed registry validation — excluded from browse and assignment.</p>
               <ul className="mt-1.5 space-y-1">
                 {/* invalid rows are loader-shaped ({ familyId: key, errors }) —
                     the loader keeps the legacy field name for its engine
                     consumers (T1 dual meaning); the value is the registry key. */}
                 {invalid.map((v) => (
-                  <li key={v.familyId} className="text-t-11 text-muted">
-                    <span className="font-mono text-t-10 text-amber-300">{v.familyId}</span> — {v.errors.join(' · ')}
+                  <li key={v.familyId} className="t-11 text-muted">
+                    <span className="font-mono t-10 text-amber-300">{v.familyId}</span> — {v.errors.join(' · ')}
                   </li>
                 ))}
               </ul>
@@ -102,7 +102,7 @@ export default function TemplateRegistryPage() {
           <select
             value={niche}
             onChange={(e) => setNiche(e.target.value)}
-            className="text-t-12 px-3 py-1.5 rounded-lg border border-line bg-surface"
+            className="t-12 px-3 py-1.5 rounded-lg border border-line bg-surface"
           >
             <option value="all">all niches</option>
             {allNiches.map((n) => <option key={n} value={n}>{n}</option>)}
@@ -152,7 +152,7 @@ export default function TemplateRegistryPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <h3 className="font-display text-[15px] font-bold tracking-tight text-ink truncate">{t.name}</h3>
-                    <p className="text-t-10 text-faint font-mono truncate">{t.templateId}</p>
+                    <p className="t-10 text-faint font-mono truncate">{t.templateId}</p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <Chip tone="accent" className="font-mono">v{reg.version}</Chip>
@@ -165,19 +165,19 @@ export default function TemplateRegistryPage() {
                 </div>
 
                 <div className="inset-tile p-3 space-y-1.5">
-                  <div className="flex items-center gap-2 text-t-11 text-muted">
+                  <div className="flex items-center gap-2 t-11 text-muted">
                     <span className="overline w-20 shrink-0">Family</span>
                     <span className="font-mono truncate">{t.family}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-t-11 text-muted">
+                  <div className="flex items-center gap-2 t-11 text-muted">
                     <span className="overline w-20 shrink-0">Formats</span>
                     <span className="font-mono">{(reg.formats || []).join(' · ')}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-t-11 text-muted">
+                  <div className="flex items-center gap-2 t-11 text-muted">
                     <span className="overline w-20 shrink-0">Renderer</span>
                     <span className="font-mono truncate">{reg.renderer}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-t-11 text-muted">
+                  <div className="flex items-center gap-2 t-11 text-muted">
                     <span className="overline w-20 shrink-0">Needs</span>
                     <span className="flex flex-wrap gap-1">
                       {(reg.required_capabilities || []).length
@@ -185,7 +185,7 @@ export default function TemplateRegistryPage() {
                         : <span className="text-faint">—</span>}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-t-11 text-muted">
+                  <div className="flex items-center gap-2 t-11 text-muted">
                     <span className="overline w-20 shrink-0">Safety</span>
                     <span className="flex items-center gap-1 flex-wrap">
                       {reg.safety?.required_sources ? <Chip tone="ok">sources</Chip> : null}
@@ -196,12 +196,12 @@ export default function TemplateRegistryPage() {
                 </div>
 
                 <div className="mt-auto flex items-center justify-between gap-2 pt-1">
-                  <span className="text-t-11 text-faint flex items-center gap-1">
+                  <span className="t-11 text-faint flex items-center gap-1">
                     <ShieldCheck size={11} /> {reg.variation_rules?.length || 0} variation rule{(reg.variation_rules?.length || 0) === 1 ? '' : 's'}
                   </span>
                   <Link
                     href={`/templates/registry/detail?template=${encodeURIComponent(t.templateId)}`}
-                    className="text-t-11 font-semibold flex items-center gap-1 text-sky-400 hover:underline"
+                    className="t-11 font-semibold flex items-center gap-1 text-sky-400 hover:underline"
                   >
                     Detail <ArrowRight size={12} />
                   </Link>
@@ -216,7 +216,7 @@ export default function TemplateRegistryPage() {
       {templates.some((t) => t.registry?.deprecated) ? (
         <div className="inset-tile p-3 flex gap-2.5 items-start">
           <AlertTriangle size={14} className="shrink-0 mt-0.5" style={{ color: 'var(--warn, #d97706)' }} />
-          <p className="text-t-11 text-muted">
+          <p className="t-11 text-muted">
             Deprecated templates keep producing on channels already assigned to them, but the validator blocks every new assignment (AC-6). Unassign and move those channels to a successor style when ready.
           </p>
         </div>

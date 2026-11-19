@@ -46,7 +46,7 @@ export default function ActionButton({ action, slug = null, label, small = false
         {busy ? 'Starting…' : ok === true ? 'Started' : ok === false ? 'Failed' : label}
       </button>
       {ok === true ? (
-        <Link href="/logs" className="text-t-11 text-accent hover:underline whitespace-nowrap">
+        <Link href="/logs" className="t-11 text-accent hover:underline whitespace-nowrap">
           watch logs →
         </Link>
       ) : null}

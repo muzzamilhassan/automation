@@ -55,8 +55,8 @@ export default function LoginPage() {
             <Pickaxe size={18} color="var(--accent-ink)" strokeWidth={2.4} />
           </span>
           <div>
-            <h1 className="font-display font-bold text-t-16 tracking-tight text-ink leading-none">Quarry Studio</h1>
-            <p className="text-t-11 text-faint mt-1">Command Center · private</p>
+            <h1 className="font-display font-bold t-16 tracking-tight text-ink leading-none">Quarry Studio</h1>
+            <p className="t-11 text-faint mt-1">Command Center · private</p>
           </div>
         </div>
 
@@ -76,7 +76,7 @@ export default function LoginPage() {
 
         <div className="flex items-center gap-3 my-5">
           <div className="h-px flex-1 bg-line" />
-          <span className="text-t-10 text-faint overline">or with password</span>
+          <span className="t-10 text-faint overline">or with password</span>
           <div className="h-px flex-1 bg-line" />
         </div>
 
@@ -90,18 +90,18 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             autoFocus
             placeholder="Your studio password"
-            className="w-full h-11 pl-9 pr-3 rounded-xl border border-line bg-surface-2 text-t-14 text-ink placeholder:text-faint outline-none focus:border-line-strong"
+            className="w-full h-11 pl-9 pr-3 rounded-xl border border-line bg-surface-2 t-14 text-ink placeholder:text-faint outline-none focus:border-line-strong"
           />
         </div>
 
-        {error ? <p className="text-t-12 mt-3 px-1" style={{ color: 'var(--bad)' }}>{error}</p> : null}
+        {error ? <p className="t-12 mt-3 px-1" style={{ color: 'var(--bad)' }}>{error}</p> : null}
 
         <button type="submit" disabled={busy || !password} className="btn btn-primary w-full mt-5 h-11">
           {busy ? <Loader2 size={15} className="animate-spin" /> : null}
           {busy ? 'Checking…' : 'Open the studio'}
         </button>
 
-        <p className="text-t-11 text-faint mt-5 leading-relaxed">
+        <p className="t-11 text-faint mt-5 leading-relaxed">
           The password lives in the server&apos;s environment settings, never in the code.
           Signing in keeps this device trusted for 30 days — use Log out (top-right avatar) on shared computers.
         </p>

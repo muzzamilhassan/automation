@@ -115,8 +115,8 @@ export default function MusicPage() {
                     {isLoading ? <Loader2 size={13} className="animate-spin" /> : isPlaying ? <Pause size={13} /> : <Play size={13} />}
                   </button>
                   <span className="flex-1 min-w-0">
-                    <span className={cn('block text-t-12 font-semibold truncate', isPlaying ? 'text-accent' : 'text-ink')}>{t.title}</span>
-                    <span className="block text-t-10 text-faint">
+                    <span className={cn('block t-12 font-semibold truncate', isPlaying ? 'text-accent' : 'text-ink')}>{t.title}</span>
+                    <span className="block t-10 text-faint">
                       {disabled ? 'no online preview — file kept locally' : 'Kevin MacLeod · CC BY · credit added automatically'}
                     </span>
                   </span>
@@ -148,7 +148,7 @@ export default function MusicPage() {
                 <div key={mslug} className="inset-tile p-3">
                   <div className="flex items-center gap-2 mb-2">
                     <BrandMark short={BRAND[mslug]?.short} accent={BRAND[mslug]?.accent} size={22} />
-                    <span className="text-t-12 font-semibold text-ink truncate">{BRAND[mslug]?.short || mslug}</span>
+                    <span className="t-12 font-semibold text-ink truncate">{BRAND[mslug]?.short || mslug}</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {moods.map((m) => <Chip key={m} tone="accent">{m}</Chip>)}
@@ -160,7 +160,7 @@ export default function MusicPage() {
 
           <Card>
             <CardHead title="Rules the engine follows" icon={ListMusic} />
-            <div className="px-4 pb-4 space-y-2 text-t-12 text-muted leading-relaxed">
+            <div className="px-4 pb-4 space-y-2 t-12 text-muted leading-relaxed">
               <p>· Only THIS channel&apos;s approved pool — on shorts, episodes and reels alike.</p>
               <p>· One track per video. Long videos RESTART the same track when it ends — never a second song.</p>
               <p>· Renders download the original file; this page streams a preview.</p>
@@ -173,8 +173,8 @@ export default function MusicPage() {
               <Hourglass size={16} />
             </span>
             <div className="min-w-0">
-              <p className="text-t-12 font-bold text-ink">Old Money Code pool</p>
-              <p className="text-t-11 text-muted">Its 27 tracks were picked for the old debt theme — consider calmer picks to match the new niche.</p>
+              <p className="t-12 font-bold text-ink">Old Money Code pool</p>
+              <p className="t-11 text-muted">Its 27 tracks were picked for the old debt theme — consider calmer picks to match the new niche.</p>
             </div>
           </Card>
         </div>

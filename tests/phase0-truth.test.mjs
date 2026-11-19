@@ -140,3 +140,22 @@ test('P0-10: one channel, one name — the stale brands.json label is gone', () 
   const b = JSON.parse(read('lib/brands.json'));
   assert.equal(b['debt-free-doctrine'].label, 'Debt-Free Doctrine');
 });
+
+// ---- P1 slice 4a regression guard (2026-11-19): the codemod wrote
+// `text-t-11` — a class that does not exist — so 628 texts silently fell back
+// to the 14px default. Scale classes must be the bare `t-NN` utilities.
+test('P1-4a: no invalid text-t-NN classes; the t-NN utilities are defined', () => {
+  const offenders = [];
+  const walk = (dir) => {
+    for (const f of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, f.name);
+      if (f.isDirectory()) walk(p);
+      else if (f.name.endsWith('.js') && /\btext-t-1[0-6]\b/.test(read(p))) offenders.push(p);
+    }
+  };
+  walk('studio/app');
+  walk('studio/components');
+  assert.deepEqual(offenders, []);
+  const css = read('studio/app/globals.css');
+  for (const n of ['10', '11', '12', '13', '14', '16']) assert.ok(css.includes(`.t-${n} { font-size: var(--text-`), `.t-${n} missing`);
+});

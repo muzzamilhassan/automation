@@ -112,14 +112,14 @@ function OverviewContent() {
           <h1 className="font-display text-display-md font-semibold tracking-tight text-fg-primary leading-tight text-balance">
             {greet}, Muzzamil
           </h1>
-          <p className="text-t-13 text-fg-tertiary mt-0.5 flex items-center gap-1.5 text-pretty">
+          <p className="t-13 text-fg-tertiary mt-0.5 flex items-center gap-1.5 text-pretty">
             <CalendarDays size={13} className="text-muted" />
             {today} · {active.length} live channels · engine running on GitHub Actions
           </p>
         </div>
         <div className="flex items-center gap-2">
           {refreshedAt && !refreshing ? (
-            <span className="text-t-10 text-faint tnum">updated {refreshedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+            <span className="t-10 text-faint tnum">updated {refreshedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
           ) : null}
           <Button color="secondary" onClick={() => load(true)} isDisabled={refreshing} iconLeading={<RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />}>
             {refreshing ? 'Refreshing…' : 'Refresh'}
@@ -177,8 +177,8 @@ function OverviewContent() {
                           <span className="w-2 h-2 rounded-full" style={{ background: c.accent }} />
                           <span className="overline truncate">{BRAND[c.slug]?.short}</span>
                         </div>
-                        <div className="tnum text-t-13 font-bold text-ink">{t ? fmt(t.views) : <span className="text-faint">—</span>}</div>
-                        <div className="text-t-10 text-faint">views · 28d{t ? '' : ' · unavailable'}</div>
+                        <div className="tnum t-13 font-bold text-ink">{t ? fmt(t.views) : <span className="text-faint">—</span>}</div>
+                        <div className="t-10 text-faint">views · 28d{t ? '' : ' · unavailable'}</div>
                       </div>
                     );
                   })}
@@ -192,25 +192,25 @@ function OverviewContent() {
 
         {warningsCanSee || warnStatus === 'error' ? (
         <Card>
-          <CardHead title="Needs attention" sub={`${openWarningRows.length} open warnings`} icon={Flame} right={<Link href="/warnings" className="text-t-11 text-accent hover:underline">triage →</Link>} />
+          <CardHead title="Needs attention" sub={`${openWarningRows.length} open warnings`} icon={Flame} right={<Link href="/warnings" className="t-11 text-accent hover:underline">triage →</Link>} />
           <div className="px-2 pb-2">
             {warnStatus === 'error' ? (
               <div className="px-4 py-8 text-center">
-                <p className="text-t-12 font-semibold text-ink">Can&apos;t check warnings right now</p>
-                <p className="text-t-11 text-faint mt-1">Status unknown — this is not an all-clear.</p>
-                <button className="text-t-11 text-accent underline mt-2" onClick={() => warnRetry?.()}>Retry</button>
+                <p className="t-12 font-semibold text-ink">Can&apos;t check warnings right now</p>
+                <p className="t-11 text-faint mt-1">Status unknown — this is not an all-clear.</p>
+                <button className="t-11 text-accent underline mt-2" onClick={() => warnRetry?.()}>Retry</button>
               </div>
             ) : openWarningRows.length === 0 ? (
               <div className="px-4 py-8 text-center">
-                <p className="text-t-12 font-semibold text-ink">Nothing needs attention</p>
-                <p className="text-t-11 text-faint mt-1">All probes are quiet — no open warnings.</p>
+                <p className="t-12 font-semibold text-ink">Nothing needs attention</p>
+                <p className="t-11 text-faint mt-1">All probes are quiet — no open warnings.</p>
               </div>
             ) : openWarningRows.slice(0, 4).map((w) => (
               <Link key={w.id} href="/warnings" className="flex gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-2 transition-colors">
                 <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: w.severity === 'blocking' ? 'var(--bad)' : 'var(--warn, #E8C15A)' }} />
                 <span className="min-w-0">
-                  <span className="block text-t-12 font-semibold text-ink leading-snug">{w.title}</span>
-                  <span className="block text-t-11 text-faint mt-0.5 font-mono truncate">{w.severity}{w.channel_id ? ` · ${w.channel_id}` : ''}</span>
+                  <span className="block t-12 font-semibold text-ink leading-snug">{w.title}</span>
+                  <span className="block t-11 text-faint mt-0.5 font-mono truncate">{w.severity}{w.channel_id ? ` · ${w.channel_id}` : ''}</span>
                 </span>
               </Link>
             ))}
@@ -263,7 +263,7 @@ function OverviewContent() {
                       )}
                     </td>
                     <td>{c.deepdiveDate ? <Chip tone="ok">{c.deepdiveDate}</Chip> : <Chip>—</Chip>}</td>
-                    <td className="text-muted font-mono text-t-11 tnum">
+                    <td className="text-muted font-mono t-11 tnum">
                       {c.slots.join(' · ')}
                       {c.longSlot ? ` + ${c.longSlot}` : ''}
                     </td>
@@ -288,17 +288,17 @@ function OverviewContent() {
               <div key={c.slug} className="inset-tile p-3.5">
                 <div className="flex items-center gap-2 mb-2">
                   <BrandMark short={BRAND[c.slug]?.short || '•'} accent={c.accent} size={22} />
-                  <span className="text-t-12 font-semibold text-ink">{c.label}</span>
+                  <span className="t-12 font-semibold text-ink">{c.label}</span>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   {(c.todayTopics || []).map((t, i) => (
-                    <span key={i} className="text-t-11 text-muted leading-snug flex gap-1.5">
+                    <span key={i} className="t-11 text-muted leading-snug flex gap-1.5">
                       <span style={{ color: c.accent }}>▸</span>
                       <span>from viral wave: “{t}”</span>
                     </span>
                   ))}
                   {c.episodeTopic ? (
-                    <span className="text-t-11 text-muted leading-snug flex gap-1.5">
+                    <span className="t-11 text-muted leading-snug flex gap-1.5">
                       <span className="text-accent">▸</span>
                       <span>episode: “{c.episodeTopic}”</span>
                     </span>
@@ -321,21 +321,21 @@ function OverviewContent() {
               <div key={slug} className="py-2.5 border-b border-line last:border-0">
                 <div className="flex items-center gap-2 mb-1.5">
                   <BrandMark short={BRAND[slug]?.short || '•'} accent={BRAND[slug]?.accent || 'var(--faint)'} size={20} />
-                  <span className="text-t-12 font-semibold text-ink">{slug}</span>
+                  <span className="t-12 font-semibold text-ink">{slug}</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5 mb-1.5">
                   {t.keywords.map((k) => (
                     <Chip key={k} tone="accent">{k}</Chip>
                   ))}
                 </div>
-                <p className="text-t-11 text-faint truncate">viral now: {t.viral.map((v) => v.title).join(' · ').slice(0, 110)}</p>
+                <p className="t-11 text-faint truncate">viral now: {t.viral.map((v) => v.title).join(' · ').slice(0, 110)}</p>
               </div>
             ))
           )}
         </div>
       </Card>
 
-      <p className="mt-4 text-t-11 text-faint">
+      <p className="mt-4 t-11 text-faint">
         Live totals: {fmtFull(totals.ytSubs)} subs · {fmtFull(totals.ytViews)} all-time views · refreshed every 60s. Real 28-day numbers live on the Analytics page.
       </p>
         </>

@@ -20,7 +20,7 @@ export default function ProofPage() {
   return (
     <main className="min-h-screen bg-bg text-ink">
       <div className="max-w-4xl mx-auto px-5 py-14">
-        <div className="flex items-center gap-2 text-t-12 text-muted mb-8">
+        <div className="flex items-center gap-2 t-12 text-muted mb-8">
           <Radio size={14} style={{ color: 'var(--ok)' }} />
           <span>LIVE · refreshed every 15 minutes · real YouTube numbers, not mockups</span>
         </div>
@@ -35,7 +35,7 @@ export default function ProofPage() {
         </p>
 
         {err ? (
-          <p className="mt-8 text-t-13" style={{ color: 'var(--bad)' }}>Could not load live stats: {err}</p>
+          <p className="mt-8 t-13" style={{ color: 'var(--bad)' }}>Could not load live stats: {err}</p>
         ) : !data ? (
           <div className="mt-10 flex items-center gap-2 text-muted text-sm"><Loader2 size={15} className="animate-spin" /> Loading live stats…</div>
         ) : (
@@ -47,12 +47,12 @@ export default function ProofPage() {
                 { k: 'Videos published', v: fmt(data.totals?.videos) },
               ].map((t) => (
                 <div key={t.k} className="inset-tile p-4">
-                  <div className="text-t-11 uppercase tracking-wide text-muted">{t.k}</div>
+                  <div className="t-11 uppercase tracking-wide text-muted">{t.k}</div>
                   <div className="text-2xl font-bold mt-1 font-[family-name:var(--font-display)]">{t.v}</div>
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-t-12 text-faint">{data.cadence}</p>
+            <p className="mt-3 t-12 text-faint">{data.cadence}</p>
 
             <div className="grid md:grid-cols-2 gap-4 mt-8">
               {(data.channels || []).map((c) => (
@@ -61,24 +61,24 @@ export default function ProofPage() {
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c.accent }} />
                     <div className="font-semibold leading-tight">{c.label}</div>
                     {c.flowPaused ? (
-                      <span className="ml-auto text-t-10 px-2 py-0.5 rounded-full border border-line text-muted">paused</span>
+                      <span className="ml-auto t-10 px-2 py-0.5 rounded-full border border-line text-muted">paused</span>
                     ) : (
-                      <span className="ml-auto text-t-10 px-2 py-0.5 rounded-full border border-line flex items-center gap-1" style={{ color: 'var(--ok)' }}>
+                      <span className="ml-auto t-10 px-2 py-0.5 rounded-full border border-line flex items-center gap-1" style={{ color: 'var(--ok)' }}>
                         <BadgeCheck size={11} /> running
                       </span>
                     )}
                   </div>
-                  <div className="text-t-12 text-muted mt-1">{c.handle} · {c.niche}</div>
+                  <div className="t-12 text-muted mt-1">{c.handle} · {c.niche}</div>
                   <div className="grid grid-cols-3 gap-2 mt-4">
-                    <div><div className="text-t-10 uppercase tracking-wide text-faint">Subs</div><div className="text-[15px] font-semibold">{fmt(c.subs)}</div></div>
-                    <div><div className="text-t-10 uppercase tracking-wide text-faint">Views</div><div className="text-[15px] font-semibold">{fmt(c.views)}</div></div>
-                    <div><div className="text-t-10 uppercase tracking-wide text-faint">Videos</div><div className="text-[15px] font-semibold">{fmt(c.videos)}</div></div>
+                    <div><div className="t-10 uppercase tracking-wide text-faint">Subs</div><div className="text-[15px] font-semibold">{fmt(c.subs)}</div></div>
+                    <div><div className="t-10 uppercase tracking-wide text-faint">Views</div><div className="text-[15px] font-semibold">{fmt(c.views)}</div></div>
+                    <div><div className="t-10 uppercase tracking-wide text-faint">Videos</div><div className="text-[15px] font-semibold">{fmt(c.videos)}</div></div>
                   </div>
                   {c.recent?.length ? (
                     <div className="mt-4 border-t border-line pt-3">
-                      <div className="text-t-10 uppercase tracking-wide text-faint mb-1.5">Latest uploads</div>
+                      <div className="t-10 uppercase tracking-wide text-faint mb-1.5">Latest uploads</div>
                       {c.recent.map((v, i) => (
-                        <div key={i} className="text-t-12 text-muted truncate">· {v.title || '—'}</div>
+                        <div key={i} className="t-12 text-muted truncate">· {v.title || '—'}</div>
                       ))}
                     </div>
                   ) : null}
@@ -89,15 +89,15 @@ export default function ProofPage() {
         )}
 
         <div className="mt-12 border border-line rounded-xl p-5 bg-surface flex flex-wrap items-center gap-3">
-          <div className="text-t-13 leading-snug">
+          <div className="t-13 leading-snug">
             <span className="font-semibold">Your channel could be next.</span>{' '}
             <span className="text-muted">Done-for-you channel management on this exact engine.</span>
           </div>
-          <a href="/login" className="ml-auto inline-flex items-center gap-1.5 text-t-13 font-medium px-3.5 py-2 rounded-lg border border-line hover:bg-surface-2">
+          <a href="/login" className="ml-auto inline-flex items-center gap-1.5 t-13 font-medium px-3.5 py-2 rounded-lg border border-line hover:bg-surface-2">
             Studio login <ArrowRight size={13} />
           </a>
         </div>
-        <p className="mt-6 text-t-11 text-faint">Powered by Quarry Studio · automated with human supervision · stats pulled live from YouTube</p>
+        <p className="mt-6 t-11 text-faint">Powered by Quarry Studio · automated with human supervision · stats pulled live from YouTube</p>
       </div>
     </main>
   );

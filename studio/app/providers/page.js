@@ -95,7 +95,7 @@ export default function ProvidersPage() {
     return (
       <div>
         <PageHeader icon={PlugZap} title="Providers" sub="BYOK catalog, keys & per-task routing" />
-        <div className="card p-5 flex items-center gap-2 text-t-12" style={{ color: 'var(--bad)' }}>
+        <div className="card p-5 flex items-center gap-2 t-12" style={{ color: 'var(--bad)' }}>
           <XCircle size={14} className="shrink-0" /> Providers unavailable: {loadErr}
         </div>
       </div>
@@ -125,18 +125,18 @@ export default function ProvidersPage() {
               <div key={p.id} className="rounded-xl border border-white/10 bg-black/20 p-3">
                 {/* head row */}
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-t-13 font-semibold text-ink">{p.label}</span>
-                  <span className="text-t-10 px-2 py-0.5 rounded-full border border-white/10 text-faint font-mono">{p.id}</span>
+                  <span className="t-13 font-semibold text-ink">{p.label}</span>
+                  <span className="t-10 px-2 py-0.5 rounded-full border border-white/10 text-faint font-mono">{p.id}</span>
                   {p.capabilities.map((c) => <Chip key={c} tone="accent">{c}</Chip>)}
                   <Chip tone={LICENSE_TONE[p.licenseClass] || 'plain'}>{p.licenseClass}</Chip>
                   {p.local ? <Chip tone="plain"><LockKeyhole size={10} className="inline mr-1 -mt-px" />local — no key</Chip>
                     : p.envSet ? <Chip tone="ok" dot>env key set ({p.envVar})</Chip>
                     : null}
-                  {!configured ? <span className="ml-auto text-t-11 text-faint">key not configured</span> : null}
+                  {!configured ? <span className="ml-auto t-11 text-faint">key not configured</span> : null}
                 </div>
 
                 {/* free tier + models + notes */}
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-t-11 text-muted">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 t-11 text-muted">
                   <span>
                     free tier: {p.freeTier?.rpd ? `${p.freeTier.rpd} req/day` : 'no published RPD'}
                     {p.freeTier?.maxOutputTokens ? ` · ${p.freeTier.maxOutputTokens.toLocaleString()} max output tokens` : ''}
@@ -144,9 +144,9 @@ export default function ProvidersPage() {
                   </span>
                   {p.models?.length ? <span className="font-mono text-faint truncate">{p.models.join(' · ')}</span> : null}
                 </div>
-                <p className="text-t-11 text-muted mt-1.5 leading-relaxed">{p.notes}</p>
+                <p className="t-11 text-muted mt-1.5 leading-relaxed">{p.notes}</p>
                 {p.id === 'hf' ? (
-                  <div className="flex items-start gap-1.5 mt-1.5 text-t-11" style={{ color: 'var(--warn, #d97706)' }}>
+                  <div className="flex items-start gap-1.5 mt-1.5 t-11" style={{ color: 'var(--warn, #d97706)' }}>
                     <Info size={12} className="mt-0.5 shrink-0" />
                     <span>licenseClass paid — disqualified as a free lane 2026-10-28 (zero monthly credits on free); kept in the projection only so Phase-1 vault-adds rulings stay byte-identical.</span>
                   </div>
@@ -156,7 +156,7 @@ export default function ProvidersPage() {
                 {channelKeys.length ? (
                   <div className="mt-2 space-y-1">
                     {channelKeys.map((k) => (
-                      <div key={k.slug} className="flex flex-wrap items-center gap-2 text-t-11">
+                      <div key={k.slug} className="flex flex-wrap items-center gap-2 t-11">
                         <KeyRound size={11} className="shrink-0" style={{ color: 'var(--ok)' }} />
                         <span className="text-ink font-medium">{k.slug}</span>
                         <span className="font-mono" style={{ color: 'var(--ok)' }}>{k.masked}</span>
@@ -172,7 +172,7 @@ export default function ProvidersPage() {
                     <select
                       value={form.slug || ''}
                       onChange={(e) => setForm(p.id, { slug: e.target.value })}
-                      className="text-t-11 px-2 py-1.5 rounded-lg border border-line bg-surface"
+                      className="t-11 px-2 py-1.5 rounded-lg border border-line bg-surface"
                     >
                       <option value="">{channels.length ? '— channel for this key —' : '— no channels yet —'}</option>
                       {channels.map((c) => (
@@ -185,16 +185,16 @@ export default function ProvidersPage() {
                       placeholder={`paste ${p.label.split(' ')[0].toLowerCase()} key…`}
                       value={form.key || ''}
                       onChange={(e) => setForm(p.id, { key: e.target.value })}
-                      className="flex-1 min-w-[180px] text-t-12 px-3 py-1.5 rounded-lg border border-white/10 bg-black/20"
+                      className="flex-1 min-w-[180px] t-12 px-3 py-1.5 rounded-lg border border-white/10 bg-black/20"
                     />
                     <button
                       onClick={() => saveKey(p.id)}
                       disabled={form.busy || !channels.length}
-                      className="text-t-11 font-medium px-2.5 py-1.5 rounded-lg border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-50 flex items-center gap-1"
+                      className="t-11 font-medium px-2.5 py-1.5 rounded-lg border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-50 flex items-center gap-1"
                     >
                       {form.busy ? <Loader2 size={11} className="animate-spin" /> : <KeyRound size={11} />} Save &amp; test
                     </button>
-                    <a href={VAULT_GET_URL[p.id]} target="_blank" rel="noreferrer" className="text-t-11 text-muted hover:text-ink flex items-center gap-1">
+                    <a href={VAULT_GET_URL[p.id]} target="_blank" rel="noreferrer" className="t-11 text-muted hover:text-ink flex items-center gap-1">
                       get a key <ExternalLink size={10} />
                     </a>
                   </div>
@@ -209,25 +209,25 @@ export default function ProvidersPage() {
                       placeholder={`paste ${p.label.split(' ')[0].toLowerCase()} key to probe…`}
                       value={form.key || ''}
                       onChange={(e) => setForm(p.id, { key: e.target.value })}
-                      className="flex-1 min-w-[180px] text-t-12 px-3 py-1.5 rounded-lg border border-white/10 bg-black/20"
+                      className="flex-1 min-w-[180px] t-12 px-3 py-1.5 rounded-lg border border-white/10 bg-black/20"
                     />
                     <button
                       onClick={() => testOnly(p.id)}
                       disabled={probeState?.busy}
-                      className="text-t-11 font-medium px-2.5 py-1.5 rounded-lg border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-50 flex items-center gap-1"
+                      className="t-11 font-medium px-2.5 py-1.5 rounded-lg border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-50 flex items-center gap-1"
                     >
                       {probeState?.busy ? <Loader2 size={11} className="animate-spin" /> : <FlaskConical size={11} />} Test only
                     </button>
-                    <span className="text-t-10 text-faint">no vault slot yet — this key rides the pipeline env ({p.envVar}); probing never stores it</span>
+                    <span className="t-10 text-faint">no vault slot yet — this key rides the pipeline env ({p.envVar}); probing never stores it</span>
                   </div>
                 ) : null}
                 {probeState?.msg ? (
-                  <p className="text-t-11 mt-2 flex items-center gap-1" style={{ color: probeState.msg.ok ? 'var(--ok)' : 'var(--bad)' }}>
+                  <p className="t-11 mt-2 flex items-center gap-1" style={{ color: probeState.msg.ok ? 'var(--ok)' : 'var(--bad)' }}>
                     {probeState.msg.ok ? <CheckCircle2 size={11} /> : <XCircle size={11} />} {probeState.msg.text}
                   </p>
                 ) : null}
                 {form.msg ? (
-                  <p className="text-t-11 mt-2 flex items-center gap-1" style={{ color: form.msg.ok ? 'var(--ok)' : 'var(--bad)' }}>
+                  <p className="t-11 mt-2 flex items-center gap-1" style={{ color: form.msg.ok ? 'var(--ok)' : 'var(--bad)' }}>
                     {form.msg.ok ? <CheckCircle2 size={11} /> : <XCircle size={11} />} {form.msg.text}
                   </p>
                 ) : null}

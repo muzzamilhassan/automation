@@ -23,7 +23,7 @@ function DayPicker({ label, days, onToggle }) {
               key={d}
               type="button"
               onClick={() => onToggle(d)}
-              className={`px-2.5 py-1 rounded-md text-t-11 font-semibold border transition-colors ${
+              className={`px-2.5 py-1 rounded-md t-11 font-semibold border transition-colors ${
                 on ? 'border-transparent text-white bg-[#1a1d24]' : 'border-[--border] text-muted hover:text-ink'
               }`}
               style={on ? { background: '#2b6cb0' } : undefined}
@@ -149,7 +149,7 @@ export default function SchedulePanel({ slug, accent }) {
       </div>
 
       {loadError ? (
-        <div role="alert" className="flex items-center gap-2 text-t-12 mb-3" style={{ color: 'var(--bad)' }}>
+        <div role="alert" className="flex items-center gap-2 t-12 mb-3" style={{ color: 'var(--bad)' }}>
           <AlertTriangle size={13} />
           <span>Couldn&apos;t load this channel&apos;s schedule ({loadError}) — saving is disabled so nothing gets overwritten.</span>
           <button type="button" className="underline" onClick={retry}>Retry</button>
@@ -168,7 +168,7 @@ export default function SchedulePanel({ slug, accent }) {
             key={s}
             type="button"
             onClick={() => setSchedule((s0) => ({ ...s0, shortsSource: s }))}
-            className={`px-3 py-1 rounded-md text-t-11 font-semibold border transition-colors ${
+            className={`px-3 py-1 rounded-md t-11 font-semibold border transition-colors ${
               draft.shortsSource === s ? 'border-transparent text-white' : 'border-[--border] text-muted hover:text-ink'
             }`}
             style={draft.shortsSource === s ? { background: accent || '#2b6cb0' } : undefined}
@@ -185,12 +185,12 @@ export default function SchedulePanel({ slug, accent }) {
           value={gateCron}
           onChange={(e) => setGateCron(e.target.value)}
           placeholder="e.g. 13 2 * * *"
-          className="px-2.5 py-1 rounded-md border border-[--border] bg-black/20 font-mono text-t-11 text-ink w-36"
+          className="px-2.5 py-1 rounded-md border border-[--border] bg-black/20 font-mono t-11 text-ink w-36"
         />
         {cronState.valid && cronState.label ? (
-          <span className="text-t-11 text-muted font-mono">{cronState.label}</span>
+          <span className="t-11 text-muted font-mono">{cronState.label}</span>
         ) : !cronState.valid ? (
-          <span className="text-t-11 text-red-400">Use M H * * * (0-59, 0-23)</span>
+          <span className="t-11 text-red-400">Use M H * * * (0-59, 0-23)</span>
         ) : null}
       </div>
 
@@ -198,27 +198,27 @@ export default function SchedulePanel({ slug, accent }) {
         <div className="h-1.5 rounded-full bg-black/30 overflow-hidden">
           <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, proj.pct)}%`, background: toneColor }} />
         </div>
-        <p className="text-t-11 text-muted mt-1">
+        <p className="t-11 text-muted mt-1">
           Busiest day: {proj.worstDayUploads} uploads ≈ {proj.worstDayUnits.toLocaleString()} units · ~{proj.weeklyUploads} uploads/week · shared pool {proj.budget.toLocaleString()} units/day
         </p>
       </div>
 
       {msg ? (
-        <div className={`flex items-start gap-1.5 text-t-12 mb-2 ${msg.tone === 'error' ? 'text-red-400' : msg.tone === 'warn' ? 'text-amber-400' : 'text-emerald-400'}`}>
+        <div className={`flex items-start gap-1.5 t-12 mb-2 ${msg.tone === 'error' ? 'text-red-400' : msg.tone === 'warn' ? 'text-amber-400' : 'text-emerald-400'}`}>
           {msg.tone === 'warn' ? <AlertTriangle size={13} className="mt-0.5" /> : null}
           <span>{msg.text}</span>
         </div>
       ) : null}
 
       {modelWarnings.length ? (
-        <div className="flex items-start gap-1.5 text-t-12 mb-2 text-amber-400">
+        <div className="flex items-start gap-1.5 t-12 mb-2 text-amber-400">
           <AlertTriangle size={13} className="mt-0.5" />
           <span>{modelWarnings.join(' ')}</span>
         </div>
       ) : null}
 
       {proj.blocked ? (
-        <p className="text-t-12 text-red-400 mb-2">
+        <p className="t-12 text-red-400 mb-2">
           Over budget: the busiest day would exceed the shared daily pool — spread days or lower the cadence before saving.
         </p>
       ) : null}

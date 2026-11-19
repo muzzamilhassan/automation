@@ -161,12 +161,12 @@ export default function Production() {
         <Card className="p-4 mb-5 flex items-center gap-4 flex-wrap" style={netPaused ? { borderColor: '#f59e0b66' } : undefined}>
           <div className="flex-1 min-w-[240px]">
             <div className="flex items-center gap-2">
-              <h3 className="font-display text-t-14 font-bold text-ink">Master flow</h3>
+              <h3 className="font-display t-14 font-bold text-ink">Master flow</h3>
               <Chip tone={netPaused === false ? 'ok' : netPaused === true ? 'warn' : ''} dot={netPaused === false}>
                 {netPaused === true ? 'ALL CHANNELS PAUSED' : netPaused === false ? 'RUNNING' : '…'}
               </Chip>
             </div>
-            <p className="text-t-11 text-muted mt-1 leading-relaxed">
+            <p className="t-11 text-muted mt-1 leading-relaxed">
               {netPaused
                 ? 'Every channel is paused — nothing new is produced. Already-scheduled videos still publish. Topics, settings and keys are kept.'
                 : 'Pause stops ALL channels at once: no new videos are made until you resume. Already-scheduled videos still publish; nothing is deleted.'}
@@ -196,7 +196,7 @@ export default function Production() {
               return (
                 <div key={c.slug} className="flex flex-wrap items-center justify-between gap-2.5 inset-tile px-3 py-2.5">
                   <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
-                    <span className="text-t-12 font-semibold text-ink truncate">{c.label}</span>
+                    <span className="t-12 font-semibold text-ink truncate">{c.label}</span>
                     <Chip>{c.fromRegistry ? 'wizard' : 'legacy'}</Chip>
                     <Chip tone={c.shortsSource === 'clips' ? 'accent' : c.shortsSource === 'external-episodic' ? 'info' : 'plain'}>
                       {c.shortsSource}
@@ -251,31 +251,31 @@ export default function Production() {
                   </div>
                   <div>
                     <h2 className="section-title">{p.name}</h2>
-                    <p className="text-t-11 text-faint mt-0.5">{p.engine}</p>
+                    <p className="t-11 text-faint mt-0.5">{p.engine}</p>
                   </div>
                 </div>
                 <Chip tone="ok" dot>live</Chip>
               </div>
 
-              <p className="text-t-12 text-muted leading-relaxed -mt-1">{p.desc}</p>
+              <p className="t-12 text-muted leading-relaxed -mt-1">{p.desc}</p>
 
               {/* stage flow */}
               <div className="flex items-center flex-wrap gap-y-2">
                 {p.stages.map((s, i) => (
                   <span key={s} className="flex items-center">
-                    <span className="inset-tile px-2.5 py-1 text-t-11 font-semibold text-muted">{s}</span>
+                    <span className="inset-tile px-2.5 py-1 t-11 font-semibold text-muted">{s}</span>
                     {i < p.stages.length - 1 ? <ArrowRight size={11} className="mx-1 text-faint shrink-0" /> : null}
                   </span>
                 ))}
               </div>
 
-              <div className="flex items-center gap-2 text-t-11 text-faint">
+              <div className="flex items-center gap-2 t-11 text-faint">
                 <Clock size={12} />
                 <span className="font-mono">{p.schedule}</span>
               </div>
 
               {p.note ? (
-                <p className="text-t-11 text-muted leading-relaxed -mt-2">{p.note}</p>
+                <p className="t-11 text-muted leading-relaxed -mt-2">{p.note}</p>
               ) : null}
 
               {p.actions.length ? (
@@ -285,7 +285,7 @@ export default function Production() {
                   ))}
                 </div>
               ) : (
-                <p className="text-t-11 text-faint pt-1 mt-auto">Runs on its own schedule — no manual button for this one.</p>
+                <p className="t-11 text-faint pt-1 mt-auto">Runs on its own schedule — no manual button for this one.</p>
               )}
             </Card>
           );
@@ -295,7 +295,7 @@ export default function Production() {
       <Card className="mt-5 p-5">
         <div className="flex items-start gap-3">
           <FileText size={16} className="text-faint mt-0.5 shrink-0" />
-          <div className="text-t-12 text-muted leading-relaxed">
+          <div className="t-12 text-muted leading-relaxed">
             <span className="font-semibold text-ink">How runs report back.</span> Every button dispatches the channel workflow on{' '}
             <span className="font-semibold text-ink">GitHub Actions</span>. Uploads appear in{' '}
             <a href="/operations?tab=logs" className="text-accent hover:underline">

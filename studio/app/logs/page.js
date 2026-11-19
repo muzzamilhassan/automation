@@ -44,7 +44,7 @@ export default function Logs() {
 
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <Segmented options={FILTERS} value={filter} onChange={setFilter} />
-        <span className="text-t-11 text-faint">{logs.length} entries</span>
+        <span className="t-11 text-faint">{logs.length} entries</span>
       </div>
 
       {/* team activity (audit trail) */}
@@ -53,15 +53,15 @@ export default function Logs() {
           <div className="flex items-center gap-2 px-4 pt-4 pb-2">
             <ListChecks size={15} className="text-faint" />
             <span className="section-title">Team activity</span>
-            <span className="text-t-10 text-faint ml-auto">who did what · newest first</span>
+            <span className="t-10 text-faint ml-auto">who did what · newest first</span>
           </div>
           <div className="px-4 pb-4 space-y-1.5">
             {audit.slice(0, 12).map((e, i) => (
               <div key={i} className="flex items-center gap-3 inset-tile px-3 py-2">
-                <span className="text-t-11 font-semibold text-ink truncate w-44 shrink-0">{e.actor}</span>
+                <span className="t-11 font-semibold text-ink truncate w-44 shrink-0">{e.actor}</span>
                 <Chip tone="accent">{e.action}</Chip>
-                <span className="text-t-11 text-muted truncate flex-1">{e.detail}</span>
-                <span className="text-t-10 text-faint tnum shrink-0">{timeAgo(e.at)}</span>
+                <span className="t-11 text-muted truncate flex-1">{e.detail}</span>
+                <span className="t-10 text-faint tnum shrink-0">{timeAgo(e.at)}</span>
               </div>
             ))}
           </div>
@@ -80,12 +80,12 @@ export default function Logs() {
             { key: 'brand', label: '', render: (l) => <BrandMark short={BRAND[l.slug]?.short || '•'} accent={BRAND[l.slug]?.accent || 'var(--faint)'} size={26} /> },
             { key: 'at', label: 'When', render: (l) => (
               <span className="whitespace-nowrap">
-                <span className="block text-t-12 text-fg-primary tnum">{when(l.at)}</span>
-                <span className="block text-t-10 text-fg-quaternary">{timeAgo(l.at)}</span>
+                <span className="block t-12 text-fg-primary tnum">{when(l.at)}</span>
+                <span className="block t-10 text-fg-quaternary">{timeAgo(l.at)}</span>
               </span>
             ) },
             { key: 'platform', label: 'Platform', render: (l) => <Chip tone={l.platform === 'YouTube' ? 'bad' : l.platform === 'FB/IG' ? 'accent' : 'info'}>{l.platform}</Chip> },
-            { key: 'slug', label: 'Channel', render: (l) => <span className="text-fg-tertiary text-t-12">{l.slug}</span> },
+            { key: 'slug', label: 'Channel', render: (l) => <span className="text-fg-tertiary t-12">{l.slug}</span> },
             { key: 'kind', label: 'Kind', render: (l) => <Chip>{l.kind}</Chip> },
             { key: 'title', label: 'Title', render: (l) => <span className="block max-w-[360px] truncate text-fg-primary" title={l.title}>{l.title}</span> },
             { key: 'open', label: '', render: (l) => l.videoId ? (
@@ -100,14 +100,14 @@ export default function Logs() {
       <div className="grid md:grid-cols-2 gap-4 mt-4">
         <Card className="p-4 flex items-start gap-3">
           <FolderOpen size={16} className="text-faint mt-0.5 shrink-0" />
-          <div className="text-t-12 text-muted leading-relaxed">
+          <div className="t-12 text-muted leading-relaxed">
             <span className="font-semibold text-ink">Raw run output.</span> Every manual job writes to{' '}
             <code className="font-mono text-accent">studio-logs/</code> in the repo — one file per run with the full script output.
           </div>
         </Card>
         <Card className="p-4 flex items-start gap-3">
           <Terminal size={16} className="text-faint mt-0.5 shrink-0" />
-          <div className="text-t-12 text-muted leading-relaxed">
+          <div className="t-12 text-muted leading-relaxed">
             <span className="font-semibold text-ink">Scheduled runs.</span> GitHub Actions runs write to Actions logs, and every
             milestone pings your phone through ntfy (private topic - see Settings).
           </div>

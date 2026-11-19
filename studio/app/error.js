@@ -13,14 +13,14 @@ export default function Error({ error, reset }) {
   return (
     <div role="alert" className="max-w-lg mx-auto mt-16 text-center px-4">
       <h1 className="text-[18px] font-semibold text-ink mb-2">Something went wrong on this page</h1>
-      <p className="text-t-13 text-muted mb-5">
+      <p className="t-13 text-muted mb-5">
         The rest of the Studio still works. Try again — if it keeps failing, check Warnings or the latest run logs.
       </p>
       <div className="flex items-center justify-center gap-3">
         <button type="button" className="btn btn-primary" onClick={() => reset()}>Try again</button>
         <Link className="btn" href="/">Back to overview</Link>
       </div>
-      {error?.digest ? <p className="text-t-11 text-faint mt-4">Reference: {error.digest}</p> : null}
+      {error?.digest ? <p className="t-11 text-faint mt-4">Reference: {error.digest}</p> : null}
     </div>
   );
 }

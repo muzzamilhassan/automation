@@ -183,7 +183,7 @@ const [note, setNote] = useState('');
           <span className="kbd">ESC</span>
         </div>
         {note ? (
-          <p className="px-4 py-2 text-t-11 border-b border-line text-muted" role="status">{note}</p>
+          <p className="px-4 py-2 t-11 border-b border-line text-muted" role="status">{note}</p>
         ) : null}
         <div className="max-h-[46vh] overflow-y-auto py-2">
           {items.length === 0 ? (
@@ -211,8 +211,8 @@ const [note, setNote] = useState('');
                     <Icon size={14} />
                   </span>
                   <span className="flex-1 min-w-0">
-                    <span className="block text-t-13 font-semibold text-ink truncate">{it.label}</span>
-                    <span className="block text-t-11 text-faint truncate">{it.sub}</span>
+                    <span className="block t-13 font-semibold text-ink truncate">{it.label}</span>
+                    <span className="block t-11 text-faint truncate">{it.sub}</span>
                   </span>
                   {i === idx ? <CornerDownLeft size={13} className="text-faint shrink-0" /> : null}
                 </button>
@@ -220,7 +220,7 @@ const [note, setNote] = useState('');
             })
           )}
         </div>
-        <div className="flex items-center gap-3 px-4 h-9 border-t border-line text-t-10 text-faint">
+        <div className="flex items-center gap-3 px-4 h-9 border-t border-line t-10 text-faint">
           <span className="flex items-center gap-1"><span className="kbd">↑</span><span className="kbd">↓</span> move</span>
           <span className="flex items-center gap-1"><span className="kbd">↵</span> run</span>
           <span className="ml-auto">Quarry Studio command</span>

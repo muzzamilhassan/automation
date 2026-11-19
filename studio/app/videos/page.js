@@ -58,14 +58,14 @@ export default function Videos() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search titles…"
-            className="h-9 w-56 pl-9 pr-3 rounded-xl border border-line bg-surface text-t-13 text-ink placeholder:text-faint outline-none focus:border-line-strong"
+            className="h-9 w-56 pl-9 pr-3 rounded-xl border border-line bg-surface t-13 text-ink placeholder:text-faint outline-none focus:border-line-strong"
           />
         </div>
       </PageHeader>
 
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <Segmented options={FILTERS} value={filter} onChange={setFilter} />
-        <span className="text-t-11 text-faint">
+        <span className="t-11 text-faint">
           {filtered.length} videos · {counts.Short} shorts · {counts.Episode} episodes
         </span>
       </div>
@@ -81,18 +81,18 @@ export default function Videos() {
           columns={[
             { key: 'brand', label: '', render: (l) => <BrandMark short={BRAND[l.slug]?.short || '•'} accent={BRAND[l.slug]?.accent || 'var(--faint)'} size={28} /> },
             { key: 'title', label: 'Title', render: (l) => <span className="block max-w-[340px] truncate font-medium text-fg-primary" title={l.title}>{l.title}</span> },
-            { key: 'slug', label: 'Channel', render: (l) => <span className="text-fg-tertiary text-t-12">{l.slug}</span> },
+            { key: 'slug', label: 'Channel', render: (l) => <span className="text-fg-tertiary t-12">{l.slug}</span> },
             { key: 'kind', label: 'Kind', render: (l) => <Chip tone={l.kind === 'Episode' ? 'accent' : l.kind === 'Short' ? 'info' : 'plain'}>{l.kind}</Chip> },
             { key: 'platform', label: 'Platform', render: (l) => {
               const Icon = PLATFORM_ICON[l.platform] || Film;
-              return <span className="flex items-center gap-1.5 text-t-12 text-fg-tertiary"><Icon size={13} /> {l.platform}</span>;
+              return <span className="flex items-center gap-1.5 t-12 text-fg-tertiary"><Icon size={13} /> {l.platform}</span>;
             } },
             { key: 'status', label: 'Status', render: (l) => (
               <span className="whitespace-nowrap">
                 <Chip tone={l.status === 'scheduled' ? 'info' : 'ok'} dot>
                   {l.status === 'scheduled' ? 'Scheduled' : l.status === 'published' ? 'Published' : '—'}
                 </Chip>
-                <span className="block text-t-10 text-fg-quaternary tnum mt-0.5">{when(l.at)}</span>
+                <span className="block t-10 text-fg-quaternary tnum mt-0.5">{when(l.at)}</span>
               </span>
             ) },
             { key: 'open', label: '', render: (l) => l.videoId ? (

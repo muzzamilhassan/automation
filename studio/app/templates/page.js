@@ -162,14 +162,14 @@ export default function TemplatesPage() {
                 />
 
                 <div className="flex justify-between items-start relative z-10">
-                  <span className="text-t-10 font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-black/60 text-white/90 border border-white/10 backdrop-blur-md">
+                  <span className="t-10 font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-black/60 text-white/90 border border-white/10 backdrop-blur-md">
                     {t.category}
                   </span>
                   <div className="flex gap-1.5">
                     {t.aspectRatios.map((r) => (
                       <span
                         key={r}
-                        className="text-t-10 font-mono px-2 py-0.5 rounded-md bg-white/10 text-white/80 backdrop-blur-md flex items-center gap-1"
+                        className="t-10 font-mono px-2 py-0.5 rounded-md bg-white/10 text-white/80 backdrop-blur-md flex items-center gap-1"
                       >
                         {r === '16:9' ? <Monitor size={10} /> : <Smartphone size={10} />}
                         {r}
@@ -186,14 +186,14 @@ export default function TemplatesPage() {
                   >
                     {t.name}
                   </div>
-                  <div className="text-t-11 font-mono text-zinc-400 mt-1 flex items-center gap-1.5">
+                  <div className="t-11 font-mono text-zinc-400 mt-1 flex items-center gap-1.5">
                     <Layers size={11} className="text-sky-400" />
                     <span>{t.variants.length} Layout Variants Included</span>
                   </div>
                 </div>
 
                 {/* Bottom preview pill */}
-                <div className="relative z-10 flex justify-between items-center pt-2 border-t border-white/10 text-t-10 text-zinc-400">
+                <div className="relative z-10 flex justify-between items-center pt-2 border-t border-white/10 t-10 text-zinc-400">
                   <span className="truncate max-w-[180px]">{t.variants.slice(0, 2).join(' · ')}...</span>
                   <span className="flex items-center gap-1 text-sky-400 font-semibold group-hover:underline">
                     <Play size={10} /> {(samples[t.id] || familySamples[t.id])?.mp4 ? 'Sample Episode' : 'Interactive Demo'}
@@ -204,7 +204,7 @@ export default function TemplatesPage() {
               {/* Card Body Information */}
               <div className="p-4 space-y-2.5">
                 <p className="text-xs text-muted leading-relaxed line-clamp-2">{t.desc}</p>
-                <div className="text-t-11 text-faint flex items-center gap-1">
+                <div className="t-11 text-faint flex items-center gap-1">
                   <CheckCircle2 size={11} className="text-emerald-400 shrink-0" />
                   <span className="truncate">{t.usedFor}</span>
                 </div>

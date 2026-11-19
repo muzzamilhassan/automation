@@ -45,7 +45,7 @@ export default function TemplateSimulator({ template, onClose, onSelect }) {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="font-display font-bold text-lg text-ink">{template.name}</h2>
-              <span className="text-t-11 font-mono px-2 py-0.5 rounded-full bg-white/10 text-muted uppercase tracking-wider">
+              <span className="t-11 font-mono px-2 py-0.5 rounded-full bg-white/10 text-muted uppercase tracking-wider">
                 {template.category}
               </span>
             </div>
@@ -108,13 +108,13 @@ export default function TemplateSimulator({ template, onClose, onSelect }) {
             {/* Template Specific Frame Previews */}
             {template.category === 'documentary' && (
               <div className="p-8 w-full text-center relative z-10 flex flex-col justify-between h-full">
-                <div className="flex justify-between items-center text-t-10 font-mono tracking-widest opacity-60">
+                <div className="flex justify-between items-center t-10 font-mono tracking-widest opacity-60">
                   <span>{p.location || 'GLOBAL RECONSTRUCTION'}</span>
                   <span>{p.date || 'OCTOBER 2026'}</span>
                 </div>
 
                 <div className="my-auto space-y-3">
-                  <div className="inline-block px-3 py-1 rounded-full text-t-11 font-mono font-bold tracking-widest uppercase border border-current opacity-80" style={{ color: pal.accent }}>
+                  <div className="inline-block px-3 py-1 rounded-full t-11 font-mono font-bold tracking-widest uppercase border border-current opacity-80" style={{ color: pal.accent }}>
                     {activeVariant.replace(/-/g, ' ')}
                   </div>
                   <h3 className="font-display font-extrabold text-2xl md:text-3xl tracking-tight leading-tight uppercase" style={{ color: pal.text }}>
@@ -125,7 +125,7 @@ export default function TemplateSimulator({ template, onClose, onSelect }) {
                   </p>
                 </div>
 
-                <div className="text-t-10 font-mono tracking-wider opacity-50 border-t border-current/20 pt-2 flex justify-between">
+                <div className="t-10 font-mono tracking-wider opacity-50 border-t border-current/20 pt-2 flex justify-between">
                   <span>FRAME {String(frame).padStart(4, '0')}</span>
                   <span>{p.source || 'ARCHIVAL RECORD // 24 FPS'}</span>
                 </div>
@@ -162,9 +162,9 @@ export default function TemplateSimulator({ template, onClose, onSelect }) {
                     <span className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
                     <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
                     <span className="w-2.5 h-2.5 rounded-full bg-green-500/80" />
-                    <span className="text-t-11 text-muted ml-2">{p.filename || 'engine.cluster.ts'}</span>
+                    <span className="t-11 text-muted ml-2">{p.filename || 'engine.cluster.ts'}</span>
                   </div>
-                  <span className="text-t-10 text-emerald-400">● LIVE RUNTIME</span>
+                  <span className="t-10 text-emerald-400">● LIVE RUNTIME</span>
                 </div>
 
                 <div className="my-auto text-left text-xs space-y-1.5 opacity-90">
@@ -174,7 +174,7 @@ export default function TemplateSimulator({ template, onClose, onSelect }) {
                   <div className="text-emerald-400 pt-1">&gt; Compiling frame {frame} / 300 (fps: 30) <span className="animate-pulse">▌</span></div>
                 </div>
 
-                <div className="border-t border-white/10 pt-2 flex justify-between text-t-10 text-zinc-500">
+                <div className="border-t border-white/10 pt-2 flex justify-between t-10 text-zinc-500">
                   <span>MEMORY: 184MB</span>
                   <span>CPU THREADS: 4</span>
                 </div>
@@ -244,7 +244,7 @@ export default function TemplateSimulator({ template, onClose, onSelect }) {
                 <p className="text-xs max-w-[220px] mx-auto opacity-80 leading-relaxed">
                   {p.ruleBody || 'Most people give up before the magic happens. Refuse to be average.'}
                 </p>
-                <div className="pt-2 text-t-10 font-mono tracking-widest opacity-50 uppercase">
+                <div className="pt-2 t-10 font-mono tracking-widest opacity-50 uppercase">
                   SWIPE UP • DAILY REELS
                 </div>
               </div>
@@ -259,7 +259,7 @@ export default function TemplateSimulator({ template, onClose, onSelect }) {
                 <div className="font-mono text-2xl font-bold tracking-widest" style={{ color: pal.accent }}>
                   {p.timecode || 'SP 00:14:32'}
                 </div>
-                <div className="text-t-11 font-mono opacity-60">
+                <div className="t-11 font-mono opacity-60">
                   {p.date || 'OCT 17 1994 // RETRO VHS SIMULATION'}
                 </div>
               </div>
@@ -281,7 +281,7 @@ export default function TemplateSimulator({ template, onClose, onSelect }) {
               <RotateCcw size={14} />
             </button>
             <div className="flex-1 flex items-center gap-2">
-              <span className="font-mono text-t-11 text-muted">{String(frame).padStart(3, '0')}f</span>
+              <span className="font-mono t-11 text-muted">{String(frame).padStart(3, '0')}f</span>
               <input
                 type="range"
                 min="0"
@@ -290,9 +290,9 @@ export default function TemplateSimulator({ template, onClose, onSelect }) {
                 onChange={(e) => setFrame(Number(e.target.value))}
                 className="flex-1 accent-sky-400 h-1 bg-white/20 rounded cursor-pointer"
               />
-              <span className="font-mono text-t-11 text-muted">180f</span>
+              <span className="font-mono t-11 text-muted">180f</span>
             </div>
-            <span className="text-t-10 text-emerald-400 font-mono">30 FPS</span>
+            <span className="t-10 text-emerald-400 font-mono">30 FPS</span>
           </div>
         </div>
 
@@ -339,8 +339,8 @@ export default function TemplateSimulator({ template, onClose, onSelect }) {
             {/* Description & Technical Seam */}
             <div className="bg-black/30 p-3.5 rounded-xl border border-white/5 space-y-2 text-xs">
               <div className="font-semibold text-white">How This Renders:</div>
-              <p className="text-muted leading-relaxed text-t-11">{template.desc}</p>
-              <div className="pt-2 border-t border-white/5 text-t-11 text-zinc-500 flex justify-between">
+              <p className="text-muted leading-relaxed t-11">{template.desc}</p>
+              <div className="pt-2 border-t border-white/5 t-11 text-zinc-500 flex justify-between">
                 <span>Remotion Engine:</span>
                 <span className="font-mono text-zinc-400">src/families/{template.family}.tsx</span>
               </div>

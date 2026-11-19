@@ -71,8 +71,8 @@ export default function SessionsAdminPage() {
       rowHeader: true,
       render: (r) => (
         <div className={r.dead ? 'text-faint' : ''}>
-          <div className="text-t-13 font-semibold text-ink">{r.name || r.email}</div>
-          <div className="text-t-11 text-muted">{r.email}</div>
+          <div className="t-13 font-semibold text-ink">{r.name || r.email}</div>
+          <div className="t-11 text-muted">{r.email}</div>
         </div>
       ),
     },
@@ -86,13 +86,13 @@ export default function SessionsAdminPage() {
       label: 'Device',
       render: (r) => (
         <div className={`max-w-[260px] ${r.dead ? 'text-faint' : 'text-muted'}`}>
-          <div className="truncate text-t-12" title={r.device}>{r.device || 'unknown device'}</div>
-          {r.ip ? <div className="text-t-10 text-faint tnum">{r.ip}</div> : null}
+          <div className="truncate t-12" title={r.device}>{r.device || 'unknown device'}</div>
+          {r.ip ? <div className="t-10 text-faint tnum">{r.ip}</div> : null}
         </div>
       ),
     },
-    { key: 'lastUsed', label: 'Last used', render: (r) => <span className={`text-t-12 tnum ${r.dead ? 'text-faint' : 'text-muted'}`}>{when(r.lastUsed)}</span> },
-    { key: 'created', label: 'Signed in', render: (r) => <span className={`text-t-12 tnum ${r.dead ? 'text-faint' : 'text-muted'}`}>{when(r.created)}</span> },
+    { key: 'lastUsed', label: 'Last used', render: (r) => <span className={`t-12 tnum ${r.dead ? 'text-faint' : 'text-muted'}`}>{when(r.lastUsed)}</span> },
+    { key: 'created', label: 'Signed in', render: (r) => <span className={`t-12 tnum ${r.dead ? 'text-faint' : 'text-muted'}`}>{when(r.created)}</span> },
     {
       key: 'status',
       label: 'Status',
@@ -107,12 +107,12 @@ export default function SessionsAdminPage() {
       key: 'action',
       label: '',
       render: (r) => (r.dead
-        ? <span className="text-faint text-t-11">—</span>
+        ? <span className="text-faint t-11">—</span>
         : (
           <button
             onClick={() => revoke(r)}
             disabled={busyId === r.id}
-            className="inline-flex items-center gap-1 text-t-11 font-medium cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-1 t-11 font-medium cursor-pointer disabled:opacity-50"
             style={{ color: 'var(--bad)' }}
           >
             {busyId === r.id ? <Loader2 size={11} className="animate-spin" /> : <Ban size={11} />} Revoke
@@ -129,7 +129,7 @@ export default function SessionsAdminPage() {
         sub="Every sign-in across the studio — revoke any device, effective on its next request. Dead rows clean up after 30 days."
       />
 
-      {err ? <p className="text-t-13 mb-4" style={{ color: 'var(--bad)' }}>{err}</p> : null}
+      {err ? <p className="t-13 mb-4" style={{ color: 'var(--bad)' }}>{err}</p> : null}
 
       {!sessions ? (
         <div className="flex items-center gap-2 text-muted text-sm py-8"><Loader2 size={15} className="animate-spin" /> Loading sessions…</div>

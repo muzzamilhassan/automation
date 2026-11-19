@@ -198,14 +198,14 @@ export default function TemplateAssignPanel({ slug }) {
 
   if (loadErr) {
     return (
-      <div className="inset-tile p-4 mt-1 flex items-center gap-2 text-t-12" style={{ color: 'var(--bad)' }}>
+      <div className="inset-tile p-4 mt-1 flex items-center gap-2 t-12" style={{ color: 'var(--bad)' }}>
         <XCircle size={14} className="shrink-0" /> Template registry unavailable: {loadErr}
       </div>
     );
   }
   if (!data) {
     return (
-      <div className="inset-tile p-4 mt-1 flex items-center gap-2 text-muted text-t-12">
+      <div className="inset-tile p-4 mt-1 flex items-center gap-2 text-muted t-12">
         <Loader2 size={14} className="animate-spin" /> Loading template assignment…
       </div>
     );
@@ -220,7 +220,7 @@ export default function TemplateAssignPanel({ slug }) {
 
       {/* current assignments */}
       {assignments.length === 0 ? (
-        <p className="text-t-12 text-muted mb-3">
+        <p className="t-12 text-muted mb-3">
           No registry template assigned — this channel runs its normal engine path. {isOwner ? 'Assign one below to pin a version.' : ''}
         </p>
       ) : (
@@ -236,27 +236,27 @@ export default function TemplateAssignPanel({ slug }) {
             return (
               <div key={`${a.family_id}`} className="rounded-xl border border-white/10 bg-black/20 p-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-t-12 font-semibold text-ink">{t ? t.name : a.family_id}</span>
+                  <span className="t-12 font-semibold text-ink">{t ? t.name : a.family_id}</span>
                   <Chip tone="accent" className="font-mono">pin v{a.pinned_version} (major {a.pinned_major})</Chip>
                   {t?.registry.deprecated ? <Chip tone="warn">deprecated</Chip> : null}
                   {isOwner ? (
                     <button
                       onClick={() => unassign(a.family_id)}
                       disabled={busy === a.family_id}
-                      className="ml-auto text-t-11 px-2 py-1 rounded-lg border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-50 flex items-center gap-1"
+                      className="ml-auto t-11 px-2 py-1 rounded-lg border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-50 flex items-center gap-1"
                       title="Unassign — the channel falls back to its normal engine path"
                     >
                       {busy === a.family_id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />} Unassign
                     </button>
                   ) : null}
                 </div>
-                <p className="text-t-10 text-faint mt-1 font-mono">
+                <p className="t-10 text-faint mt-1 font-mono">
                   assigned by {a.assigned_by || '—'} · {String(a.assigned_at || '').slice(0, 16).replace('T', ' ')} UTC
                 </p>
 
                 {/* AC-6: deprecation notice — existing production continues */}
                 {t?.registry.deprecated ? (
-                  <div className="flex items-start gap-1.5 mt-2 text-t-11" style={{ color: 'var(--warn, #d97706)' }}>
+                  <div className="flex items-start gap-1.5 mt-2 t-11" style={{ color: 'var(--warn, #d97706)' }}>
                     <AlertTriangle size={12} className="mt-0.5 shrink-0" />
                     <span>Deprecated{t.registry.deprecated_on ? ` since ${t.registry.deprecated_on}` : ''} — existing production keeps running; migrate to a newer style when ready.</span>
                   </div>
@@ -267,14 +267,14 @@ export default function TemplateAssignPanel({ slug }) {
                   <div className="mt-2 rounded-lg border border-sky-500/30 bg-sky-500/10 p-2.5">
                     <div className="flex flex-wrap items-center gap-2">
                       <ArrowUpCircle size={13} className="text-sky-400 shrink-0" />
-                      <span className="text-t-11 text-ink font-medium">
+                      <span className="t-11 text-ink font-medium">
                         Major update available: v{curMajor} is published — this channel stays pinned to {a.pinned_major} until you adopt it.
                       </span>
                       {isOwner ? (
                         <button
                           onClick={() => repin(a.family_id, curMajor)}
                           disabled={busy === a.family_id}
-                          className="ml-auto text-t-11 font-semibold px-2.5 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500 text-sky-300 hover:text-black border border-sky-500/30 transition disabled:opacity-50 flex items-center gap-1"
+                          className="ml-auto t-11 font-semibold px-2.5 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500 text-sky-300 hover:text-black border border-sky-500/30 transition disabled:opacity-50 flex items-center gap-1"
                         >
                           {busy === a.family_id ? <Loader2 size={11} className="animate-spin" /> : <ArrowUpCircle size={11} />} Re-pin to v{curMajor}
                         </button>
@@ -285,7 +285,7 @@ export default function TemplateAssignPanel({ slug }) {
 
                 {/* AC-5: minor/patch auto-adopt note */}
                 {autoAdopt ? (
-                  <div className="flex items-start gap-1.5 mt-2 text-t-11 text-muted">
+                  <div className="flex items-start gap-1.5 mt-2 t-11 text-muted">
                     <Info size={12} className="mt-0.5 shrink-0" style={{ color: 'var(--accent)' }} />
                     <span>Minor/patch updates auto-adopt — the next generation resolves v{autoVersion} (no action needed).</span>
                   </div>
@@ -307,7 +307,7 @@ export default function TemplateAssignPanel({ slug }) {
             <select
               value={templateId}
               onChange={(e) => pickTemplate(e.target.value)}
-              className="w-full text-t-13 px-3 py-2 rounded-lg border border-line bg-surface"
+              className="w-full t-13 px-3 py-2 rounded-lg border border-line bg-surface"
             >
               <option value="">— pick a template (this channel&apos;s niches first) —</option>
               {orderedTemplates.map((t) => {
@@ -326,14 +326,14 @@ export default function TemplateAssignPanel({ slug }) {
                 <select
                   value={pinnedMajor}
                   onChange={(e) => setPinnedMajor(e.target.value)}
-                  className="text-t-13 px-3 py-2 rounded-lg border border-line bg-surface"
+                  className="t-13 px-3 py-2 rounded-lg border border-line bg-surface"
                 >
                   {availableMajors(byTemplate.get(templateId)).map((m) => (
                     <option key={m} value={m}>{m} {m === majorOf(byTemplate.get(templateId).registry.version) ? '(current)' : ''}</option>
                   ))}
                 </select>
                 {byTemplate.get(templateId).registry.deprecated ? (
-                  <span className="text-t-11 flex items-center gap-1" style={{ color: 'var(--warn, #d97706)' }}>
+                  <span className="t-11 flex items-center gap-1" style={{ color: 'var(--warn, #d97706)' }}>
                     <AlertTriangle size={12} /> deprecated — the validator blocks new assignments
                   </span>
                 ) : null}
@@ -345,7 +345,7 @@ export default function TemplateAssignPanel({ slug }) {
               </Button>
               <button
                 onClick={() => { setAssignOpen(false); setTemplateId(''); setPinnedMajor(''); setMsg(null); }}
-                className="text-t-12 px-3 py-2 rounded-lg border border-line text-muted hover:text-ink hover:bg-surface-2"
+                className="t-12 px-3 py-2 rounded-lg border border-line text-muted hover:text-ink hover:bg-surface-2"
               >
                 Cancel
               </button>
@@ -360,12 +360,12 @@ export default function TemplateAssignPanel({ slug }) {
 
       {/* empty registry (REGISTRY_META is seeded in Task 10) */}
       {!assignments.length && !templates.length ? (
-        <p className="text-t-11 text-faint mt-2">No registry templates yet — seeds land in Task 10.</p>
+        <p className="t-11 text-faint mt-2">No registry templates yet — seeds land in Task 10.</p>
       ) : null}
 
       {/* result / validation messages */}
       {msg ? (
-        <div className={`mt-3 rounded-xl border p-2.5 text-t-12 ${msg.ok ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-red-500/30 bg-red-500/10'}`}>
+        <div className={`mt-3 rounded-xl border p-2.5 t-12 ${msg.ok ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-red-500/30 bg-red-500/10'}`}>
           <div className="flex items-start gap-1.5">
             {msg.ok ? <CheckCircle2 size={13} className="mt-0.5 text-emerald-400 shrink-0" /> : <XCircle size={13} className="mt-0.5 text-red-400 shrink-0" />}
             <span className={msg.ok ? 'text-emerald-300' : 'text-red-300'}>{msg.text}</span>
@@ -374,7 +374,7 @@ export default function TemplateAssignPanel({ slug }) {
             <ul className="mt-1.5 space-y-1 pl-5">
               {msg.reasons.map((r, i) => (
                 <li key={i} className="list-disc text-red-300 marker:text-red-400">
-                  <span className="font-mono text-t-10 mr-1 opacity-80">{r.code}</span> {friendlyReason(r)}
+                  <span className="font-mono t-10 mr-1 opacity-80">{r.code}</span> {friendlyReason(r)}
                 </li>
               ))}
             </ul>

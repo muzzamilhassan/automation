@@ -41,11 +41,11 @@ export default function DataTable({ label, columns, rows, pageSize = 10, emptyIc
       </div>
       {rows.length > pageSize ? (
         <div className="mt-3 flex items-center justify-between">
-          <span className="text-t-11 text-fg-quaternary tnum">{rows.length} entries</span>
+          <span className="t-11 text-fg-quaternary tnum">{rows.length} entries</span>
           <PaginationPageDefault page={p} total={total} onPageChange={setPage} rounded />
         </div>
       ) : (
-        <div className="mt-3 text-t-11 text-fg-quaternary tnum">{rows.length} entries</div>
+        <div className="mt-3 t-11 text-fg-quaternary tnum">{rows.length} entries</div>
       )}
     </div>
   );

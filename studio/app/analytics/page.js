@@ -154,7 +154,7 @@ export default function Analytics() {
         />
         <Button color="secondary" onClick={() => load(true)} iconLeading={<RefreshCw size={16} />}>Refresh</Button>
         {selChannel ? (
-          <span className="flex items-center gap-2 text-t-12 text-muted">
+          <span className="flex items-center gap-2 t-12 text-muted">
             <BrandMark short={BRAND[sel]?.short} accent={selChannel.accent} size={20} />
             {selChannel.label}
           </span>
@@ -231,7 +231,7 @@ export default function Analytics() {
             {winRows.length ? (
               <div className="space-y-1.5">
                 {winRows.map((e) => (
-                  <div key={e.kind + ':' + e.key} className="flex items-center justify-between gap-2 text-t-12">
+                  <div key={e.kind + ':' + e.key} className="flex items-center justify-between gap-2 t-12">
                     <span className="flex items-center gap-1.5 text-muted min-w-0">
                       <Chip tone={e.kind === 'template' ? 'accent' : 'info'}>{e.kind}</Chip>
                       <span className="truncate">{e.key}</span>
@@ -267,8 +267,8 @@ export default function Analytics() {
               <div key={c.slug} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-2 transition-colors">
                 <BrandMark short={brandOf(c.slug).short} accent={brandOf(c.slug).accent} size={26} />
                 <span className="min-w-0 flex-1">
-                  <span className="block text-t-12 font-semibold text-ink">{c.slug}</span>
-                  <span className="block text-t-10 text-faint truncate">
+                  <span className="block t-12 font-semibold text-ink">{c.slug}</span>
+                  <span className="block t-10 text-faint truncate">
                     {c.error || 'scope missing'}{c.checkedAt ? ` · probed ${String(c.checkedAt).slice(0, 10)}` : ''}
                   </span>
                 </span>
@@ -312,7 +312,7 @@ export default function Analytics() {
             {sel === 'all' && worst && retentionLive ? (
               <div className="inset-tile p-3 mt-4 flex gap-2.5">
                 <Info size={14} className="shrink-0 mt-0.5" style={{ color: 'var(--info)' }} />
-                <p className="text-t-11 text-muted leading-relaxed">
+                <p className="t-11 text-muted leading-relaxed">
                   <span className="font-semibold text-ink">The smoking gun:</span> {best?.name} holds {best?.pct}% while {worst?.name} sits at{' '}
                   {worst?.pct}%. Pick a channel above to see it alone.
                 </p>
@@ -320,7 +320,7 @@ export default function Analytics() {
             ) : (
               <div className="inset-tile p-3 mt-4 flex gap-2.5">
                 <Info size={14} className="shrink-0 mt-0.5" style={{ color: best?.pct >= RETENTION_GOAL ? 'var(--ok)' : 'var(--warn)' }} />
-                <p className="text-t-11 text-muted leading-relaxed">
+                <p className="t-11 text-muted leading-relaxed">
                   {best?.pct >= RETENTION_GOAL
                     ? `${best?.name} is above the ${RETENTION_GOAL}% goal — the feed is pushing it. Keep the current format.`
                     : `Below the ${RETENTION_GOAL}% goal — the first 2 seconds still lose people.`}
@@ -340,7 +340,7 @@ export default function Analytics() {
           />
           <div className="px-2 pb-2">
             {realErr ? (
-              <p className="text-t-12 text-faint px-4 py-10 text-center">Analytics data unavailable right now — try Refresh in a minute.</p>
+              <p className="t-12 text-faint px-4 py-10 text-center">Analytics data unavailable right now — try Refresh in a minute.</p>
             ) : !real ? (
               <div className="px-4 py-10 space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="skeleton h-5" />)}</div>
             ) : real.daily.length ? (
@@ -348,7 +348,7 @@ export default function Analytics() {
                 <MiniBars data={real.daily.map((d) => d.views)} labels={real.daily.map((d) => d.date.slice(5))} color="var(--accent)" height={170} />
               </div>
             ) : (
-              <p className="text-t-12 text-faint px-4 py-10 text-center">No views recorded in this period.</p>
+              <p className="t-12 text-faint px-4 py-10 text-center">No views recorded in this period.</p>
             )}
           </div>
         </Card>
@@ -365,7 +365,7 @@ export default function Analytics() {
                   <div style={{ width: shortPct + '%', background: 'var(--accent)' }} />
                   <div style={{ width: 100 - shortPct + '%', background: 'var(--info)' }} />
                 </div>
-                <div className="space-y-2 text-t-12">
+                <div className="space-y-2 t-12">
                   <p className="flex items-center justify-between">
                     <span className="flex items-center gap-1.5 text-muted"><Scissors size={13} /> Shorts</span>
                     <span className="tnum font-bold text-ink">{fmt(real.split.shortsViews)} · {shortPct}%</span>
@@ -377,7 +377,7 @@ export default function Analytics() {
                 </div>
               </>
             ) : (
-              <p className="text-t-12 text-faint py-6 text-center">No views in this period yet.</p>
+              <p className="t-12 text-faint py-6 text-center">No views in this period yet.</p>
             )}
           </div>
         </Card>
@@ -390,7 +390,7 @@ export default function Analytics() {
               const max = real.audience.countries[0]?.views || 1;
               return (
                 <div key={c.key}>
-                  <div className="flex justify-between text-t-12 mb-0.5">
+                  <div className="flex justify-between t-12 mb-0.5">
                     <span className="text-muted">{c.key}</span>
                     <span className="tnum font-semibold text-ink">{fmt(c.views)}</span>
                   </div>
@@ -400,7 +400,7 @@ export default function Analytics() {
                 </div>
               );
             })}
-            {!(real?.audience?.countries || []).length ? <p className="text-t-12 text-faint py-4 text-center">No audience data yet.</p> : null}
+            {!(real?.audience?.countries || []).length ? <p className="t-12 text-faint py-4 text-center">No audience data yet.</p> : null}
           </div>
         </Card>
 
@@ -410,7 +410,7 @@ export default function Analytics() {
           <div className="px-5 pb-5">
             <div className="flex gap-2 mb-3">
               {(real?.audience?.gender || []).map((g) => (
-                <span key={g.key} className="inset-tile px-2.5 py-1.5 text-t-11 font-semibold text-ink">
+                <span key={g.key} className="inset-tile px-2.5 py-1.5 t-11 font-semibold text-ink">
                   {GENDER_NAME[g.key] || g.key}: {Math.round((g.views / genderTotal) * 100)}%
                 </span>
               ))}
@@ -420,11 +420,11 @@ export default function Analytics() {
                 const max = real.audience.age[0]?.views || 1;
                 return (
                   <div key={a.key} className="flex items-center gap-2">
-                    <span className="text-t-11 text-muted w-12 font-mono">{a.key.replace('age', '')}</span>
+                    <span className="t-11 text-muted w-12 font-mono">{a.key.replace('age', '')}</span>
                     <div className="flex-1 h-1.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
                       <div className="h-full rounded-full" style={{ width: Math.max(3, (a.views / max) * 100) + '%', background: 'var(--info)' }} />
                     </div>
-                    <span className="text-t-11 tnum text-faint w-10 text-right">{fmt(a.views)}</span>
+                    <span className="t-11 tnum text-faint w-10 text-right">{fmt(a.views)}</span>
                   </div>
                 );
               })}
@@ -440,14 +440,14 @@ export default function Analytics() {
           <div className="px-5 pb-5">
             <div className="space-y-2">
               {platformSlices.map((s) => (
-                <div key={s.name} className="flex items-center gap-2 text-t-12">
+                <div key={s.name} className="flex items-center gap-2 t-12">
                   <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: s.color }} />
                   <span className="text-muted">{s.name}</span>
                   <span className="ml-auto tnum font-bold text-ink">{s.value ? fmt(s.value) : '—'}</span>
                 </div>
               ))}
             </div>
-            <p className="text-t-10 text-faint mt-3">Followers, not views. Total {fmt(platformTotal)}.</p>
+            <p className="t-10 text-faint mt-3">Followers, not views. Total {fmt(platformTotal)}.</p>
           </div>
         </Card>
 
@@ -472,9 +472,9 @@ export default function Analytics() {
                 pageSize={8}
                 columns={[
                   { key: 'term', label: 'Search term', rowHeader: true, render: (k) => (
-                    <span className="flex items-center gap-2 text-t-12 font-medium text-fg-primary truncate"><Search size={12} className="text-fg-quaternary shrink-0" /> {k.term}</span>
+                    <span className="flex items-center gap-2 t-12 font-medium text-fg-primary truncate"><Search size={12} className="text-fg-quaternary shrink-0" /> {k.term}</span>
                   ) },
-                  { key: 'views', label: 'Views', render: (k) => <span className="tnum font-semibold text-t-12 text-fg-primary">{fmt(k.views)}</span> },
+                  { key: 'views', label: 'Views', render: (k) => <span className="tnum font-semibold t-12 text-fg-primary">{fmt(k.views)}</span> },
                 ]}
               />
             )}
@@ -486,7 +486,7 @@ export default function Analytics() {
           <CardHead title="Reports" sub="Daily Excel reports from the reporting pipeline" icon={FileSpreadsheet} />
           <div className="px-3 pb-3">
             {reports.length === 0 ? (
-              <p className="text-t-12 text-faint py-6 text-center">No reports in the repo yet — the reporting pipeline drops them here.</p>
+              <p className="t-12 text-faint py-6 text-center">No reports in the repo yet — the reporting pipeline drops them here.</p>
             ) : (
               reports.slice(0, 8).map((r) => (
                 <div key={r.name} className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-surface-2 transition-colors">
@@ -494,8 +494,8 @@ export default function Analytics() {
                     <FileSpreadsheet size={15} />
                   </span>
                   <span className="flex-1 min-w-0">
-                    <span className="block text-t-12 font-medium text-ink truncate font-mono">{r.name}</span>
-                    <span className="block text-t-10 text-faint">{r.when}{r.size ? ` · ${Math.round(r.size / 1024)} KB` : ''}</span>
+                    <span className="block t-12 font-medium text-ink truncate font-mono">{r.name}</span>
+                    <span className="block t-10 text-faint">{r.when}{r.size ? ` · ${Math.round(r.size / 1024)} KB` : ''}</span>
                   </span>
                   <Chip>repo /reports</Chip>
                 </div>

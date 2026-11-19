@@ -26,26 +26,26 @@ export default function UsersPage() {
     <div>
       <div className="mb-4">
         <h1 className="font-[family-name:var(--font-display)] text-xl font-bold tracking-tight flex items-center gap-2"><UsersIcon size={18} /> Users</h1>
-        <p className="text-t-12 text-muted mt-0.5">Super admin view — every account, their channels, keys, sessions and last activity.</p>
+        <p className="t-12 text-muted mt-0.5">Super admin view — every account, their channels, keys, sessions and last activity.</p>
       </div>
 
       {err ? (
-        <p className="text-t-13" style={{ color: 'var(--bad)' }}>{err}</p>
+        <p className="t-13" style={{ color: 'var(--bad)' }}>{err}</p>
       ) : !data ? (
         <div className="flex items-center gap-2 text-muted text-sm py-8"><Loader2 size={15} className="animate-spin" /> Loading users…</div>
       ) : (
         <>
           <div className="grid grid-cols-3 gap-3 mb-5">
             <div className="inset-tile p-4">
-              <div className="text-t-11 uppercase tracking-wide text-muted">Accounts</div>
+              <div className="t-11 uppercase tracking-wide text-muted">Accounts</div>
               <div className="text-2xl font-bold mt-1 font-[family-name:var(--font-display)]">{data.users.length}</div>
             </div>
             <div className="inset-tile p-4">
-              <div className="text-t-11 uppercase tracking-wide text-muted">Active sessions</div>
+              <div className="t-11 uppercase tracking-wide text-muted">Active sessions</div>
               <div className="text-2xl font-bold mt-1 font-[family-name:var(--font-display)]">{data.totalSessions}</div>
             </div>
             <div className="inset-tile p-4">
-              <div className="text-t-11 uppercase tracking-wide text-muted">Client channels bound</div>
+              <div className="t-11 uppercase tracking-wide text-muted">Client channels bound</div>
               <div className="text-2xl font-bold mt-1 font-[family-name:var(--font-display)]">{data.users.reduce((a, u) => a + u.channels.length, 0)}</div>
             </div>
           </div>
@@ -61,12 +61,12 @@ export default function UsersPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <div>
                       <div className="text-[13.5px] font-semibold">{u.name || u.email}</div>
-                      <div className="text-t-11 text-muted">{u.email}</div>
+                      <div className="t-11 text-muted">{u.email}</div>
                     </div>
-                    <span className="ml-auto text-t-10 px-2 py-0.5 rounded-full border border-line flex items-center gap-1" style={{ color: u.role === 'owner' ? 'var(--accent)' : 'var(--muted)' }}>
+                    <span className="ml-auto t-10 px-2 py-0.5 rounded-full border border-line flex items-center gap-1" style={{ color: u.role === 'owner' ? 'var(--accent)' : 'var(--muted)' }}>
                       <ShieldCheck size={11} /> {u.role}
                     </span>
-                    <span className="text-t-10 px-2 py-0.5 rounded-full border border-line text-muted flex items-center gap-1">
+                    <span className="t-10 px-2 py-0.5 rounded-full border border-line text-muted flex items-center gap-1">
                       <Activity size={11} /> {u.sessionsActive} session{u.sessionsActive === 1 ? '' : 's'}
                     </span>
                   </div>
@@ -74,8 +74,8 @@ export default function UsersPage() {
                   <div className="grid sm:grid-cols-2 gap-2 mt-3">
                     <div className="inset-tile p-2.5 flex items-start gap-2">
                       <Tv size={12} className="shrink-0 mt-0.5" style={{ color: 'var(--info)' }} />
-                      <div className="text-t-12">
-                        <div className="text-faint text-t-10 uppercase tracking-wide">Channels bound</div>
+                      <div className="t-12">
+                        <div className="text-faint t-10 uppercase tracking-wide">Channels bound</div>
                         {u.channels.length
                           ? u.channels.map((c) => <div key={c.slug} className="text-muted">{c.label}</div>)
                           : <span className="text-muted">{u.role === 'owner' ? 'all legacy channels (owner)' : 'none bound'}</span>}
@@ -83,8 +83,8 @@ export default function UsersPage() {
                     </div>
                     <div className="inset-tile p-2.5 flex items-start gap-2">
                       <KeyRound size={12} className="shrink-0 mt-0.5" style={{ color: 'var(--info)' }} />
-                      <div className="text-t-12">
-                        <div className="text-faint text-t-10 uppercase tracking-wide">API keys</div>
+                      <div className="t-12">
+                        <div className="text-faint t-10 uppercase tracking-wide">API keys</div>
                         {u.keysFiles.length
                           ? u.keysFiles.map((s) => <div key={s} className="text-muted">{s}: keys configured</div>)
                           : <span className="text-muted">none saved (shared keys in use)</span>}
@@ -93,8 +93,8 @@ export default function UsersPage() {
                   </div>
 
                   <div className="flex items-center gap-2 mt-2.5">
-                    <span className="text-t-11 text-muted flex items-center gap-1"><Activity size={11} /> Last action: {u.lastAction ? `${fmtDay(u.lastAction.at)} · ${u.lastAction.action}` : 'none recorded'}</span>
-                    <button onClick={() => setOpen(expanded ? null : u.email)} className="ml-auto text-t-11 font-medium" style={{ color: 'var(--accent)' }}>
+                    <span className="t-11 text-muted flex items-center gap-1"><Activity size={11} /> Last action: {u.lastAction ? `${fmtDay(u.lastAction.at)} · ${u.lastAction.action}` : 'none recorded'}</span>
+                    <button onClick={() => setOpen(expanded ? null : u.email)} className="ml-auto t-11 font-medium" style={{ color: 'var(--accent)' }}>
                       {expanded ? 'Hide activity' : 'Recent activity'}
                     </button>
                   </div>
@@ -102,11 +102,11 @@ export default function UsersPage() {
                     <div className="inset-tile p-2.5 mt-2 space-y-1">
                       {u.recentActivity?.length
                         ? u.recentActivity.map((a, i) => (
-                          <div key={i} className="text-t-11 text-muted">
+                          <div key={i} className="t-11 text-muted">
                             <span className="text-faint">{fmtDay(a.at)}</span> · <span className="text-ink">{a.action}</span>{a.detail ? ` — ${a.detail}` : ''}
                           </div>
                         ))
-                        : <p className="text-t-11 text-muted">No recorded activity yet.</p>}
+                        : <p className="t-11 text-muted">No recorded activity yet.</p>}
                     </div>
                   ) : null}
                 </div>
@@ -116,9 +116,9 @@ export default function UsersPage() {
 
           {data.unboundChannels?.length ? (
             <div className="border border-line rounded-xl bg-surface p-4 mt-5">
-              <div className="text-t-11 uppercase tracking-wide text-muted mb-1.5">Connected channels with no owner assigned</div>
-              <div className="text-t-12 text-muted">{data.unboundChannels.map((c) => c.label).join(' · ')}</div>
-              <p className="text-t-10 text-faint mt-1">Assign an owner email during the Add-Channel wizard to bind them to a user.</p>
+              <div className="t-11 uppercase tracking-wide text-muted mb-1.5">Connected channels with no owner assigned</div>
+              <div className="t-12 text-muted">{data.unboundChannels.map((c) => c.label).join(' · ')}</div>
+              <p className="t-10 text-faint mt-1">Assign an owner email during the Add-Channel wizard to bind them to a user.</p>
             </div>
           ) : null}
         </>

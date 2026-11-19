@@ -81,7 +81,7 @@ function CreatePageContent() {
               <button type="button" key={s.id} onClick={() => setForm({ ...form, dna: s.id })}
                 className={`rounded-lg border p-3 text-left transition ${form.dna === s.id ? 'border-sky-500 bg-sky-500/10' : 'border-white/10 bg-black/20 hover:border-white/25'}`}>
                 <div className="text-sm font-medium text-zinc-100">{s.name}</div>
-                <div className="mt-0.5 text-t-11 leading-snug text-zinc-400">{s.desc}</div>
+                <div className="mt-0.5 t-11 leading-snug text-zinc-400">{s.desc}</div>
               </button>
             ))}
           </div>
@@ -165,7 +165,7 @@ function CreatePageContent() {
             <div className="flex items-center justify-between gap-2 px-4 py-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 text-sm text-zinc-200"><Badge color={(STATE_BADGE[j.state] || STATE_BADGE.unknown).color} size="sm">{(STATE_BADGE[j.state] || STATE_BADGE.unknown).children}</Badge><span className="truncate">{j.topic || j.id}</span></div>
-                <div className="mt-0.5 text-t-11 text-zinc-500">{j.brand} · {j.dna}{j.durationSec ? ` · ${j.durationSec}s` : ''}</div>
+                <div className="mt-0.5 t-11 text-zinc-500">{j.brand} · {j.dna}{j.durationSec ? ` · ${j.durationSec}s` : ''}</div>
               </div>
               {j.state === 'done' && j.videoUrl && (
                 <a href={j.videoUrl} download className="shrink-0 rounded-md border border-white/10 p-2 text-zinc-400 hover:text-zinc-100" title="Download MP4">
