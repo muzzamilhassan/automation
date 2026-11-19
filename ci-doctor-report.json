@@ -1,5 +1,5 @@
 {
-  "at": "2026-11-19T01:50:31.594Z",
+  "at": "2026-11-19T11:23:06.899Z",
   "problems": 0,
   "results": [
     {
@@ -7,7 +7,7 @@
       "channel": "Debt-Free Doctrine",
       "subs": "2",
       "totalVideos": "163",
-      "lastUploadHours": 29,
+      "lastUploadHours": 38,
       "status": "OK"
     },
     {
@@ -15,7 +15,7 @@
       "channel": "Investor's Compass",
       "subs": "9",
       "totalVideos": "166",
-      "lastUploadHours": 2,
+      "lastUploadHours": 9,
       "status": "OK"
     },
     {
@@ -23,7 +23,7 @@
       "channel": "The Money Rulebook",
       "subs": "11",
       "totalVideos": "134",
-      "lastUploadHours": 2,
+      "lastUploadHours": 8,
       "status": "OK"
     },
     {
@@ -31,7 +31,7 @@
       "channel": "QuoteQuarry",
       "subs": "219",
       "totalVideos": "364",
-      "lastUploadHours": 3,
+      "lastUploadHours": 9,
       "status": "OK"
     }
   ],
