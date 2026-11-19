@@ -267,8 +267,14 @@ export function overlayRepoFlags(dbEntries = [], repoChannels = []) {
     const r = bySlug.get(e.slug);
     if (!r) return e;
     const parkedInDb = e.status === 'parked' || e.status === 'paused';
+    // Feedback r1 (F): DB rows never carry the engine's top-level `cron`, so
+    // the slot timeline saw no start times in production (every hour "free").
+    // A schedule save writes kit.gateCron to the DB first (freshest); else the
+    // repo feed's cron is what the engine actually runs on.
+    const cron = e.kit?.gateCron || r.cron || e.cron;
     return {
       ...e,
+      ...(cron ? { cron } : {}),
       active: parkedInDb ? false : r.active !== false,
       tokenSecretSaved: e.tokenSecretSaved || r.tokenSecretSaved === true,
       tokenSecret: e.tokenSecret || r.tokenSecret || '',

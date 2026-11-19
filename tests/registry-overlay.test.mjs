@@ -35,3 +35,13 @@ test('readRegistry applies the overlay on the DB path', () => {
   const src = fs.readFileSync('studio/lib/channels-registry.js', 'utf8');
   assert.match(src, /overlayRepoFlags\(rows\.map\(rowToEntry\), await repoChannelsForOverlay\(\)\)/);
 });
+
+test('feedback r1 F: start times survive the DB read — fresh kit.gateCron first, else the repo cron', () => {
+  const out = overlayRepoFlags(
+    [db('a'), db('b', { kit: { gateCron: '5 4 * * *' } }), db('c')],
+    [{ slug: 'a', cron: '13 2 * * *' }, { slug: 'b', cron: '13 2 * * *' }, { slug: 'c' }],
+  );
+  assert.equal(out[0].cron, '13 2 * * *', 'legacy channel: repo cron (what the engine runs on)');
+  assert.equal(out[1].cron, '5 4 * * *', 'a just-saved DB gate time beats the 60s-memo repo copy');
+  assert.equal('cron' in out[2], false, 'no cron anywhere → no invented time');
+});
