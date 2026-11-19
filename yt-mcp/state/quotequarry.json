@@ -8,9 +8,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "KE3PHwIqvuY",
-      "publishAt": "2026-11-18T22:35:00Z",
-      "title": "Musashi’s Journaling Hack: Boost Error Detection 45%"
+      "videoId": "PWyfQhXK8Yc",
+      "publishAt": "2026-11-19T22:35:00Z",
+      "title": "Why Your Brain Chases Empty Promises (45% Dopamine Surge)"
     }
   ],
   "deepdiveDate": "2026-11-18",
@@ -103,14 +103,18 @@
     {
       "t": "Musashi’s Journaling Hack: Boost Error Detection 45%",
       "at": "2026-11-18T22:35:00Z"
+    },
+    {
+      "t": "Why Your Brain Chases Empty Promises (45% Dopamine Surge)",
+      "at": "2026-11-19T22:35:00Z"
     }
   ],
   "cooldownSeeds": [
     "THE POWER OF SOLITUDE WILL CHANGE YOUR LIFE | Jim Rohn Motivation"
   ],
   "uploadsToday": {
-    "date": "2026-11-17",
-    "count": 2
+    "date": "2026-11-18",
+    "count": 1
   },
   "clipQueue": {
     "lastRunId": "44223309951",
@@ -135,7 +139,8 @@
         "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/761665605",
         "startSec": 31.2,
         "durSec": 20.6,
-        "file": "tt-lf/clipfeed-quotequarry/clips/clip-01.mp4"
+        "file": "tt-lf/clipfeed-quotequarry/clips/clip-01.mp4",
+        "postedAt": "2026-11-19T01:55:30.576Z"
       },
       {
         "part": 2,
@@ -166,7 +171,7 @@
       }
     ]
   },
-  "clipLastPostDate": "2026-11-18",
+  "clipLastPostDate": "2026-11-19",
   "usedLongSeeds": [
     "3 Psychological Tricks to Win Any Fight 🥶🥊 | Dark Psychology #Shorts #psychology #fighting #viral",
     "⭐ 10 RÈGLES STOÏCIENNES POUR ATTEINDRE TES OBJECTIFS ET CRÉER LA VIE QUE TU VEUX | STOÏCISME",
@@ -186,6 +191,6 @@
   "reviewGate": {
     "assigned": false,
     "gated": false,
-    "checkedAt": "2026-11-18T02:29:29.493Z"
+    "checkedAt": "2026-11-19T01:55:25.404Z"
   }
 }
