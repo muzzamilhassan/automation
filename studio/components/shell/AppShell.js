@@ -24,6 +24,7 @@ import {
 import { NAV, navItemFor, navSectionFor } from './nav';
 import CommandPalette from './CommandPalette';
 import PocketBar from './PocketBar';
+import { ConfirmProvider } from '@/components/ConfirmDialog';
 import { useBrands } from '@/components/use-brands';
 import { useOpenWarnings } from '@/components/use-open-warnings';
 import { useMe, initialsOf } from '@/components/use-me';
@@ -299,6 +300,7 @@ export default function AppShell({ children }) {
   );
 
   return (
+    <ConfirmProvider>
     <div className="min-h-screen flex bg-bg-primary">
       {/* desktop sidebar */}
       <aside
@@ -429,5 +431,6 @@ export default function AppShell({ children }) {
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <PocketBar onMore={() => setMobileOpen(true)} />
     </div>
+    </ConfirmProvider>
   );
 }

@@ -340,8 +340,8 @@ export default function TemplateAssignPanel({ slug }) {
               </div>
             ) : null}
             <div className="flex items-center gap-2">
-              <Button color="primary" onClick={assign} disabled={!templateId || pinnedMajor === '' || busy === templateId}>
-                {busy === templateId ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Assign &amp; pin
+              <Button color="primary" onClick={assign} disabled={!templateId || pinnedMajor === '' || (!!busy && busy === templateId)}>
+                {busy && busy === templateId ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Assign &amp; pin
               </Button>
               <button
                 onClick={() => { setAssignOpen(false); setTemplateId(''); setPinnedMajor(''); setMsg(null); }}

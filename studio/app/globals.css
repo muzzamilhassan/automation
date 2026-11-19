@@ -339,7 +339,7 @@ body {
 .btn-danger {
   background: transparent;
   border-color: color-mix(in srgb, var(--bad) 40%, transparent);
-  color: var(--bad);
+  color: var(--bad-ink);
 }
 .btn-danger:hover {
   background: color-mix(in srgb, var(--bad) 10%, transparent);
@@ -699,3 +699,12 @@ p, .sub-text {
 .t-13 { font-size: var(--text-base); }
 .t-14 { font-size: var(--text-md); }
 .t-16 { font-size: var(--text-lg); }
+
+/* ---------------- Drawer + dialog motion ---------------- */
+@keyframes drawer-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes fade-in-kf { from { opacity: 0; } to { opacity: 1; } }
+.drawer-in { animation: drawer-in 220ms cubic-bezier(.2,.8,.2,1); }
+.fade-in { animation: fade-in-kf 180ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .drawer-in, .fade-in { animation: none !important; }
+}
