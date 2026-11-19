@@ -44,7 +44,7 @@ test('needs you: mixed reasons are each listed and counted, linking to the right
   assert.match(byKey['pause:paused'].text, /paused/);
   assert.match(byKey['yt:broken'].text, /can't reach YouTube/);
   assert.equal(byKey['yt:broken'].tone, 'bad');
-  assert.match(byKey.warnings.text, /^2 open warnings/);
+  assert.match(byKey.warnings.text, /^2 real problems/);
   assert.equal(byKey.warnings.href, '/warnings');
   assert.match(byKey.review.text, /^3 scripts waiting for your approval/);
   assert.equal(byKey.review.href, '/review');

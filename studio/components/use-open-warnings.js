@@ -1,11 +1,19 @@
 'use client';
-// Phase 0 (P0-2): the bell/home/tasks can only say "all quiet" when the check
-// actually SUCCEEDED. DB-down answers 503 DB_DOWN — that is status 'error'
-// ("unknown"), never quiet. canSee=false for 401/403 (forbidden).
+// The shared live-alerts hook (bell, Inbox badge, home cockpit, phone bar).
+//
+// Status contract (Phase 0, P0-2): 'ok' only when the check SUCCEEDED; DB-down
+// (503) is 'error' — "status unknown", never quiet; 401/403 is 'forbidden'.
+//
+// Notification policy (owner, 2026-11-19 — "just real notifications"):
+// `rows` are REAL problems only (blocking / action_required / warning),
+// grouped so repeats count once ("4× script held for review"). Advisory /
+// informational rows are QUIET: counted in `quiet` for the Alerts page's
+// "For your information" section, never in a badge or the bell.
 import { useCallback, useEffect, useState } from 'react';
+import { groupRealWarnings, quietCount } from '@/lib/notify-policy.mjs';
 
 export function useOpenWarnings() {
-  const [state, setState] = useState({ rows: [], canSee: false, status: 'loading' });
+  const [state, setState] = useState({ rows: [], quiet: 0, canSee: false, status: 'loading' });
   const load = useCallback(() => {
     fetch('/api/warnings')
       .then((r) => {
@@ -14,11 +22,13 @@ export function useOpenWarnings() {
         return r.json().then((d) => ({ t: 'ok', d }));
       })
       .then((res) => {
-        if (res.t === 'ok') setState({ rows: res.d.open || [], canSee: true, status: 'ok' });
-        else if (res.t === 'forbidden') setState({ rows: [], canSee: false, status: 'forbidden' });
-        else setState({ rows: [], canSee: false, status: 'error' });
+        if (res.t === 'ok') {
+          const open = res.d.open || [];
+          setState({ rows: groupRealWarnings(open), quiet: quietCount(open), canSee: true, status: 'ok' });
+        } else if (res.t === 'forbidden') setState({ rows: [], quiet: 0, canSee: false, status: 'forbidden' });
+        else setState({ rows: [], quiet: 0, canSee: false, status: 'error' });
       })
-      .catch(() => setState({ rows: [], canSee: false, status: 'error' }));
+      .catch(() => setState({ rows: [], quiet: 0, canSee: false, status: 'error' }));
   }, []);
   useEffect(() => load(), [load]);
   return { ...state, retry: load };

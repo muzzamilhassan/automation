@@ -7,6 +7,7 @@
 // a REQUIRED note (AC-P4-15). Parked channels wear a badge; resolved history
 // sits below. review_gating_inactive rows surface here (M3).
 import { useEffect, useState } from 'react';
+import { isRealSeverity } from '@/lib/notify-policy.mjs';
 import Link from 'next/link';
 import { Loader2, TriangleAlert, Ban, Eye, RotateCw, CheckCircle2, Quote, ScrollText } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, StatCard, EmptyState } from '@/components/ui';
@@ -133,7 +134,18 @@ export default function WarningsDashboardPage() {
     load();
   };
 
-  const open = (data?.open || []).slice().sort((a, b) => SEVERITIES.indexOf(b.severity) - SEVERITIES.indexOf(a.severity));
+  // Most severe first (SEVERITIES is display order — the old b-a comparator
+  // put informational notes at the top and buried the real problems).
+  const allOpen = (data?.open || []).slice().sort((a, b) => SEVERITIES.indexOf(a.severity) - SEVERITIES.indexOf(b.severity));
+  // Owner policy 2026-11-19: real problems are the triage list; quiet
+  // advisory/informational notes fold into "For your information".
+  const open = allOpen.filter((w) => isRealSeverity(w.severity));
+  const quietRows = allOpen.filter((w) => !isRealSeverity(w.severity));
+  const quietGroups = Object.values(quietRows.reduce((acc, w) => {
+    const k = `${w.channel_id}::${w.code}`;
+    (acc[k] = acc[k] || { key: k, channel: w.channel_id, code: w.code, sample: w, count: 0 }).count += 1;
+    return acc;
+  }, {}));
   const byChannel = open.reduce((acc, w) => {
     (acc[w.channel_id] = acc[w.channel_id] || []).push(w);
     return acc;
@@ -161,7 +173,7 @@ export default function WarningsDashboardPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-5">
-            <StatCard icon={TriangleAlert} label="Open warnings" value={open.length} color={open.length ? 'var(--warn)' : undefined} />
+            <StatCard icon={TriangleAlert} label="Need you" value={open.length} color={open.length ? 'var(--warn)' : undefined} />
             <StatCard icon={Ban} label="Parked channels" value={parked.size} color="var(--bad)" />
             <StatCard icon={CheckCircle2} label="Resolved (recent)" value={(data.resolved || []).length} />
           </div>
@@ -179,7 +191,7 @@ export default function WarningsDashboardPage() {
 
           {open.length === 0 ? (
             <Card>
-              <EmptyState icon={CheckCircle2} title="No open warnings" sub="Every alert site is quiet. Rows appear here the moment a pipeline emitter fires — they outlive the ntfy push." />
+              <EmptyState icon={CheckCircle2} title="Nothing needs you" sub="No real problems open. Low-priority notes (if any) are listed below under For your information." />
             </Card>
           ) : (
             Object.entries(byChannel).map(([channel, rows]) => (
@@ -206,6 +218,23 @@ export default function WarningsDashboardPage() {
               </Card>
             ))
           )}
+
+          {quietGroups.length ? (
+            <details className="card mt-4 group">
+              <summary className="cursor-pointer list-none px-5 py-4 flex items-center gap-2 t-13 font-semibold text-ink">
+                <span className="text-faint group-open:rotate-90 transition-transform">›</span>
+                For your information · {quietRows.length} note{quietRows.length === 1 ? '' : 's'} — no action needed
+              </summary>
+              <div className="px-5 pb-4 space-y-2">
+                {quietGroups.map((g) => (
+                  <div key={g.key} className="inset-tile px-3 py-2.5">
+                    <p className="t-12 font-semibold text-ink">{g.count}× {g.code.replace(/_/g, ' ')} · <span className="text-faint">{g.channel}</span></p>
+                    {g.sample.explanation ? <p className="t-11 text-faint mt-0.5">{g.sample.explanation}</p> : null}
+                  </div>
+                ))}
+              </div>
+            </details>
+          ) : null}
 
           {(data.resolved || []).length ? (
             <Card className="mt-4">

@@ -303,7 +303,7 @@ function OverviewContent() {
 
         {warningsCanSee || warnStatus === 'error' ? (
         <Card>
-          <CardHead title="Needs attention" sub={`${openWarningRows.length} open warnings`} icon={Flame} right={<Link href="/warnings" className="t-11 text-accent hover:underline">triage →</Link>} />
+          <CardHead title="Needs attention" sub={`${openWarningRows.length} real problem${openWarningRows.length === 1 ? '' : 's'}`} icon={Flame} right={<Link href="/warnings" className="t-11 text-accent hover:underline">triage →</Link>} />
           <div className="px-2 pb-2">
             {warnStatus === 'error' ? (
               <div className="px-4 py-8 text-center">

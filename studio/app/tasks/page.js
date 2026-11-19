@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { SquareKanban, OctagonAlert, ScrollText, CircleCheck, Circle } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader } from '@/components/ui';
 import Link from 'next/link';
+import { groupRealWarnings } from '@/lib/notify-policy.mjs';
 
 const sevTone = { blocking: 'bad', action_required: 'warn', warning: 'warn', advisory: 'info', informational: 'plain' }; // P0-9 real keys
 
@@ -33,7 +34,9 @@ export default function Tasks() {
 
   const denied = warnings === 'denied' && pending === 'denied';
   const anyError = warnings === 'error' || pending === 'error';
-  const open = Array.isArray(warnings?.open) ? warnings.open : [];
+  // Owner policy 2026-11-19: the inbox lists REAL problems, grouped (repeats
+  // count once); quiet advisory notes live on /warnings under FYI.
+  const open = Array.isArray(warnings?.open) ? groupRealWarnings(warnings.open) : [];
   const resolved = Array.isArray(warnings?.resolved) ? warnings.resolved : [];
   const scripts = Array.isArray(pending) ? pending : [];
   const total = open.length + scripts.length;
@@ -52,7 +55,7 @@ export default function Tasks() {
 
   return (
     <div>
-      <PageHeader icon={SquareKanban} title="Tasks" sub={!loaded || warnings === null || pending === null ? 'loading live queue…' : anyError ? "some sources can't be checked right now — counts may be incomplete" : `${total} open items · ${open.length} warnings · ${scripts.length} awaiting approval`} />
+      <PageHeader icon={SquareKanban} title="Tasks" sub={!loaded || warnings === null || pending === null ? 'loading live queue…' : anyError ? "some sources can't be checked right now — counts may be incomplete" : `${total} things need you · ${open.length} problems · ${scripts.length} awaiting approval`} />
 
       <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
         <Card className="p-5">

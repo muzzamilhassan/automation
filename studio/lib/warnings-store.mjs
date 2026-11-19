@@ -469,6 +469,9 @@ export function makeAlertDigest({ send = sendAlert, title = 'Pipeline warnings',
  * updates the row silently (D11). Never throws; an alert failure never
  * fails the write.
  */
+// Severities that may reach the phone. Everything else is quiet.
+const QUIET_PUSH_EXEMPT = new Set(['blocking', 'action_required', 'warning']);
+
 export async function emitWarning(store, fields, opts = {}) {
   const send = opts.sendAlert || sendAlert;
   let write;
@@ -479,6 +482,13 @@ export async function emitWarning(store, fields, opts = {}) {
   }
   // Deduped re-fire: row already open, push already sent this episode.
   if (write.ok && write.deduped) return { ...write, alert: null };
+  // Owner policy 2026-11-19 ("just real notifications"): advisory /
+  // informational rows are RECORDED (Studio /warnings, 'For your
+  // information') but never page the phone. Only blocking / action_required
+  // / warning push — and those still fall back to ntfy if the store is down.
+  if (!QUIET_PUSH_EXEMPT.has(fields?.severity)) {
+    return { ...write, alert: { channel: 'none', ok: true, skipped: 'quiet_severity' } };
+  }
   // Rejected write: caller bug, not an operational event — no row was written
   // and no human gets paged for a code fix (the store is up; "unavailable"
   // would be a lie). The reason renders on the returned alert slot.

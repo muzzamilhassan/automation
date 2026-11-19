@@ -48,7 +48,7 @@ test('#126 R2: the topbar badge shows the REAL count and hides for clients/failu
 test('#126 R3: the home Needs-attention card is real + hidden for clients', () => {
   assert.match(homeSrc, /\{warningsCanSee \|\| warnStatus === 'error' \? \(/);
   assert.match(homeSrc, /warnStatus === 'error' \? \(/);
-  assert.match(homeSrc, /openWarningRows\.length\} open warnings/);
+  assert.match(homeSrc, /openWarningRows\.length\} real problem/); // 2026-11-19: only real, grouped problems
   assert.match(homeSrc, /openWarningRows\.slice\(0, 4\)\.map/);
   assert.match(homeSrc, /href="\/warnings"/);
   assert.match(homeSrc, /All probes are quiet/);
@@ -62,7 +62,7 @@ test('#126 R4: /tasks is a LIVE board — warnings + approvals + resolved, hones
   assert.match(tasksSrc, /Awaiting your approval/);
   assert.match(tasksSrc, /Recently resolved/);
   assert.match(tasksSrc, /Owner \/ staff only/);
-  assert.match(tasksSrc, /\$\{total\} open items/);
+  assert.match(tasksSrc, /\$\{total\} things need you/);
   assert.ok(!/from '@\/lib\/site-data'/.test(tasksSrc), 'tasks reads no static site data');
 });
 

@@ -1,0 +1,36 @@
+// Owner policy 2026-11-19: "just real notifications". The badge/bell/home
+// count REAL problems only, grouped; quiet rows never count.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { groupRealWarnings, quietCount, isRealSeverity } from '../studio/lib/notify-policy.mjs';
+
+const w = (id, severity, channel_id, code, title, created_at) => ({ id, severity, channel_id, code, title, created_at });
+
+test('the production shape: 180 orphans + 9 real → 5 grouped real notifications', () => {
+  const rows = [];
+  for (let i = 0; i < 180; i++) rows.push(w(`o${i}`, 'advisory', 'quotequarry', 'upload_orphan', 'untracked upload', '2026-11-15'));
+  for (const d of ['16', '17', '18', '19']) rows.push(w(`h${d}`, 'action_required', 'money-rulebook', 'review_hold', `script held for review — slot 2026-11-${d} skipped`, `2026-11-${d}`));
+  rows.push(w('t1', 'action_required', 'money-rulebook', 'review_timeout', 'approval window passed — A', '2026-11-16'));
+  rows.push(w('t2', 'action_required', 'money-rulebook', 'review_timeout', 'approval window passed — B', '2026-11-16'));
+  rows.push(w('g1', 'warning', 'money-rulebook', 'upload_ghost', 'recorded upload missing', '2026-11-18'));
+  rows.push(w('g2', 'warning', 'debt-free-doctrine', 'upload_ghost', 'recorded upload missing', '2026-11-18'));
+  rows.push(w('f1', 'action_required', 'quotequarry', 'doc_template_foreign_format', 'Doc slot skipped', '2026-11-15'));
+  const groups = groupRealWarnings(rows);
+  assert.equal(groups.length, 5, 'review_hold×4, review_timeout×2, ghost(MR), ghost(DFD), foreign format');
+  assert.equal(quietCount(rows), 180);
+  const hold = groups.find((g) => g.code === 'review_hold');
+  assert.equal(hold.count, 4);
+  assert.match(hold.title, /^4× script held for review — slot 2026-11-19 skipped$/, 'newest wording, with the count');
+  assert.equal(groups[0].severity, 'action_required', 'most severe first');
+});
+
+test('severity policy: blocking/action_required/warning are real; advisory/informational are quiet', () => {
+  for (const s of ['blocking', 'action_required', 'warning']) assert.equal(isRealSeverity(s), true, s);
+  for (const s of ['advisory', 'informational', undefined]) assert.equal(isRealSeverity(s), false, String(s));
+});
+
+test('the shared hook feeds every surface the grouped REAL list', () => {
+  const hook = fs.readFileSync('studio/components/use-open-warnings.js', 'utf8');
+  assert.match(hook, /rows: groupRealWarnings\(open\), quiet: quietCount\(open\)/);
+});

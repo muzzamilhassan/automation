@@ -103,7 +103,7 @@ export function deriveVerdict({ channels, warnings, review, now = new Date() } =
     const rows = Array.isArray(warnings.rows) ? warnings.rows : [];
     if (rows.length) {
       const blocking = rows.some((w) => w.severity === 'blocking');
-      items.push({ key: 'warnings', tone: blocking ? 'bad' : 'warn', text: `${plural(rows.length, 'open warning', 'open warnings')} to triage`, href: '/warnings' });
+      items.push({ key: 'warnings', tone: blocking ? 'bad' : 'warn', text: `${plural(rows.length, 'real problem', 'real problems')} to look at`, href: '/warnings' });
     }
   } // 'forbidden' = a client login; warnings aren't theirs to see
 
@@ -134,5 +134,5 @@ export function deriveVerdict({ channels, warnings, review, now = new Date() } =
   if (!total) {
     return { kind: 'empty', tone: 'plain', headline: 'No live channels yet', sub: 'Add a channel to start the machine.', items, unknown, ran, total };
   }
-  return { kind: 'all_good', tone: 'ok', headline: `All good — ${plural(ran, 'channel', 'channels')} ran today`, sub: 'No open warnings and nothing waiting for approval.', items, unknown, ran, total };
+  return { kind: 'all_good', tone: 'ok', headline: `All good — ${plural(ran, 'channel', 'channels')} ran today`, sub: 'No real problems and nothing waiting for approval.', items, unknown, ran, total };
 }

@@ -194,7 +194,7 @@ test('audit 2026-11-13 #4: makeAlertDigest collects pushes and sends ONE summary
   const db = makeWarningsDb();
   const store = makeWarningsStore(db);
   for (let i = 1; i <= 5; i++) {
-    const r = await emitWarning(store, { channel_id: 'money-rulebook', severity: 'advisory', code: 'upload_orphan', title: `orphan ${i}`, dedupe_key: `mr:orphan:${i}` }, { sendAlert: digest.sendAlert });
+    const r = await emitWarning(store, { channel_id: 'money-rulebook', severity: 'warning', code: 'upload_ghost', title: `ghost ${i}`, dedupe_key: `mr:ghost:${i}` }, { sendAlert: digest.sendAlert });
     assert.equal(r.ok, true);
     assert.equal(r.alert.channel, 'digest', 'per-warning push is deferred into the digest');
   }
@@ -203,11 +203,11 @@ test('audit 2026-11-13 #4: makeAlertDigest collects pushes and sends ONE summary
   assert.equal(sent.sends.length, 1, 'exactly one push per run');
   assert.equal(out.count, 5);
   assert.match(sent.sends[0].title, /Upload reconcile: 5 new warning/);
-  assert.match(sent.sends[0].text, /orphan 1/);
+  assert.match(sent.sends[0].text, /ghost 1/);
   assert.match(sent.sends[0].text, /\+2 more/, 'long lists are truncated with a count');
   assert.match(sent.sends[0].text, /\/warnings/, 'points at the Studio warnings page for the full list');
   // a deduped re-fire never reaches the digest
-  await emitWarning(store, { channel_id: 'money-rulebook', severity: 'advisory', code: 'upload_orphan', title: 'orphan 1', dedupe_key: 'mr:orphan:1' }, { sendAlert: digest.sendAlert });
+  await emitWarning(store, { channel_id: 'money-rulebook', severity: 'warning', code: 'upload_ghost', title: 'ghost 1', dedupe_key: 'mr:ghost:1' }, { sendAlert: digest.sendAlert });
   assert.equal((await digest.flush()).count, 0, 'flush resets; deduped re-fires add nothing');
   assert.equal(sent.sends.length, 1, 'an empty digest sends nothing');
 });
@@ -216,9 +216,25 @@ test('audit 2026-11-13 #4: the digest says when the store was unavailable (ntfy 
   const sent = alertRecorder();
   const digest = makeAlertDigest({ send: sent, title: 'Upload reconcile' });
   const store = makeWarningsStore(makeWarningsDb({ fail: true }));
-  await emitWarning(store, { channel_id: 'quotequarry', severity: 'advisory', code: 'upload_orphan', title: 'orphan x' }, { sendAlert: digest.sendAlert });
+  await emitWarning(store, { channel_id: 'quotequarry', severity: 'warning', code: 'upload_ghost', title: 'ghost x' }, { sendAlert: digest.sendAlert });
   await digest.flush();
   assert.match(sent.sends[0].text, /warnings store unavailable/);
+});
+
+// Owner policy 2026-11-19 ("just real notifications"): advisory/informational
+// rows are recorded but NEVER reach the phone — the 180 'upload_orphan'
+// "no action needed" rows were a nightly buzz for nothing.
+test('quiet severities are recorded but never pushed; real ones still push', async () => {
+  const sent = alertRecorder();
+  const store = makeWarningsStore(makeWarningsDb());
+  const quiet = await emitWarning(store, { channel_id: 'quotequarry', severity: 'advisory', code: 'upload_orphan', title: 'untracked upload', dedupe_key: 'qq:orphan:1' }, { sendAlert: sent });
+  assert.equal(quiet.ok, true, 'the row is still written');
+  assert.equal(quiet.alert.skipped, 'quiet_severity');
+  const info = await emitWarning(store, { channel_id: 'quotequarry', severity: 'informational', code: 'note', title: 'fyi', dedupe_key: 'qq:note:1' }, { sendAlert: sent });
+  assert.equal(info.alert.skipped, 'quiet_severity');
+  assert.equal(sent.sends.length, 0, 'nothing reached the phone');
+  await emitWarning(store, { channel_id: 'quotequarry', severity: 'action_required', code: 'review_hold', title: 'held', dedupe_key: 'qq:hold:1' }, { sendAlert: sent });
+  assert.equal(sent.sends.length, 1, 'a real problem still pushes');
 });
 
 test('audit 2026-11-13 #4: the nightly reconcile routes every warning through one digest and flushes it once', async () => {
