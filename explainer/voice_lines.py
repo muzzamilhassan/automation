@@ -293,8 +293,35 @@ def human_tts(text, synth, aligner, base_speed=1.0, mood=None, lead_ms=120):
             matched += m
             words += [{"w": w["w"], "s": round(start / sr + w["s"], 3), "d": w["d"]} for w in ws]
     if matched < FAIL_HEARD * total:
-        raise RuntimeError(f"alignment too weak: {matched}/{total} words heard")
+        if os.environ.get("VOICE_ALIGN_STRICT") == "1":
+            raise RuntimeError(f"alignment too weak: {matched}/{total} words heard")
+        # 2026-11-19: an APPROVED Money Rulebook documentary was thrown away
+        # here ("12/21 words heard") although its AUDIO was perfectly good —
+        # only the word timings were unsure. Keep the audio; estimate each
+        # word's timing inside its known sentence span (proportional to word
+        # length). Captions may drift slightly; the video still ships.
+        print(f"[voice] alignment weak ({matched}/{total} heard) — using estimated word timings", file=sys.stderr)
+        words = estimated_words(spans, sr)
     return samples, sr, words, matched, total
+
+
+def estimated_words(spans, sr):
+    """Evenly-weighted word timings inside each sentence's audio span (fallback when
+    the aligner can't hear enough words). spans = [(start_sample, size, sentence)]."""
+    out = []
+    for start, size, sentence in spans:
+        toks = sentence.split()
+        if not toks:
+            continue
+        t0, dur = start / sr, size / sr
+        weights = [max(1, len(t)) for t in toks]
+        total_w = float(sum(weights))
+        at = t0
+        for t, wgt in zip(toks, weights):
+            d = dur * (wgt / total_w)
+            out.append({"w": t, "s": round(at, 3), "d": round(d, 3)})
+            at += d
+    return out
 
 
 def whisper_aligner():

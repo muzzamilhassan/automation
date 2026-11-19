@@ -88,6 +88,34 @@ export async function dispatchResumeRun({ slug, jobId, token, repo, fetchImpl = 
 }
 
 /**
+ * Is a channel-autopilot run for this channel already waiting or running?
+ * GitHub keeps only ONE pending run per concurrency group (channel-<slug>):
+ * dispatching another while one waits CANCELS the waiting one — that is how
+ * the 2026-11-16 Nov-14 approval silently died (3 approvals in 30s). Runs
+ * carry the channel in their title (run-name: "<slug> · <event>").
+ * Fail-open (returns busy:false) when GitHub can't be read — the nightly
+ * approved-not-published sweep is the backstop.
+ */
+export async function channelRunBusy({ slug, token, repo, fetchImpl = fetch } = {}) {
+  if (!token || !slug) return { busy: false };
+  try {
+    const statuses = ['queued', 'in_progress', 'waiting', 'pending', 'requested'];
+    for (const st of statuses) {
+      const res = await fetchImpl(`https://api.github.com/repos/${repo}/actions/workflows/channel-autopilot.yml/runs?status=${st}&per_page=20`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'User-Agent': 'quarry-studio', 'X-GitHub-Api-Version': '2022-11-28' },
+      });
+      if (!res.ok) continue;
+      const j = await res.json();
+      const hit = (j.workflow_runs || []).find((r) => String(r.display_title || '').startsWith(`${slug} ·`));
+      if (hit) return { busy: true, status: st, runId: hit.id };
+    }
+    return { busy: false };
+  } catch {
+    return { busy: false };
+  }
+}
+
+/**
  * THE approve action (D16/AC-P4-22): disclosure gate (AC-P4-21) → approve →
  * dispatch → warn on dispatch failure. On a dispatch failure the approval
  * row STANDS (the owner re-triggers from the warning — an approval may be
@@ -125,6 +153,17 @@ export async function approveScriptAndDispatch({
     return { ok: false, approved: false, dispatched: false, error: ap.error || ap.reason || 'approve_failed' };
   }
 
+  // Never knock out a waiting run (GitHub keeps one pending per channel).
+  const busy = await channelRunBusy({ slug: script.channel_id, token, repo, fetchImpl });
+  if (busy.busy) {
+    return {
+      ok: true,
+      approved: true,
+      dispatched: false,
+      deferred: true,
+      message: `Approved. A run for this channel is already ${busy.status === 'in_progress' ? 'running' : 'waiting'} — starting another now would cancel it, so this one is saved. Press Redispatch on this script after that run finishes (Runs page).`,
+    };
+  }
   const dispatch = await dispatchResumeRun({ slug: script.channel_id, jobId: script.job_id, token, repo, fetchImpl });
   if (!dispatch.ok) {
     // H6: the durable record behind a failed dispatch — never silent.

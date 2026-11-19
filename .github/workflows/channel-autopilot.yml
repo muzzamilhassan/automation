@@ -130,7 +130,9 @@ jobs:
       group: channel-${{ matrix.slug.slug }}
       cancel-in-progress: false
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # 120 (was 90): the documentary lane alone may now take up to 75 min
+    # (channel-pipeline DOC_TIMEOUT_MS) after setup + the Shorts lane.
+    timeout-minutes: 120
     env:
       SLUG: ${{ matrix.slug.slug }}
     steps:

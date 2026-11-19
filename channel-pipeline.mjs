@@ -871,11 +871,48 @@ if (jobCtl?.isSkipped('episode')) {
 } else if (!SKIP_EPISODE && !episodeDone && (await quotaGate('Episode'))) {
   log(`Phase 5 — Producing daily episode...`);
   await jobCtl?.startStep('episode');
-  // 45-min bound: the 10-chapter doc class (clips per chapter + TTS + render)
-  // outgrew the default 900s — the kill landed mid-download at exactly 15 min.
-  const ok = run('yt-deepdive.mjs', [slug, ...(FORCE ? ['--force'] : [])], { timeoutMs: 2700000 });
-  if (ok) { results.episode = true; log(`✓ Episode done`); await jobCtl?.finishStep('episode', 'succeeded'); }
-  else { errors.push('Episode failed'); await jobCtl?.finishStep('episode', 'failed', 'Episode failed'); }
+  // 75-min bound (was 45): the 2026-11-18 MR resume render was SIGTERM'd at
+  // exactly 2700s mid-render — the 10-chapter doc class with human-voice TTS
+  // can exceed 45 min on a slow runner. The produce job's timeout-minutes
+  // must stay above this (see channel-autopilot.yml).
+  const DOC_TIMEOUT_MS = 4500000;
+  const ep = runChild('yt-deepdive.mjs', [slug, ...(FORCE ? ['--force'] : [])], { timeoutMs: DOC_TIMEOUT_MS });
+  if (ep.ok) { results.episode = true; log(`✓ Episode done`); await jobCtl?.finishStep('episode', 'succeeded'); }
+  else {
+    results.episodeFailed = true;
+    const cause = ep.timedOut
+      ? `timed out after ${Math.round(ep.ms / 60000)} min (limit ${DOC_TIMEOUT_MS / 60000} min)`
+      : `crashed (exit ${ep.status ?? 'none'}${ep.signal ? `, signal ${ep.signal}` : ''}) after ${Math.round(ep.ms / 60000)} min`;
+    errors.push(`Episode failed: ${cause}`);
+    await jobCtl?.finishStep('episode', 'failed', `Episode failed: ${cause}`);
+    // 2026-11-19 owner report: Nov 17 (voice-alignment crash) and Nov 18
+    // (timeout) were APPROVED docs that never published, yet the run ended
+    // green and logged 'not docDay' — nobody was told. Now: a real
+    // (action_required) warning → bell + phone, and a red annotation.
+    console.log(`::error title=${slug}: documentary render failed::${cause}${RESUME_JOB_ID ? ` (approved script, resume ${RESUME_JOB_ID})` : ''}`);
+    if (warnStore && emitWarningFn) {
+      try {
+        await emitWarningFn(warnStore, {
+          channel_id: slug,
+          severity: 'action_required',
+          code: 'doc_render_failed',
+          title: `documentary render failed — ${cause}`,
+          explanation: RESUME_JOB_ID
+            ? 'An APPROVED documentary did not render, so it was NOT published. The approval still stands.'
+            : "Today's documentary did not render, so nothing was published for this slot.",
+          evidence: `yt-deepdive.mjs ${cause}${RESUME_JOB_ID ? `; resume job ${RESUME_JOB_ID}` : ''}`,
+          recommended_action: RESUME_JOB_ID
+            ? 'Retry from Studio > Review (Redispatch on the approved script), or reject it to skip this video.'
+            : 'Check the run log on the Runs page; the next scheduled run tries again.',
+          auto_verifiable: false,
+          job_id: RESUME_JOB_ID || null,
+          dedupe_key: `${slug}:doc_render_failed:${RESUME_JOB_ID || today}`,
+        });
+      } catch (e) {
+        log(`[warn] doc_render_failed row not written: ${String(e?.message || e).slice(0, 100)}`);
+      }
+    }
+  }
 } else if (SKIP_EPISODE) {
   log(`Episode skipped (--no-episode or paused)`);
   await jobCtl?.finishStep('episode', 'skipped', '--no-episode');
@@ -950,8 +987,9 @@ try {
     log(`✓ staged doc render for TikTok clips: "${title}" (keyword: ${keyword})`);
     await jobCtl?.finishStep('staging', 'succeeded');
   } else {
-    log('no doc rendered today (not docDay) — nothing staged for TikTok');
-    await jobCtl?.finishStep('staging', 'skipped', 'no doc rendered today');
+    // Say WHY there's no doc — 'not docDay' used to hide failed renders.
+    log(results.episodeFailed ? 'doc render FAILED this run — nothing staged for TikTok' : 'no doc rendered today (not docDay) — nothing staged for TikTok');
+    await jobCtl?.finishStep('staging', 'skipped', results.episodeFailed ? 'doc render failed' : 'no doc rendered today');
   }
 } catch (e) {
   log(`⚠ TikTok staging failed (non-fatal): ${String(e.message).slice(0, 90)}`);

@@ -21,7 +21,7 @@ export async function main(argv = process.argv) {
   loadEnv(); // repo-root .env (CI env always wins)
   const { emitWarning, getDefaultWarningsStore } = await import('../lib/warnings-store.mjs');
   const { getScriptStore } = await import('../lib/script-store.mjs');
-  const { sweepReviewTimeouts } = await import('../lib/review-gate.mjs');
+  const { sweepReviewTimeouts, sweepApprovedNotPublished } = await import('../lib/review-gate.mjs');
 
   if (!process.env.DATABASE_URL) {
     console.error('[review-sweep] DATABASE_URL not set — no script ledger to sweep');
@@ -46,6 +46,10 @@ export async function main(argv = process.argv) {
     return 1;
   }
   console.log(`[review-sweep] done: ${r.timedOut} timed-out script(s) warned, all retained awaiting_review`);
+  // Safety net: approved scripts that never became a video (2026-11-19).
+  const lost = await sweepApprovedNotPublished({ scriptStore: scripts, warningsStore: warnings, emit: emitWarning, log: (m) => console.log(m) });
+  if (!lost.ok) console.error(`[review-sweep] approved-not-published check failed: ${lost.error}`);
+  else console.log(`[review-sweep] ${lost.flagged} approved script(s) never published — flagged for the owner`);
   return 0;
 }
 

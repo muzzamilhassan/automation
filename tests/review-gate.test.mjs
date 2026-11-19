@@ -395,7 +395,11 @@ describe('#106 T5 review dispatch — approve -> channel-autopilot resume (D16, 
     });
     assert.equal(r.ok, true);
     assert.equal(r.dispatched, true);
-    const call = fetchImpl.calls[0];
+    // 2026-11-19: approve first asks GitHub whether the channel already has a
+    // waiting/running run (never knock one out) — the dispatch is the call
+    // that hits /dispatches, wherever it lands in the sequence.
+    const call = fetchImpl.calls.find((c) => /\/dispatches$/.test(c.url));
+    assert.ok(call, 'a dispatch was made');
     assert.match(call.url, /actions\/workflows\/channel-autopilot\.yml\/dispatches/);
     assert.equal(call.body.ref, 'main');
     assert.equal(call.body.inputs.channel, 'quotequarry');

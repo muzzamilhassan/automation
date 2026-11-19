@@ -108,9 +108,24 @@ def test_human_tts_weak_whole_pass_falls_back_to_per_sentence():
     assert words[2]["w"] == "Three" and words[2]["s"] == pytest.approx(0.66, abs=1e-3)
 
 
-def test_human_tts_raises_when_alignment_stays_weak():
+def test_human_tts_raises_when_alignment_stays_weak_in_strict_mode(monkeypatch):
+    monkeypatch.setenv("VOICE_ALIGN_STRICT", "1")
     with pytest.raises(RuntimeError, match="alignment too weak"):
         vl.human_tts("One two. Three four five?", _fake_synth, lambda a, sr, t: (_fake_aligner(a, sr, t)[0], 0))
+
+
+def test_human_tts_weak_alignment_falls_back_to_estimated_timings(monkeypatch):
+    # 2026-11-19: an approved doc was discarded on "12/21 words heard" though the
+    # audio was fine. Default now keeps the audio and estimates word timings.
+    monkeypatch.delenv("VOICE_ALIGN_STRICT", raising=False)
+    samples, sr, words, matched, total = vl.human_tts(
+        "One two. Three four five?", _fake_synth, lambda a, sr, t: (_fake_aligner(a, sr, t)[0], 0))
+    assert matched == 0 and total == 5
+    assert [w["w"] for w in words] == ["One", "two.", "Three", "four", "five?"]
+    starts = [w["s"] for w in words]
+    assert starts == sorted(starts), "timings are monotonic"
+    assert all(w["d"] > 0 for w in words)
+    assert words[-1]["s"] + words[-1]["d"] <= samples.size / sr + 1e-3, "inside the audio"
 
 
 def test_human_tts_fails_loudly_on_empty_audio():

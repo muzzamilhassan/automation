@@ -152,9 +152,9 @@ export async function POST(req) {
       fetchImpl: fetch,
     });
     await appendAudit(user.email, 'review-approve',
-      `${body.id}${r.dispatched ? ' · dispatched' : r.approved ? ` · APPROVED BUT DISPATCH FAILED (${r.error})` : ` · refused (${r.error})`}`);
+      `${body.id}${r.dispatched ? ' · dispatched' : r.deferred ? ' · approved, run deferred (channel busy)' : r.approved ? ` · APPROVED BUT DISPATCH FAILED (${r.error})` : ` · refused (${r.error})`}`);
     if (!r.ok && !r.approved) return Response.json({ error: r.error }, { status: 400 });
-    if (!r.dispatched) return Response.json({ ok: true, approved: true, dispatched: false, warning: r.error }, { status: 202 });
+    if (!r.dispatched) return Response.json({ ok: true, approved: true, dispatched: false, deferred: !!r.deferred, warning: r.message || r.error }, { status: 202 });
     return Response.json({ ok: true, approved: true, dispatched: true });
   }
 

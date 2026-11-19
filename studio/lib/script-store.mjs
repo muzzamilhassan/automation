@@ -333,6 +333,29 @@ export function makeScriptStore(deps) {
     }
   }
 
+  /**
+   * Approved scripts that never became a video (video_id still null) more
+   * than `olderThanHours` after approval — the silent-loss case of
+   * 2026-11-19 (cancelled resume, render crash, render timeout).
+   */
+  async function approvedNotPublished({ olderThanHours = 6 } = {}) {
+    try {
+      const ensured = await ensureSchema();
+      if (!ensured.ok) return { ok: false, error: ensured.error };
+      const rows = await dbClient(
+        `SELECT id, channel_id, title, job_id, slot_date, approval_at, approval_by
+           FROM scripts
+          WHERE status = 'approved' AND video_id IS NULL
+            AND approval_at IS NOT NULL AND approval_at < now() - ($1::text || ' hours')::interval
+          ORDER BY approval_at ASC`,
+        [String(olderThanHours)],
+      );
+      return { ok: true, scripts: rows ?? [] };
+    } catch (e) {
+      return degrade(e);
+    }
+  }
+
   /** One script with its sources and claims — the side-by-side review payload. */
   async function getScript(id) {
     try {
@@ -502,6 +525,7 @@ export function makeScriptStore(deps) {
     approve,
     reject,
     pendingFor,
+    approvedNotPublished,
     getScript,
     latestApproved,
     scriptsForSlot,
