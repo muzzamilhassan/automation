@@ -110,7 +110,7 @@
       "cron": "13 2 * * *",
       "docDay": "Tue",
       "active": true,
-      "autopilot": false,
+      "autopilot": true,
       "tokenSecretSaved": true,
       "niche": "Timeless wisdom, self-mastery & human psychology",
       "accent": "#F5E31C",
