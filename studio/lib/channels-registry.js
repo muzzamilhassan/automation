@@ -252,11 +252,43 @@ async function readRegistryRepo() {
   return JSON.parse(await res.text());
 }
 
+// The DB derives `active` / `tokenSecretSaved` from token columns, but the
+// legacy channels keep their keys as GitHub secrets (YT_TOKEN_<SLUG>) that
+// Neon never sees — so from the DB alone they read as INACTIVE + 'secret
+// missing'. Consequences (2026-11-19, owner report "pause works, resume
+// doesn't"): state() skipped their per-channel state files (stale Oct-23
+// lastRun, an invisible pause → no Resume button), /api/action called them
+// 'unknown channel', and the wizard showed 'secret missing'. The repo
+// registry (yt-mcp/studio-channels.json — the file the engine itself runs
+// on) is the truth for these two flags; a DB park/pause still wins.
+export function overlayRepoFlags(dbEntries = [], repoChannels = []) {
+  const bySlug = new Map((repoChannels || []).map((c) => [c.slug, c]));
+  return dbEntries.map((e) => {
+    const r = bySlug.get(e.slug);
+    if (!r) return e;
+    const parkedInDb = e.status === 'parked' || e.status === 'paused';
+    return {
+      ...e,
+      active: parkedInDb ? false : r.active !== false,
+      tokenSecretSaved: e.tokenSecretSaved || r.tokenSecretSaved === true,
+      tokenSecret: e.tokenSecret || r.tokenSecret || '',
+    };
+  });
+}
+
+let repoFlagsMemo = { at: 0, val: null };
+async function repoChannelsForOverlay() {
+  if (repoFlagsMemo.val && Date.now() - repoFlagsMemo.at < 60_000) return repoFlagsMemo.val;
+  const val = ((await readRegistryRepo().catch(() => null)) || {}).channels || null;
+  if (val) repoFlagsMemo = { at: Date.now(), val };
+  return val || [];
+}
+
 export async function readRegistry() {
   if (dbReady) {
     try {
       const rows = await db`SELECT * FROM channels ORDER BY slug`;
-      return { channels: rows.map(rowToEntry) };
+      return { channels: overlayRepoFlags(rows.map(rowToEntry), await repoChannelsForOverlay()) };
     } catch (e) {
       console.error('[registry] db read failed — repo fallback:', String(e.message).slice(0, 80));
     }
