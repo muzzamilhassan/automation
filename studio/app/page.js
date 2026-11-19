@@ -149,7 +149,9 @@ function OverviewContent() {
       if (ov.status === 'fulfilled') { setData(ov.value); setErr(false); } else setErr(true);
       const a = an.status === 'fulfilled' ? an.value : null;
       setAnalytics(a && !a.error ? a : null);
-      setAnalyticsCoverage(a?.coverage || null);
+      // fetchedAt lives on the analytics payload, not inside coverage (the chip
+      // read coverage.fetchedAt → 'YouTube · Invalid Date')
+      setAnalyticsCoverage(a?.coverage ? { ...a.coverage, fetchedAt: a.fetchedAt || null } : null);
       // a 200 without a scripts array is not a count either
       setReview(rv.status === 'fulfilled' && !(rv.value.status === 'ok' && rv.value.count === null) ? rv.value : { status: 'error', count: null });
       if (fresh) setRefreshedAt(new Date());
@@ -263,7 +265,7 @@ function OverviewContent() {
             sub={analytics ? 'Real YouTube Analytics · all channels · last 14 of 28 days' : analyticsCoverage && !analyticsCoverage.ok?.length ? 'YouTube Analytics unavailable right now' : 'Loading real YouTube Analytics…'}
             icon={Radar}
             right={analyticsCoverage ? (
-              analyticsCoverage.failed?.length === 0 ? <Chip tone="ok">YouTube · {new Date(analyticsCoverage.fetchedAt).toLocaleDateString()}</Chip>
+              analyticsCoverage.failed?.length === 0 ? <Chip tone="ok">YouTube{analyticsCoverage.fetchedAt ? ` · ${new Date(analyticsCoverage.fetchedAt).toLocaleDateString()}` : ''}</Chip>
                 : analyticsCoverage.ok?.length ? <Chip tone="warn">{analyticsCoverage.ok.length} of {analyticsCoverage.ok.length + analyticsCoverage.failed.length} channels</Chip>
                   : <Chip tone="bad">YouTube unavailable · <button type="button" className="underline" onClick={() => load(true)}>Retry</button></Chip>
             ) : null}

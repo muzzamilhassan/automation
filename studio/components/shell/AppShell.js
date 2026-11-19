@@ -217,7 +217,20 @@ function Brand({ collapsed }) {
   );
 }
 
+// The shell's live data (alerts, inbox count, identity, channels) must load
+// WITH the session. AppShell used to stay mounted across the /login → app
+// client navigation, so those fetches ran once on the login screen (401) and
+// never again — after every sign-in the bell said "owner/staff surface", the
+// Inbox badge was empty and the avatar showed '··' until a manual reload.
+// Bare pages now render without the frame; the frame mounts fresh (and
+// fetches with the cookie) the moment a real page opens.
 export default function AppShell({ children }) {
+  const pathname = usePathname();
+  if (pathname === '/login' || pathname === '/proof' || pathname === '/client') return <ConfirmProvider>{children}</ConfirmProvider>;
+  return <ShellFrame>{children}</ShellFrame>;
+}
+
+function ShellFrame({ children }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -264,7 +277,6 @@ export default function AppShell({ children }) {
 
   // Bare pages — no sidebar, no topbar: login, the public /proof sales page,
   // and the DFY client workspace (it has its own minimal chrome).
-  if (pathname === '/login' || pathname === '/proof' || pathname === '/client') return <ConfirmProvider>{children}</ConfirmProvider>;
 
   const logout = async () => {
     setLoggingOut(true);

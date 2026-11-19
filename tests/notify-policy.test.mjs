@@ -34,3 +34,22 @@ test('the shared hook feeds every surface the grouped REAL list', () => {
   const hook = fs.readFileSync('studio/components/use-open-warnings.js', 'utf8');
   assert.match(hook, /rows: groupRealWarnings\(open\), quiet: quietCount\(open\)/);
 });
+
+// 2026-11-19 (found by the live check): AppShell stayed mounted across the
+// /login → app navigation, so its alert/identity fetches ran once while
+// signed OUT and never re-ran — empty bell + inbox + '··' avatar after every
+// sign-in. The data-bearing frame must mount only on real pages.
+test('AppShell: bare pages render without the frame; hooks live in ShellFrame', () => {
+  const src = fs.readFileSync('studio/components/shell/AppShell.js', 'utf8').replace(/\r\n/g, '\n');
+  const def = src.slice(src.indexOf('export default function AppShell'), src.indexOf('function ShellFrame'));
+  assert.match(def, /return <ShellFrame>\{children\}<\/ShellFrame>;/);
+  assert.doesNotMatch(def, /useOpenWarnings|useMe\(|useState/, 'no data hooks before the bare-page return');
+  const frame = src.slice(src.indexOf('function ShellFrame'));
+  assert.match(frame, /useOpenWarnings\(\)/);
+  assert.match(frame, /useMe\(\)/);
+});
+
+test('home chip reads fetchedAt from the payload (no "Invalid Date")', () => {
+  const home = fs.readFileSync('studio/app/page.js', 'utf8');
+  assert.match(home, /fetchedAt: a\.fetchedAt \|\| null/);
+});
