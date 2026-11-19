@@ -7,11 +7,21 @@
 // closes, focus moves in on open, Tab is trapped inside, focus returns to the
 // element that opened it, body scroll is locked while open.
 // Phones (<640px): full-width sheet; desktop: right-side panel.
-import { useEffect, useId, useRef } from 'react';
+//
+// Feedback r1 (item E): rendered through a PORTAL on document.body. The page
+// wrapper in AppShell animates with `fade-up` (fill-mode both → it keeps
+// `transform: translateY(0)` forever), and any transform makes an ancestor
+// the containing block for position:fixed — the drawer was sized to the
+// whole PAGE, so its body never overflowed (no scroll) and the scroll lock
+// hid everything below the fold. From body, no ancestor can do that again.
+import { useEffect, useId, useRef, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const WIDTHS = { sm: 'sm:max-w-md', md: 'sm:max-w-lg', lg: 'sm:max-w-2xl', xl: 'sm:max-w-4xl' };
+const noopSubscribe = () => () => {};
+
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export default function Drawer({ open, onClose, title, description, icon: Icon, size = 'md', footer, children }) {
@@ -20,6 +30,8 @@ export default function Drawer({ open, onClose, title, description, icon: Icon, 
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
   const titleId = useId();
   const descId = useId();
+  // client-only mount guard (server snapshot = false → no portal during SSR)
+  const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
 
   useEffect(() => {
     if (!open) return;
@@ -62,9 +74,9 @@ export default function Drawer({ open, onClose, title, description, icon: Icon, 
     };
   }, [open]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[60]" role="presentation">
       <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px] fade-in" onClick={onClose} aria-hidden="true" />
       <div
@@ -75,7 +87,7 @@ export default function Drawer({ open, onClose, title, description, icon: Icon, 
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
         className={cn(
-          'absolute inset-y-0 right-0 w-full flex flex-col bg-[var(--surface)] border-l border-[var(--line)] shadow-2xl outline-none drawer-in',
+          'absolute inset-y-0 right-0 w-full h-full max-h-[100dvh] flex flex-col bg-[var(--surface)] border-l border-[var(--line)] shadow-2xl outline-none drawer-in',
           WIDTHS[size] || WIDTHS.md
         )}
       >
@@ -93,13 +105,14 @@ export default function Drawer({ open, onClose, title, description, icon: Icon, 
             <X size={16} />
           </button>
         </header>
-        <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 min-h-0">{children}</div>
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 sm:px-6 py-5">{children}</div>
         {footer ? (
           <footer className="shrink-0 px-5 sm:px-6 py-3.5 border-t border-[var(--line)] flex flex-wrap items-center justify-end gap-2 pb-[calc(0.875rem+env(safe-area-inset-bottom))]">
             {footer}
           </footer>
         ) : null}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -22,6 +22,7 @@ import { validateSchedule, projection, projectWithQuotaModel, cronFromSlots } fr
 import { ensureQuotaModelSchema, loadQuotaModel } from '@/lib/quota-ledger';
 import { adaptPostgres } from '@/lib/provider-routing';
 import { db, dbReady } from '@/lib/db';
+import { channelTimes } from '@/lib/slot-planner.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -124,13 +125,22 @@ export async function GET(req) {
   const e = (await loadFile())[slug] || {};
   const { docDays = [], shortDays = [], shortsSource = 'generated' } = e;
   let gateCron = null;
+  // Feedback r1 (item F): the SlotTimeline needs every channel's times to
+  // grey out taken hours (live registry — no per-channel maps) and this
+  // channel's "goes public" slots. Other channels' names/times are for
+  // owner/staff only; a client sees just their own channel.
+  let channels = [];
+  let publish = { slots: [], long: null };
   try {
     const reg = await readRegistry();
     const entry = (reg.channels || []).find((c) => c.slug === slug);
     gateCron = entry?.cron || entry?.kit?.gateCron || null;
+    const own = channelTimes(entry ? [entry] : [])[0];
+    if (own) publish = { slots: own.publish, long: own.long };
+    channels = ['owner', 'staff'].includes(user.role) ? channelTimes(reg.channels || []) : [];
   } catch { }
   const { proj } = await scheduleProjection({ docDays, shortDays });
-  return Response.json({ slug, schedule: { docDays, shortDays, shortsSource }, gateCron, projection: proj });
+  return Response.json({ slug, schedule: { docDays, shortDays, shortsSource }, gateCron, publish, channels, projection: proj });
 }
 
 const DAILY_CRON_RE = /^(\d{1,2}) (\d{1,2}) \* \* \*$/;

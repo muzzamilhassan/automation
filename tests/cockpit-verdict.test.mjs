@@ -113,14 +113,17 @@ test('channelToday precedence + nextSlot math (UTC)', () => {
 const page = fs.readFileSync('studio/app/page.js', 'utf8');
 const code = page.replace(/\/\/.*$/gm, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
 
-test('page: the verdict banner is rendered first, before the tabs and the lifetime tiles', () => {
+// feedback r1 (2026-11-19): home = verdict line → channel rows → views chart;
+// the tabs and lifetime tiles moved off home (tests/home-simple.test.mjs)
+test('page: the verdict line is rendered first, before the channel rows and the chart', () => {
   assert.match(code, /from '@\/lib\/cockpit-verdict\.mjs'/);
   assert.match(code, /const verdict = deriveVerdict\(\{/);
-  const banner = code.indexOf('<VerdictBanner verdict={verdict}');
-  assert.ok(banner > 0, 'banner rendered');
-  assert.ok(banner < code.indexOf('<TabNav'), 'banner above the tabs');
-  assert.ok(code.indexOf('<TodayRow') < code.indexOf('label="YT subs"'), 'channels-today row above lifetime totals');
-  assert.match(code, /href=\{`\/channels\/\$\{c\.slug\}`\}/, 'channel cards open the channel page');
+  const banner = code.indexOf('<VerdictLine verdict={verdict}');
+  assert.ok(banner > 0, 'verdict rendered');
+  assert.ok(banner < code.indexOf('<TodayList'), 'verdict above the channel rows');
+  assert.ok(code.indexOf('<TodayList') < code.indexOf('title="Views per day"'), 'channel rows above the chart');
+  assert.doesNotMatch(code, /<TabNav\b|label="YT subs"/, 'no tabs or lifetime tiles on home');
+  assert.match(code, /href=\{`\/channels\/\$\{c\.slug\}`\}/, 'channel rows open the channel page');
 });
 
 test('page: the verdict + review state hooks live inside OverviewContent (not the wrapper)', () => {
@@ -138,11 +141,13 @@ test('page: the verdict + review state hooks live inside OverviewContent (not th
   assert.match(inner, /reviewStatusFromHttp\(r\.status\)/);
 });
 
-test('page: Phase 0 honesty retained — coverage chip, unavailable tiles, warnings error card', () => {
+test('page: Phase 0 honesty retained — coverage chip, unavailable chart, unknown verdict + Retry', () => {
   assert.match(code, /analyticsCoverage\.failed\?\.length === 0 \? <Chip tone="ok">/);
   assert.match(code, /YouTube unavailable · <button/);
-  assert.match(code, /' · unavailable'/);
-  assert.match(code, /warnStatus === 'error' \? \(/);
+  assert.match(code, />— · unavailable</);
+  // feedback r1: the warnings error card is gone; an error makes the verdict
+  // "unknown" (never all-clear) and the line offers Retry
+  assert.match(code, /verdict\.unknown\.length \? \(/);
   assert.match(code, /this is not an all-clear/);
   assert.doesNotMatch(code, /Chip tone="ok">real data</);
 });

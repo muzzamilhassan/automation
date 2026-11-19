@@ -16,6 +16,8 @@ import {
   RefreshCw,
   Trophy,
   ShieldAlert,
+  Radar,
+  Flame,
 } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, PageSkeleton, StatCard, BrandMark, Segmented, EmptyState } from '@/components/ui';
 import { RetentionBars, MiniBars } from '@/components/charts';
@@ -148,6 +150,14 @@ export default function Analytics() {
   const platformTotal = platformSlices.reduce((a, s) => a + s.value, 0) || 1;
   // null (unknown) renders "—" in StatCard — never a fake 0
   const subsShown = ovErr ? null : sel === 'all' ? totals.ytSubs ?? null : selChannel?.yt?.subs ?? null;
+  // moved from home (feedback r1, 2026-11-19): the lifetime totals this page
+  // didn't already show. FB/IG followers stay in "Audience split" (no repeats).
+  const lifetimeViews = ovErr ? null : sel === 'all' ? totals.ytViews ?? null : selChannel?.yt?.views ?? null;
+  const lifetimeVideos = ovErr ? null : sel === 'all' ? totals.ytVideos ?? null : selChannel?.yt?.videos ?? null;
+  // moved from home too: today's researched topics + trend radar, following
+  // the channel picker. Overview failure = "unavailable", never "none yet".
+  const topicRows = channelScope.filter((c) => c.todayTopics?.length || c.episodeTopic);
+  const trendRows = Object.entries(data.trends || {}).filter(([slug]) => sel === 'all' || slug === sel);
   const liveRows = retentionRows.filter((r) => r.live);
   const best = [...liveRows].sort((a, b) => b.pct - a.pct)[0];
   const worst = liveRows.length > 1 ? [...liveRows].sort((a, b) => a.pct - b.pct)[0] : null;
@@ -319,11 +329,13 @@ export default function Analytics() {
       ) : null}
 
       {/* REAL 28-day numbers */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-5">
         <StatCard icon={Eye} label="Views · 28 days" value={real ? real.totals?.views ?? null : null} fmt={fmt} color="var(--info)" iconBg="color-mix(in srgb, var(--info) 12%, transparent)" />
         <StatCard icon={Clock} label="Watch time · hours" value={real ? real.totals?.watchHours ?? null : null} fmt={(v) => Number(v).toLocaleString('en-US')} color="var(--ok)" iconBg="color-mix(in srgb, var(--ok) 12%, transparent)" />
         <StatCard icon={UserPlus} label="Subs gained · 28 days" value={real ? real.totals?.subsGained ?? null : null} fmt={(v) => Number(v).toLocaleString('en-US')} color="var(--accent)" iconBg="var(--accent-soft)" />
         <StatCard icon={Users} label="Subscribers · total" value={subsShown} fmt={fmt} />
+        <StatCard icon={Eye} label="Views · all time" value={lifetimeViews} fmt={fmt} color="var(--info)" iconBg="color-mix(in srgb, var(--info) 12%, transparent)" />
+        <StatCard icon={Film} label="Videos · total" value={lifetimeVideos} fmt={fmt} />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4 mb-5">
@@ -545,6 +557,75 @@ export default function Analytics() {
                     <span className="block t-10 text-faint">{r.when}{r.size ? ` · ${Math.round(r.size / 1024)} KB` : ''}</span>
                   </span>
                   <Chip>repo /reports</Chip>
+                </div>
+              ))
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* moved from home (feedback r1): today's topics + trend radar */}
+      <div className="grid lg:grid-cols-2 gap-4 mt-5">
+        <Card className="overflow-hidden">
+          <CardHead
+            title="Today's researched topics"
+            sub="Picked from what is getting views in each niche right now"
+            icon={Radar}
+          />
+          <div className="px-4 pb-4">
+            {ovErr ? (
+              <p className="t-12 text-faint py-6 text-center">Topics unavailable right now — not an empty list.</p>
+            ) : topicRows.length ? (
+              <div className="grid gap-2.5">
+                {topicRows.map((c) => (
+                  <div key={c.slug} className="inset-tile p-3.5 min-w-0">
+                    <div className="flex items-center gap-2 mb-2">
+                      <BrandMark short={BRAND[c.slug]?.short || '•'} accent={c.accent || 'var(--accent)'} size={22} />
+                      <span className="t-12 font-semibold text-ink truncate">{c.label || c.slug}</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      {(c.todayTopics || []).map((t, i) => (
+                        <span key={i} className="t-11 text-muted leading-snug flex gap-1.5">
+                          <span style={{ color: c.accent || 'var(--accent)' }}>▸</span>
+                          <span>from viral wave: “{t}”</span>
+                        </span>
+                      ))}
+                      {c.episodeTopic ? (
+                        <span className="t-11 text-muted leading-snug flex gap-1.5">
+                          <span className="text-accent">▸</span>
+                          <span>episode: “{c.episodeTopic}”</span>
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="t-12 text-faint py-6 text-center">No topics picked yet.</p>
+            )}
+          </div>
+        </Card>
+
+        <Card className="overflow-hidden">
+          <CardHead title="Trend radar" sub="Live keywords + viral videos per niche" icon={Flame} />
+          <div className="px-5 pb-5">
+            {ovErr ? (
+              <p className="t-12 text-faint py-6 text-center">Trends unavailable right now — not an empty radar.</p>
+            ) : trendRows.length === 0 ? (
+              <EmptyState icon={Radar} title="No trend cache yet" sub="Trends refresh with the next production batch." />
+            ) : (
+              trendRows.map(([slug, t]) => (
+                <div key={slug} className="py-2.5 border-b border-line last:border-0 min-w-0">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <BrandMark short={BRAND[slug]?.short || '•'} accent={BRAND[slug]?.accent || 'var(--faint)'} size={20} />
+                    <span className="t-12 font-semibold text-ink">{BRAND[slug]?.label || slug}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mb-1.5">
+                    {(t.keywords || []).map((k) => (
+                      <Chip key={k} tone="accent">{k}</Chip>
+                    ))}
+                  </div>
+                  <p className="t-11 text-faint truncate">viral now: {(t.viral || []).map((v) => v.title).join(' · ').slice(0, 110)}</p>
                 </div>
               ))
             )}

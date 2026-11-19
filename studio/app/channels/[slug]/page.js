@@ -2,6 +2,9 @@
 // Phase 2 (I5) — one channel = one place. Health, today's production, schedule,
 // topics, recent uploads and settings shortcuts for ONE channel, all from real
 // data (/api/overview + /api/me). Unknown data says so; it never reads "Healthy".
+// Feedback round 1 (2026-11-19, D5): no warning-reason list — status tiles are
+// shared with the Channels drawer (ChannelStatus) and a REAL open problem shows
+// as ONE red line linking to the Inbox.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -12,12 +15,14 @@ import {
 import { Card, CardHead, Chip, EmptyState, PageSkeleton, BrandMark } from '@/components/ui';
 import { useBrands } from '@/components/use-brands';
 import ChannelDrawers, { CHANNEL_DRAWERS, drawersFor } from '@/components/ChannelDrawers';
+import { ChannelStatus } from '@/components/ChannelOverviewDrawer';
 import { useConfirm } from '@/components/ConfirmDialog';
-import { fmt, timeAgo, when } from '@/lib/utils';
+import { useOpenWarnings } from '@/components/use-open-warnings';
+import { fmt, when } from '@/lib/utils';
 import {
-  channelHealth, levelTone, resolveChannelView, todayProduction, youtubeConnection,
-  validSlots, slotDate, channelUploads, nextScheduled, realUploads, editHref, todayUTC,
+  resolveChannelView, validSlots, slotDate, channelUploads, realUploads, editHref, todayUTC,
 } from '@/lib/channel-health.mjs';
+import { channelHasRealProblem } from '@/lib/channel-overview.mjs';
 
 const YT_ID = /^[A-Za-z0-9_-]{11}$/;
 
@@ -29,17 +34,6 @@ function safeDecode(v) {
 function localTime(hhmm) {
   const d = slotDate(hhmm, new Date());
   return d ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
-}
-
-function StripTile({ label, value, tone = 'plain', sub }) {
-  const color = { ok: 'var(--ok-ink)', warn: 'var(--warn-ink)', bad: 'var(--bad-ink)' }[tone] || 'var(--ink)';
-  return (
-    <div className="inset-tile p-3 min-w-0">
-      <div className="overline mb-1">{label}</div>
-      <div className="t-13 font-semibold truncate" style={{ color }} title={typeof value === 'string' ? value : undefined}>{value}</div>
-      {sub ? <div className="t-11 text-faint mt-0.5 truncate" title={sub}>{sub}</div> : null}
-    </div>
-  );
 }
 
 function Shortcut({ href, icon: Icon, title, sub }) {
@@ -129,7 +123,8 @@ export default function ChannelPage() {
   const [role, setRole] = useState(null);
   const [meDone, setMeDone] = useState(false); // wait for the role so a client never flashes "not found"
   const confirm = useConfirm();
-  // which shared channel drawer is open (schedule | templates | keys | routing)
+  const { rows: openWarningRows } = useOpenWarnings(); // REAL problems only → one red line
+  // which shared channel drawer is open (schedule | templates | thumbnails | keys | routing)
   const [drawer, setDrawer] = useState(null);
   const closeDrawer = useCallback(() => setDrawer(null), []); // stable: Drawer re-focuses when onClose changes
   const [busy, setBusy] = useState(false);
@@ -232,13 +227,10 @@ export default function ChannelPage() {
 
   const c = view.row;
   const now = new Date();
-  const health = channelHealth(c, { now, canReconnect: role === 'owner' });
-  const conn = youtubeConnection(c);
-  const prod = todayProduction(c, now);
+  const hasProblem = channelHasRealProblem(openWarningRows, slug);
   const slots = validSlots(c.slots);
   const longSlot = validSlots([c.longSlot])[0] || null;
   const uploads = channelUploads(data.logs, slug);
-  const next = nextScheduled(data.logs, slug, now);
   const topicsFromToday = c.lastRun === todayUTC(now);
   const handle = c.yt && !c.yt.error ? (c.yt.handle || c.yt.title) : c.handle;
   const isClient = role === 'client';
@@ -268,8 +260,7 @@ export default function ChannelPage() {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2 min-w-0">
               <h1 className="font-display font-bold leading-tight tracking-tight text-ink truncate" style={{ fontSize: 'var(--text-2xl)' }}>{c.label || slug}</h1>
-              {c.flowPaused ? <Chip tone="warn">PAUSED</Chip> : <Chip tone="ok" dot>ACTIVE</Chip>}
-              <Chip tone={levelTone(health.level)} dot>{health.label}</Chip>
+              {c.flowPaused ? <Chip tone="plain">PAUSED</Chip> : <Chip tone="ok" dot>ACTIVE</Chip>}
             </div>
             <p className="t-12 text-muted mt-0.5 truncate">
               {[c.niche, handle].filter(Boolean).join(' · ') || '—'}
@@ -298,43 +289,9 @@ export default function ChannelPage() {
         </p>
       ) : null}
 
-      {/* health strip */}
+      {/* status — facts only; a real problem is one red line to the Inbox */}
       <Card className="p-4 mb-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-          <StripTile label="YouTube connection" value={conn.text} tone={conn.state === 'ok' ? 'ok' : conn.state === 'error' ? 'bad' : 'plain'} sub={conn.detail} />
-          <StripTile label="Autopilot" value={c.flowPaused ? 'Paused' : 'On'} tone={c.flowPaused ? 'warn' : 'ok'} />
-          <StripTile
-            label="Today's production"
-            value={prod.text}
-            tone={prod.state === 'made' ? 'ok' : prod.state === 'missed' || prod.state === 'stale' || prod.state === 'never' ? 'warn' : 'plain'}
-            sub={c.lastRun ? `Last run ${c.lastRun}` : undefined}
-          />
-          <StripTile
-            label="Next upload"
-            value={next ? when(next.at) : 'Nothing scheduled in the record'}
-            sub={next ? `${timeAgo(next.at)} · ${next.kind || 'video'}` : undefined}
-          />
-        </div>
-        {health.reasons.length ? (
-          <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
-            <ul className="space-y-1 min-w-0">
-              {health.reasons.map((r) => (
-                <li key={r} className="t-12 flex items-start gap-1.5" style={{ color: health.level === 'bad' ? 'var(--bad-ink)' : health.level === 'warn' ? 'var(--warn-ink)' : 'var(--muted)' }}>
-                  <AlertTriangle size={13} className="shrink-0 mt-0.5" /> <span className="min-w-0">{r}</span>
-                </li>
-              ))}
-            </ul>
-            {health.nextAction ? (
-              health.nextAction.action === 'resume' ? (
-                <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => setFlow(true)}>{health.nextAction.label}</button>
-              ) : health.nextAction.href ? (
-                <Link href={health.nextAction.href} className="btn btn-primary btn-sm">{health.nextAction.label}</Link>
-              ) : (
-                <span className="t-12 text-muted">{health.nextAction.label}</span>
-              )
-            ) : null}
-          </div>
-        ) : null}
+        <ChannelStatus c={c} logs={data.logs} now={now} hasProblem={hasProblem} />
       </Card>
 
       <div className="grid lg:grid-cols-2 gap-4 mb-4">
@@ -457,7 +414,7 @@ export default function ChannelPage() {
           {drawerKeys.map((k) => (
             <DrawerShortcut key={k} icon={CHANNEL_DRAWERS[k].icon} title={CHANNEL_DRAWERS[k].label} sub={CHANNEL_DRAWERS[k].description} onClick={() => setDrawer(k)} />
           ))}
-          <Shortcut href="/thumbs" icon={ImageIcon} title="Thumbnails" sub="Thumbnail studio (pick this channel there)" />
+          <Shortcut href="/thumbs" icon={ImageIcon} title="Thumbnail studio" sub="Make and test thumbnails" />
           <Shortcut href="/analytics" icon={BarChart3} title="Analytics" sub="Views, watch time, subscribers" />
           {!isClient ? <Shortcut href="/providers" icon={Cpu} title="AI services" sub="Workspace-wide AI providers & keys" /> : null}
           <Shortcut href="/channels" icon={Tv} title="All channels" sub="Back to the channel list" />

@@ -12,7 +12,7 @@ import {
   Moon,
   ChevronsLeft,
   ChevronsRight,
-  Activity,
+  ChevronRight,
   ExternalLink,
   AlertTriangle,
   Info,
@@ -21,7 +21,7 @@ import {
   LogOut,
   Sparkles,
 } from 'lucide-react';
-import { NAV, navItemFor, navSectionFor } from './nav';
+import { NAV, ALL_NAV_ITEMS, MENU_ITEMS, navSectionFor } from './nav';
 import CommandPalette from './CommandPalette';
 import PocketBar from './PocketBar';
 import { ConfirmProvider } from '@/components/ConfirmDialog';
@@ -31,6 +31,7 @@ import { useMe, initialsOf } from '@/components/use-me';
 // #126 (S-2): the bell's alert rows come from /api/warnings — the static
 // hand-written September alerts are deleted from site-data.
 import { cn } from '@/lib/utils';
+import { buildBreadcrumbs } from '@/lib/breadcrumbs.mjs';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
 import { Badge, BadgeWithIcon } from '@/components/untitledui/base/badges/badges';
@@ -107,11 +108,8 @@ function Notifications({ open, onClose, warnings }) {
 
 /* 10-15 DREAMS CONVERSION: dark sidebar with custom links (replaces the UUI
    NavList so the always-dark palette is fully controlled). */
-function NavGroups({ collapsed, onNavigate, inboxCount }) {
+function NavGroups({ collapsed, onNavigate, channels }) {
   const pathname = usePathname();
-  // #125 (S-11): the sidebar's channel list is LIVE — /api/brands replaces
-  // the old hardcoded list; nothing renders until it loads.
-  const { channels: liveChannels } = useBrands();
   return (
     <nav className="flex-1 overflow-y-auto pb-4 px-2.5">
       {NAV.map((g) => (
@@ -134,16 +132,7 @@ function NavGroups({ collapsed, onNavigate, inboxCount }) {
                   className={cn('qs-side-link', active && 'active')}
                 >
                   <Icon />
-                  {!collapsed ? (
-                    <>
-                      <span className="truncate flex-1">{i.label}</span>
-                      {i.badge === 'inbox' && inboxCount ? (
-                        <span className="ml-auto px-1.5 py-0.5 rounded-full t-10 font-bold bg-accent/20 text-accent" title="Scripts waiting for approval + open alerts">
-                          {inboxCount}
-                        </span>
-                      ) : null}
-                    </>
-                  ) : null}
+                  {!collapsed ? <span className="truncate flex-1">{i.label}</span> : null}
                 </Link>
               );
             })}
@@ -162,7 +151,7 @@ function NavGroups({ collapsed, onNavigate, inboxCount }) {
           </div>
         ) : null}
         <div className={cn('space-y-1', collapsed && 'flex flex-col items-center gap-1.5')}>
-          {liveChannels.map((p) => (
+          {channels.map((p) => (
             <Link
               key={p.slug}
               href={`/channels/${p.slug}`}
@@ -235,19 +224,14 @@ function ShellFrame({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  // #126 (S-2): real open warnings — badge hides for clients/failures, never a fake number
+  // #126 (S-2): real open warnings — badge hides for clients/failures, never a fake number.
+  // Owner rule (feedback round 1): the bell is the ONLY shell surface that shows them.
   const { rows: openWarningRows, canSee: warningsCanSee, status: warnStatus, retry: warnRetry } = useOpenWarnings();
-  // Phase 0 (P0-1): badge numbers are REAL counts — hidden when 0 or unknown.
   const me = useMe();
-  const [pendingReview, setPendingReview] = useState(null);
-  useEffect(() => {
-    let alive = true;
-    fetch('/api/review')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (alive) setPendingReview(Array.isArray(d?.scripts) ? d.scripts.length : null); })
-      .catch(() => { if (alive) setPendingReview(null); });
-    return () => { alive = false; };
-  }, []);
+  // #125 (S-11): the sidebar's channel list is LIVE — /api/brands replaces
+  // the old hardcoded list; nothing renders until it loads. The same names
+  // feed the breadcrumb (/channels/<slug> → the channel's display name).
+  const { channels: liveChannels, bySlug } = useBrands();
   const [userOpen, setUserOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const pathname = usePathname();
@@ -286,15 +270,14 @@ function ShellFrame({ children }) {
     router.replace('/login');
   };
 
-  const current = navItemFor(pathname);
-  const section = navSectionFor(pathname);
-  const pageTitle = current ? current.label : (pathname?.startsWith('/channels/') ? 'Channel' : null);
-  const crumbRoot = section && section.href !== current?.href ? section : null;
+  // Feedback round 1 (C): full, clickable trail on every page at every width.
+  const channelNames = Object.fromEntries(Object.entries(bySlug).map(([slug, c]) => [slug, c.label]));
+  const crumbs = buildBreadcrumbs(pathname, { items: ALL_NAV_ITEMS, menu: MENU_ITEMS, channelNames });
 
   const sidebarInner = (collapsedState, isMobile = false) => (
     <>
       <Brand collapsed={collapsedState && !isMobile} />
-      <NavGroups collapsed={collapsedState && !isMobile} onNavigate={() => setMobileOpen(false)} inboxCount={pendingReview != null && (warnStatus === 'ok' || warnStatus === 'forbidden') ? pendingReview + (warnStatus === 'ok' ? openWarningRows.length : 0) : null} />
+      <NavGroups collapsed={collapsedState && !isMobile} onNavigate={() => setMobileOpen(false)} channels={liveChannels} />
       <div className={cn('qs-side-foot p-3 shrink-0', collapsedState && !isMobile ? 'flex flex-col items-center gap-2' : 'flex items-center justify-between')}>
 
         {!isMobile ? (
@@ -338,25 +321,28 @@ function ShellFrame({ children }) {
       {/* main column */}
       <div className="flex-1 min-w-0 flex flex-col">
         <header className="sticky top-0 z-40 h-[58px] border-b border-border-secondary backdrop-blur-xl bg-bg-primary/85">
-          <div className="h-full px-4 md:px-6 flex items-center gap-3">
-            <button className="lg:hidden icon-btn" onClick={() => setMobileOpen(true)} aria-label="Open menu">
+          <div className="h-full px-4 md:px-6 flex items-center gap-2 md:gap-3">
+            <button className="lg:hidden icon-btn shrink-0" onClick={() => setMobileOpen(true)} aria-label="Open menu">
               <Menu size={16} />
             </button>
 
-            <div className="hidden md:flex items-center gap-1.5 t-13 min-w-0">
-              <Activity size={13} className="text-fg-quaternary" />
-              <Link href={crumbRoot?.href || '/'} className="text-fg-quaternary hover:text-fg-secondary transition-colors">{crumbRoot?.label || 'Quarry Studio'}</Link>
-              {pageTitle ? (
-                <>
-                  <span className="text-fg-quaternary">/</span>
-                  <span className="font-semibold text-fg-primary truncate">{pageTitle}</span>
-                </>
-              ) : null}
-            </div>
+            {/* One line at every width: earlier crumbs truncate, the current page keeps most of the room. */}
+            <nav aria-label="Breadcrumb" className="flex-1 min-w-0">
+              <ol className="flex items-center min-w-0 overflow-hidden whitespace-nowrap t-13">
+                {crumbs.map((c, idx) => (
+                  <li key={`${idx}-${c.label}`} className={cn('flex items-center min-w-0', c.current && 'shrink-0 max-w-[65%] md:max-w-none md:shrink')}>
+                    {idx > 0 ? <ChevronRight size={13} aria-hidden="true" className="shrink-0 mx-1 text-faint" /> : null}
+                    {c.current ? (
+                      <span aria-current="page" className="min-w-0 truncate font-semibold text-ink">{c.label}</span>
+                    ) : (
+                      <Link href={c.href} className="min-w-0 max-w-[96px] md:max-w-[220px] truncate text-faint hover:text-ink transition-colors">{c.label}</Link>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </nav>
 
-            <div className="flex-1" />
-
-            <Link href="/studio?tab=create" className="hidden sm:inline-flex">
+            <Link href="/studio?tab=create" className="hidden sm:inline-flex shrink-0">
               <Button color="primary" size="sm" iconLeading={<Sparkles size={14} />}>
                 Create
               </Button>
@@ -364,18 +350,19 @@ function ShellFrame({ children }) {
 
             <button
               onClick={() => setPaletteOpen(true)}
-              className="hidden sm:flex items-center gap-2 h-8 pl-3 pr-2 rounded-lg border border-transparent bg-bg-tertiary text-fg-quaternary hover:text-fg-tertiary transition-colors"
+              className="hidden sm:flex shrink-0 items-center gap-2 h-8 pl-3 pr-2 rounded-lg border border-transparent bg-bg-tertiary text-fg-quaternary hover:text-fg-tertiary transition-colors"
               style={{ width: 210 }}
             >
               <Search size={14} />
               <span className="t-12">Search or run…</span>
               <span className="ml-auto font-mono t-10 text-fg-quaternary border border-border-tertiary rounded px-1 py-px">⌘K</span>
             </button>
-            <button className="sm:hidden icon-btn" onClick={() => setPaletteOpen(true)} aria-label="Search">
+            <button className="sm:hidden icon-btn shrink-0" onClick={() => setPaletteOpen(true)} aria-label="Search">
               <Search size={15.5} />
             </button>
 
-            <div className="relative">
+            {/* The bell: one of the only two places real problems show (the other is /warnings). Never hidden, never squeezed. */}
+            <div className="relative shrink-0">
               <ButtonUtility
                 size="sm"
                 color="tertiary"
@@ -394,9 +381,11 @@ function ShellFrame({ children }) {
               <Notifications open={notifOpen} onClose={() => setNotifOpen(false)} warnings={{ rows: openWarningRows, canSee: warningsCanSee }} />
             </div>
 
-            <ThemeToggle />
+            <div className="shrink-0">
+              <ThemeToggle />
+            </div>
 
-            <div className="relative">
+            <div className="relative shrink-0">
               <button
                 className="flex items-center justify-center w-8 h-8 rounded-full font-display font-bold t-12 shrink-0 cursor-pointer relative before:absolute before:-inset-1 before:content-[''] transition-transform duration-100 ease-out hover:scale-105 active:scale-[0.96]"
                 style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}

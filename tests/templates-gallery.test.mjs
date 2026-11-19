@@ -148,6 +148,9 @@ test('real data: every registry template + every unregistered family appears exa
 const page = fs.readFileSync('studio/app/templates/page.js', 'utf8');
 const regPage = fs.readFileSync('studio/app/templates/registry/page.js', 'utf8');
 const detailPage = fs.readFileSync('studio/app/templates/registry/detail/page.js', 'utf8');
+// feedback r1 G: the card media moved to a shared component (the channel
+// template drawer reuses it — one preview mechanism)
+const media = fs.readFileSync('studio/components/TemplatePreviewMedia.js', 'utf8');
 
 test('page: same data path as the wizard (#115) and the tested core', () => {
   assert.match(page, /fetch\('\/api\/templates'\)/);
@@ -157,19 +160,21 @@ test('page: same data path as the wizard (#115) and the tested core', () => {
 });
 
 test('page: cards show the real poster (lazy) and play the mp4 muted+looped on hover/tap', () => {
-  assert.match(page, /<img\s+src=\{poster\}[\s\S]{0,120}loading="lazy"/);
-  assert.match(page, /<video\s+src=\{mp4\}[\s\S]{0,200}muted\s+loop\s+playsInline/);
-  assert.match(page, /onPointerEnter=\{\(e\) => \{ if \(e\.pointerType === 'mouse' && mp4\) setPlaying\(true\)/, 'hover plays for mouse only');
-  assert.match(page, /pointer\.current !== 'mouse' && mp4\) \{\s*setPlaying\(\(p\) => !p\)/, 'tap toggles on touch');
+  assert.match(page, /<TemplatePreviewMedia item=\{item\} previewState=\{previewState\} onOpen=\{onOpen\} \/>/, 'the card renders the shared media component');
+  assert.match(media, /<img\s+src=\{poster\}[\s\S]{0,120}loading="lazy"/);
+  assert.match(media, /<video\s+src=\{mp4\}[\s\S]{0,200}muted\s+loop\s+playsInline/);
+  assert.match(media, /onPointerEnter=\{\(e\) => \{ if \(e\.pointerType === 'mouse' && mp4\) setPlaying\(true\)/, 'hover plays for mouse only');
+  assert.match(media, /pointer\.current !== 'mouse' && mp4\) \{\s*setPlaying\(\(p\) => !p\)/, 'tap toggles on touch');
+  assert.doesNotMatch(media, /familySamples/, 'no borrowing a family sample for a sibling template');
   assert.doesNotMatch(page, /TemplateSimulator/, 'the simulated fake demo is gone from the gallery');
   assert.doesNotMatch(page, /familySamples/, 'no borrowing a family sample for a sibling template');
 });
 
 test('page: honest placeholders and error/loading states', () => {
-  assert.match(page, /'Preview not rendered yet'/);
+  assert.match(media, /'Preview not rendered yet'/);
   assert.match(page, /Previews can't load right now — template list still shown\./);
   assert.match(page, /<GallerySkeleton \/>/);
-  assert.match(page, /onError=\{\(\) => setPosterBroken\(true\)\}/, 'a broken poster falls back to the placeholder');
+  assert.match(media, /onError=\{\(\) => setPosterBroken\(true\)\}/, 'a broken poster falls back to the placeholder');
 });
 
 test('page: detail opens in the shared Drawer (xl) with player, usage and working actions', () => {

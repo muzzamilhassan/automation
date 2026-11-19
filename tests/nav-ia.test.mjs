@@ -52,10 +52,10 @@ test('NAV shape stays what AppShell/CommandPalette read: group + items{href,labe
   }
 });
 
-test('Inbox carries the only badge source; nothing in nav.js hardcodes a count', () => {
-  const badged = NAV.flatMap((g) => g.items).filter((i) => i.badge);
-  assert.deepEqual(badged.map((i) => [i.href, i.badge]), [['/tasks', 'inbox']]);
-  for (const i of ALL_NAV_ITEMS) assert.ok(typeof i.badge !== 'number', `${i.href} badge is a source name, not a number`);
+// Owner rule (feedback round 1, D): real problems show ONLY in the bell and on
+// the Inbox page — so no menu item carries a count badge any more.
+test('no menu item carries a badge (warnings live in the bell + Inbox page only)', () => {
+  for (const i of ALL_NAV_ITEMS) assert.equal(i.badge, undefined, `${i.href} has no badge`);
 });
 
 test('ALL_NAV_ITEMS: unique hrefs (palette keys), every entry has a label + group', () => {

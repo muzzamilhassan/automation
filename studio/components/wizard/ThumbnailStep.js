@@ -1,35 +1,26 @@
 'use client';
-// Step 4 — thumbnails. Studio has no per-channel thumbnail pick to save:
-// covers rotate automatically through the registry designs bound to the
-// niche. What the owner DOES control is the brand that goes on them — the
-// eyebrow, tagline and accent — so this step edits those and renders a real
-// sample on demand through the same preview route the Thumbnail Studio uses.
-import { useEffect, useState } from 'react';
-import { ImageIcon, RefreshCw, Wand2 } from 'lucide-react';
-import { thumbDesignsForNiche } from '@/lib/wizard-steps.mjs';
+// Step 4 — thumbnails. Feedback r1 A: the owner picks the designs this
+// channel's covers take turns through (kit.thumbTemplates — the engine's
+// registryThumbCandidates reads it), from real rendered samples in the
+// channel's accent (ThumbnailDesignPicker). The eyebrow / tagline / accent
+// that go on every cover are edited here too, and a full-size sample with
+// the owner's own headline renders on demand through the same preview route
+// the Thumbnail Studio uses.
+import { useState } from 'react';
+import { ImageIcon, Wand2 } from 'lucide-react';
+import ThumbnailDesignPicker from '@/components/ThumbnailDesignPicker';
 import { Field, Notice } from './fields';
 
 export default function ThumbnailStep({ form, setField, onEditAccent }) {
-  const [reg, setReg] = useState({ status: 'loading', designs: [] });
+  const [designs, setDesigns] = useState([]);
   const [design, setDesign] = useState('');
   const [headline, setHeadline] = useState('');
   const [preview, setPreview] = useState({ status: 'idle' }); // idle | rendering | ready | error
 
-  const fetchRegistry = () =>
-    fetch('/api/thumbs/registry')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((d) => setReg({ status: 'ready', designs: Array.isArray(d.registry) ? d.registry : [] }))
-      .catch(() => setReg({ status: 'error', designs: [] }));
-  const loadRegistry = () => {
-    setReg({ status: 'loading', designs: [] });
-    fetchRegistry();
-  };
-  useEffect(() => {
-    fetchRegistry();
-  }, []);
-
-  const { designs, matched } = thumbDesignsForNiche(reg.designs, form.niche);
-  const activeDesign = designs.some((d) => d.id === design) ? design : designs[0]?.id || '';
+  const picked = Array.isArray(form.thumbTemplates) ? form.thumbTemplates : [];
+  // the headline preview offers the picked designs first, else every design
+  const previewChoices = picked.length ? designs.filter((d) => picked.includes(d.id)) : designs;
+  const activeDesign = previewChoices.some((d) => d.id === design) ? design : previewChoices[0]?.id || '';
   const sampleTitle = headline.trim() || form.tagline.trim() || form.label.trim() || 'Your headline here';
 
   const render = async () => {
@@ -68,60 +59,42 @@ export default function ThumbnailStep({ form, setField, onEditAccent }) {
       </div>
 
       <section className="rounded-xl border border-line p-4 space-y-3">
-        <div>
-          <h3 className="t-13 font-semibold text-ink">Thumbnail designs</h3>
-          <p className="t-11 text-faint mt-0.5">
-            {reg.status !== 'ready'
-              ? 'Covers rotate automatically through the designs matched to your niche.'
-              : matched
-                ? `Covers for “${form.niche}” rotate automatically through these ${designs.length} designs. Pick one to preview your branding on it.`
-                : 'No designs are bound to this niche yet, so covers rotate through the full set. Pick one to preview your branding on it.'}
-          </p>
-        </div>
+        <h3 className="t-13 font-semibold text-ink">Thumbnail designs</h3>
+        <ThumbnailDesignPicker
+          value={form.thumbTemplates || []}
+          onChange={(ids) => setField('thumbTemplates', ids)}
+          accent={form.accent}
+          niche={form.niche}
+          onLoaded={setDesigns}
+        />
+      </section>
 
-        {reg.status === 'loading' ? (
-          <div className="flex flex-wrap gap-1.5" aria-busy="true">
-            {[0, 1, 2, 3].map((i) => <span key={i} className="h-7 w-24 rounded-full animate-pulse" style={{ background: 'var(--surface-2)' }} />)}
+      <section className="rounded-xl border border-line p-4 space-y-3">
+        <div>
+          <h3 className="t-13 font-semibold text-ink">Try your own headline</h3>
+          <p className="t-11 text-faint mt-0.5">See a full-size cover with your name, eyebrow and accent.</p>
+        </div>
+        {previewChoices.length ? (
+          <div className="flex flex-wrap gap-2 items-end">
+            <div className="min-w-[10rem]">
+              <Field label="Design">
+                {(id) => (
+                  <select id={id} className="input w-full" value={activeDesign} onChange={(e) => setDesign(e.target.value)}>
+                    {previewChoices.map((d) => <option key={d.id} value={d.id}>{d.label || d.id}</option>)}
+                  </select>
+                )}
+              </Field>
+            </div>
+            <div className="flex-1 min-w-[12rem]">
+              <Field label="Sample headline" hint="Only for this preview — real covers use each video's title.">
+                {(id) => <input id={id} className="input w-full" value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder={sampleTitle} maxLength={60} />}
+              </Field>
+            </div>
+            <button type="button" className="btn btn-outline mb-[1.375rem]" onClick={render} disabled={preview.status === 'rendering' || !activeDesign}>
+              <Wand2 size={14} /> {preview.status === 'rendering' ? 'Rendering…' : 'Render preview'}
+            </button>
           </div>
-        ) : reg.status === 'error' ? (
-          <Notice tone="warn" title="Thumbnail designs can't load right now" action={<button type="button" className="btn btn-sm btn-outline" onClick={loadRegistry}><RefreshCw size={13} /> Retry</button>}>
-            Your eyebrow and tagline still save normally.
-          </Notice>
-        ) : !designs.length ? (
-          <p className="t-12 text-faint">No thumbnail designs are registered yet.</p>
-        ) : (
-          <>
-            <div role="radiogroup" aria-label="Preview design" className="flex flex-wrap gap-1.5">
-              {designs.map((d) => {
-                const on = d.id === activeDesign;
-                return (
-                  <button
-                    key={d.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    onClick={() => setDesign(d.id)}
-                    data-kit="chip"
-                    className="rounded-full border px-3 py-1 t-12 transition-colors"
-                    style={on ? { borderColor: 'var(--accent)', color: 'var(--accent)', background: 'var(--accent-soft)' } : { borderColor: 'var(--line)', color: 'var(--muted)' }}
-                  >
-                    {d.label || d.id}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="flex flex-wrap gap-2 items-end">
-              <div className="flex-1 min-w-[12rem]">
-                <Field label="Sample headline" hint="Only for this preview — real covers use each video's title.">
-                  {(id) => <input id={id} className="input w-full" value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder={sampleTitle} maxLength={60} />}
-                </Field>
-              </div>
-              <button type="button" className="btn btn-outline mb-[1.375rem]" onClick={render} disabled={preview.status === 'rendering' || !activeDesign}>
-                <Wand2 size={14} /> {preview.status === 'rendering' ? 'Rendering…' : 'Render preview'}
-              </button>
-            </div>
-          </>
-        )}
+        ) : null}
 
         {preview.status === 'error' ? <Notice tone="bad" title="Preview failed">{preview.error}</Notice> : null}
         <div className="relative aspect-video max-w-xl rounded-xl overflow-hidden border border-line" style={{ background: 'var(--surface-2)' }}>

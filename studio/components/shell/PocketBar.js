@@ -2,14 +2,14 @@
 // Phase 2 "pocket mode" (research/ui-ux-audit-2026-11-18/09-mobile-responsive.md §4):
 // a phone-only bottom tab bar for the three phone jobs — check Today, Approve a
 // held script, ack an Alert — plus More, which opens the existing nav drawer.
-// Badges are LIVE counts only (Phase 0 honesty): an unknown review count shows
-// nothing, and a failed warnings check shows a grey "?" — never a number we
-// didn't actually read.
+// The Approve badge is a LIVE count only (Phase 0 honesty): an unknown review
+// count shows nothing. Owner rule (feedback round 1): real problems show ONLY
+// in the topbar bell and on the Inbox page, so the Alerts tab is a plain link
+// to /warnings — no warning count, no "status unknown" dot here.
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, ScrollText, Bell, Menu } from 'lucide-react';
-import { useOpenWarnings } from '@/components/use-open-warnings';
 
 const TABS = [
   { key: 'today', href: '/', label: 'Today', icon: Home },
@@ -20,11 +20,9 @@ const TABS = [
 const isActive = (href, pathname) => (href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`));
 
 // Renders nothing unless n is a real, positive count.
-function CountBadge({ n, tone }) {
+function CountBadge({ n }) {
   if (typeof n !== 'number' || !(n > 0)) return null;
-  const style = tone === 'bad'
-    ? { background: 'color-mix(in srgb, var(--bad) 18%, var(--surface))', color: 'var(--bad-ink)', borderColor: 'color-mix(in srgb, var(--bad) 45%, transparent)' }
-    : { background: 'var(--accent)', color: 'var(--accent-ink)', borderColor: 'transparent' };
+  const style = { background: 'var(--accent)', color: 'var(--accent-ink)', borderColor: 'transparent' };
   return (
     <span className="absolute top-1.5 left-1/2 ml-1.5 min-w-[18px] h-[18px] px-1 rounded-full border t-10 font-bold tnum flex items-center justify-center pointer-events-none" style={style}>
       {n > 99 ? '99+' : n}
@@ -32,22 +30,8 @@ function CountBadge({ n, tone }) {
   );
 }
 
-// The warnings check failed: status is UNKNOWN, which is not the same as zero.
-function UnknownDot() {
-  return (
-    <span
-      className="absolute top-1.5 left-1/2 ml-1.5 min-w-[18px] h-[18px] px-1 rounded-full t-10 font-bold flex items-center justify-center pointer-events-none border"
-      style={{ background: 'var(--surface-2)', color: 'var(--muted)', borderColor: 'var(--line)' }}
-      title="Can't check alerts right now — status unknown"
-    >
-      ?
-    </span>
-  );
-}
-
 export default function PocketBar({ onMore }) {
   const pathname = usePathname() || '/';
-  const { rows: warnRows, canSee: warnCanSee, status: warnStatus } = useOpenWarnings();
 
   // Pending review count — fetched once. 401/403 (not allowed) and 503 (DB down)
   // leave it null, so the badge simply doesn't render.
@@ -62,11 +46,7 @@ export default function PocketBar({ onMore }) {
   }, []);
 
   const badgeFor = (key) => {
-    if (key === 'approve') return <CountBadge n={reviewCount} tone="accent" />;
-    if (key === 'alerts') {
-      if (warnStatus === 'error') return <UnknownDot />;
-      return warnCanSee ? <CountBadge n={warnRows.length} tone="bad" /> : null;
-    }
+    if (key === 'approve') return <CountBadge n={reviewCount} />;
     return null;
   };
 

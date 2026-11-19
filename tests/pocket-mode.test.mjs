@@ -56,16 +56,13 @@ test('PocketBar active state comes from usePathname()', () => {
   assert.match(c, /aria-current=\{active \? 'page' : undefined\}/);
 });
 
-test('PocketBar badges are live counts — never hardcoded, hidden when unknown', () => {
+test('PocketBar: the Approve badge is a live count — never hardcoded, hidden when unknown', () => {
   const c = code(bar);
   // Approve: one /api/review fetch; non-OK (401/403/503) -> null -> no badge
   assert.equal((c.match(/fetch\('\/api\/review'\)/g) || []).length, 1);
   assert.match(c, /r\.ok \? r\.json\(\) : null/);
   assert.match(c, /Array\.isArray\(d\?\.scripts\) \? d\.scripts\.length : null/);
-  assert.match(c, /<CountBadge n=\{reviewCount\}/);
-  // Alerts: the shared hook, real row count only when the caller can see it
-  assert.match(c, /useOpenWarnings\(\)/);
-  assert.match(c, /warnCanSee \? <CountBadge n=\{warnRows\.length\}/);
+  assert.match(c, /if \(key === 'approve'\) return <CountBadge n=\{reviewCount\} \/>;/);
   // the badge renders nothing for a non-positive / non-number count
   assert.match(c, /if \(typeof n !== 'number' \|\| !\(n > 0\)\) return null;/);
   // no literal number is ever passed as a badge count
@@ -73,11 +70,16 @@ test('PocketBar badges are live counts — never hardcoded, hidden when unknown'
   assert.doesNotMatch(c, /useState\(\d+\)/);
 });
 
-test('PocketBar: a failed warnings check shows a grey "?" — never a number, never all-clear', () => {
+// Owner rule (feedback round 1, D): real problems show ONLY in the topbar bell
+// and on the Inbox page. The phone bar keeps its Alerts tab as a plain link to
+// that page, but shows no warning count and no "status unknown" dot.
+test('PocketBar shows no warnings: no warnings hook, no alert count, no "?" dot', () => {
   const c = code(bar);
-  assert.match(c, /if \(warnStatus === 'error'\) return <UnknownDot \/>;/);
-  assert.match(c, /function UnknownDot\(\)[\s\S]*?>\s*\?\s*<\/span>/); // CRLF-safe
-  assert.match(c, /color: 'var\(--muted\)'/);
+  assert.doesNotMatch(c, /useOpenWarnings|warnRows|warnCanSee|warnStatus/);
+  assert.doesNotMatch(c, /UnknownDot/);
+  assert.doesNotMatch(c, /--bad/, 'no alarm-red badge tone left');
+  assert.equal((c.match(/<CountBadge\b/g) || []).length, 1, 'only the Approve badge renders');
+  assert.match(c, /color: active \? 'var\(--accent\)' : 'var\(--muted\)'/);
 });
 
 test('PocketBar uses the design kit: t-NN type, CSS vars, no hex text colors', () => {

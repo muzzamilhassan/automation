@@ -62,6 +62,27 @@ export function nextSlot(slots = [], longSlot = null, now = new Date()) {
   return { time: pick.time, inMin };
 }
 
+// Feedback r1 (2026-11-19): the home row marks the poster / episode only when
+// it was made TODAY (UTC, the same day key the production line always used).
+export function todayMarks(c, now = new Date()) {
+  const day = now.toISOString().slice(0, 10);
+  const marks = [];
+  if (c?.imageDate === day) marks.push('poster');
+  if (c?.deepdiveDate === day) marks.push('episode');
+  return marks;
+}
+
+// Feedback r1: home shows the verdict as ONE line (problems are listed only in
+// the bell + Inbox). Its link goes where the owner acts: open problems →
+// /warnings; only approvals waiting → /review; channel-only issues need no
+// link (the channel rows right below show them).
+export function verdictHref(verdict) {
+  const keys = (verdict?.items || []).map((i) => i.key);
+  if (keys.includes('warnings')) return '/warnings';
+  if (keys.includes('review')) return '/review';
+  return null;
+}
+
 export function fmtIn(min) {
   if (min == null) return '';
   if (min < 60) return `in ${min}m`;

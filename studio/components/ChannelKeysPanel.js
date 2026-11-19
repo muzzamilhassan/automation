@@ -84,12 +84,10 @@ export default function ChannelKeysPanel({ slug, frame }) {
   };
 
   const body = (
-    <div className="space-y-5 min-w-0">
-      <p className="flex items-start gap-2 t-12 text-muted leading-relaxed">
+    <div className="space-y-4 min-w-0">
+      <p className="flex items-start gap-2 t-12 text-muted">
         <ShieldCheck size={14} className="shrink-0 mt-0.5" style={{ color: 'var(--info-ink)' }} />
-        <span className="min-w-0">
-          A channel key is used <span className="text-ink font-medium">before</span> the shared key; with no channel key, the shared key is used. Saved keys are encrypted and can only be replaced or removed — never shown again.
-        </span>
+        <span className="min-w-0">Channel keys run before shared keys. Saved keys are never shown again.</span>
       </p>
 
       {loadErr ? (
@@ -105,14 +103,14 @@ export default function ChannelKeysPanel({ slug, frame }) {
           {Object.entries(providers).map(([p, v]) => {
             const inputId = `key-${slug}-${p}`;
             return (
-              <li key={p} className="py-4 min-w-0">
+              <li key={p} className="py-3 min-w-0">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <label htmlFor={inputId} className="t-13 font-semibold text-ink">{v.label}</label>
                   {v.hint ? <span className="t-11 text-faint">{v.hint}</span> : null}
                   {v.set ? (
                     <span className="ml-auto t-12 flex items-center gap-1 font-mono" style={{ color: 'var(--ok-ink)' }}><CheckCircle2 size={12} /> {v.masked}</span>
                   ) : (
-                    <span className="ml-auto t-12 text-faint">Not set — shared key is used</span>
+                    <span className="ml-auto t-12 text-faint">Using shared key</span>
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 mt-2">
@@ -161,7 +159,7 @@ export default function ChannelKeysPanel({ slug, frame }) {
       {meta?.updated ? (
         <p className="flex gap-2 items-start t-11 text-faint">
           <Info size={12} className="shrink-0 mt-0.5" />
-          <span className="min-w-0">Last change {String(meta.updated).slice(0, 16).replace('T', ' ')} UTC by {meta.updatedBy || '—'} · every change is in the audit log.</span>
+          <span className="min-w-0">Last change {String(meta.updated).slice(0, 16).replace('T', ' ')} UTC by {meta.updatedBy || '—'}</span>
         </p>
       ) : null}
     </div>

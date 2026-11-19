@@ -7,19 +7,27 @@
 // Round 2: rendered inside a Drawer via ChannelDrawers. `frame(body, footer)`
 // lets the drawer own the layout (sticky Save in its footer); without a frame
 // the panel falls back to a plain inline tile.
+//
+// Feedback r1 (items E + F): no help lines under headings; the autopilot
+// start time is picked on the shared SlotTimeline (local clock, other
+// channels' hours greyed, starred free hours that leave review time before
+// the video goes public). The cron is computed under the hood and only shown
+// inside "Advanced". Taken hours come from this route's GET `channels`
+// (live registry, owner/staff only).
 import { useCallback, useEffect, useState } from 'react';
 import { CalendarDays, AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import { Chip, Progress } from '@/components/ui';
 import { projection, DAY_NAMES } from '@/lib/schedule-projection';
+import SlotTimeline from '@/components/SlotTimeline';
+import { parseDailyCron, cronFromUtc, parseHHMM, takenHours, suggestStartHours, localClock } from '@/lib/slot-planner.mjs';
 
 const TONE_INK = { error: 'var(--bad-ink)', warn: 'var(--warn-ink)', ok: 'var(--ok-ink)' };
 
-function DayPicker({ label, hint, days, onToggle }) {
+function DayPicker({ label, days, onToggle }) {
   return (
     <fieldset className="min-w-0">
-      <legend className="t-13 font-semibold text-ink">{label}</legend>
-      {hint ? <p className="t-11 text-faint mt-0.5 mb-2">{hint}</p> : null}
+      <legend className="t-13 font-semibold text-ink mb-2">{label}</legend>
       <div className="flex flex-wrap gap-1.5">
         {DAY_NAMES.map((d) => {
           const on = days.includes(d);
@@ -46,15 +54,12 @@ function DayPicker({ label, hint, days, onToggle }) {
   );
 }
 
-const DAILY_CRON_RE = /^(\d{1,2}) (\d{1,2}) \* \* \*$/;
+// empty = keep the current time; otherwise the daily UTC form the engine gates on
 function parseGateCron(raw) {
   const s = String(raw || '').trim();
-  if (!s) return { valid: true, label: '' };
-  const m = DAILY_CRON_RE.exec(s);
-  if (!m) return { valid: false, label: '' };
-  const min = Number(m[1]), hr = Number(m[2]);
-  if (min > 59 || hr > 23) return { valid: false, label: '' };
-  return { valid: true, label: `${String(hr).padStart(2, '0')}:${String(min).padStart(2, '0')} UTC` };
+  if (!s) return { valid: true, at: null };
+  const at = parseDailyCron(s);
+  return { valid: Boolean(at), at };
 }
 
 function deriveModelParams(serverProj) {
@@ -74,6 +79,8 @@ export default function SchedulePanel({ slug, frame }) {
   const [serverProj, setServerProj] = useState(null);
   const [gateCron, setGateCron] = useState('');
   const [modelWarnings, setModelWarnings] = useState([]);
+  const [channels, setChannels] = useState([]); // every channel's times (live registry) → taken hours
+  const [publish, setPublish] = useState([]); // this channel's "goes public" slots (UTC HH:MM)
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
   // Admin-panel review #3: a failed load used to fall back to an EMPTY
@@ -95,6 +102,8 @@ export default function SchedulePanel({ slug, frame }) {
         setServerProj(d.projection || null);
         setGateCron(d.gateCron || '');
         setModelWarnings(d.projection?.warnings || []);
+        setChannels(Array.isArray(d.channels) ? d.channels : []);
+        setPublish(Array.isArray(d.publish?.slots) ? d.publish.slots : []);
       })
       .catch((e) => {
         setSchedule(null);
@@ -112,6 +121,12 @@ export default function SchedulePanel({ slug, frame }) {
   const draft = schedule || { docDays: [], shortDays: [], shortsSource: 'generated' };
   const proj = projection({ ...draft, ...deriveModelParams(serverProj) });
   const cronState = parseGateCron(gateCron);
+  const offsetMin = -new Date().getTimezoneOffset();
+  const taken = takenHours(channels, { exclude: slug, kind: 'start' });
+  const publishAt = publish.map(parseHHMM).filter(Boolean);
+  const suggestions = suggestStartHours({ publishHours: publishAt.map((p) => p.hour), takenHours: taken });
+  // keep the channel's existing minute; only the hour changes
+  const pickHour = (hour) => setGateCron(cronFromUtc(hour, cronState.at ? cronState.at.minute : 0));
 
   const toggleDay = (field) => (d) =>
     setSchedule((s) => ({
@@ -176,12 +191,12 @@ export default function SchedulePanel({ slug, frame }) {
         </p>
       </section>
 
-      <DayPicker label="Long-form days" hint="Days a full-length video is made." days={draft.docDays} onToggle={toggleDay('docDays')} />
-      <DayPicker label="Shorts days" hint="Days Shorts are posted." days={draft.shortDays} onToggle={toggleDay('shortDays')} />
+      <DayPicker label="Long-form days" days={draft.docDays} onToggle={toggleDay('docDays')} />
+      <DayPicker label="Shorts days" days={draft.shortDays} onToggle={toggleDay('shortDays')} />
 
       <fieldset className="min-w-0">
-        <legend className="t-13 font-semibold text-ink">Where Shorts come from</legend>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+        <legend className="t-13 font-semibold text-ink mb-2">Where Shorts come from</legend>
+        <div className="flex flex-wrap gap-1.5">
           {['generated', 'clips'].map((s) => {
             const on = draft.shortsSource === s;
             return (
@@ -191,39 +206,52 @@ export default function SchedulePanel({ slug, frame }) {
                 data-kit="toggle"
                 aria-pressed={on}
                 onClick={() => setSchedule((s0) => ({ ...s0, shortsSource: s }))}
-                className="text-left rounded-lg border p-3 transition-colors min-w-0"
-                style={on ? { borderColor: 'var(--accent)', background: 'var(--accent-soft)' } : { borderColor: 'var(--line-strong)' }}
+                className="h-8 px-3 rounded-md t-12 font-semibold border transition-colors"
+                style={on ? { borderColor: 'var(--accent)', background: 'var(--accent-soft)', color: 'var(--ink)' } : { borderColor: 'var(--line-strong)', color: 'var(--muted)' }}
               >
-                <span className="block t-13 font-semibold text-ink">{s === 'clips' ? 'Clips from long-forms' : 'Made fresh each day'}</span>
-                <span className="block t-11 text-faint mt-0.5">
-                  {s === 'clips' ? 'Cut from this channel’s long videos.' : 'A new Short is generated for each slot.'}
-                </span>
+                {s === 'clips' ? 'Clips from long videos' : 'Made fresh each day'}
               </button>
             );
           })}
         </div>
       </fieldset>
 
-      <div className="min-w-0">
-        <label htmlFor={`gate-cron-${slug}`} className="t-13 font-semibold text-ink">Autopilot start time (advanced)</label>
-        <p className="t-11 text-faint mt-0.5 mb-2">A daily cron in UTC, written as minute hour * * *. Leave empty to keep the current time.</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            id={`gate-cron-${slug}`}
-            type="text"
-            value={gateCron}
-            onChange={(e) => setGateCron(e.target.value)}
-            placeholder="e.g. 13 2 * * *"
-            aria-invalid={!cronState.valid}
-            className="input font-mono w-full sm:w-48"
-          />
-          {cronState.valid && cronState.label ? (
-            <span className="t-12 text-muted font-mono">runs at {cronState.label}</span>
-          ) : !cronState.valid ? (
-            <span className="t-12" style={{ color: 'var(--bad-ink)' }}>Use M H * * * (minute 0-59, hour 0-23)</span>
-          ) : null}
-        </div>
-      </div>
+      <SlotTimeline
+        label="Autopilot start time"
+        value={cronState.at}
+        onPick={pickHour}
+        taken={taken}
+        suggestions={schedule ? suggestions : []}
+        loading={loading}
+        disabled={!schedule}
+        footer={
+          <>
+            {publishAt.length ? (
+              <p className="t-12 text-muted">
+                Goes public at {publishAt.map((p) => localClock(p.hour, p.minute, offsetMin)).join(', ')} your time. The start time doesn&apos;t change that.
+              </p>
+            ) : null}
+            <details className="t-12">
+              <summary className="cursor-pointer text-faint select-none">Advanced</summary>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <label htmlFor={`gate-cron-${slug}`} className="t-11 text-faint">Schedule code (UTC)</label>
+                <input
+                  id={`gate-cron-${slug}`}
+                  type="text"
+                  value={gateCron}
+                  onChange={(e) => setGateCron(e.target.value)}
+                  placeholder="13 2 * * *"
+                  aria-invalid={!cronState.valid}
+                  className="input font-mono w-full sm:w-40"
+                />
+                {!cronState.valid ? (
+                  <span className="t-12" style={{ color: 'var(--bad-ink)' }}>Use M H * * * (minute 0-59, hour 0-23)</span>
+                ) : null}
+              </div>
+            </details>
+          </>
+        }
+      />
 
       {modelWarnings.length ? (
         <div className="flex items-start gap-1.5 t-12" style={{ color: 'var(--warn-ink)' }}>
@@ -234,7 +262,7 @@ export default function SchedulePanel({ slug, frame }) {
 
       {proj.blocked ? (
         <p className="t-12" style={{ color: 'var(--bad-ink)' }}>
-          Over budget: the busiest day would exceed the shared daily pool — spread the days out or lower the cadence before saving.
+          Over the daily upload limit. Remove a day before saving.
         </p>
       ) : null}
     </div>

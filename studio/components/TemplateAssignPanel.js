@@ -14,11 +14,32 @@
 //
 // Round 2: rendered inside a Drawer via ChannelDrawers; `frame(body, footer)`
 // puts "Assign & pin" in the drawer's sticky footer.
+//
+// Feedback r1 G: every template shows as a demo card (poster + MP4 on
+// hover/tap — the SAME TemplatePreviewMedia the /templates gallery uses, fed
+// by /api/template-previews); the assigned one is marked on its card. The
+// "Story shape" switch saves the channel's kit.hasChapters (true = Chapters,
+// false = Full story, null = template default) through /api/channels/profile;
+// lib/doc-storybook.mjs docPresentation hands it to the documentary lane.
 import { useEffect, useMemo, useState } from 'react';
-import { Layers, AlertTriangle, CheckCircle2, XCircle, Loader2, Trash2, ArrowUpCircle, Info, RefreshCw, ExternalLink } from 'lucide-react';
+import { Layers, AlertTriangle, CheckCircle2, XCircle, Loader2, Trash2, ArrowUpCircle, Info, RefreshCw, ExternalLink, BookOpen } from 'lucide-react';
 import { Button } from '@/components/untitledui/base/buttons/button';
-import { Chip } from '@/components/ui';
+import { Chip, Segmented } from '@/components/ui';
 import { useConfirm } from '@/components/ConfirmDialog';
+import TemplatePreviewMedia from '@/components/TemplatePreviewMedia';
+import { previewFor, ratiosForFormats } from '@/lib/templates-gallery.mjs';
+import { chapterModeOf, chapterValueFor } from '@/lib/channel-kit-ui.mjs';
+
+const CHAPTER_OPTIONS = [
+  { value: 'default', label: 'Template default' },
+  { value: 'story', label: 'Full story' },
+  { value: 'chapters', label: 'Chapters' },
+];
+const CHAPTER_NOTE = {
+  default: 'Long documentaries follow the template.',
+  story: 'Long documentaries play as one continuous story, with no chapter title cards.',
+  chapters: 'Long documentaries are split into chapters, each with a title card.',
+};
 
 const CAP_LABEL = {
   'script-gen': 'script generation (LLM)',
@@ -84,6 +105,11 @@ export default function TemplateAssignPanel({ slug, frame }) {
   const [pinnedMajor, setPinnedMajor] = useState('');
   const [busy, setBusy] = useState('');         // templateId currently writing
   const [msg, setMsg] = useState(null);         // { ok, text, reasons? }
+  // CI-rendered demos (poster + MP4) — a failure keeps honest placeholders
+  const [samples, setSamples] = useState({ status: 'loading', samples: {} });
+  // the channel's Full story / Chapters choice (kit.hasChapters)
+  const [chapters, setChapters] = useState({ status: 'loading', mode: 'default' });
+  const [chapterMsg, setChapterMsg] = useState(null); // { ok, text }
 
   // state is only set when the request settles (never synchronously in the effect)
   const load = () => {
@@ -96,7 +122,25 @@ export default function TemplateAssignPanel({ slug, frame }) {
       })
       .catch((e) => setLoadErr(String(e.message || e)));
   };
-  useEffect(() => { load(); }, [slug]);
+  const loadSamples = () => {
+    fetch('/api/template-previews')
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || !d.samples) throw new Error(d.error || `HTTP ${r.status}`);
+        setSamples({ status: 'ready', samples: d.samples });
+      })
+      .catch(() => setSamples({ status: 'error', samples: {} }));
+  };
+  const loadChapters = () => {
+    fetch(`/api/channels/profile?slug=${encodeURIComponent(slug)}`)
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || !d.channel) throw new Error(d.error || `HTTP ${r.status}`);
+        setChapters({ status: 'ready', mode: chapterModeOf(d.channel.kit) });
+      })
+      .catch(() => setChapters({ status: 'error', mode: 'default' }));
+  };
+  useEffect(() => { load(); loadSamples(); loadChapters(); }, [slug]);
 
   const templates = data?.templates || [];
   const assignments = data?.assignments || [];
@@ -104,6 +148,7 @@ export default function TemplateAssignPanel({ slug, frame }) {
   const channelFormats = data?.channelConfig?.formats || [];
   const isOwner = data?.role === 'owner';
   const byTemplate = useMemo(() => new Map(templates.map((t) => [t.templateId, t])), [templates]);
+  const assignedIds = new Set(assignments.map((a) => a.family_id)); // DB family_id = registry key
 
   // Registry templates may SHARE one visual family (v2: many templates -> one
   // family, e.g. myth-vs-money and red-flags-explained both render
@@ -199,6 +244,28 @@ export default function TemplateAssignPanel({ slug, frame }) {
     }
   };
 
+  // feedback r1 G: Full story / Chapters — saved on click, owner only.
+  const saveChapters = async (mode) => {
+    if (!isOwner || chapters.status !== 'ready' || mode === chapters.mode) return;
+    const prev = chapters.mode;
+    setChapters({ status: 'saving', mode });
+    setChapterMsg(null);
+    try {
+      const r = await fetch('/api/channels/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug, kit: { hasChapters: chapterValueFor(mode) } }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `save failed (${r.status})`);
+      setChapters({ status: 'ready', mode });
+      setChapterMsg({ ok: true, text: 'Saved. The next documentary uses this.' });
+    } catch (e) {
+      setChapters({ status: 'ready', mode: prev });
+      setChapterMsg({ ok: false, text: String(e.message || e) });
+    }
+  };
+
   const wrap = (body, footer) => {
     if (frame) return frame(body, footer);
     return (
@@ -237,6 +304,34 @@ export default function TemplateAssignPanel({ slug, frame }) {
           <span>Read-only — only the owner can assign or change templates.</span>
         </p>
       ) : null}
+
+      {/* feedback r1 G: Full story / Chapters for this channel */}
+      <section className="space-y-2 min-w-0">
+        <h3 className="flex items-center gap-1.5 t-13 font-semibold text-ink"><BookOpen size={13} /> Story shape</h3>
+        {chapters.status === 'loading' ? (
+          <p className="flex items-center gap-1.5 t-12 text-muted"><Loader2 size={12} className="animate-spin" /> Loading…</p>
+        ) : chapters.status === 'error' ? (
+          <div role="alert" className="flex flex-wrap items-center gap-2 t-12" style={{ color: 'var(--warn-ink)' }}>
+            <span className="min-w-0 flex-1">The story setting can&apos;t load right now.</span>
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => { setChapters({ status: 'loading', mode: 'default' }); loadChapters(); }}><RefreshCw size={13} /> Retry</button>
+          </div>
+        ) : (
+          <>
+            {isOwner ? (
+              <Segmented options={CHAPTER_OPTIONS} value={chapters.mode} onChange={saveChapters} />
+            ) : (
+              <p className="t-12 text-ink">{CHAPTER_OPTIONS.find((o) => o.value === chapters.mode)?.label}</p>
+            )}
+            <p className="t-12 text-muted">
+              {chapters.status === 'saving' ? <Loader2 size={12} className="inline animate-spin mr-1" /> : null}
+              {CHAPTER_NOTE[chapters.mode]}
+            </p>
+            {chapterMsg ? (
+              <p role="status" aria-live="polite" className="t-12" style={{ color: chapterMsg.ok ? 'var(--ok-ink)' : 'var(--bad-ink)' }}>{chapterMsg.text}</p>
+            ) : null}
+          </>
+        )}
+      </section>
 
       {/* current assignments */}
       <section className="space-y-2 min-w-0">
@@ -319,10 +414,10 @@ export default function TemplateAssignPanel({ slug, frame }) {
         )}
       </section>
 
-      {/* assign flow (owner only) */}
-      {isOwner ? (
+      {/* every template as a demo card (the owner picks; staff browses) */}
+      {templates.length ? (
         <section className="space-y-3 min-w-0">
-          <h3 className="t-13 font-semibold text-ink">{assignments.length ? 'Assign a different template' : 'Assign a template'}</h3>
+          <h3 className="t-13 font-semibold text-ink">{!isOwner ? 'Templates' : assignments.length ? 'Assign a different template' : 'Assign a template'}</h3>
           {channelNiches.length ? (
             <div className="min-w-0">
               <p className="t-11 text-faint mb-1.5">This channel&apos;s niches (matching templates are starred ★ and listed first)</p>
@@ -333,29 +428,17 @@ export default function TemplateAssignPanel({ slug, frame }) {
               </div>
             </div>
           ) : null}
-          <div className="min-w-0">
-            <label htmlFor={`tpl-pick-${slug}`} className="block t-12 font-medium text-muted mb-1">Template</label>
-            <select
-              id={`tpl-pick-${slug}`}
-              value={templateId}
-              onChange={(e) => pickTemplate(e.target.value)}
-              className="input w-full"
-            >
-              <option value="">Pick a template…</option>
-              {orderedTemplates.map((t) => {
-                const nicheHit = (t.registry?.niches || []).some((n) => channelNiches.includes(n));
-                const fmtMiss = !(t.registry?.formats || []).some((f) => channelFormats.includes(f));
-                return (
-                  <option key={t.templateId} value={t.templateId}>
-                    {nicheHit ? '★ ' : ''}{t.name}{sharedNames.get(t.name) > 1 ? ` — ${t.templateId}` : ''} · v{t.registry.version}{t.registry.deprecated ? ' (deprecated)' : ''}{fmtMiss ? ' — format mismatch' : ''}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-          {picked ? (
-            <div className="min-w-0">
-              <label htmlFor={`tpl-major-${slug}`} className="block t-12 font-medium text-muted mb-1">Pinned major version</label>
+          {samples.status === 'error' ? (
+            <div className="flex flex-wrap items-center gap-2 t-12" style={{ color: 'var(--warn-ink)' }}>
+              <span className="min-w-0 flex-1">Demos can&apos;t load right now. The templates are still listed.</span>
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => { setSamples({ status: 'loading', samples: {} }); loadSamples(); }}><RefreshCw size={13} /> Retry</button>
+            </div>
+          ) : null}
+
+          {isOwner && picked ? (
+            <div className="rounded-lg border p-3 min-w-0" style={{ borderColor: 'var(--accent)' }}>
+              <p className="t-13 font-semibold text-ink break-words">Selected: {picked.name}</p>
+              <label htmlFor={`tpl-major-${slug}`} className="block t-12 font-medium text-muted mb-1 mt-2">Pinned major version</label>
               <select
                 id={`tpl-major-${slug}`}
                 value={pinnedMajor}
@@ -382,10 +465,51 @@ export default function TemplateAssignPanel({ slug, frame }) {
               ) : null}
             </div>
           ) : null}
-          {!templates.length ? (
-            <p className="t-12 text-muted">No registry templates exist yet, so there is nothing to assign.</p>
-          ) : null}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {orderedTemplates.map((t) => {
+              const nicheHit = (t.registry?.niches || []).some((n) => channelNiches.includes(n));
+              const fmtMiss = !(t.registry?.formats || []).some((f) => channelFormats.includes(f));
+              const isAssigned = assignedIds.has(t.templateId);
+              const selected = templateId === t.templateId;
+              const media = { name: t.name, preview: previewFor(t.templateId, samples.samples), ratios: ratiosForFormats(t.registry?.formats) };
+              return (
+                <article
+                  key={t.templateId}
+                  className="rounded-xl border overflow-hidden flex flex-col min-w-0"
+                  style={selected
+                    ? { borderColor: 'var(--accent)', boxShadow: '0 0 0 1px var(--accent)' }
+                    : isAssigned
+                      ? { borderColor: 'var(--ok)' }
+                      : { borderColor: 'var(--line)' }}
+                >
+                  <TemplatePreviewMedia item={media} previewState={samples.status} onOpen={isOwner ? () => pickTemplate(t.templateId) : undefined} />
+                  <button
+                    type="button"
+                    data-kit="tile"
+                    aria-pressed={selected}
+                    disabled={!isOwner}
+                    onClick={() => pickTemplate(t.templateId)}
+                    className="text-left p-3 flex-1 flex flex-col gap-1.5 min-w-0 disabled:cursor-default"
+                  >
+                    <span className="t-13 font-semibold text-ink break-words">
+                      {nicheHit ? '★ ' : ''}{t.name}{sharedNames.get(t.name) > 1 ? ` — ${t.templateId}` : ''}
+                    </span>
+                    <span className="t-11 text-faint">v{t.registry.version}</span>
+                    <span className="flex flex-wrap gap-1">
+                      {isAssigned ? <Chip tone="ok">Assigned</Chip> : null}
+                      {selected ? <Chip tone="accent">Selected</Chip> : null}
+                      {t.registry.deprecated ? <Chip tone="warn">deprecated</Chip> : null}
+                      {fmtMiss ? <Chip tone="warn">format mismatch</Chip> : null}
+                    </span>
+                  </button>
+                </article>
+              );
+            })}
+          </div>
         </section>
+      ) : isOwner ? (
+        <p className="t-12 text-muted">No registry templates exist yet, so there is nothing to assign.</p>
       ) : null}
 
       {/* result / validation messages */}

@@ -262,7 +262,10 @@ test('the wizard reuses the shipped preview/voice/audience data (#111/#112/#115)
   assert.match(WIZ['VoicePicker.js'], /el\.src = voice\.demo/);
   assert.match(WIZ['SchedulePicker.js'], /AUDIENCES\.map/);
   assert.match(WIZ['SchedulePicker.js'], /suggestionFor\(audience\)/);
-  assert.match(WIZ['SchedulePicker.js'], /type="time"/);
+  // feedback r1 (F): the raw time box became the shared SlotTimeline (local
+  // clock, taken hours, starred suggestions); slots are still UTC HH:MM
+  assert.match(WIZ['SchedulePicker.js'], /<SlotTimeline\b/);
+  assert.match(WIZ['SchedulePicker.js'], /onSlots\(slotsToString\(list\)\)/);
   assert.doesNotMatch(ALL, /cron/i, 'no raw cron in the wizard');
 });
 

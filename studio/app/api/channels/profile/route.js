@@ -6,6 +6,7 @@ import { readRegistry, upsertChannel, stripTokenMaterial } from '@/lib/channels-
 import { canAccessChannelSlug } from '@/lib/access';
 import { STYLE_BY_ID } from '@/lib/styles-catalog';
 import { brands } from '@/lib/data.mjs';
+import { kitFieldPatch } from '@/lib/channel-kit-fields.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -149,6 +150,11 @@ export async function POST(req) {
     const k = body.kit;
     const s = (v, n) => (v != null ? String(v).slice(0, n) : undefined);
     const resolvedNiches = incomingSubNiches || (Array.isArray(k.niches) ? k.niches.slice(0, 12).map((x) => String(x).slice(0, 80)) : undefined);
+    // feedback r1 A + G: thumbTemplates (design ids that rotate on uploads)
+    // and hasChapters (Full story / Chapters) — validated, and patched ONLY
+    // when sent, so another screen's save never wipes them.
+    const extra = kitFieldPatch(k);
+    if (extra.error) return Response.json({ error: extra.error }, { status: 400 });
 
     entry.kit = {
       ...(entry.kit || {}),
@@ -164,6 +170,7 @@ export async function POST(req) {
       ...(s(k.description, 900) != null ? { description: s(k.description, 900) } : {}),
       ...(k.script && typeof k.script === 'object' ? { script: k.script } : {}),
       ...(s(k.longSlot, 5) != null ? { longSlot: s(k.longSlot, 5) } : {}),
+      ...extra.patch,
     };
   } else if (incomingSubNiches) {
     entry.kit = { ...(entry.kit || {}), niches: incomingSubNiches };

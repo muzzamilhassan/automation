@@ -1,8 +1,11 @@
 'use client';
 // Channels list — Round 2 redesign: compact, scannable cards (mark, name,
-// niche, real health, 4 key facts) with ONE action row: "Open channel" and a
+// niche, Active/Paused, 4 key facts) with ONE action row: "Open channel" and a
 // "Manage" menu. Every manage feature opens in a Drawer (ChannelDrawers) —
 // nothing expands inline inside a card any more.
+// Feedback round 1 (2026-11-19): cards carry NO warning text — a REAL open
+// problem (bell/Inbox) shows as one small red dot. "Open channel" opens the
+// large ChannelOverviewDrawer on top of this list instead of a new page.
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
@@ -11,10 +14,13 @@ import {
 } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, BrandMark, PageSkeleton, EmptyState } from '@/components/ui';
 import ChannelDrawers, { CHANNEL_DRAWERS } from '@/components/ChannelDrawers';
+import ChannelOverviewDrawer, { ProblemDot } from '@/components/ChannelOverviewDrawer';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { useOpenWarnings } from '@/components/use-open-warnings';
 import { MUSIC_MOODS } from '@/lib/site-data';
 import { useBrands } from '@/components/use-brands'; // #125: live brand marks
-import { channelHealth, levelTone, validSlots, slotDate, channelHref, editHref } from '@/lib/channel-health.mjs';
+import { validSlots, slotDate, editHref } from '@/lib/channel-health.mjs';
+import { channelHasRealProblem } from '@/lib/channel-overview.mjs';
 import { fmt } from '@/lib/utils';
 
 function localTime(hhmm) {
@@ -34,10 +40,11 @@ function Fact({ icon: Icon, label, children }) {
 }
 
 // Linked accounts in one line each — only numbers the platforms returned.
+// A failed YouTube read is a plain fact here, never red warning text (round 1).
 function accountLines(c) {
   const out = [];
   if (c.yt && !c.yt.error) out.push({ key: 'yt', text: `YouTube · ${fmt(c.yt.subs)} subs`, tone: 'ink' });
-  else if (c.yt?.error) out.push({ key: 'yt', text: 'YouTube · re-connect needed', tone: 'bad', title: String(c.yt.error) });
+  else if (c.yt?.error) out.push({ key: 'yt', text: 'YouTube · stats unavailable', tone: 'faint', title: String(c.yt.error) });
   if (c.fb) out.push({ key: 'fb', text: `Facebook · ${fmt(c.fb.followers)} followers`, tone: 'ink' });
   if (c.ig) out.push({ key: 'ig', text: `Instagram · ${fmt(c.ig.followers)} followers`, tone: 'ink' });
   return out;
@@ -141,9 +148,12 @@ export default function Channels() {
   const confirm = useConfirm();
 
   const [data, setData] = useState(null);
-  // one drawer at a time: { slug, label, which } — which ∈ CHANNEL_DRAWERS keys
+  const { rows: openWarningRows } = useOpenWarnings(); // REAL problems only (grouped) → the red dot
+  // one drawer at a time: { slug, label, which } — which ∈ 'overview' | CHANNEL_DRAWERS keys
   const [drawer, setDrawer] = useState(null);
   const closeDrawer = useCallback(() => setDrawer(null), []); // stable: Drawer re-focuses when onClose changes
+  // a quick action in the overview REPLACES it with that manage drawer (same state → never two open)
+  const manageFromOverview = useCallback((which) => setDrawer((d) => (d ? { ...d, which } : d)), []);
   const [highlight] = useState(() =>
     typeof window !== 'undefined' ? window.location.hash.replace('#', '') : ''
   ); // P0-17: /channels#slug deep-link
@@ -223,7 +233,7 @@ export default function Channels() {
 
   const active = data.channels.filter((c) => c.active);
   const parked = data.channels.filter((c) => !c.active);
-  const now = new Date();
+  const overviewRow = drawer?.which === 'overview' ? active.find((c) => c.slug === drawer.slug) || null : null;
 
   return (
     <div>
@@ -247,12 +257,10 @@ export default function Channels() {
           {active.map((c) => {
             const label = c.label || c.slug;
             const moods = MUSIC_MOODS[c.slug] || [];
-            const health = channelHealth(c, { now });
+            const hasProblem = channelHasRealProblem(openWarningRows, c.slug);
             const slots = validSlots(c.slots);
             const longSlot = validSlots([c.longSlot])[0] || null;
             const accounts = accountLines(c);
-            const firstReason = health.level !== 'ok' ? health.reasons[0] : null;
-            const reasonInk = health.level === 'bad' ? 'var(--bad-ink)' : health.level === 'warn' ? 'var(--warn-ink)' : 'var(--muted)';
             const openDrawer = (which) => () => setDrawer({ slug: c.slug, label, which });
             const items = [
               ...Object.entries(CHANNEL_DRAWERS).map(([which, d]) => ({ key: which, label: d.label, icon: d.icon, onSelect: openDrawer(which) })),
@@ -268,24 +276,20 @@ export default function Channels() {
                 id={'chan-' + c.slug}
                 className={'p-5 scroll-mt-24 min-w-0 flex flex-col @container' + (highlight === c.slug ? ' ring-2 ring-[var(--accent)]' : '')}
               >
-                {/* identity + health */}
+                {/* identity + state (no warning text — a real problem is one red dot → Inbox) */}
                 <div className="flex items-start gap-3 min-w-0">
                   <BrandMark short={BRAND[c.slug]?.short || '•'} accent={c.accent || 'var(--accent)'} size={40} />
                   <div className="min-w-0 flex-1">
                     <h2 className="font-display t-16 font-bold tracking-tight text-ink truncate" title={label}>
-                      <Link href={channelHref(c.slug)} className="hover:underline underline-offset-2">{label}</Link>
+                      <button type="button" data-kit="title" className="hover:underline underline-offset-2 text-left max-w-full truncate" onClick={openDrawer('overview')}>{label}</button>
                     </h2>
                     <p className="t-12 text-muted line-clamp-2 break-words" title={c.niche || undefined}>{c.niche || 'No niche set'}</p>
                   </div>
-                  <Chip tone={levelTone(health.level)} dot className="shrink-0">{health.label}</Chip>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {hasProblem ? <ProblemDot /> : null}
+                    {c.flowPaused ? <Chip tone="plain" className="shrink-0">Paused</Chip> : <Chip tone="ok" dot className="shrink-0">Active</Chip>}
+                  </div>
                 </div>
-
-                {firstReason ? (
-                  <p className="t-12 mt-3 flex items-start gap-1.5 min-w-0" style={{ color: reasonInk }}>
-                    <AlertTriangle size={13} className="shrink-0 mt-0.5" aria-hidden />
-                    <span className="min-w-0 line-clamp-2">{firstReason}</span>
-                  </p>
-                ) : null}
 
                 {/* key facts */}
                 <dl className="grid grid-cols-1 @xs:grid-cols-2 gap-x-4 gap-y-3 mt-4">
@@ -314,9 +318,8 @@ export default function Channels() {
                       accounts.map((a) => (
                         <span
                           key={a.key}
-                          className="block truncate tnum"
+                          className={'block truncate tnum' + (a.tone === 'faint' ? ' text-faint' : '')}
                           title={a.title}
-                          style={a.tone === 'bad' ? { color: 'var(--bad-ink)' } : undefined}
                         >
                           {a.text}
                         </span>
@@ -330,9 +333,9 @@ export default function Channels() {
                 {/* one action row */}
                 <div className="flex-1" />
                 <div className="flex flex-wrap items-center justify-between gap-2 mt-4 pt-4 border-t border-[var(--line)]">
-                  <Link href={channelHref(c.slug)} className="btn btn-primary btn-sm">
+                  <button type="button" className="btn btn-primary btn-sm" onClick={openDrawer('overview')}>
                     Open channel <ArrowRight size={13} aria-hidden />
-                  </Link>
+                  </button>
                   <ManageMenu label={label} items={items} />
                 </div>
               </Card>
@@ -366,6 +369,14 @@ export default function Channels() {
         </Card>
       ) : null}
 
+      <ChannelOverviewDrawer
+        channel={overviewRow}
+        logs={data.logs}
+        hasProblem={overviewRow ? channelHasRealProblem(openWarningRows, overviewRow.slug) : false}
+        open={drawer?.which === 'overview'}
+        onClose={closeDrawer}
+        onManage={manageFromOverview}
+      />
       <ChannelDrawers slug={drawer?.slug} label={drawer?.label} open={drawer?.which} onClose={closeDrawer} />
     </div>
   );

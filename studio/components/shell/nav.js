@@ -27,15 +27,15 @@ import {
 } from 'lucide-react';
 
 // Phase 2 (decision #3): the menu is named after the owner's jobs, not our
-// internal hubs. `badge` names a live count source the shell may render
-// (never a number here — counts come from the APIs or don't show at all).
+// internal hubs. No menu item carries a count badge: owner rule (feedback
+// round 1) — real problems show ONLY in the topbar bell and on the Inbox page.
 // `keywords` keep the retired names searchable in the command palette.
 export const NAV = [
   {
     group: 'Cockpit',
     items: [
       { href: '/', label: 'Today', icon: LayoutDashboard, desc: 'Did today run? What needs you, channel by channel', keywords: ['overview', 'home', 'dashboard', 'pulse'] },
-      { href: '/tasks', label: 'Inbox', icon: Inbox, badge: 'inbox', desc: 'Scripts to approve and open alerts, in one queue', keywords: ['tasks', 'approvals', 'review', 'warnings', 'alerts'] },
+      { href: '/tasks', label: 'Inbox', icon: Inbox, desc: 'Scripts to approve and open alerts, in one queue', keywords: ['tasks', 'approvals', 'review', 'warnings', 'alerts'] },
       { href: '/channels', label: 'Channels', icon: Tv, desc: 'Every channel, its health and its settings', keywords: ['network', 'portfolio', 'brands'] },
       { href: '/runs', label: 'Runs', icon: Activity, desc: "Today's pipeline runs: started, finished, failed", keywords: ['operations', 'pipelines', 'production', 'logs'] },
       { href: '/videos', label: 'Library', icon: Library, desc: 'Every video made and published', keywords: ['content', 'videos', 'published'] },
@@ -59,10 +59,12 @@ export const NAV = [
 // Every screen that still exists stays findable from ⌘K, filed under the
 // menu section it now belongs to. Retired hubs (/content, /operations,
 // /network) are redirects in next.config.mjs, so they are not listed.
+// `crumb` is the short breadcrumb label when the screen sits under a parent
+// URL (/templates/drafts → "Templates › Drafts"; see lib/breadcrumbs.mjs).
 const SCREENS = [
   { href: '/review', label: 'Script approvals', icon: ClipboardCheck, group: 'Inbox', desc: 'Approve or reject scripts before they render', keywords: ['review queue'] },
   { href: '/topics', label: 'Topics', icon: ListChecks, group: 'Inbox', desc: 'Approve the topic backlog', keywords: ['topic desk'] },
-  { href: '/templates/drafts', label: 'Template drafts', icon: FileStack, group: 'Inbox', desc: 'New template drafts waiting for a yes or no', keywords: ['drafts inbox'] },
+  { href: '/templates/drafts', label: 'Template drafts', crumb: 'Drafts', icon: FileStack, group: 'Inbox', desc: 'New template drafts waiting for a yes or no', keywords: ['drafts inbox'] },
   { href: '/warnings', label: 'Alerts', icon: TriangleAlert, group: 'Inbox', desc: 'Open warnings: what broke and what to do', keywords: ['warnings', 'triage'] },
   { href: '/channels/add', label: 'Add channel', icon: UserPlus, group: 'Channels', desc: 'Connect a new YouTube channel', keywords: ['wizard', 'new channel'] },
   { href: '/production', label: 'Run a pipeline', icon: Zap, group: 'Runs', desc: 'Start a channel run by hand', keywords: ['pipelines', 'production'] },
@@ -72,7 +74,7 @@ const SCREENS = [
   { href: '/create', label: 'Create a video', icon: Sparkles, group: 'Create', desc: 'Make a vertical Short from a prompt', keywords: ['generate'] },
   { href: '/thumbs', label: 'Thumbnails', icon: ImageIcon, group: 'Create', desc: 'Design thumbnails and run A/B tests', keywords: ['thumbnail studio'] },
   { href: '/templates', label: 'Templates', icon: Clapperboard, group: 'Create', desc: 'Video templates and the live simulator', keywords: ['video templates'] },
-  { href: '/templates/registry', label: 'Template registry', icon: Layers, group: 'Create', desc: 'Versioned templates and which channels use them', keywords: ['registry'] },
+  { href: '/templates/registry', label: 'Template registry', crumb: 'Registry', icon: Layers, group: 'Create', desc: 'Versioned templates and which channels use them', keywords: ['registry'] },
   { href: '/styles', label: 'Video styles', icon: Palette, group: 'Create', desc: 'The style catalog channels pick from', keywords: ['style catalog'] },
   { href: '/providers', label: 'AI services', icon: PlugZap, group: 'Settings', desc: 'Your own AI keys and which provider runs what', keywords: ['providers', 'byok', 'keys'] },
   { href: '/usage', label: 'Quota & costs', icon: Gauge, group: 'Settings', desc: 'YouTube quota and AI spend', keywords: ['usage', 'quota ledger'] },
@@ -84,6 +86,9 @@ export const ALL_NAV_ITEMS = [
   ...NAV.flatMap((g) => g.items.map((i) => ({ ...i, group: g.group }))),
   ...SCREENS,
 ];
+
+// The sidebar menu items, flat (breadcrumbs file a screen under one of these).
+export const MENU_ITEMS = NAV.flatMap((g) => g.items);
 
 // Breadcrumb/title lookup: exact match first, then the longest href that
 // prefixes the path (so /channels/add → "Add channel", /templates/x → "Templates").

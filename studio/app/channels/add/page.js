@@ -132,6 +132,9 @@ export default function AddChannel() {
       igHandle: entry.destinations?.igHandle || '',
       threadsHandle: entry.destinations?.threadsHandle || '',
       tiktokHandle: entry.destinations?.tiktokHandle || '',
+      // feedback r1 A: the saved thumbnail designs (only when the kit has a
+      // list — an untouched save then never sends, and never wipes, the field)
+      thumbTemplates: Array.isArray(entry.kit?.thumbTemplates) ? entry.kit.thumbTemplates : undefined,
     }));
   };
 
@@ -381,6 +384,7 @@ export default function AddChannel() {
             tags: String(form.tags || '').split(',').map((t) => t.trim()).filter(Boolean),
             niches: subNichesList.length ? subNichesList : (form.niche ? [form.niche.toLowerCase()] : []),
             description: form.description,
+            ...(Array.isArray(form.thumbTemplates) ? { thumbTemplates: form.thumbTemplates } : {}),
           },
           destinations: {
             fbPageId: form.fbPageId,

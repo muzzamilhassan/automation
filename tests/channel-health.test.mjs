@@ -194,7 +194,9 @@ test('page renders honest error / not-linked / not-found / parked states', () =>
 test('page reads real data sources and the shared health verdict', () => {
   assert.match(PAGE, /fetch\(fresh \? '\/api\/overview\?fresh=1' : '\/api\/overview'\)/);
   assert.match(PAGE, /fetch\('\/api\/me'\)/);
-  assert.match(PAGE, /channelHealth\(c, \{ now, canReconnect: role === 'owner' \}\)/);
+  // feedback round 1 (D5): status tiles + one red-dot line from REAL warnings; no warning-reason list
+  assert.match(PAGE, /channelHasRealProblem\(openWarningRows, slug\)/);
+  assert.match(PAGE, /<ChannelStatus c=\{c\} logs=\{data\.logs\} now=\{now\} hasProblem=\{hasProblem\} \/>/);
   assert.match(PAGE, /resolveChannelView\(slug, data, role\)/);
 });
 

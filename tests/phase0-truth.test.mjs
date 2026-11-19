@@ -12,10 +12,9 @@ const noMatch = (src, re) => assert.doesNotMatch(src, re);
 test('P0-1: no hardcoded nav badge numbers anywhere in the shell/hubs', () => {
   noMatch(shell, /rounded-full text-\[10px\] font-bold bg-accent\/20 text-accent">\s*\n\s*3/);
   noMatch(shell, /text-error-primary\/20 text-error-primary">\s*\n\s*1/);
-  // Phase 2: the Inbox badge (approvals + open alerts) replaced the Studio/Operations pair;
-  // unknown → no badge, never a guessed number
-  assert.match(shell, /i\.badge === 'inbox' && inboxCount/);
-  assert.match(shell, /inboxCount=\{pendingReview != null && /);
+  // Feedback round 1 (D): the Inbox menu badge is gone too — real problems show
+  // only in the bell + on the Inbox page, so the sidebar renders no count at all
+  noMatch(shell, /inboxCount|i\.badge|pendingReview/);
   noMatch(read('studio/app/studio/page.js'), /badge: '3'/);
   noMatch(read('studio/app/network/page.js'), /Channels \(16\)/);
   noMatch(read('studio/app/templates/page.js'), /100\+|14 Full Stories/);
@@ -27,8 +26,11 @@ test('P0-2: DB-down answers 503 DB_DOWN and no surface can say "quiet" on error'
   const hook = read('studio/components/use-open-warnings.js');
   assert.match(hook, /status: 'error'/);
   const home = read('studio/app/page.js');
-  assert.match(home, /warnStatus === 'error'/);
+  // feedback r1: home has no warnings card any more — a warnings error feeds
+  // the verdict line, which says "status unknown … not an all-clear"
+  assert.match(home, /warnings: \{ status: warnStatus, rows: openWarningRows \}/);
   assert.match(home, /this is not an all-clear/);
+  assert.match(read('studio/lib/cockpit-verdict.mjs'), /if \(ws === 'error'\) unknown\.push\('warnings'\)/);
   assert.match(read('studio/app/tasks/page.js'), /not an all-clear/);
 });
 
@@ -70,7 +72,8 @@ test('P0-9: display severity ladder puts blocking first; consumers use real keys
   const wp = read('studio/app/warnings/page.js');
   assert.match(wp, /\['blocking', 'action_required', 'warning', 'advisory', 'informational'\]/);
   assert.match(read('studio/app/tasks/page.js'), /blocking: 'bad', action_required: 'warn'/);
-  assert.match(read('studio/app/page.js'), /severity === 'blocking'/);
+  // feedback r1: the home warning list is gone; the verdict's tone is the consumer now
+  assert.match(read('studio/lib/cockpit-verdict.mjs'), /w\.severity === 'blocking'/);
 });
 
 test('P0-11: "today" counts only today\'s run', () => {

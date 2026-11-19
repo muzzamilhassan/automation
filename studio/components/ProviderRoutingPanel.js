@@ -155,33 +155,23 @@ export default function ProviderRoutingPanel({ slug, frame }) {
   return wrap(
     <div className="space-y-5 min-w-0">
       <p className="t-12 text-muted">
-        {slug
-          ? 'Which AI service runs first for each job. This channel’s overrides run before the workspace defaults; the built-in local services are always the last resort.'
-          : 'Workspace defaults — the fallback chain every channel uses when it has no override of its own. The built-in local services are always the last resort.'}
+        {slug ? 'Top runs first. Built-in local services are always the last resort.' : 'Used by every channel without its own order.'}
+        {!isOwner ? <span className="inline-flex items-center gap-1 ml-1"><Info size={12} style={{ color: 'var(--info-ink)' }} /> Read-only.</span> : null}
       </p>
-      {!isOwner ? (
-        <p className="flex items-start gap-1.5 t-12 text-muted">
-          <Info size={13} className="mt-0.5 shrink-0" style={{ color: 'var(--info-ink)' }} />
-          <span>Read-only — only the owner can change routing.</span>
-        </p>
-      ) : null}
 
       {/* channel override vs workspace default toggle (per-channel mount only) */}
       {slug ? (
-        <div className="space-y-1.5">
-          <Segmented
-            value={activeLayer}
-            onChange={(v) => { setLayer(v); setMsg(null); }}
-            options={[{ value: 'channel', label: 'This channel (override)' }, { value: 'default', label: 'Workspace default' }]}
-          />
-          {activeLayer === 'channel' ? <p className="t-11 text-faint">Empty chains fall through to the workspace default.</p> : null}
-        </div>
+        <Segmented
+          value={activeLayer}
+          onChange={(v) => { setLayer(v); setMsg(null); }}
+          options={[{ value: 'channel', label: 'This channel' }, { value: 'default', label: 'Workspace default' }]}
+        />
       ) : null}
 
       {data.routesError ? (
         <p className="flex items-start gap-1.5 t-12" style={{ color: 'var(--warn-ink)' }}>
           <Info size={13} className="mt-0.5 shrink-0" />
-          <span className="min-w-0">Routing store unavailable ({data.routesError}) — chains below are empty and resolution falls back to the catalog baseline order until the database is reachable.</span>
+          <span className="min-w-0">Routing store unavailable ({data.routesError}). The built-in order is used until it is back.</span>
         </p>
       ) : null}
 
@@ -197,7 +187,7 @@ export default function ProviderRoutingPanel({ slug, frame }) {
           const resolvedList = slug && data.resolved ? data.resolved[cap] || [] : null;
           const pickId = `route-add-${slug || 'default'}-${cap}`;
           return (
-            <section key={cap} className="py-4 min-w-0 space-y-2">
+            <section key={cap} className="py-3 min-w-0 space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="t-13 font-semibold text-ink first-letter:uppercase">{CAP_LABEL[cap] || cap}</h3>
                 {locals.map((p) => (
@@ -206,14 +196,10 @@ export default function ProviderRoutingPanel({ slug, frame }) {
               </div>
 
               {covering.length === 0 ? (
-                <p className="t-12 text-faint">
-                  No provider covers this yet — nothing to route until a key for a covering provider is added.
-                </p>
+                <p className="t-12 text-faint">No provider for this yet.</p>
               ) : chain.length === 0 ? (
                 <p className="t-12 text-muted">
-                  {activeLayer === 'channel'
-                    ? 'No channel override — the workspace default chain (then the catalog baseline order) is used.'
-                    : 'No workspace routes yet — providers run in the catalog baseline order.'}
+                  {activeLayer === 'channel' ? 'Uses the workspace default.' : 'Uses the built-in order.'}
                 </p>
               ) : (
                 <ol className="space-y-1.5">
@@ -267,34 +253,30 @@ export default function ProviderRoutingPanel({ slug, frame }) {
               )}
 
               {/* add provider (owner only) */}
-              {isOwner && covering.length > 0 ? (
-                addable.length ? (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <label htmlFor={pickId} className="sr-only">Add a provider to the {CAP_LABEL[cap] || cap} chain</label>
-                    <select
-                      id={pickId}
-                      value={pick[cap] || ''}
-                      onChange={(e) => setPick((p) => ({ ...p, [cap]: e.target.value }))}
-                      className="input flex-1 min-w-0 basis-56"
-                    >
-                      <option value="">Add a provider to the chain…</option>
-                      {addable.map((p) => (
-                        <option key={p.id} value={p.id}>{p.label} ({p.envVar})</option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => addProvider(cap)}
-                      disabled={!pick[cap] || Boolean(busy)}
-                      className="btn btn-outline btn-sm"
-                      title="Adds it to the end of the chain (runs last)"
-                    >
-                      {busy.startsWith(`${cap}:`) ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />} Add
-                    </button>
-                  </div>
-                ) : (
-                  <p className="t-11 text-faint">Every covering provider is already in this chain.</p>
-                )
+              {isOwner && addable.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <label htmlFor={pickId} className="sr-only">Add a provider to the {CAP_LABEL[cap] || cap} chain</label>
+                  <select
+                    id={pickId}
+                    value={pick[cap] || ''}
+                    onChange={(e) => setPick((p) => ({ ...p, [cap]: e.target.value }))}
+                    className="input flex-1 min-w-0 basis-56"
+                  >
+                    <option value="">Add a provider…</option>
+                    {addable.map((p) => (
+                      <option key={p.id} value={p.id}>{p.label} ({p.envVar})</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => addProvider(cap)}
+                    disabled={!pick[cap] || Boolean(busy)}
+                    className="btn btn-outline btn-sm"
+                    title="Adds it to the end of the chain (runs last)"
+                  >
+                    {busy.startsWith(`${cap}:`) ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />} Add
+                  </button>
+                </div>
               ) : null}
 
               {/* effective resolution preview (channel mount only) */}
