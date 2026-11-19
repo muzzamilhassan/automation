@@ -32,39 +32,44 @@ Status labels: 🆕 new · 🔍 looking into it · 💡 proposal ready (needs yo
 - **Your decision needed:** yes/no — …
 -->
 
+_2026-11-20 — A–H are all built and live (checked in a real browser on desktop + phone). Three small things for you to decide whenever you like:_
+- **Thumbnail designs take turns only on channels whose video template asks for more than one thumbnail.** Want me to make that true for every channel?
+- **The Inbox menu opens the Tasks page; the bell opens the Alerts page.** Want them merged into one Inbox page?
+- **The Add Channel wizard now picks the upload time by the hour** (the exact-minute box is gone). OK, or bring minutes back?
+
 _2026-11-19 — answers to your first 9 items. Reply "approve all" in chat (or tick the ones you want: e.g. "approve A, B, D") and I'll build them._
 
-### A. Choose thumbnail designs when adding a channel (item 1) — 💡 proposal ready
+### A. Choose thumbnail designs when adding a channel (item 1) — ✅ done & live
 - **You said:** when adding a channel like YT-BOT I want to pick its thumbnails, but the built-in thumbnail templates don't show.
 - **What I found:** the automation ALREADY supports a per-channel list of chosen thumbnail designs (`thumbTemplates` — it rotates through them on uploads), but no screen lets you set it. The wizard's Thumbnails step only edits text.
 - **My recommendation:** the Thumbnails step (and a "Thumbnails" drawer under Manage) shows every built-in design as a real rendered sample in your channel's colours; you tick the ones you like (2–5), they rotate automatically. Saved to the channel, used from the next upload.
 
-### B. A much simpler dashboard (item 2) — 💡 proposal ready
+### B. A much simpler dashboard (item 2) — ✅ done & live
 - **You said:** remove all the extra boxes and cards from the dashboard.
 - **What I found:** Today has 8 sections (verdict, channels today, 5 KPI tiles, chart, needs-attention, production table, researched topics, trend radar).
 - **My recommendation:** keep only 3 things: **(1)** the one-line verdict ("All good" / "N things need you"), **(2)** one compact row per channel (made today? next slot), **(3)** the views chart. Move topics + trend radar to each channel's page and to Analytics; drop the KPI tiles (they're on Analytics) and the duplicate needs-attention card.
 
-### C. Breadcrumb on every page (item 3) — 💡 proposal ready
+### C. Breadcrumb on every page (item 3) — ✅ done & live
 - **What I found:** the breadcrumb is hidden on phones and only shows one level ("Channels"), never "Channels / Money Rulebook / Schedule".
 - **My recommendation:** a full breadcrumb on every page incl. phones (e.g. `Channels › Money Rulebook`), each part clickable.
 
-### D. Warnings shown in too many places (items 4 + 5) — 💡 proposal ready
+### D. Warnings shown in too many places (items 4 + 5) — ✅ done & live
 - **What I found:** real problems currently appear in up to 6 places: bell, Inbox badge, home verdict, home needs-attention card, the phone bar, and a warning line on every channel card (that card line also shows "not run today" before a slot even happened).
 - **My recommendation:** exactly **2 places**: the **bell** (with count) and the **Inbox page**. Home shows only the one-line verdict. Channel cards show a small red dot only when that channel has a real problem — no warning text on healthy channels.
 
-### E. Better drawers: scrolling, less text (item 6) — 💡 proposal ready
+### E. Better drawers: scrolling, less text (item 6) — ✅ done & live
 - **You said:** the Schedule drawer isn't the best UI, doesn't scroll, and every heading has a description — you want less text.
 - **My recommendation:** fix scrolling inside every drawer (I'll test it in a real browser on desktop + phone), remove the description lines under headings (keep one short line at the top only), tighter layout.
 
-### F. AI best times + free slots (item 7) — 💡 proposal ready
+### F. AI best times + free slots (item 7) — ✅ done & live
 - **You said:** I don't understand when the daily run happens or what the best time is; I want AI to suggest best times and show which slots other channels don't use.
 - **My recommendation:** the schedule picker becomes a simple 24-hour timeline in YOUR time: slots other channels already use are greyed "taken", 3 suggested times are highlighted ("⭐ best — your audience is most active", based on your real YouTube Analytics where available, else the niche default), and you click to pick. The raw cron text disappears.
 
-### G. Template drawer with real demos + Story/Chapters choice (item 8) — 💡 proposal ready
+### G. Template drawer with real demos + Story/Chapters choice (item 8) — ✅ done & live
 - **You said:** the template drawer is just text — no demos; and the Story-based vs Chapters option should be there.
 - **My recommendation:** the channel's Templates drawer shows the same real preview cards as the Templates gallery (poster + video on hover), and each has a clear **Full story / Chapters** switch before you assign it.
 
-### H. "Open channel" as a drawer (item 9) — 💡 proposal ready
+### H. "Open channel" as a drawer (item 9) — ✅ done & live
 - **You said:** clicking Open channel goes to a new page; you want a drawer instead.
 - **My recommendation:** "Open channel" opens a large drawer with the channel's health, today, schedule and quick actions, without leaving the Channels list. (The full page stays reachable via a "full page ↗" link in the drawer.)
 
@@ -76,11 +81,11 @@ _2026-11-19 — answers to your first 9 items. Reply "approve all" in chat (or t
 | 1 | Only real notifications (189 → 5) | ✅ done & live | quiet notes never badge or buzz the phone |
 | 2 | Quote Quarry couldn't be turned back on | ✅ done & live | resumed + root cause fixed |
 | 3 | Money Rulebook approved videos never published (Nov 14/17/18) | ✅ done & live | failed renders now alert; 45→75 min limit; voice-timing fallback; nightly "approved but never published" check; approvals can't cancel each other. The 3 videos were SKIPPED per your decision |
-| 4 | A. Pick thumbnail designs per channel | 💡 proposal ready | needs your OK |
-| 5 | B. Simpler dashboard (3 sections) | 💡 proposal ready | needs your OK |
-| 6 | C. Full breadcrumb on every page | 💡 proposal ready | needs your OK |
-| 7 | D. Warnings only in bell + Inbox | 💡 proposal ready | needs your OK |
-| 8 | E. Drawers scroll, less text | 💡 proposal ready | needs your OK |
-| 9 | F. AI best times + free slots timeline | 💡 proposal ready | needs your OK |
-| 10 | G. Template drawer with real demos + Story/Chapters | 💡 proposal ready | needs your OK |
-| 11 | H. Open channel in a drawer | 💡 proposal ready | needs your OK |
+| 4 | A. Pick thumbnail designs per channel | ✅ done & live | real rendered samples in the Add Channel wizard + new Manage → Thumbnails drawer; tick 2–5, they take turns on new uploads (95b880a + 750c2ab, live 2026-11-20) |
+| 5 | B. Simpler dashboard (3 sections) | ✅ done & live | Today = status line + one row per channel + views chart; totals, topics and trend radar moved to Analytics (95b880a + 750c2ab, live 2026-11-20) |
+| 6 | C. Full breadcrumb on every page | ✅ done & live | clickable path on every page incl. phones, e.g. Channels › Money Rulebook (95b880a + 750c2ab, live 2026-11-20) |
+| 7 | D. Warnings only in bell + Inbox | ✅ done & live | no Inbox menu badge, no phone-bar alert count; channel cards show a small red dot only for a real problem (95b880a + 750c2ab, live 2026-11-20) |
+| 8 | E. Drawers scroll, less text | ✅ done & live | root cause: page fade-in animation trapped drawers at page height; fixed for every drawer; explanation lines removed (95b880a + 750c2ab, live 2026-11-20) |
+| 9 | F. AI best times + free slots timeline | ✅ done & live | 24-hour grid in your time; hours used by other channels greyed "taken"; 3 starred times with the reason; schedule code hidden under Advanced (95b880a + 750c2ab, live 2026-11-20) |
+| 10 | G. Template drawer with real demos + Story/Chapters | ✅ done & live | real poster + video previews; Story shape switch (Template default / Full story / Chapters) at the top (95b880a + 750c2ab, live 2026-11-20) |
+| 11 | H. Open channel in a drawer | ✅ done & live | opens a large drawer on the Channels list; "Full page ↗" link kept (95b880a + 750c2ab, live 2026-11-20) |
