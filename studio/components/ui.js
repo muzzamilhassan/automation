@@ -124,7 +124,8 @@ export function StatCard({ icon: Icon, label, value, delta, spark, color = 'var(
         ) : null}
       </div>
       <div className="flex items-end justify-between gap-2 mt-2.5">
-        <div className="stat-num text-[26px] text-ink leading-none">{fmt ? fmt(shown) : shown.toLocaleString('en-US')}</div>
+        {/* Honest: no value (null/undefined) renders "—", never a counted-up 0 */}
+        <div className="stat-num text-[26px] text-ink leading-none">{value == null ? <span className="text-faint">—</span> : fmt ? fmt(shown) : shown.toLocaleString('en-US')}</div>
         {spark ? (
           <div className="w-24 h-9 shrink-0 opacity-90">
             <Sparkline data={spark} color={color} />

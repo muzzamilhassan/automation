@@ -39,6 +39,7 @@ export default function Analytics() {
   const [real, setReal] = useState(null);
   const [realErr, setRealErr] = useState(false);
   const [terms, setTerms] = useState(null);
+  const [termsErr, setTermsErr] = useState(false);
   const [reports, setReports] = useState([]);
   const [snap, setSnap] = useState(null);
   const [snapDays, setSnapDays] = useState(28);
@@ -75,12 +76,14 @@ export default function Analytics() {
     const q = fresh ? '?fresh=1' : '';
     fetch('/api/analytics?slug=' + sel + q)
       .then((r) => r.json())
-      .then((d) => (d && !d.error ? setReal(d) : setRealErr(true)))
+      // Honest: a reply where EVERY channel failed (coverage.ok empty) is not
+      // data — it's zeros. Treat it as unavailable, never 'real data'.
+      .then((d) => (d && !d.error && !(d.coverage && !d.coverage.ok?.length) ? setReal(d) : setRealErr(true)))
       .catch(() => setRealErr(true));
     fetch('/api/terms?slug=' + sel)
-      .then((r) => r.json())
-      .then((d) => setTerms(d.terms || []))
-      .catch(() => setTerms([]));
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
+      .then((d) => { if (d?.error) throw new Error(d.error); setTerms(d.terms || []); setTermsErr(false); })
+      .catch(() => { setTerms([]); setTermsErr(true); });
   };
   useEffect(() => {
     load();
@@ -292,9 +295,9 @@ export default function Analytics() {
 
       {/* REAL 28-day numbers */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
-        <StatCard icon={Eye} label="Views · 28 days" value={real?.totals?.views ?? 0} fmt={fmt} color="var(--info)" iconBg="color-mix(in srgb, var(--info) 12%, transparent)" />
-        <StatCard icon={Clock} label="Watch time · hours" value={real?.totals?.watchHours ?? 0} fmt={(v) => Number(v).toLocaleString('en-US')} color="var(--ok)" iconBg="color-mix(in srgb, var(--ok) 12%, transparent)" />
-        <StatCard icon={UserPlus} label="Subs gained · 28 days" value={real?.totals?.subsGained ?? 0} fmt={(v) => Number(v).toLocaleString('en-US')} color="#ec4899" iconBg="color-mix(in srgb, #ec4899 12%, transparent)" />
+        <StatCard icon={Eye} label="Views · 28 days" value={real ? real.totals?.views ?? null : null} fmt={fmt} color="var(--info)" iconBg="color-mix(in srgb, var(--info) 12%, transparent)" />
+        <StatCard icon={Clock} label="Watch time · hours" value={real ? real.totals?.watchHours ?? null : null} fmt={(v) => Number(v).toLocaleString('en-US')} color="var(--ok)" iconBg="color-mix(in srgb, var(--ok) 12%, transparent)" />
+        <StatCard icon={UserPlus} label="Subs gained · 28 days" value={real ? real.totals?.subsGained ?? null : null} fmt={(v) => Number(v).toLocaleString('en-US')} color="#ec4899" iconBg="color-mix(in srgb, #ec4899 12%, transparent)" />
         <StatCard icon={Users} label="Subscribers · total" value={subsShown} fmt={fmt} />
       </div>
 
@@ -336,7 +339,7 @@ export default function Analytics() {
             title="Views per day"
             sub="Real numbers · last 28 days from YouTube Analytics"
             icon={TrendingUp}
-            right={realErr ? <Chip tone="bad">unavailable · retry</Chip> : <Chip tone="ok">real data</Chip>}
+            right={realErr ? <Chip tone="bad">unavailable · retry</Chip> : !real ? null : real.coverage?.failed?.length ? <Chip tone="warn">{real.coverage.ok.length} of {real.coverage.ok.length + real.coverage.failed.length} channels</Chip> : <Chip tone="ok">real data</Chip>}
           />
           <div className="px-2 pb-2">
             {realErr ? (
@@ -457,7 +460,7 @@ export default function Analytics() {
             title="Viewer search terms"
             sub="What viewers typed into YouTube before finding you · last 28 days"
             icon={Search}
-            right={terms !== null ? <Chip tone="ok">real data</Chip> : null}
+            right={termsErr ? <Chip tone="bad">unavailable</Chip> : terms !== null ? <Chip tone="ok">real data</Chip> : null}
           />
           <div className="px-2 pb-2">
             {terms === null ? (

@@ -31,39 +31,42 @@ const chipTone = (severity) => ({
 function WarningRow({ w, isOwner, onAck, onResolve, onRecheck, busy }) {
   return (
     <div className="border-b border-white/5 py-3 last:border-0">
-      <div className="flex items-start gap-3">
-        <Chip tone={chipTone(w.severity)} dot>{w.severity}</Chip>
-        <div className="flex-1 min-w-0">
-          <div className="t-13 font-semibold text-ink">
-            {w.title}
-            {w.blocks_publishing ? <span className="ml-2 t-11" style={{ color: 'var(--bad)' }}>PUBLISHING BLOCKED</span> : null}
-            {w.code === 'review_gating_inactive' ? <span className="ml-2 t-11 text-muted">review queue</span> : null}
-          </div>
-          {w.explanation ? <div className="t-12 text-muted mt-0.5">{w.explanation}</div> : null}
-          {w.evidence ? <div className="t-11 text-faint mt-1 break-all">evidence: {w.evidence}</div> : null}
-          {w.policy_quote ? (
-            <div className="t-11 mt-1.5 bg-black/20 rounded-lg p-2 flex gap-2">
-              <Quote size={11} className="shrink-0 mt-0.5 text-muted" />
-              <span>
-                &ldquo;{w.policy_quote}&rdquo;
-                {w.policy_url ? <> — <a href={w.policy_url} target="_blank" rel="noreferrer" className="underline">official source</a></> : null}
-                {w.quote_fetched_at ? <span className="text-faint"> (fetched {when(w.quote_fetched_at)})</span> : null}
-              </span>
+      <div className="flex flex-col gap-3 md:flex-row md:items-start">
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <Chip tone={chipTone(w.severity)} dot>{w.severity}</Chip>
+          <div className="flex-1 min-w-0">
+            <div className="t-13 font-semibold text-ink break-words">
+              {w.title}
+              {w.blocks_publishing ? <span className="ml-2 t-11" style={{ color: 'var(--bad)' }}>PUBLISHING BLOCKED</span> : null}
+              {w.code === 'review_gating_inactive' ? <span className="ml-2 t-11 text-muted">review queue</span> : null}
             </div>
-          ) : null}
-          {w.recommended_action ? <div className="t-11 text-muted mt-1">→ {w.recommended_action}</div> : null}
-          <div className="t-10 text-faint mt-1.5 tnum">
-            {w.channel_id} · {w.code}{w.job_id ? ` · job ${w.job_id}` : ''} · last checked {when(w.last_checked_at)} · opened {when(w.created_at)}
-            {w.acknowledged_by ? ` · acknowledged by ${w.acknowledged_by}` : ''}
+            {w.explanation ? <div className="t-12 text-muted mt-0.5 break-words">{w.explanation}</div> : null}
+            {w.evidence ? <div className="t-11 text-faint mt-1 break-all">evidence: {w.evidence}</div> : null}
+            {w.policy_quote ? (
+              <div className="t-11 mt-1.5 bg-black/20 rounded-lg p-2 flex gap-2">
+                <Quote size={11} className="shrink-0 mt-0.5 text-muted" />
+                <span className="min-w-0 break-words">
+                  &ldquo;{w.policy_quote}&rdquo;
+                  {w.policy_url ? <> — <a href={w.policy_url} target="_blank" rel="noreferrer" className="underline">official source</a></> : null}
+                  {w.quote_fetched_at ? <span className="text-faint"> (fetched {when(w.quote_fetched_at)})</span> : null}
+                </span>
+              </div>
+            ) : null}
+            {w.recommended_action ? <div className="t-11 text-muted mt-1 break-words">→ {w.recommended_action}</div> : null}
+            <div className="t-10 text-faint mt-1.5 tnum break-words">
+              {w.channel_id} · {w.code}{w.job_id ? ` · job ${w.job_id}` : ''} · last checked {when(w.last_checked_at)} · opened {when(w.created_at)}
+              {w.acknowledged_by ? ` · acknowledged by ${w.acknowledged_by}` : ''}
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        {/* phones: 44px action buttons on their own wrapping row */}
+        <div className="flex flex-wrap items-center gap-2 md:shrink-0">
           {w.state === 'open' ? (
-            <button onClick={() => onAck(w)} disabled={busy === `ack-${w.id}`} className="inline-flex items-center gap-1 t-11 text-muted cursor-pointer disabled:opacity-50" title='records "seen" — never unblocks (D11)'>
+            <button onClick={() => onAck(w)} disabled={busy === `ack-${w.id}`} className="btn btn-outline btn-sm min-h-[44px] md:min-h-0" title='records "seen" — never unblocks (D11)'>
               {busy === `ack-${w.id}` ? <Loader2 size={11} className="animate-spin" /> : <Eye size={11} />} Acknowledge
             </button>
           ) : null}
-          <button onClick={() => onRecheck(w)} disabled={busy === `recheck-${w.id}`} className="inline-flex items-center gap-1 t-11 text-muted cursor-pointer disabled:opacity-50" title="runs the probe for this channel (mapped + auto-verifiable codes only)">
+          <button onClick={() => onRecheck(w)} disabled={busy === `recheck-${w.id}`} className="btn btn-outline btn-sm min-h-[44px] md:min-h-0" title="runs the probe for this channel (mapped + auto-verifiable codes only)">
             {busy === `recheck-${w.id}` ? <Loader2 size={11} className="animate-spin" /> : <RotateCw size={11} />} Re-check
           </button>
           {isOwner && w.state !== 'resolved' ? <ResolveButton w={w} busy={busy} onResolve={onResolve} /> : null}
@@ -77,24 +80,23 @@ function ResolveButton({ w, busy, onResolve }) {
   const [note, setNote] = useState('');
   const [open, setOpen] = useState(false);
   return open ? (
-    <span className="inline-flex items-center gap-1">
+    <span className="flex flex-wrap items-center gap-2 w-full md:w-auto">
       <input
         value={note}
         onChange={(e) => setNote(e.target.value)}
         placeholder="resolve note (required)"
-        className="w-40 t-11 bg-black/20 rounded px-2 py-1"
+        className="input flex-1 min-w-0 md:flex-none md:w-40 min-h-[44px] md:min-h-0"
       />
       <button
         onClick={() => { if (note.trim()) { onResolve(w, note.trim()); setOpen(false); } }}
         disabled={busy === `resolve-${w.id}` || !note.trim()}
-        className="t-11 cursor-pointer disabled:opacity-50"
-        style={{ color: 'var(--ok, #34d399)' }}
+        className="btn btn-primary btn-sm min-h-[44px] md:min-h-0"
       >
         {busy === `resolve-${w.id}` ? <Loader2 size={11} className="animate-spin" /> : <CheckCircle2 size={11} />} Resolve
       </button>
     </span>
   ) : (
-    <button onClick={() => setOpen(true)} disabled={busy === `resolve-${w.id}`} className="inline-flex items-center gap-1 t-11 text-muted cursor-pointer disabled:opacity-50" title="owner manual resolve — note recorded, never silent (AC-P4-15)">
+    <button onClick={() => setOpen(true)} disabled={busy === `resolve-${w.id}`} className="btn btn-outline btn-sm min-h-[44px] md:min-h-0" title="owner manual resolve — note recorded, never silent (AC-P4-15)">
       Resolve
     </button>
   );
@@ -161,7 +163,7 @@ export default function WarningsDashboardPage() {
         <div className="flex items-center gap-2 text-muted text-sm py-8"><Loader2 size={15} className="animate-spin" /> Loading warnings…</div>
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-4 mb-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-5">
             <StatCard icon={TriangleAlert} label="Open warnings" value={open.length} color={open.length ? 'var(--warn, orange)' : undefined} />
             <StatCard icon={Ban} label="Parked channels" value={parked.size} color="var(--bad)" />
             <StatCard icon={CheckCircle2} label="Resolved (recent)" value={(data.resolved || []).length} />
@@ -171,7 +173,7 @@ export default function WarningsDashboardPage() {
             <button
               onClick={() => act({ action: 'recheck' }, 'recheck-all')}
               disabled={busy === 'recheck-all'}
-              className="inline-flex items-center gap-1 t-12 text-muted cursor-pointer disabled:opacity-50"
+              className="btn btn-outline btn-sm min-h-[44px] md:min-h-0 w-full sm:w-auto"
               title="run the parked-channel probes across the network"
             >
               {busy === 'recheck-all' ? <Loader2 size={11} className="animate-spin" /> : <RotateCw size={11} />} Re-check all parked channels
@@ -213,12 +215,12 @@ export default function WarningsDashboardPage() {
               <CardHead icon={CheckCircle2} title="Resolved history" sub="manual resolves carry resolved_by + note (AC-P4-15) — newest first, 50 most recent" />
               <div className="px-5 pb-5 space-y-1.5">
                 {data.resolved.map((w) => (
-                  <div key={w.id} className="t-12 flex items-center gap-2 text-muted">
+                  <div key={w.id} className="t-12 flex flex-wrap items-center gap-x-2 gap-y-1 text-muted">
                     <Chip tone={chipTone(w.severity)}>{w.severity}</Chip>
-                    <span className="flex-1">{w.title}</span>
+                    <span className="flex-1 min-w-0 break-words">{w.title}</span>
                     <span className="text-faint">{w.channel_id}</span>
                     <span className="text-faint tnum">{w.resolved_by} · {when(w.resolved_at)}</span>
-                    {w.resolve_note ? <span className="text-faint">— &ldquo;{w.resolve_note}&rdquo;</span> : null}
+                    {w.resolve_note ? <span className="text-faint break-words min-w-0">— &ldquo;{w.resolve_note}&rdquo;</span> : null}
                   </div>
                 ))}
               </div>

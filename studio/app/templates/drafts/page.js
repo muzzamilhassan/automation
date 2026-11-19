@@ -40,6 +40,7 @@ function PosterTile({ draft, onOpen }) {
   return (
     <button
       type="button"
+      data-kit="tile"
       onClick={() => onOpen(draft)}
       className="relative w-full aspect-video rounded-xl overflow-hidden border border-line bg-neutral-950 group text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent"
       aria-label={`Play sample video for ${draft.templateId}`}

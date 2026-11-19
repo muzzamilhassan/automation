@@ -21,8 +21,9 @@ import {
   LogOut,
   Sparkles,
 } from 'lucide-react';
-import { NAV } from './nav';
+import { NAV, navItemFor, navSectionFor } from './nav';
 import CommandPalette from './CommandPalette';
+import PocketBar from './PocketBar';
 import { useBrands } from '@/components/use-brands';
 import { useOpenWarnings } from '@/components/use-open-warnings';
 import { useMe, initialsOf } from '@/components/use-me';
@@ -33,26 +34,6 @@ import { Button } from '@/components/untitledui/base/buttons/button';
 import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
 import { Badge, BadgeWithIcon } from '@/components/untitledui/base/badges/badges';
 import { BrandMark } from '@/components/ui';
-
-function isPathActive(href, pathname) {
-  if (href === '/') return pathname === '/';
-  if (href === '/studio') {
-    return pathname.startsWith('/studio') || ['/review', '/topics', '/create', '/thumbs', '/templates'].some((p) => pathname.startsWith(p));
-  }
-  if (href === '/content') {
-    return pathname.startsWith('/content') || ['/videos', '/social', '/music'].some((p) => pathname.startsWith(p));
-  }
-  if (href === '/operations') {
-    return pathname.startsWith('/operations') || ['/production', '/logs', '/warnings'].some((p) => pathname.startsWith(p));
-  }
-  if (href === '/network') {
-    return pathname.startsWith('/network') || ['/channels', '/providers', '/usage'].some((p) => pathname.startsWith(p));
-  }
-  if (href === '/settings') {
-    return pathname.startsWith('/settings') || ['/users', '/sessions', '/tasks'].some((p) => pathname.startsWith(p));
-  }
-  return pathname === href;
-}
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -125,7 +106,7 @@ function Notifications({ open, onClose, warnings }) {
 
 /* 10-15 DREAMS CONVERSION: dark sidebar with custom links (replaces the UUI
    NavList so the always-dark palette is fully controlled). */
-function NavGroups({ collapsed, onNavigate, studioCount, opsCount }) {
+function NavGroups({ collapsed, onNavigate, inboxCount }) {
   const pathname = usePathname();
   // #125 (S-11): the sidebar's channel list is LIVE — /api/brands replaces
   // the old hardcoded list; nothing renders until it loads.
@@ -141,7 +122,7 @@ function NavGroups({ collapsed, onNavigate, studioCount, opsCount }) {
           )}
           <div className={cn('space-y-0.5', collapsed && 'qs-rail')}>
             {g.items.map((i) => {
-              const active = isPathActive(i.href, pathname);
+              const active = navSectionFor(pathname)?.href === i.href;
               const Icon = i.icon;
               return (
                 <Link
@@ -155,14 +136,9 @@ function NavGroups({ collapsed, onNavigate, studioCount, opsCount }) {
                   {!collapsed ? (
                     <>
                       <span className="truncate flex-1">{i.label}</span>
-                      {i.href === '/studio' && studioCount ? (
-                        <span className="ml-auto px-1.5 py-0.5 rounded-full t-10 font-bold bg-accent/20 text-accent">
-                          {studioCount}
-                        </span>
-                      ) : null}
-                      {i.href === '/operations' && opsCount ? (
-                        <span className="ml-auto px-1.5 py-0.5 rounded-full t-10 font-bold bg-error-solid/20 text-error-primary">
-                          {opsCount}
+                      {i.badge === 'inbox' && inboxCount ? (
+                        <span className="ml-auto px-1.5 py-0.5 rounded-full t-10 font-bold bg-accent/20 text-accent" title="Scripts waiting for approval + open alerts">
+                          {inboxCount}
                         </span>
                       ) : null}
                     </>
@@ -179,7 +155,7 @@ function NavGroups({ collapsed, onNavigate, studioCount, opsCount }) {
         {!collapsed ? (
           <div className="qs-side-group flex items-center justify-between">
             <span>Channels</span>
-            <Link href="/network?tab=channels" className="t-10 lowercase text-[#6b7671] hover:text-[#98a2a7]">
+            <Link href="/channels" className="t-10 lowercase text-[#6b7671] hover:text-[#98a2a7]">
               manage →
             </Link>
           </div>
@@ -188,7 +164,7 @@ function NavGroups({ collapsed, onNavigate, studioCount, opsCount }) {
           {liveChannels.map((p) => (
             <Link
               key={p.slug}
-              href={`/channels#${p.slug}`}
+              href={`/channels/${p.slug}`}
               onClick={onNavigate}
               title={`${p.label} (${p.short})`}
               className={cn(
@@ -297,13 +273,15 @@ export default function AppShell({ children }) {
     router.replace('/login');
   };
 
-  const current = NAV.flatMap((g) => g.items).find((i) => i.href === pathname);
-  const pageTitle = current ? current.label : 'Quarry Studio';
+  const current = navItemFor(pathname);
+  const section = navSectionFor(pathname);
+  const pageTitle = current ? current.label : (pathname?.startsWith('/channels/') ? 'Channel' : null);
+  const crumbRoot = section && section.href !== current?.href ? section : null;
 
   const sidebarInner = (collapsedState, isMobile = false) => (
     <>
       <Brand collapsed={collapsedState && !isMobile} />
-      <NavGroups collapsed={collapsedState && !isMobile} onNavigate={() => setMobileOpen(false)} studioCount={pendingReview} opsCount={warningsCanSee ? openWarningRows.length : null} />
+      <NavGroups collapsed={collapsedState && !isMobile} onNavigate={() => setMobileOpen(false)} inboxCount={pendingReview != null && (warnStatus === 'ok' || warnStatus === 'forbidden') ? pendingReview + (warnStatus === 'ok' ? openWarningRows.length : 0) : null} />
       <div className={cn('qs-side-foot p-3 shrink-0', collapsedState && !isMobile ? 'flex flex-col items-center gap-2' : 'flex items-center justify-between')}>
 
         {!isMobile ? (
@@ -353,9 +331,13 @@ export default function AppShell({ children }) {
 
             <div className="hidden md:flex items-center gap-1.5 t-13 min-w-0">
               <Activity size={13} className="text-fg-quaternary" />
-              <Link href="/" className="text-fg-quaternary hover:text-fg-secondary transition-colors">Quarry Studio</Link>
-              <span className="text-fg-quaternary">/</span>
-              <span className="font-semibold text-fg-primary truncate">{pageTitle}</span>
+              <Link href={crumbRoot?.href || '/'} className="text-fg-quaternary hover:text-fg-secondary transition-colors">{crumbRoot?.label || 'Quarry Studio'}</Link>
+              {pageTitle ? (
+                <>
+                  <span className="text-fg-quaternary">/</span>
+                  <span className="font-semibold text-fg-primary truncate">{pageTitle}</span>
+                </>
+              ) : null}
             </div>
 
             <div className="flex-1" />
@@ -433,7 +415,7 @@ export default function AppShell({ children }) {
           </div>
         </header>
 
-        <main className="relative w-full px-4 md:px-6 py-5 md:py-7 max-w-[1240px] mx-auto">
+        <main className="relative w-full px-4 md:px-6 pt-5 pb-[calc(88px+env(safe-area-inset-bottom))] md:py-7 max-w-[1240px] mx-auto">
           <div key={pathname} className="fade-up">
             {children}
           </div>
@@ -445,6 +427,7 @@ export default function AppShell({ children }) {
       </div>
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <PocketBar onMore={() => setMobileOpen(true)} />
     </div>
   );
 }

@@ -220,24 +220,27 @@ export default function ProviderRoutingPanel({ slug }) {
                             <button
                               onClick={() => reorder(cap, i, -1)}
                               disabled={Boolean(busy) || i === 0}
-                              className="t-11 px-1.5 py-1 rounded-md border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-40"
+                              className="btn btn-outline btn-sm"
                               title="Move up (higher priority)"
+                              aria-label="Move up (higher priority)"
                             >
                               <ArrowUp size={11} />
                             </button>
                             <button
                               onClick={() => reorder(cap, i, 1)}
                               disabled={Boolean(busy) || i === chain.length - 1}
-                              className="t-11 px-1.5 py-1 rounded-md border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-40"
+                              className="btn btn-outline btn-sm"
                               title="Move down (lower priority)"
+                              aria-label="Move down (lower priority)"
                             >
                               <ArrowDown size={11} />
                             </button>
                             <button
                               onClick={() => removeProvider(cap, r.provider_id)}
                               disabled={Boolean(busy)}
-                              className="t-11 px-1.5 py-1 rounded-md border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-40"
+                              className="btn btn-outline btn-sm"
                               title="Remove from the chain"
+                              aria-label="Remove from the chain"
                             >
                               {busy === key ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
                             </button>
@@ -265,7 +268,7 @@ export default function ProviderRoutingPanel({ slug }) {
                   <button
                     onClick={() => addProvider(cap)}
                     disabled={!pick[cap] || Boolean(busy)}
-                    className="t-11 font-medium px-2.5 py-1.5 rounded-lg border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-50 flex items-center gap-1"
+                    className="btn btn-outline btn-sm"
                     title="Append to the end of the chain (lowest priority of the chain)"
                   >
                     {busy.startsWith(`${cap}:`) ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />} Add

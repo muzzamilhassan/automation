@@ -201,7 +201,7 @@ export default function TemplateDetailPage() {
                           <button
                             onClick={() => repin(u.channel_id, curMajor)}
                             disabled={busy === u.channel_id}
-                            className="ml-auto t-11 font-semibold px-2.5 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500 text-sky-300 hover:text-black border border-sky-500/30 transition disabled:opacity-50 flex items-center gap-1"
+                            className="btn btn-primary btn-sm ml-auto"
                           >
                             {busy === u.channel_id ? <Loader2 size={11} className="animate-spin" /> : <ArrowUpCircle size={11} />} Re-pin to v{curMajor}
                           </button>

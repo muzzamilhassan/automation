@@ -12,6 +12,9 @@ const inter = Inter({
 });
 const jetbrainsMono = JetBrains_Mono({ variable: "--font-jetbrains-mono", subsets: ["latin"], display: "swap" });
 
+// Pocket mode: viewportFit cover makes env(safe-area-inset-bottom) real on iOS.
+export const viewport = { width: 'device-width', initialScale: 1, viewportFit: 'cover' };
+
 export const metadata = {
   title: "Quarry Studio — Command Center",
   description: "Multi-platform content control room — live channels, production pipeline & analytics",

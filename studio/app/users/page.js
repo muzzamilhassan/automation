@@ -94,7 +94,7 @@ export default function UsersPage() {
 
                   <div className="flex items-center gap-2 mt-2.5">
                     <span className="t-11 text-muted flex items-center gap-1"><Activity size={11} /> Last action: {u.lastAction ? `${fmtDay(u.lastAction.at)} · ${u.lastAction.action}` : 'none recorded'}</span>
-                    <button onClick={() => setOpen(expanded ? null : u.email)} className="ml-auto t-11 font-medium" style={{ color: 'var(--accent)' }}>
+                    <button onClick={() => setOpen(expanded ? null : u.email)} className="ml-auto t-11 font-medium text-accent underline underline-offset-2" aria-expanded={expanded}>
                       {expanded ? 'Hide activity' : 'Recent activity'}
                     </button>
                   </div>

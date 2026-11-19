@@ -74,7 +74,7 @@ export default function TemplateSimulator({ template, onClose, onSelect }) {
             onClick={() => {
               if (onSelect) onSelect(template);
             }}
-            className="px-4 py-2 rounded-xl text-xs font-semibold bg-sky-500 hover:bg-sky-400 text-black shadow-lg transition flex items-center gap-1.5"
+            className="btn btn-primary"
           >
             <Check size={14} /> Use Template in Production
           </button>
@@ -270,13 +270,15 @@ export default function TemplateSimulator({ template, onClose, onSelect }) {
           <div className="w-full max-w-xl mt-4 flex items-center gap-3 bg-black/60 px-4 py-2 rounded-xl border border-white/10 text-xs">
             <button
               onClick={() => setIsPlaying(!isPlaying)}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition text-white"
+              className="icon-btn"
+              aria-label={isPlaying ? 'Pause preview' : 'Play preview'}
             >
               {isPlaying ? <Pause size={14} /> : <Play size={14} />}
             </button>
             <button
               onClick={() => setFrame(0)}
-              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 transition text-muted"
+              className="icon-btn"
+              aria-label="Restart preview"
             >
               <RotateCcw size={14} />
             </button>
@@ -355,13 +357,13 @@ export default function TemplateSimulator({ template, onClose, onSelect }) {
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
               }}
-              className="flex-1 py-2.5 rounded-xl text-xs font-medium border border-white/15 bg-white/5 hover:bg-white/10 text-muted hover:text-white transition"
+              className="btn btn-outline flex-1"
             >
               {copied ? '✓ Props Copied' : 'Copy JSON Props'}
             </button>
             <button
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-xs font-medium bg-white/10 hover:bg-white/15 text-white transition"
+              className="btn btn-outline"
             >
               Close
             </button>

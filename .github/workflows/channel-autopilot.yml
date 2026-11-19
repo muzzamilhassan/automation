@@ -9,6 +9,9 @@
 # run (cadence: 1 short/day, weekly doc, Sunday break — enforced in the engine).
 
 name: 🏭 Channel Autopilot — all channels
+# Display title only (no behavior change): lets the panel's Runs page tell
+# which channel a run belonged to.
+run-name: "${{ inputs.channel || ((inputs.heartbeat == '1' || github.event_name == 'schedule') && 'heartbeat') || 'all channels' }} · ${{ github.event_name }}"
 
 on:
   schedule:

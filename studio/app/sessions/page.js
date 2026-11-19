@@ -112,8 +112,7 @@ export default function SessionsAdminPage() {
           <button
             onClick={() => revoke(r)}
             disabled={busyId === r.id}
-            className="inline-flex items-center gap-1 t-11 font-medium cursor-pointer disabled:opacity-50"
-            style={{ color: 'var(--bad)' }}
+            className="btn btn-danger btn-sm"
           >
             {busyId === r.id ? <Loader2 size={11} className="animate-spin" /> : <Ban size={11} />} Revoke
           </button>

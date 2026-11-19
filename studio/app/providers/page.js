@@ -190,7 +190,7 @@ export default function ProvidersPage() {
                     <button
                       onClick={() => saveKey(p.id)}
                       disabled={form.busy || !channels.length}
-                      className="t-11 font-medium px-2.5 py-1.5 rounded-lg border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-50 flex items-center gap-1"
+                      className="btn btn-outline btn-sm"
                     >
                       {form.busy ? <Loader2 size={11} className="animate-spin" /> : <KeyRound size={11} />} Save &amp; test
                     </button>
@@ -214,7 +214,7 @@ export default function ProvidersPage() {
                     <button
                       onClick={() => testOnly(p.id)}
                       disabled={probeState?.busy}
-                      className="t-11 font-medium px-2.5 py-1.5 rounded-lg border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-50 flex items-center gap-1"
+                      className="btn btn-outline btn-sm"
                     >
                       {probeState?.busy ? <Loader2 size={11} className="animate-spin" /> : <FlaskConical size={11} />} Test only
                     </button>

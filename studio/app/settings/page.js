@@ -216,9 +216,9 @@ function SettingsContent() {
 
       {activeTab === 'general' && (
         <div className="space-y-4">
-          <div className="grid lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* appearance */}
-        <Card className="lg:col-span-2 p-5">
+        <Card className="lg:col-span-2 p-5 min-w-0">
           <div className="overline mb-3">Appearance</div>
           <div className="flex gap-3 flex-wrap">
             <ThemeCard

@@ -135,7 +135,7 @@ function CreatePageContent() {
 
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-medium text-zinc-200">Rendered videos</h2>
-        <button onClick={loadJobs} className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200">
+        <button onClick={loadJobs} className="btn btn-ghost btn-sm">
           <RefreshCw className="w-3.5 h-3.5" /> refresh
         </button>
       </div>
@@ -148,7 +148,7 @@ function CreatePageContent() {
             {playing === j.id && j.videoUrl ? (
               <video src={j.videoUrl} controls autoPlay className="w-full aspect-[9/16] max-h-[480px] bg-black object-contain" />
             ) : j.state === 'done' ? (
-              <button onClick={() => setPlaying(j.id)} className="relative block w-full">
+              <button data-kit="tile" aria-label="Play rendered video" onClick={() => setPlaying(j.id)} className="relative block w-full">
                 <img src={`https://raw.githubusercontent.com/muzzamilhassan/automation/main/hf-out/${j.id}/frame-a.jpg`} alt="" className="w-full aspect-[9/16] max-h-[480px] object-cover opacity-90" />
                 <span className="absolute inset-0 flex items-center justify-center">
                   <PlayCircle className="w-14 h-14 text-white drop-shadow-lg" />

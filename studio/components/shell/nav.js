@@ -1,66 +1,109 @@
 import {
   LayoutDashboard,
-  Sparkles,
-  Film,
-  Zap,
+  Inbox,
   Tv,
-  Settings,
-  Clapperboard,
+  Activity,
+  Library,
   TrendingUp,
-  ScrollText,
-  SquareKanban,
-  ListChecks,
-  UserCheck,
-  Image as ImageIcon,
-  Users as UsersIcon,
-  MonitorSmartphone,
-  Layers,
-  PlugZap,
-  Gauge,
+  Sparkles,
+  Settings,
   ClipboardCheck,
+  ListChecks,
+  FileStack,
   TriangleAlert,
+  Image as ImageIcon,
+  Clapperboard,
+  Layers,
+  Palette,
   Share2,
   Music,
+  Zap,
+  ScrollText,
+  UserPlus,
+  PlugZap,
+  Gauge,
+  Users as UsersIcon,
+  MonitorSmartphone,
 } from 'lucide-react';
 
+// Phase 2 (decision #3): the menu is named after the owner's jobs, not our
+// internal hubs. `badge` names a live count source the shell may render
+// (never a number here — counts come from the APIs or don't show at all).
+// `keywords` keep the retired names searchable in the command palette.
 export const NAV = [
   {
-    group: 'Command',
+    group: 'Cockpit',
     items: [
-      { href: '/', label: 'Overview', icon: LayoutDashboard, desc: 'Pulse KPIs, active channels & daily production' },
-      { href: '/studio', label: 'Studio', icon: Sparkles, desc: 'Review queue #106, topic desk, creation, thumbs & templates' },
-      { href: '/content', label: 'Content', icon: Film, desc: 'Published videos, social cross-posts & audio engine' },
-      { href: '/operations', label: 'Operations', icon: Zap, desc: 'Pipeline master switch, execution logs & warnings' },
-      { href: '/network', label: 'Network', icon: Tv, desc: 'Channels portfolio, BYOK provider vault & quota ledger' },
+      { href: '/', label: 'Today', icon: LayoutDashboard, desc: 'Did today run? What needs you, channel by channel', keywords: ['overview', 'home', 'dashboard', 'pulse'] },
+      { href: '/tasks', label: 'Inbox', icon: Inbox, badge: 'inbox', desc: 'Scripts to approve and open alerts, in one queue', keywords: ['tasks', 'approvals', 'review', 'warnings', 'alerts'] },
+      { href: '/channels', label: 'Channels', icon: Tv, desc: 'Every channel, its health and its settings', keywords: ['network', 'portfolio', 'brands'] },
+      { href: '/runs', label: 'Runs', icon: Activity, desc: "Today's pipeline runs: started, finished, failed", keywords: ['operations', 'pipelines', 'production', 'logs'] },
+      { href: '/videos', label: 'Library', icon: Library, desc: 'Every video made and published', keywords: ['content', 'videos', 'published'] },
+      { href: '/analytics', label: 'Analytics', icon: TrendingUp, desc: 'Views, watch time, retention and leaderboards', keywords: ['stats', 'retention', 'growth'] },
     ],
   },
   {
-    group: 'Preferences',
+    group: 'Make',
     items: [
-      { href: '/settings', label: 'Settings', icon: Settings, desc: 'Appearance, team roles, security & roadmap' },
+      { href: '/studio', label: 'Create', icon: Sparkles, desc: 'Make a video, a thumbnail, or pick a template', keywords: ['studio', 'create', 'thumbnails', 'templates'] },
     ],
   },
+  {
+    group: 'System',
+    items: [
+      { href: '/settings', label: 'Settings', icon: Settings, desc: 'Appearance, team, security and AI services', keywords: ['preferences', 'account'] },
+    ],
+  },
+];
+
+// Every screen that still exists stays findable from ⌘K, filed under the
+// menu section it now belongs to. Retired hubs (/content, /operations,
+// /network) are redirects in next.config.mjs, so they are not listed.
+const SCREENS = [
+  { href: '/review', label: 'Script approvals', icon: ClipboardCheck, group: 'Inbox', desc: 'Approve or reject scripts before they render', keywords: ['review queue'] },
+  { href: '/topics', label: 'Topics', icon: ListChecks, group: 'Inbox', desc: 'Approve the topic backlog', keywords: ['topic desk'] },
+  { href: '/templates/drafts', label: 'Template drafts', icon: FileStack, group: 'Inbox', desc: 'New template drafts waiting for a yes or no', keywords: ['drafts inbox'] },
+  { href: '/warnings', label: 'Alerts', icon: TriangleAlert, group: 'Inbox', desc: 'Open warnings: what broke and what to do', keywords: ['warnings', 'triage'] },
+  { href: '/channels/add', label: 'Add channel', icon: UserPlus, group: 'Channels', desc: 'Connect a new YouTube channel', keywords: ['wizard', 'new channel'] },
+  { href: '/production', label: 'Run a pipeline', icon: Zap, group: 'Runs', desc: 'Start a channel run by hand', keywords: ['pipelines', 'production'] },
+  { href: '/logs', label: 'Upload log', icon: ScrollText, group: 'Runs', desc: 'Every post the machine made, newest first', keywords: ['execution logs', 'posting'] },
+  { href: '/social', label: 'Cross-posts', icon: Share2, group: 'Library', desc: 'Facebook and Instagram cross-post results', keywords: ['social feeds'] },
+  { href: '/music', label: 'Music', icon: Music, group: 'Library', desc: 'Background music for each channel', keywords: ['audio'] },
+  { href: '/create', label: 'Create a video', icon: Sparkles, group: 'Create', desc: 'Make a vertical Short from a prompt', keywords: ['generate'] },
+  { href: '/thumbs', label: 'Thumbnails', icon: ImageIcon, group: 'Create', desc: 'Design thumbnails and run A/B tests', keywords: ['thumbnail studio'] },
+  { href: '/templates', label: 'Templates', icon: Clapperboard, group: 'Create', desc: 'Video templates and the live simulator', keywords: ['video templates'] },
+  { href: '/templates/registry', label: 'Template registry', icon: Layers, group: 'Create', desc: 'Versioned templates and which channels use them', keywords: ['registry'] },
+  { href: '/styles', label: 'Video styles', icon: Palette, group: 'Create', desc: 'The style catalog channels pick from', keywords: ['style catalog'] },
+  { href: '/providers', label: 'AI services', icon: PlugZap, group: 'Settings', desc: 'Your own AI keys and which provider runs what', keywords: ['providers', 'byok', 'keys'] },
+  { href: '/usage', label: 'Quota & costs', icon: Gauge, group: 'Settings', desc: 'YouTube quota and AI spend', keywords: ['usage', 'quota ledger'] },
+  { href: '/users', label: 'Team', icon: UsersIcon, group: 'Settings', desc: 'Who can sign in and what they can do', keywords: ['users', 'user admin'] },
+  { href: '/sessions', label: 'Sign-ins', icon: MonitorSmartphone, group: 'Settings', desc: 'Devices signed in to the panel', keywords: ['sessions'] },
 ];
 
 export const ALL_NAV_ITEMS = [
   ...NAV.flatMap((g) => g.items.map((i) => ({ ...i, group: g.group }))),
-  // Retain legacy paths for Command Palette searchability & bookmarks
-  { href: '/review', label: 'Review Queue', icon: ClipboardCheck, group: 'Studio', desc: 'Script approvals #106' },
-  { href: '/topics', label: 'Topic Desk', icon: ListChecks, group: 'Studio', desc: 'Approve topic backlog' },
-  { href: '/create', label: 'Create Video', icon: Sparkles, group: 'Studio', desc: 'Generative vertical shorts' },
-  { href: '/thumbs', label: 'Thumbnails', icon: ImageIcon, group: 'Studio', desc: 'Thumbnail studio & A/B' },
-  { href: '/templates', label: 'Video Templates', icon: Clapperboard, group: 'Studio', desc: 'Templates catalog & simulator' },
-  { href: '/videos', label: 'Videos', icon: Film, group: 'Content', desc: 'Everything published' },
-  { href: '/social', label: 'Social Feeds', icon: Share2, group: 'Content', desc: 'Cross-post performance' },
-  { href: '/music', label: 'Audio & Music', icon: Music, group: 'Content', desc: 'Channel BGM tracks' },
-  { href: '/production', label: 'Production Pipelines', icon: Zap, group: 'Operations', desc: 'One-click runs' },
-  { href: '/logs', label: 'Execution Logs', icon: ScrollText, group: 'Operations', desc: 'Posting stream' },
-  { href: '/warnings', label: 'Warnings', icon: TriangleAlert, group: 'Operations', desc: 'Durable alert triage' },
-  { href: '/channels', label: 'Channels', icon: Tv, group: 'Network', desc: 'Channel portfolio' },
-  { href: '/providers', label: 'AI Providers', icon: PlugZap, group: 'Network', desc: 'BYOK vault v2' },
-  { href: '/usage', label: 'Quota Ledger', icon: Gauge, group: 'Network', desc: 'Token & cost spend' },
-  { href: '/analytics', label: 'Analytics', icon: TrendingUp, group: 'Command', desc: 'Retention & leaderboards' },
-  { href: '/tasks', label: 'Roadmap Tasks', icon: SquareKanban, group: 'System', desc: 'Project roadmap' },
-  { href: '/users', label: 'User Admin', icon: UsersIcon, group: 'System', desc: 'Account access' },
-  { href: '/sessions', label: 'Sessions Admin', icon: MonitorSmartphone, group: 'System', desc: 'Device sign-ins' },
+  ...SCREENS,
 ];
+
+// Breadcrumb/title lookup: exact match first, then the longest href that
+// prefixes the path (so /channels/add → "Add channel", /templates/x → "Templates").
+export function navItemFor(pathname) {
+  if (!pathname) return null;
+  const exact = ALL_NAV_ITEMS.find((i) => i.href === pathname);
+  if (exact) return exact;
+  let best = null;
+  for (const i of ALL_NAV_ITEMS) {
+    if (i.href !== '/' && pathname.startsWith(i.href + '/') && (!best || i.href.length > best.href.length)) best = i;
+  }
+  return best;
+}
+
+// The sidebar item that owns a path (its active state). A screen's `group`
+// is the label of the menu item it lives under, so this replaces the
+// hand-kept prefix lists in AppShell's isPathActive.
+export function navSectionFor(pathname) {
+  const hit = navItemFor(pathname);
+  if (!hit) return null;
+  const top = NAV.flatMap((g) => g.items);
+  return top.find((i) => i.href === hit.href) || top.find((i) => i.label === hit.group) || null;
+}

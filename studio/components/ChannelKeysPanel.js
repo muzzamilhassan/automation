@@ -112,7 +112,7 @@ export default function ChannelKeysPanel({ slug }) {
                 <button
                   onClick={() => save(p)}
                   disabled={busy === p}
-                  className="t-11 font-medium px-2.5 py-1.5 rounded-lg border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-50 flex items-center gap-1"
+                  className="btn btn-outline btn-sm"
                 >
                   {busy === p ? <Loader2 size={12} className="animate-spin" /> : <KeyRound size={12} />} Save &amp; test
                 </button>
@@ -120,8 +120,9 @@ export default function ChannelKeysPanel({ slug }) {
                   <button
                     onClick={() => remove(p)}
                     disabled={busy === p}
-                    className="t-11 px-2 py-1.5 rounded-lg border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-50"
+                    className="btn btn-outline btn-sm"
                     title="remove — shared key takes over again"
+                    aria-label="Remove this key — the shared key takes over again"
                   >
                     <Trash2 size={12} />
                   </button>

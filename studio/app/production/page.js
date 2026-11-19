@@ -298,7 +298,7 @@ export default function Production() {
           <div className="t-12 text-muted leading-relaxed">
             <span className="font-semibold text-ink">How runs report back.</span> Every button dispatches the channel workflow on{' '}
             <span className="font-semibold text-ink">GitHub Actions</span>. Uploads appear in{' '}
-            <a href="/operations?tab=logs" className="text-accent hover:underline">
+            <a href="/logs" className="text-accent hover:underline">
               Execution Logs
             </a>{' '}
             as they publish. Run-by-run success/failure tracking is coming — the button only confirms the job was dispatched.

@@ -66,20 +66,11 @@ async function fallbackVideos(slug) {
         }
       }
     }
-    if (list.length === 0) {
-      list.push(
-        { videoId: `${slug}-sample-1`, title: 'Why Your Budget Is Secretly Killing Your Wealth', publishedAt: new Date().toISOString(), thumb: '' },
-        { videoId: `${slug}-sample-2`, title: 'The Hidden Trap of Credit Card Points', publishedAt: new Date().toISOString(), thumb: '' },
-        { videoId: `${slug}-sample-3`, title: 'Why Salary Advances Are Costing You Extra', publishedAt: new Date().toISOString(), thumb: '' }
-      );
-    }
+    // Honesty: never invent sample videos. An empty list means the UI says
+    // "couldn't load this channel's videos", not three made-up titles.
     return list;
   } catch {
-    return [
-      { videoId: `${slug}-sample-1`, title: 'Why Your Budget Is Secretly Killing Your Wealth', publishedAt: new Date().toISOString(), thumb: '' },
-      { videoId: `${slug}-sample-2`, title: 'The Hidden Trap of Credit Card Points', publishedAt: new Date().toISOString(), thumb: '' },
-      { videoId: `${slug}-sample-3`, title: 'Why Salary Advances Are Costing You Extra', publishedAt: new Date().toISOString(), thumb: '' }
-    ];
+    return [];
   }
 }
 

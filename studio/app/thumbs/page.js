@@ -456,7 +456,7 @@ export default function ThumbsPage() {
                 </button>
                 {selMode ? <span className="t-11 text-muted">{selected.length} selected · uses the template + colors set below</span> : null}
                 {selMode && selected.length ? (
-                  <button onClick={() => { if (!window.confirm(`Redesign and replace ${selected.length} LIVE YouTube thumbnail${selected.length === 1 ? '' : 's'} right now?`)) return; runBulk(); }} disabled={bulkBusy} className="ml-auto t-11 font-semibold px-2.5 py-1 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-50 flex items-center gap-1.5">
+                  <button onClick={() => { if (!window.confirm(`Redesign and replace ${selected.length} LIVE YouTube thumbnail${selected.length === 1 ? '' : 's'} right now?`)) return; runBulk(); }} disabled={bulkBusy} className="btn btn-outline btn-sm ml-auto">
                     {bulkBusy ? <Loader2 size={11} className="animate-spin" /> : <Layers size={11} />} Redesign {selected.length}
                   </button>
                 ) : null}
@@ -555,7 +555,7 @@ export default function ThumbsPage() {
                   {rotation.map((id) => (
                     <span key={id} className="t-10 px-2 py-0.5 rounded-full bg-bg-soft border border-line flex items-center gap-1">
                       {(tpls.find((t) => t.id === id) || {}).label || id}
-                      <button onClick={() => removeFromRotation(id)} className="text-muted hover:text-ink font-bold">×</button>
+                      <button data-kit="chip-close" aria-label={'Remove ' + ((tpls.find((t) => t.id === id) || {}).label || id) + ' from rotation'} onClick={() => removeFromRotation(id)} className="text-muted hover:text-ink font-bold">×</button>
                     </span>
                   ))}
                 </div>
@@ -612,10 +612,10 @@ export default function ThumbsPage() {
                 <input value={photoQuery} onChange={(e) => setPhotoQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchPhotos()}
                   placeholder="e.g. old money, wall street, marble statue"
                   className="flex-1 t-13 px-3 py-2 rounded-lg border border-line bg-bg-soft" />
-                <button onClick={searchPhotos} disabled={photoBusy} className="t-12 font-medium px-3 py-2 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-50 flex items-center gap-1.5">
+                <button onClick={searchPhotos} disabled={photoBusy} className="btn btn-outline">
                   {photoBusy ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />} Search
                 </button>
-                <button onClick={() => fileRef.current?.click()} className="t-12 px-3 py-2 rounded-lg border border-line hover:bg-surface-2 flex items-center gap-1.5" title="Upload your own photo">
+                <button onClick={() => fileRef.current?.click()} className="icon-btn" title="Upload your own photo" aria-label="Upload your own photo">
                   <Upload size={13} />
                 </button>
                 <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => onUpload(e.target.files?.[0])} />
@@ -647,7 +647,7 @@ export default function ThumbsPage() {
                     placeholder="describe the scene… e.g. marble statue in fog"
                     className="flex-1 t-12 px-3 py-2 rounded-lg border border-line bg-bg-soft" />
                   <button onClick={generateBg} disabled={aiBusy || !aiPrompt.trim()}
-                    className="t-12 font-medium px-3 py-2 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-50 flex items-center gap-1.5">
+                    className="btn btn-outline">
                     {aiBusy ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />} Generate (~15s)
                   </button>
                 </div>
@@ -658,7 +658,7 @@ export default function ThumbsPage() {
           <div className="border border-line rounded-xl bg-surface p-4">
             <div className="t-11 uppercase tracking-wide text-muted mb-2 flex items-center gap-1.5"><Palette size={12} /> Brand defaults for this channel</div>
             <p className="t-11 text-muted mb-2.5">Saves the current template + colors + chip as this channel&apos;s defaults — the editor opens with them every time.</p>
-            <button onClick={saveBranding} className="t-12 font-medium px-3 py-2 rounded-lg border border-line hover:bg-surface-2 flex items-center gap-1.5">
+            <button onClick={saveBranding} className="btn btn-outline">
               <Palette size={13} /> Save current look as default
             </button>
             {brandMsg ? <p className="t-11 mt-2" style={{ color: brandMsg.ok ? 'var(--ok)' : 'var(--bad)' }}>{brandMsg.text}</p> : null}
@@ -674,7 +674,7 @@ export default function ThumbsPage() {
                 onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) uploadFace(f); e.target.value = ''; }}
               />
               <button onClick={() => faceInputRef.current && faceInputRef.current.click()} disabled={faceBusy || !slug}
-                className="t-12 font-medium px-3 py-2 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-50 flex items-center gap-1.5">
+                className="btn btn-outline">
                 {faceBusy ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />} Upload face image
               </button>
               {faces && faces.length ? <span className="t-11 text-muted">{faces.length} in the library{faces.length > 1 ? ' — rotating' : ''}</span> : null}
@@ -685,7 +685,7 @@ export default function ThumbsPage() {
                   <span key={f.file} className="relative">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={f.dataUrl} alt={'face ' + (i + 1)} className="w-14 h-14 rounded-full object-cover border-2 border-line" />
-                    <button onClick={() => removeFace(i)} title="remove"
+                    <button data-kit="chip-close" onClick={() => removeFace(i)} title="remove" aria-label={'Remove face ' + (i + 1)}
                       className="absolute -top-1 -right-1 w-5 h-5 leading-none t-11 rounded-full bg-surface border border-line text-muted hover:text-ink">×</button>
                   </span>
                 ))}
@@ -715,7 +715,7 @@ export default function ThumbsPage() {
                 <img src={preview.image} alt="thumbnail preview" className="w-full rounded-lg border border-line" />
                 <div className="mt-3 flex items-end gap-4">
                   <button onClick={generateMore} disabled={moreBusy || !title.trim()}
-                    className="w-full mb-3 t-12 font-medium px-3 py-2 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-50 flex items-center justify-center gap-1.5">
+                    className="btn btn-outline w-full mb-3">
                     {moreBusy ? <Loader2 size={13} className="animate-spin" /> : <Shuffle size={13} />} Give me 3 more
                   </button>
                   {moreVariants.length ? (
@@ -758,8 +758,7 @@ export default function ThumbsPage() {
               {video ? <>Target: <span className="text-ink font-medium">{video.title.slice(0, 48)}{video.title.length > 48 ? '…' : ''}</span> ({fmtDay(video.publishedAt)})</> : 'Pick a video in step 1 first.'}
             </p>
             <button onClick={attach} disabled={!preview || !video || attaching}
-              className="mt-3 w-full t-13 font-semibold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 disabled:opacity-40"
-              style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}>
+              className="btn btn-primary mt-3 w-full">
               {attaching ? <Loader2 size={14} className="animate-spin" /> : <ImageIcon size={14} />} Attach thumbnail
             </button>
             <p className="t-10 text-faint mt-2">Goes live on YouTube within minutes · max 10 attaches per channel per day.</p>
@@ -773,14 +772,14 @@ export default function ThumbsPage() {
           <div className="border border-line rounded-xl bg-surface p-4">
             <div className="t-11 uppercase tracking-wide text-muted mb-2 flex items-center gap-1.5"><FlaskConical size={12} /> A/B test (auto-swap)</div>
             <div className="flex flex-wrap items-center gap-2">
-              <button onClick={addVariant} disabled={!preview} className="t-12 px-2.5 py-1.5 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-40">
+              <button onClick={addVariant} disabled={!preview} className="btn btn-outline btn-sm">
                 + Add current design ({abVariants.length}/3)
               </button>
               <select value={abInterval} onChange={(e) => setAbInterval(Number(e.target.value))} className="t-12 px-2 py-1.5 rounded-lg border border-line bg-bg-soft">
                 <option value={24}>swap every 24h</option>
                 <option value={48}>swap every 48h</option>
               </select>
-              <button onClick={startTest} disabled={abBusy === 'start' || abVariants.length < 2 || !video} className="t-12 font-semibold px-3 py-1.5 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-40 flex items-center gap-1.5">
+              <button onClick={startTest} disabled={abBusy === 'start' || abVariants.length < 2 || !video} className="btn btn-outline btn-sm">
                 {abBusy === 'start' ? <Loader2 size={12} className="animate-spin" /> : <FlaskConical size={12} />} Start test
               </button>
             </div>
@@ -790,7 +789,7 @@ export default function ThumbsPage() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img key={i} src={v} alt={`variant ${i}`} className="w-16 rounded border border-line" />
                 ))}
-                <button onClick={() => setAbVariants([])} className="t-11 text-muted hover:text-ink self-center">clear</button>
+                <button onClick={() => setAbVariants([])} className="t-11 text-muted hover:text-ink underline underline-offset-2 self-center">clear</button>
               </div>
             ) : null}
             {abMsg ? <p className="t-11 mt-2" style={{ color: abMsg.ok ? 'var(--ok)' : 'var(--bad)' }}>{abMsg.text}</p> : null}
@@ -813,7 +812,7 @@ export default function ThumbsPage() {
                       ))}
                     </div>
                     {!t.ended ? (
-                      <button onClick={() => stopTest(t.videoId)} disabled={abBusy === t.videoId} className="t-11 text-muted hover:text-ink mt-1.5">
+                      <button onClick={() => stopTest(t.videoId)} disabled={abBusy === t.videoId} className="t-11 text-muted hover:text-ink underline underline-offset-2 mt-1.5 disabled:opacity-50">
                         stop test (keep current)
                       </button>
                     ) : null}

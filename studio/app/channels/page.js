@@ -101,13 +101,13 @@ export default function Channels() {
           const meta = BRAND[c.slug];
           const moods = MUSIC_MOODS[c.slug] || [];
           return (
-            <Card key={c.slug} hover id={'chan-' + c.slug} className={'p-5 scroll-mt-24' + (highlight === c.slug ? ' ring-2 ring-[var(--accent)]' : '')}>
+            <Card key={c.slug} hover id={'chan-' + c.slug} className={'p-5 scroll-mt-24 min-w-0' + (highlight === c.slug ? ' ring-2 ring-[var(--accent)]' : '')}>
               {/* head */}
               <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
                 <div className="flex items-center gap-3.5 min-w-0 flex-1">
                   <BrandMark short={meta?.short || '•'} accent={c.accent} size={44} />
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 min-w-0">
                       <h2 className="font-display t-16 font-bold tracking-tight text-ink text-balance">{c.label}</h2>
                       {c.flowPaused ? <Chip tone="warn">PAUSED</Chip> : <Chip tone="ok" dot>ACTIVE</Chip>}
                       <ButtonUtility

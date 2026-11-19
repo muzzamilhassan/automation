@@ -86,9 +86,9 @@ export default function CommandPalette({ open, onClose }) {
     kind: 'channel',
     id: 'channel-' + c.slug,
     label: 'Channel: ' + c.label,
-    sub: `Inspect ${c.label} in Network`,
+    sub: `Open ${c.label}'s channel page`,
     icon: Tv,
-    run: () => router.push(`/channels#${c.slug}`),
+    run: () => router.push(`/channels/${c.slug}`),
   }));
 
   const items = [
@@ -97,7 +97,8 @@ export default function CommandPalette({ open, onClose }) {
       id: n.href,
       label: n.label,
       sub: n.desc,
-      icon: PAGE_ICONS[n.href] || LayoutDashboard,
+      icon: n.icon || PAGE_ICONS[n.href] || LayoutDashboard,
+      keywords: n.keywords || [],
       run: () => router.push(n.href),
     })),
     ...channelJumps,
@@ -118,7 +119,7 @@ export default function CommandPalette({ open, onClose }) {
       icon: theme === 'dark' ? Sun : Moon,
       run: () => setTheme(theme === 'dark' ? 'light' : 'dark'),
     },
-  ].filter((i) => i.label.toLowerCase().includes(q.toLowerCase()));
+  ].filter((i) => [i.label, i.sub, ...(i.keywords || [])].join(' ').toLowerCase().includes(q.toLowerCase()));
 
 // P0-13: production runs need a second-Enter confirm, an inline result, and
 // navigation only on success.

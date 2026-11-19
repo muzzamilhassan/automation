@@ -677,7 +677,7 @@ export default function AddChannel() {
                       <button
                         type="button"
                         aria-label={playingVoice === v.id ? `Stop ${v.id} demo` : `Play ${v.id} demo`}
-                        className="shrink-0 w-7 h-7 rounded-full grid place-items-center bg-white/10 hover:bg-white/20 text-white/80"
+                        className="icon-btn shrink-0"
                         onClick={(e) => { e.stopPropagation(); playDemo(v); }}
                       >
                         {playingVoice === v.id ? <Square size={11} fill="currentColor" /> : <Play size={11} />}
@@ -744,8 +744,8 @@ export default function AddChannel() {
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="t-12 font-medium text-sky-200">AI draft — review each field, then apply what you like</span>
                     <div className="flex gap-2">
-                      <button type="button" className="t-11 font-medium text-sky-300 hover:text-sky-200 underline underline-offset-2" onClick={applyAllDraftFields}>Apply all</button>
-                      <button type="button" className="t-11 text-white/50 hover:text-white/80 underline underline-offset-2" onClick={() => setKitDraft(null)}>Discard</button>
+                      <button type="button" className="t-11 font-medium text-accent hover:text-ink underline underline-offset-2" onClick={applyAllDraftFields}>Apply all</button>
+                      <button type="button" className="t-11 text-muted hover:text-ink underline underline-offset-2" onClick={() => setKitDraft(null)}>Discard</button>
                     </div>
                   </div>
                   <div className="grid gap-1.5">
@@ -766,7 +766,7 @@ export default function AddChannel() {
                         {kitDraft.applied[key] ? (
                           <span className="shrink-0 t-11 text-emerald-400 font-medium pt-1">Applied ✓</span>
                         ) : (
-                          <button type="button" className="shrink-0 t-11 font-medium text-sky-300 hover:text-sky-200 underline underline-offset-2 pt-1" onClick={() => applyDraftField(key)}>Apply</button>
+                          <button type="button" className="shrink-0 t-11 font-medium text-accent hover:text-ink underline underline-offset-2 pt-1" onClick={() => applyDraftField(key)}>Apply</button>
                         )}
                       </div>
                     ))}
@@ -1022,9 +1022,16 @@ export default function AddChannel() {
 
       {/* Setup */}
       <Card className="mt-5 overflow-hidden">
-        <button className="w-full text-left" onClick={() => setShowSetup(!showSetup)}>
-          <CardHead title="One-time Google setup" sub="If the login fails with redirect_uri_mismatch, register the callback URLs" icon={Settings2} />
-        </button>
+        <CardHead
+          title="One-time Google setup"
+          sub="If the login fails with redirect_uri_mismatch, register the callback URLs"
+          icon={Settings2}
+          right={
+            <button type="button" className="btn btn-ghost btn-sm" aria-expanded={showSetup} onClick={() => setShowSetup(!showSetup)}>
+              {showSetup ? 'Hide steps' : 'Show steps'}
+            </button>
+          }
+        />
         {showSetup ? (
           <div className="px-4 pb-4 t-12 text-muted leading-relaxed">
             <ol className="list-decimal ml-4 space-y-1.5">

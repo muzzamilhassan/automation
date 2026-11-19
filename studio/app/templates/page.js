@@ -215,13 +215,13 @@ export default function TemplatesPage() {
             <div className="p-4 pt-0 border-t border-white/5 flex items-center justify-between gap-2 mt-2">
               <button
                 onClick={() => setActivePreviewTemplate(t)}
-                className="flex-1 py-2 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/10 text-white border border-white/10 transition flex items-center justify-center gap-1.5"
+                className="btn btn-outline btn-sm flex-1"
               >
-                <Play size={12} className="text-sky-400" /> Open Demo
+                <Play size={12} /> Open Demo
               </button>
               <button
                 onClick={() => router.push(`/create?template=${t.id}`)}
-                className="flex-1 py-2 rounded-xl text-xs font-semibold bg-sky-500/20 hover:bg-sky-500 text-sky-300 hover:text-black border border-sky-500/30 transition flex items-center justify-center gap-1"
+                className="btn btn-primary btn-sm flex-1"
               >
                 Use Style <ArrowRight size={12} />
               </button>

@@ -31,7 +31,7 @@ export default function TabNav({
       role="tablist"
       aria-label="Sub navigation"
       className={cn(
-        'flex items-center gap-1 border-b border-line pb-px overflow-x-auto no-scrollbar',
+        'flex items-center gap-1 border-b border-line pb-px overflow-x-auto no-scrollbar w-full min-w-0 max-w-full',
         className
       )}
     >

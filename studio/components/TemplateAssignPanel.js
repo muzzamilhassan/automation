@@ -243,7 +243,7 @@ export default function TemplateAssignPanel({ slug }) {
                     <button
                       onClick={() => unassign(a.family_id)}
                       disabled={busy === a.family_id}
-                      className="ml-auto t-11 px-2 py-1 rounded-lg border border-white/10 text-muted hover:text-ink hover:bg-white/5 disabled:opacity-50 flex items-center gap-1"
+                      className="btn btn-outline btn-sm ml-auto"
                       title="Unassign — the channel falls back to its normal engine path"
                     >
                       {busy === a.family_id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />} Unassign
@@ -274,7 +274,7 @@ export default function TemplateAssignPanel({ slug }) {
                         <button
                           onClick={() => repin(a.family_id, curMajor)}
                           disabled={busy === a.family_id}
-                          className="ml-auto t-11 font-semibold px-2.5 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500 text-sky-300 hover:text-black border border-sky-500/30 transition disabled:opacity-50 flex items-center gap-1"
+                          className="btn btn-primary btn-sm ml-auto"
                         >
                           {busy === a.family_id ? <Loader2 size={11} className="animate-spin" /> : <ArrowUpCircle size={11} />} Re-pin to v{curMajor}
                         </button>
@@ -345,7 +345,7 @@ export default function TemplateAssignPanel({ slug }) {
               </Button>
               <button
                 onClick={() => { setAssignOpen(false); setTemplateId(''); setPinnedMajor(''); setMsg(null); }}
-                className="t-12 px-3 py-2 rounded-lg border border-line text-muted hover:text-ink hover:bg-surface-2"
+                className="btn btn-outline"
               >
                 Cancel
               </button>

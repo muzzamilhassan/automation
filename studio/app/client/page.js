@@ -42,7 +42,7 @@ export default function ClientPage() {
           <Lock size={18} className="mx-auto mb-2 text-muted" />
           <div className="font-semibold">Client sign-in required</div>
           <p className="t-12 text-muted mt-1 leading-relaxed">Sign in with the email your channel manager invited you with.</p>
-          <button onClick={() => router.push('/login?next=/client')} className="mt-4 t-13 font-medium px-3.5 py-2 rounded-lg border border-line hover:bg-surface-2">
+          <button onClick={() => router.push('/login?next=/client')} className="btn btn-outline mt-4">
             Go to sign-in
           </button>
         </div>
@@ -170,7 +170,7 @@ function KeysInline({ slug }) {
 
   return (
     <div className="border-t border-line pt-3">
-      <button onClick={() => { const n = !open; setOpen(n); if (n) load(); }} className="flex items-center gap-1.5 t-12 font-medium" style={{ color: 'var(--accent)' }}>
+      <button onClick={() => { const n = !open; setOpen(n); if (n) load(); }} className="inline-flex items-center gap-1.5 t-12 font-medium text-accent underline underline-offset-2" aria-expanded={open}>
         <KeyRound size={12} /> {open ? 'Hide API keys' : 'Manage API keys'}
       </button>
       {open && providers ? (
@@ -195,11 +195,11 @@ function KeysInline({ slug }) {
                   className="flex-1 min-w-[180px] t-12 px-2.5 py-1.5 rounded-lg border border-line bg-bg-soft"
                   autoComplete="off"
                 />
-                <button onClick={() => save(p)} disabled={busy === p} className="t-11 font-medium px-2.5 py-1.5 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-50">
+                <button onClick={() => save(p)} disabled={busy === p} className="btn btn-outline btn-sm">
                   {busy === p ? '…' : 'Save & test'}
                 </button>
                 {v.set ? (
-                  <button onClick={() => remove(p)} disabled={busy === p} className="t-11 px-2 py-1.5 rounded-lg border border-line hover:bg-surface-2 disabled:opacity-50" title="remove - shared key resumes">
+                  <button onClick={() => remove(p)} disabled={busy === p} className="btn btn-outline btn-sm" title="remove - shared key resumes" aria-label="Remove this key — the shared key resumes">
                     <XCircle size={12} />
                   </button>
                 ) : null}

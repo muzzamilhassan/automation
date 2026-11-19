@@ -12,7 +12,10 @@ const noMatch = (src, re) => assert.doesNotMatch(src, re);
 test('P0-1: no hardcoded nav badge numbers anywhere in the shell/hubs', () => {
   noMatch(shell, /rounded-full text-\[10px\] font-bold bg-accent\/20 text-accent">\s*\n\s*3/);
   noMatch(shell, /text-error-primary\/20 text-error-primary">\s*\n\s*1/);
-  assert.match(shell, /studioCount=\{pendingReview\} opsCount=\{warningsCanSee \? openWarningRows\.length : null\}/);
+  // Phase 2: the Inbox badge (approvals + open alerts) replaced the Studio/Operations pair;
+  // unknown → no badge, never a guessed number
+  assert.match(shell, /i\.badge === 'inbox' && inboxCount/);
+  assert.match(shell, /inboxCount=\{pendingReview != null && /);
   noMatch(read('studio/app/studio/page.js'), /badge: '3'/);
   noMatch(read('studio/app/network/page.js'), /Channels \(16\)/);
   noMatch(read('studio/app/templates/page.js'), /100\+|14 Full Stories/);
@@ -102,9 +105,10 @@ test('P0-16: create reads ?template=', () => {
   assert.match(read('studio/app/create/page.js'), /location\.search\)\.get\('template'\)/);
 });
 
-test('P0-17: channel links land on /channels#slug and the page highlights the card', () => {
+test('P0-17 → Phase 2: channel links open the per-channel page; /channels#slug still highlights', () => {
   noMatch(read('studio/components/shell/AppShell.js'), /network\?channel=/);
-  assert.match(read('studio/components/shell/CommandPalette.js'), /\/channels#\$\{c\.slug\}/);
+  assert.match(read('studio/components/shell/AppShell.js'), /\/channels\/\$\{p\.slug\}/);
+  assert.match(read('studio/components/shell/CommandPalette.js'), /\/channels\/\$\{c\.slug\}/);
   assert.match(read('studio/app/channels/page.js'), /chan-' \+ c\.slug/);
 });
 
@@ -113,7 +117,10 @@ test('P0-18: DataTable defaults the row header to the first labelled column', ()
 });
 
 test('P0-19/P0-20: music button visible; undefined tokens replaced', () => {
-  assert.match(read('studio/app/music/page.js'), /var\(--ink, #e6e6e6\)/);
+  // Phase 1 tail: the play button is the kit's .icon-btn (visible ink by default)
+  const music = read('studio/app/music/page.js');
+  assert.match(music, /className="icon-btn shrink-0/);
+  noMatch(music, /'transparent'/);
   for (const p of ['studio/app/templates/page.js', 'studio/app/templates/registry/page.js', 'studio/components/TemplateSimulator.js'])
     noMatch(read(p), /var\(--surface-1\)/);
   noMatch(read('studio/app/usage/page.js'), /var\(--error\)/);
@@ -158,4 +165,19 @@ test('P1-4a: no invalid text-t-NN classes; the t-NN utilities are defined', () =
   assert.deepEqual(offenders, []);
   const css = read('studio/app/globals.css');
   for (const n of ['10', '11', '12', '13', '14', '16']) assert.ok(css.includes(`.t-${n} { font-size: var(--text-`), `.t-${n} missing`);
+});
+
+// Phase 2 integration (2026-11-19): the browser check caught /analytics still
+// showing a green "real data" chip when every channel's fetch had failed.
+test('analytics: all-failed coverage is unavailable; partial says "N of M channels"', () => {
+  const an = read('studio/app/analytics/page.js');
+  assert.match(an, /!\(d\.coverage && !d\.coverage\.ok\?\.length\)/);
+  assert.match(an, /channels<\/Chip> : <Chip tone="ok">real data<\/Chip>/);
+});
+
+test('StatCard renders "—" for an unknown value; analytics KPI tiles + search terms never fake 0/"real data"', () => {
+  assert.match(read('studio/components/ui.js'), /value == null \? <span className="text-faint">—<\/span>/);
+  const an = read('studio/app/analytics/page.js');
+  noMatch(an, /real\?\.totals\?\.\w+ \?\? 0/);
+  assert.match(an, /termsErr \? <Chip tone="bad">unavailable<\/Chip>/);
 });

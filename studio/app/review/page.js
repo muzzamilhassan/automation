@@ -128,7 +128,7 @@ export default function ReviewDeskPage() {
     {
       key: 'title', label: 'Script', rowHeader: true,
       render: (r) => (
-        <button onClick={() => open(r.id)} className="text-left cursor-pointer">
+        <button onClick={() => open(r.id)} className="text-left cursor-pointer min-h-[44px] md:min-h-0 w-full">
           <div className="t-13 font-semibold text-ink">{r.title || '(untitled)'}</div>
           <div className="t-11 text-muted">{r.template_id || 'no template'}{r.template_version ? ` @ v${r.template_version}` : ''}</div>
         </button>
@@ -185,7 +185,7 @@ export default function ReviewDeskPage() {
       ) : (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <button onClick={load} className="inline-flex items-center gap-1 t-12 text-muted cursor-pointer">← Back to queue</button>
+            <button onClick={load} className="btn btn-ghost btn-sm min-h-[44px] md:min-h-0">← Back to queue</button>
           </div>
 
           <Card>
@@ -195,9 +195,9 @@ export default function ReviewDeskPage() {
               sub={`${detail.script.channel_id} · ${detail.script.template_id || 'no template'}${detail.script.template_version ? ` @ v${detail.script.template_version}` : ''} · job ${detail.script.job_id || '—'}`}
               right={<Chip tone="accent" dot>awaiting_review</Chip>}
             />
-            <div className="px-5 pb-5 grid grid-cols-2 gap-5">
-              {/* script text LEFT */}
-              <div>
+            <div className="px-5 pb-5 grid grid-cols-1 md:grid-cols-2 gap-5 min-w-0">
+              {/* script text LEFT (top on phones) */}
+              <div className="min-w-0">
                 <h4 className="t-12 font-semibold text-muted mb-2">Script</h4>
                 {disclaimerBlock ? (
                   <div className="t-12 bg-black/20 rounded-lg p-3 mb-2">
@@ -207,15 +207,15 @@ export default function ReviewDeskPage() {
                     <div className="whitespace-pre-wrap">{disclaimerBlock}</div>
                   </div>
                 ) : null}
-                <pre className="t-12 whitespace-pre-wrap bg-black/20 rounded-lg p-3 max-h-[420px] overflow-auto">{detail.script.text}</pre>
+                <pre className="t-12 whitespace-pre-wrap break-words bg-black/20 rounded-lg p-3 max-h-[420px] overflow-auto">{detail.script.text}</pre>
               </div>
-              {/* sources RIGHT */}
-              <div>
+              {/* sources RIGHT (below on phones) */}
+              <div className="min-w-0">
                 <h4 className="t-12 font-semibold text-muted mb-2">Sources</h4>
                 <ul className="space-y-2 max-h-[420px] overflow-auto">
                   {detail.sources.map((s) => (
                     <li key={s.id} className="t-12 bg-black/20 rounded-lg p-3">
-                      <a href={s.url} target="_blank" rel="noreferrer" className="font-medium inline-flex items-center gap-1">
+                      <a href={s.url} target="_blank" rel="noreferrer" className="font-medium inline-flex items-center gap-1 break-all">
                         {s.title || s.url} <ExternalLink size={10} />
                       </a>
                       {s.snippet ? <div className="text-muted mt-1">{s.snippet}</div> : null}
@@ -234,11 +234,11 @@ export default function ReviewDeskPage() {
               {detail.claims.map((c, i) => {
                 const src = detail.sources.find((x) => x.id === c.source_id);
                 return (
-                  <div key={c.id ?? i} className="flex items-start gap-2 t-12">
+                  <div key={c.id ?? i} className="flex flex-wrap items-start gap-2 t-12">
                     <Chip tone={c.verification === 'verified' ? 'ok' : c.verification === 'flagged' ? 'warn' : 'info'} dot>{c.verification}</Chip>
-                    <span className="flex-1">{c.claim}</span>
+                    <span className="flex-1 min-w-0 break-words">{c.claim}</span>
                     {src
-                      ? <a href={src.url} target="_blank" rel="noreferrer" className="text-muted underline">source: {src.title || src.url}</a>
+                      ? <a href={src.url} target="_blank" rel="noreferrer" className="text-muted underline break-all">source: {src.title || src.url}</a>
                       : <span className="text-faint">unsourced</span>}
                   </div>
                 );
@@ -252,9 +252,9 @@ export default function ReviewDeskPage() {
               <CardHead icon={AlertTriangle} title="Flagged claims" sub="every non-verified claim — resolve these before approving" />
               <div className="px-5 pb-5 space-y-2">
                 {flagged.map((c, i) => (
-                  <div key={c.id ?? i} className="t-12 flex items-center gap-2">
+                  <div key={c.id ?? i} className="t-12 flex flex-wrap items-center gap-2">
                     <Chip tone={c.verification === 'flagged' ? 'warn' : 'info'} dot>{c.verification}</Chip>
-                    <span className="flex-1">{c.claim}</span>
+                    <span className="flex-1 min-w-0 break-words">{c.claim}</span>
                   </div>
                 ))}
               </div>
@@ -271,10 +271,10 @@ export default function ReviewDeskPage() {
               />
               <div className="px-5 pb-5 space-y-3">
                 {DISCLOSURE_CATEGORIES.items.map((i) => (
-                  <div key={i.id} className="flex items-center gap-3 t-12">
-                    <span className="flex-1">&ldquo;{i.text}&rdquo;</span>
+                  <div key={i.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 t-12">
+                    <span className="flex-1 min-w-0 basis-full md:basis-0">&ldquo;{i.text}&rdquo;</span>
                     {[true, false].map((v) => (
-                      <label key={String(v)} className="inline-flex items-center gap-1 cursor-pointer">
+                      <label key={String(v)} className="inline-flex items-center gap-1 cursor-pointer min-h-[44px] md:min-h-0 px-2 md:px-0">
                         <input
                           type="radio"
                           name={`disc-${i.id}`}
@@ -312,7 +312,7 @@ export default function ReviewDeskPage() {
                       <button
                         onClick={() => act({ action: 'pick-thumb', id: detail.script.id, candidate: c.idx })}
                         disabled={busy === 'pick-thumb'}
-                        className="t-11 cursor-pointer underline disabled:opacity-50"
+                        className="btn btn-outline btn-sm min-h-[44px] md:min-h-0"
                       >
                         pick
                       </button>
@@ -338,27 +338,26 @@ export default function ReviewDeskPage() {
                 className="w-full t-12 bg-black/20 rounded-lg p-3"
                 rows={2}
               />
-              <div className="flex items-center gap-3">
+              {/* phones: Approve + Reject share a full-width row of 44px buttons */}
+              <div className="flex flex-wrap items-center gap-3">
                 <button
                   onClick={() => act({ action: 'approve', id: detail.script.id, note, disclosure }, null)}
                   disabled={busy === 'approve' || !disclosureDone}
-                  className="inline-flex items-center gap-1 t-12 font-medium cursor-pointer disabled:opacity-50"
-                  style={{ color: 'var(--ok, #34d399)' }}
+                  className="btn btn-primary min-h-[44px] md:min-h-0 flex-1 md:flex-none"
                 >
-                  {busy === 'approve' ? <Loader2 size={12} className="animate-spin" /> : <ThumbsUp size={12} />} Approve + resume run
+                  {busy === 'approve' ? <Loader2 size={14} className="animate-spin" /> : <ThumbsUp size={14} />} Approve + resume run
                 </button>
                 <button
                   onClick={() => act({ action: 'reject', id: detail.script.id, note }, 'Reject this script? It never uploads and the slot is skipped today.')}
                   disabled={busy === 'reject'}
-                  className="inline-flex items-center gap-1 t-12 font-medium cursor-pointer disabled:opacity-50"
-                  style={{ color: 'var(--bad)' }}
+                  className="btn btn-danger min-h-[44px] md:min-h-0 flex-1 md:flex-none"
                 >
-                  {busy === 'reject' ? <Loader2 size={12} className="animate-spin" /> : <ThumbsDown size={12} />} Reject
+                  {busy === 'reject' ? <Loader2 size={14} className="animate-spin" /> : <ThumbsDown size={14} />} Reject
                 </button>
                 <button
                   onClick={() => act({ action: 'redispatch', id: detail.script.id }, null)}
                   disabled={busy === 'redispatch'}
-                  className="inline-flex items-center gap-1 t-11 text-muted cursor-pointer disabled:opacity-50"
+                  className="btn btn-ghost btn-sm min-h-[44px] md:min-h-0 w-full md:w-auto"
                   title="re-trigger the resume dispatch for an approved script (a dispatch failure warning points here)"
                 >
                   <RefreshCw size={11} /> Redispatch (approved scripts)
