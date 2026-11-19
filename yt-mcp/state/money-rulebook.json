@@ -7,9 +7,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "AbOO852x24w",
-      "publishAt": "2026-11-19T00:05:00Z",
-      "title": "Debt Snowball: Cut $12K Debt, Add $1.5K to Savings"
+      "videoId": "25eW_tkGs9I",
+      "publishAt": "2026-11-20T00:05:00Z",
+      "title": "Automate $300/mo → Net Worth Grows 30% Faster"
     }
   ],
   "imageDate": "2026-10-18",
@@ -120,6 +120,10 @@
     {
       "t": "Debt Snowball: Cut $12K Debt, Add $1.5K to Savings",
       "at": "2026-11-19T00:05:00Z"
+    },
+    {
+      "t": "Automate $300/mo → Net Worth Grows 30% Faster",
+      "at": "2026-11-20T00:05:00Z"
     }
   ],
   "cooldownSeeds": [
@@ -173,7 +177,8 @@
         "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/755751344",
         "startSec": 393.9,
         "durSec": 22.9,
-        "file": "tt-lf/clipfeed-money-rulebook/clips/clip-03.mp4"
+        "file": "tt-lf/clipfeed-money-rulebook/clips/clip-03.mp4",
+        "postedAt": "2026-11-19T03:43:55.891Z"
       },
       {
         "part": 4,
@@ -186,15 +191,15 @@
       }
     ]
   },
-  "clipLastPostDate": "2026-11-18",
+  "clipLastPostDate": "2026-11-19",
   "uploadsToday": {
-    "date": "2026-11-17",
+    "date": "2026-11-18",
     "count": 1
   },
   "reviewGate": {
     "assigned": true,
     "gated": true,
-    "checkedAt": "2026-11-18T04:35:17.157Z"
+    "checkedAt": "2026-11-19T03:43:51.291Z"
   },
   "usedLongSeeds": [
     "Stop Wasting Vegetables! 8 Freezer Tricks That Save You Money | Annie Tips",
@@ -211,7 +216,8 @@
     "Why Your First $100K Is the Hardest #Shorts",
     "¿Por qué el albañil NO es millonario? | Activo vs Pasivo, la lección de la máquina de palomitas",
     "Congress is BLUE! What does that mean for YOUR wallet?? #money #finance #politics #government",
-    "7 Money Rules to Build Wealth in 2027 | Ankur Warikoo"
+    "7 Money Rules to Build Wealth in 2027 | Ankur Warikoo",
+    "மில்லியனர்கள் ரகசியமாக பின்பற்றும் புதிய Minimalist money rules | silent wealth"
   ],
   "deepdiveVideo": {
     "videoId": "oXAT8NGLV4Q",
