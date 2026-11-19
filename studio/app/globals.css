@@ -207,6 +207,25 @@ body {
   color: var(--ink);
 }
 
+/* ------------------------- focus + motion (P1 slice 3) ------------------- */
+/* Keyboard users must always see where they are (WCAG 2.4.7): one global
+   focus-visible ring; mouse/touch clicks never show an outline. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+:focus:not(:focus-visible) {
+  outline: none;
+}
+/* Vestibular safety (WCAG 2.3.3): kill decorative motion when asked. */
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dot, .pop-in {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 /* -------------------------------- chips ---------------------------------- */
 
 .chip {
