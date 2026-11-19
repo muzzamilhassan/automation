@@ -8,9 +8,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "i-sSCNK9OsE",
-        "publishAt": "2026-11-18T23:35:00Z",
-        "title": "Beat the ‘Risk‑Free’ Hype: +4.2% Annual Returns"
+        "videoId": "zwibEzE04WE",
+        "publishAt": "2026-11-19T23:35:00Z",
+        "title": "Leverage Turned 55% Drop into 100% Loss – Margin Call Nightmare"
       }
     ],
     "imageDate": "2026-10-17",
@@ -110,6 +110,10 @@
       {
         "t": "Beat the ‘Risk‑Free’ Hype: +4.2% Annual Returns",
         "at": "2026-11-18T23:35:00Z"
+      },
+      {
+        "t": "Leverage Turned 55% Drop into 100% Loss – Margin Call Nightmare",
+        "at": "2026-11-19T23:35:00Z"
       }
     ],
     "cooldownSeeds": [
@@ -117,8 +121,8 @@
       "Still Waiting For the Market Crash? Watch This Right Now | Weekend Investing | Alok Jain"
     ],
     "uploadsToday": {
-      "date": "2026-11-17",
-      "count": 2
+      "date": "2026-11-18",
+      "count": 1
     },
     "usedLongSeeds": [
       "The 3 Secrets to Building Wealth",
@@ -149,7 +153,8 @@
           "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/761614284",
           "startSec": 101.6,
           "durSec": 21.6,
-          "file": "tt-lf/clipfeed-investors-compass/clips/clip-01.mp4"
+          "file": "tt-lf/clipfeed-investors-compass/clips/clip-01.mp4",
+          "postedAt": "2026-11-19T01:55:47.340Z"
         },
         {
           "part": 2,
@@ -180,11 +185,11 @@
         }
       ]
     },
-    "clipLastPostDate": "2026-11-18",
+    "clipLastPostDate": "2026-11-19",
     "reviewGate": {
       "assigned": false,
       "gated": false,
-      "checkedAt": "2026-11-18T03:07:29.109Z"
+      "checkedAt": "2026-11-19T01:55:41.504Z"
     }
   },
   "money-rulebook": {
