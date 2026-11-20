@@ -7,9 +7,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "zwibEzE04WE",
-      "publishAt": "2026-11-19T23:35:00Z",
-      "title": "Leverage Turned 55% Drop into 100% Loss – Margin Call Nightmare"
+      "videoId": "5CZqSUQIpW8",
+      "publishAt": "2026-11-20T23:35:00Z",
+      "title": "Portfolio Rebounds 80% in 12 Months After GTA‑6 Crash"
     }
   ],
   "imageDate": "2026-10-17",
@@ -113,6 +113,10 @@
     {
       "t": "Leverage Turned 55% Drop into 100% Loss – Margin Call Nightmare",
       "at": "2026-11-19T23:35:00Z"
+    },
+    {
+      "t": "Portfolio Rebounds 80% in 12 Months After GTA‑6 Crash",
+      "at": "2026-11-20T23:35:00Z"
     }
   ],
   "cooldownSeeds": [
@@ -120,7 +124,7 @@
     "Still Waiting For the Market Crash? Watch This Right Now | Weekend Investing | Alok Jain"
   ],
   "uploadsToday": {
-    "date": "2026-11-18",
+    "date": "2026-11-19",
     "count": 1
   },
   "usedLongSeeds": [
@@ -162,7 +166,8 @@
         "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/761614338",
         "startSec": 286.9,
         "durSec": 21.5,
-        "file": "tt-lf/clipfeed-investors-compass/clips/clip-02.mp4"
+        "file": "tt-lf/clipfeed-investors-compass/clips/clip-02.mp4",
+        "postedAt": "2026-11-20T01:49:15.431Z"
       },
       {
         "part": 3,
@@ -184,10 +189,10 @@
       }
     ]
   },
-  "clipLastPostDate": "2026-11-19",
+  "clipLastPostDate": "2026-11-20",
   "reviewGate": {
     "assigned": false,
     "gated": false,
-    "checkedAt": "2026-11-19T03:08:14.083Z"
+    "checkedAt": "2026-11-20T01:49:07.159Z"
   }
 }
