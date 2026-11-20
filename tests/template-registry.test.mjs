@@ -616,6 +616,20 @@ const identityCatalog = [
   { id: V2_FAMILY_ID, name: 'Stats Counters', family: V2_FAMILY_ID, aspectRatios: ['16:9', '9:16'] },
 ];
 
+test('loader: a template built ON a family gets its own name, never the family name (2026-11-20)', () => {
+  // three different templates on one visual family used to ALL list as the family's
+  // name in the wizard picker / channel drawer; the family itself keeps its name
+  const ids = ['lecture-notes-paper', 'mr-case-files-storybook'];
+  const meta = { [V2_FAMILY_ID]: makeV2Meta({ template_id: V2_FAMILY_ID }) };
+  for (const id of ids) meta[id] = makeV2Meta({ template_id: id });
+  const { templates, invalid } = loadRegistryTemplates(identityCatalog, meta);
+  assert.deepEqual(invalid, []);
+  const name = (id) => templates.find((t) => t.templateId === id).name;
+  assert.equal(name(V2_FAMILY_ID), 'Stats Counters');
+  assert.equal(name('lecture-notes-paper'), 'Lecture Notes Paper');
+  assert.equal(name('mr-case-files-storybook'), 'MR Case Files Storybook');
+});
+
 test('loader: a schema v2 entry resolves under its template_id, joined to its visual family', () => {
   const { templates, invalid } = loadRegistryTemplates(identityCatalog, { [V2_TEMPLATE_ID]: makeV2Meta() });
   assert.deepEqual(invalid, []);

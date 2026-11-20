@@ -1331,8 +1331,8 @@ export const REGISTRY_META = {
       "payoff_rule": "the closing lands one before/after comparison in plain numbers plus the single rule to keep — a mic-drop, never a summary",
       "has_chapters": true,
       "narrative_format": "chapters",
-      "format_label": "Chapter Breakdown (Numbered Parts)",
-      "format_description": "Structured 10-part chapter breakdown with numbered milestone cards and explicit section divides."
+      "format_label": "Money Flow (animated diagram)",
+      "format_description": "Money as a living diagram on dark tiles: paycheck, bills, savings and debt are boxes joined by arrows, and money flows between them as the narrator says each word — leaks drain, savings grow, the numbers count up on screen. Name, colours and voice come from each channel's own kit."
     },
     "variation_rules": [
       "distinct money flow per video — the habit or account mechanism differs from every case in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
@@ -2048,8 +2048,8 @@ export const REGISTRY_META = {
       "payoff_rule": "the closing replays the system once more, now working, and lands one idea in a single sentence — never a summary list",
       "has_chapters": true,
       "narrative_format": "chapters",
-      "format_label": "Chapter Breakdown (Numbered Parts)",
-      "format_description": "Structured 10-part chapter breakdown with numbered milestone cards and explicit section divides."
+      "format_label": "Systems Diagram (animated, neon)",
+      "format_description": "How a system works, drawn live in neon on a dark grid: parts appear as glowing nodes, arrows carry requests and data between them, and each step lights up exactly when the narrator says it. Name, colours and voice come from each channel's own kit."
     },
     "variation_rules": [
       "distinct system per video — the mechanism examined differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",

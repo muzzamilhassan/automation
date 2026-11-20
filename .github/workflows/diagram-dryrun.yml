@@ -73,6 +73,7 @@ jobs:
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
+          set -o pipefail   # a planner/render failure must fail THIS step, not hide behind grep
           START=$(date +%s)
           node longvideo/diagram-episode-dryrun.mjs "$SLUG" "$SCRIPT" "$TEMPLATE" ${{ inputs.plan_only == '1' && '--plan-only' || '' }} ${LABEL:+--label "$LABEL"} 2>&1 | grep -v -E "Rendered [0-9]+/|Encoded [0-9]+/"
           echo "::notice::diagram dry run wall time: $(( ($(date +%s) - START) / 60 )) min (runner: $(nproc) vCPU)"

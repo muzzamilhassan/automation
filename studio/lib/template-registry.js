@@ -40,6 +40,16 @@ export const CAPABILITY_BASELINE = {
   'image-gen': false,
 };
 
+// "lecture-notes-paper" → "Lecture Notes Paper"; short tokens (mr, ai) read as
+// acronyms. Kept identical to templates-gallery.mjs humanizeId.
+function humanizeTemplateId(id) {
+  return String(id || '')
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map((w) => (w.length <= 2 ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1)))
+    .join(' ');
+}
+
 function isNonEmptyString(v) {
   return typeof v === 'string' && v.length > 0;
 }
@@ -304,7 +314,13 @@ export function loadRegistryTemplates(catalogFamilies, metaData) {
       continue;
     }
 
-    templates.push({ templateId, familyId: templateId, family, name: catalogEntry.name, catalog: catalogEntry, registry: meta });
+    // A template that IS its family keeps the family's catalog name; a template
+    // built ON a family (e.g. lecture-notes-paper on documentary-frames) gets its
+    // OWN name from its id — otherwise every surface (wizard picker, channel
+    // drawer, registry) lists several different templates under one family name.
+    // Same rule as the gallery (templates-gallery.mjs humanizeId).
+    const name = templateId === family ? catalogEntry.name : humanizeTemplateId(templateId);
+    templates.push({ templateId, familyId: templateId, family, name, catalog: catalogEntry, registry: meta });
   }
 
   return { templates, invalid };

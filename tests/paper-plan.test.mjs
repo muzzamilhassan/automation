@@ -71,6 +71,24 @@ test('repairPaperScenes drops only the broken cue', () => {
   assert.deepEqual(fixed[1].lines[1].cues.map((c) => c.on), ['crumbs']);
 });
 
+test('repairPaperScenes: a silent beat with its own widget gets a show cue on its first spoken word', () => {
+  const bad = structuredClone(RAW);
+  bad.beats[1].lines.forEach((l) => { l.cues = []; });
+  const fixed = repairPaperScenes(assemblePaperChapter(SK, bad).scenes);
+  assert.deepEqual(paperSceneErrors(fixed), []);
+  assert.deepEqual(fixed[1].lines[0].cues, [{ on: 'Then', do: 'show', widget: 's' }]);
+});
+
+test('repairPaperScenes: a silent beat with no widget joins the previous beat, words verbatim', () => {
+  const bad = structuredClone(RAW);
+  bad.beats[1].widgets = [];
+  bad.beats[1].lines.forEach((l) => { l.cues = []; });
+  const fixed = repairPaperScenes(assemblePaperChapter(SK, bad).scenes);
+  assert.equal(fixed.length, 1);
+  assert.deepEqual(fixed[0].lines.map((l) => l.say), SK.sentences);
+  assert.deepEqual(paperSceneErrors(fixed), []);
+});
+
 test('planPaper: re-asks a chapter with its errors, flattens beats, chapters become modules', async () => {
   const prompts = [];
   const bad = structuredClone(RAW); bad.beats[1].from = 4;
