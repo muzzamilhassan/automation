@@ -206,9 +206,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "25eW_tkGs9I",
-        "publishAt": "2026-11-20T00:05:00Z",
-        "title": "Automate $300/mo → Net Worth Grows 30% Faster"
+        "videoId": "G1ZAMQsj96s",
+        "publishAt": "2026-11-21T00:05:00Z",
+        "title": "How a Low‑Tax Home Base Saves $45K a Year"
       }
     ],
     "imageDate": "2026-10-18",
@@ -323,6 +323,10 @@
       {
         "t": "Automate $300/mo → Net Worth Grows 30% Faster",
         "at": "2026-11-20T00:05:00Z"
+      },
+      {
+        "t": "How a Low‑Tax Home Base Saves $45K a Year",
+        "at": "2026-11-21T00:05:00Z"
       }
     ],
     "cooldownSeeds": [
@@ -356,7 +360,8 @@
           "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/768686745",
           "startSec": 22.9,
           "durSec": 24.4,
-          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-01.mp4"
+          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-01.mp4",
+          "postedAt": "2026-11-20T03:38:33.281Z"
         },
         {
           "part": 2,
@@ -387,15 +392,15 @@
         }
       ]
     },
-    "clipLastPostDate": "2026-11-19",
+    "clipLastPostDate": "2026-11-20",
     "uploadsToday": {
       "date": "2026-11-19",
-      "count": 1
+      "count": 2
     },
     "reviewGate": {
       "assigned": true,
       "gated": true,
-      "checkedAt": "2026-11-19T17:27:47.545Z"
+      "checkedAt": "2026-11-20T03:38:22.681Z"
     },
     "usedLongSeeds": [
       "Stop Wasting Vegetables! 8 Freezer Tricks That Save You Money | Annie Tips",
@@ -413,7 +418,8 @@
       "¿Por qué el albañil NO es millonario? | Activo vs Pasivo, la lección de la máquina de palomitas",
       "Congress is BLUE! What does that mean for YOUR wallet?? #money #finance #politics #government",
       "7 Money Rules to Build Wealth in 2027 | Ankur Warikoo",
-      "மில்லியனர்கள் ரகசியமாக பின்பற்றும் புதிய Minimalist money rules | silent wealth"
+      "மில்லியனர்கள் ரகசியமாக பின்பற்றும் புதிய Minimalist money rules | silent wealth",
+      "The New Rules of Off Grid Living"
     ],
     "deepdiveVideo": {
       "videoId": "v34ynMZ2eqg",
