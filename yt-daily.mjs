@@ -299,7 +299,7 @@ async function resumeApprovedScript({ slug, jobId, b }) {
   st[slug] = st[slug] || {};
   st[slug].uploadsToday = nextCounter(st[slug].uploadsToday);
   st[slug].lastRunDate = today;
-  st[slug].titleHistory = [...(st[slug].titleHistory || []), { t: meta.title, at: publishAt }].slice(-60);
+  st[slug].titleHistory = [...(st[slug].titleHistory || []), { t: meta.title, at: publishAt, v: videoId || undefined }].slice(-60); // J2: + videoId
   st[slug].lastVideos = [{ videoId, publishAt, title: meta.title, resumedReview: true, text: [script.hook, ...(script.points || []).map((p) => p?.line || ''), script.closing].filter(Boolean).join('\n\n') }];
   saveChannelState(slug, st[slug]);
   log(`✓ approved script shipped — the approval loop is closed (hold → review → resume-render from the STORED input)`);
@@ -746,7 +746,7 @@ if (RUN_SHORTS) {
       todayTopics: themesToday.map(t => ({ at: today, topic: t.seed })),
       // 10-05: durable title history — lastVideos alone only ever held the last
       // run, which is why cross-day duplicates went unnoticed for weeks
-      titleHistory: [...(state[slug]?.titleHistory || []), ...results.filter(r => r.videoId).map(r => ({ t: r.title, at: r.publishAt }))].slice(-60),
+      titleHistory: [...(state[slug]?.titleHistory || []), ...results.filter(r => r.videoId).map(r => ({ t: r.title, at: r.publishAt, v: r.videoId }))].slice(-60), // J2: + videoId
       lastVideos: results, deepdiveDate: state[slug]?.deepdiveDate || null
     };
     saveState();

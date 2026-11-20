@@ -625,7 +625,13 @@ export default function Analytics() {
                     <span className="block t-12 font-medium text-ink truncate font-mono">{r.name}</span>
                     <span className="block t-10 text-faint">{fmtDay(reportDay(r.name)) || '—'}{r.size ? ` · ${Math.round(r.size / 1024)} KB` : ''}</span>
                   </span>
-                  <Chip>repo /reports</Chip>
+                  {r.artifactId ? (
+                    <a href={`/api/reports?download=${r.artifactId}`} className="btn btn-outline btn-sm whitespace-nowrap" title="Downloads a .zip with the Excel file inside (kept 30 days)">
+                      Download
+                    </a>
+                  ) : (
+                    <Chip>saved copy</Chip>
+                  )}
                 </div>
               ))
             )}

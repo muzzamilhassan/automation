@@ -92,7 +92,15 @@ jobs:
             echo "::warning::secret ${ENV_NAME} is missing — YouTube rows for this channel will GAP"
             exit 0
           fi
-          echo "${ENV_NAME}=${DYN_TOKEN}" >> "$GITHUB_ENV"
+          # J1 (2026-11-20): some token secrets are multi-line JSON (YT_TOKEN_YT_BOT)
+          # — the single-line NAME=value form failed with "Invalid format" since
+          # 11-17. The heredoc-delimiter form is safe for one line or many.
+          DELIM="TOKEN_EOF_$(openssl rand -hex 8)"
+          {
+            echo "${ENV_NAME}<<${DELIM}"
+            echo "${DYN_TOKEN}"
+            echo "${DELIM}"
+          } >> "$GITHUB_ENV"
 
       - name: 📈 Fetch this channel's data (fragment for the collect job)
         env:

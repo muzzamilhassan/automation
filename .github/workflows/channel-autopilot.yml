@@ -178,7 +178,14 @@ jobs:
             echo "::error::secret ${ENV_NAME} is missing — connect the channel in Studio first"
             exit 1
           fi
-          echo "${ENV_NAME}=${DYN_TOKEN}" >> "$GITHUB_ENV"
+          # J1 (2026-11-20): multi-line token secrets (YT_TOKEN_YT_BOT) need the
+          # heredoc-delimiter form; NAME=value fails with "Invalid format".
+          DELIM="TOKEN_EOF_$(openssl rand -hex 8)"
+          {
+            echo "${ENV_NAME}<<${DELIM}"
+            echo "${DYN_TOKEN}"
+            echo "${DELIM}"
+          } >> "$GITHUB_ENV"
 
       - name: 🧠 Start brain sidecar (issue #105)
         env:

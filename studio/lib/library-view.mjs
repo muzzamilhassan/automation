@@ -56,7 +56,9 @@ export function rowsFromState(state) {
     }
     for (const h of Array.isArray(s.titleHistory) ? s.titleHistory : []) {
       if (!h || !h.t) continue;
-      rows.push({ slug, title: h.t, at: h.at || null, videoId: null, kind: 'short', source: 'title-history' });
+      // J2 (2026-11-20): the engine now records the videoId (h.v) with each
+      // title; older entries have none and keep the "Link not saved" note
+      rows.push({ slug, title: h.t, at: h.at || null, videoId: typeof h.v === 'string' && h.v ? h.v : null, kind: 'short', source: 'title-history' });
     }
     const d = s.deepdiveVideo;
     if (d && (d.videoId || d.title)) {

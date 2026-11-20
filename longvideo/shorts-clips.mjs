@@ -492,7 +492,8 @@ async function postNext() {
         // from the probe body, else the slot time on its own slot_date.
         const rp = o.publishAt || slotISOOnDate(o.slotDate, (b.slots && b.slots[0]) || '22:35');
         st.lastVideos = [{ videoId: o.videoId, publishAt: rp, title: o.title || o.intent.title_fingerprint || '', recovered: true }];
-        st.titleHistory = [...(st.titleHistory || []), { t: o.title || o.intent.title_fingerprint || '', at: rp }].slice(-60);
+        // J2: keep the videoId (v) so the Library can link every Short, not just the newest
+        st.titleHistory = [...(st.titleHistory || []), { t: o.title || o.intent.title_fingerprint || '', at: rp, v: o.videoId || undefined }].slice(-60);
         saveChannelState(slug, st);
         process.exit(0);
       }
@@ -643,7 +644,7 @@ async function postNext() {
   st.clipLastPostDate = todayUTC;
   st.uploadsToday = nextCounter(st.uploadsToday);
   st.lastVideos = [{ videoId, publishAt, title: clip.title }];
-  st.titleHistory = [...(st.titleHistory || []), { t: clip.title, at: publishAt }].slice(-60);
+  st.titleHistory = [...(st.titleHistory || []), { t: clip.title, at: publishAt, v: videoId || undefined }].slice(-60); // J2: + videoId
   saveChannelState(slug, st);
 
   // FB/IG outbox — existing crosspost lanes pick it up unchanged
