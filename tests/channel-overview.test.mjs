@@ -63,15 +63,18 @@ test('D4: today\'s wording never says "not run today" at any hour (early slot, l
   }
 });
 
-test('D4: today\'s wording — made, not yet, paused, never, long gap', () => {
+// Live-fix wave A3 (2026-11-20): today's wording reads the truthful `today` /
+// `todayRun` fields, never the frozen lastRun date (tests/wave-a3.test.mjs).
+test('D4: today\'s wording — made, ran, not yet, paused, unknown', () => {
   const now = at('12:00');
-  assert.deepEqual(todayStatus(row({ lastRun: TODAY, todayVideos: 3 }), now), { tone: 'ok', text: 'Made 3 videos today' });
-  assert.deepEqual(todayStatus(row({ lastRun: TODAY, todayVideos: 1 }), now), { tone: 'ok', text: 'Made 1 video today' });
-  assert.deepEqual(todayStatus(row({ lastRun: TODAY, todayVideos: 0 }), now), { tone: 'ok', text: 'Ran today' });
+  const today = (count) => ({ day: TODAY, basis: 'UTC', count, clips: count, episodes: 0, shorts: 0 });
+  assert.deepEqual(todayStatus(row({ today: today(3) }), now), { tone: 'ok', text: 'Made 3 videos today' });
+  assert.deepEqual(todayStatus(row({ today: today(1) }), now), { tone: 'ok', text: 'Made 1 video today' });
+  assert.deepEqual(todayStatus(row({ today: today(0), todayRun: { status: 'succeeded' } }), now), { tone: 'ok', text: 'Ran today · nothing new' });
   assert.deepEqual(todayStatus(row(), now), { tone: 'plain', text: 'Not made yet today' });
   assert.deepEqual(todayStatus(row({ flowPaused: true }), now), { tone: 'plain', text: 'Paused — nothing new today' });
-  assert.deepEqual(todayStatus(row({ lastRun: null }), now), { tone: 'plain', text: 'No run yet' });
-  assert.deepEqual(todayStatus(row({ lastRun: '2026-11-15' }), now), { tone: 'plain', text: 'Last run 2026-11-15' });
+  assert.deepEqual(todayStatus(row({ today: null }), now), { tone: 'plain', text: "Can't check today right now" });
+  assert.deepEqual(todayStatus(row({ lastRun: TODAY, today: today(0) }), now), { tone: 'plain', text: 'Not made yet today' }, 'the frozen lastRun field is ignored');
   assert.deepEqual(todayStatus(null, now), { tone: 'plain', text: 'Unknown' });
 });
 

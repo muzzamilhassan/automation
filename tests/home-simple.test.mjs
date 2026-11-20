@@ -31,7 +31,8 @@ test('H2: WHEN nothing needs you (or only channel rows do), THE verdict has no e
   const good = deriveVerdict({ now: LATE, channels: [ch('a')], warnings: { status: 'ok', rows: [] }, review: { status: 'ok', count: 0 } });
   assert.equal(verdictHref(good), null);
   const chOnly = deriveVerdict({ now: LATE, channels: [ch('a', { flowPaused: true })], warnings: { status: 'ok', rows: [] }, review: { status: 'ok', count: 0 } });
-  assert.equal(chOnly.kind, 'needs_you');
+  assert.equal(chOnly.kind, 'all_good', 'live fix wave A4: channel rows are shown, not counted');
+  assert.equal(chOnly.headline, 'Nothing needs you');
   assert.equal(verdictHref(chOnly), null, 'channel problems are shown in the channel rows right below');
   assert.equal(verdictHref(undefined), null);
 });
@@ -108,7 +109,7 @@ test('H8: Analytics shows the lifetime totals home used to (views all-time, vide
   assert.match(an, /label="Videos · total"/);
   assert.match(an, /label="Subscribers · total"/);
   // FB/IG followers already live in the Audience split card — not duplicated as tiles
-  assert.match(an, /name: 'Facebook', value: totals\.fbFollowers/);
+  assert.match(an, /name: 'Facebook', value: [^,]*totals\.fbFollowers/); // wave A3: null when unknown, never || 0
   assert.doesNotMatch(an, /label="FB followers"|label="IG followers"/);
 });
 

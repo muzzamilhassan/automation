@@ -1042,6 +1042,15 @@ log(`  Episode: ${results.episode ? '✓' : (SKIP_EPISODE ? '⏸ paused' : '✗'
 log(`  Errors: ${errors.length}`);
 if (errors.length) errors.forEach(e => log(`    ! ${e}`));
 
+// ---- Live fix wave A4 (T2-01): this run finished, so earlier failed-run
+// alerts for the channel are over (scripts/emit-run-failed.mjs raises them).
+if (warnStore && typeof warnStore.resolveOpenFor === 'function') {
+  try {
+    const rf = await warnStore.resolveOpenFor({ channel_id: slug, code: 'run_failed', by: 'auto-resolve', note: `auto-resolved: a later run finished (run ${process.env.GITHUB_RUN_ID || 'local'})` });
+    if (rf.ok && rf.resolved) log(`[warn] ${rf.resolved} earlier failed-run alert(s) resolved`);
+  } catch { }
+}
+
 // ---- #106 T2: close the job (pending-step sweep + terminal) — never fatal
 if (jobCtl) await jobCtl.end();
 

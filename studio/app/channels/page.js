@@ -20,7 +20,7 @@ import { useOpenWarnings } from '@/components/use-open-warnings';
 import { MUSIC_MOODS } from '@/lib/site-data';
 import { useBrands } from '@/components/use-brands'; // #125: live brand marks
 import { validSlots, slotDate, editHref } from '@/lib/channel-health.mjs';
-import { channelHasRealProblem } from '@/lib/channel-overview.mjs';
+import { channelHasRealProblem, todayStatus } from '@/lib/channel-overview.mjs';
 import { fmt } from '@/lib/utils';
 
 function localTime(hhmm) {
@@ -41,10 +41,14 @@ function Fact({ icon: Icon, label, children }) {
 
 // Linked accounts in one line each — only numbers the platforms returned.
 // A failed YouTube read is a plain fact here, never red warning text (round 1).
+// Wave A3 (T3-08): every channel listed here is connected to YouTube, so a
+// missing read (yt null — the YouTube source didn't answer) is "stats
+// unavailable", never "No accounts linked yet".
 function accountLines(c) {
   const out = [];
-  if (c.yt && !c.yt.error) out.push({ key: 'yt', text: `YouTube · ${fmt(c.yt.subs)} subs`, tone: 'ink' });
+  if (c.yt && !c.yt.error) out.push({ key: 'yt', text: `YouTube · ${fmt(c.yt.subs ?? null)} subs`, tone: 'ink' });
   else if (c.yt?.error) out.push({ key: 'yt', text: 'YouTube · stats unavailable', tone: 'faint', title: String(c.yt.error) });
+  else if (c.yt == null) out.push({ key: 'yt', text: 'YouTube · stats unavailable', tone: 'faint', title: "YouTube didn't answer just now" });
   if (c.fb) out.push({ key: 'fb', text: `Facebook · ${fmt(c.fb.followers)} followers`, tone: 'ink' });
   if (c.ig) out.push({ key: 'ig', text: `Instagram · ${fmt(c.ig.followers)} followers`, tone: 'ink' });
   return out;
@@ -233,6 +237,7 @@ export default function Channels() {
 
   const active = data.channels.filter((c) => c.active);
   const parked = data.channels.filter((c) => !c.active);
+  const now = new Date();
   const overviewRow = drawer?.which === 'overview' ? active.find((c) => c.slug === drawer.slug) || null : null;
 
   return (
@@ -261,6 +266,7 @@ export default function Channels() {
             const slots = validSlots(c.slots);
             const longSlot = validSlots([c.longSlot])[0] || null;
             const accounts = accountLines(c);
+            const today = todayStatus(c, now); // wave A3: made today / run state (UTC day), never the frozen lastRun
             const openDrawer = (which) => () => setDrawer({ slug: c.slug, label, which });
             const items = [
               ...Object.entries(CHANNEL_DRAWERS).map(([which, d]) => ({ key: which, label: d.label, icon: d.icon, onSelect: openDrawer(which) })),
@@ -284,6 +290,9 @@ export default function Channels() {
                       <button type="button" data-kit="title" className="hover:underline underline-offset-2 text-left max-w-full truncate" onClick={openDrawer('overview')}>{label}</button>
                     </h2>
                     <p className="t-12 text-muted line-clamp-2 break-words" title={c.niche || undefined}>{c.niche || 'No niche set'}</p>
+                    <p className="t-11 mt-0.5 truncate" style={{ color: today.tone === 'bad' ? 'var(--bad-ink)' : today.tone === 'ok' ? 'var(--ok-ink)' : 'var(--muted)' }}>
+                      Today (UTC): {today.text}
+                    </p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     {hasProblem ? <ProblemDot /> : null}

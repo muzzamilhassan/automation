@@ -21,7 +21,10 @@ test('the production shape: 180 orphans + 9 real → 5 grouped real notification
   assert.equal(quietCount(rows), 180);
   const hold = groups.find((g) => g.code === 'review_hold');
   assert.equal(hold.count, 4);
-  assert.match(hold.title, /^4× script held for review — slot 2026-11-19 skipped$/, 'newest wording, with the count');
+  // live fix wave A4 (T2-07): four DIFFERENT slots never borrow one slot's title
+  assert.equal(hold.title, '4 slots held for review (Nov 16–19)');
+  assert.equal(groups.find((g) => g.code === 'review_timeout').title, '2 scripts past the approval window');
+  assert.equal(groups.find((g) => g.code === 'upload_ghost').title, 'recorded upload missing');
   assert.equal(groups[0].severity, 'action_required', 'most severe first');
 });
 

@@ -7,6 +7,7 @@ import { canAccessChannelSlug } from '@/lib/access';
 import { STYLE_BY_ID } from '@/lib/styles-catalog';
 import { brands } from '@/lib/data.mjs';
 import { kitFieldPatch } from '@/lib/channel-kit-fields.mjs';
+import { protectFilledFields } from '@/lib/edit-prefill.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,14 +59,18 @@ export async function GET(req) {
   }
 
   if (!entry) return Response.json({ error: 'channel not found' }, { status: 404 });
+  // live fix wave A2 (T4-02): the static brand kit too, so "Edit setup" can
+  // show what the engine falls back to (lib/edit-prefill.mjs engineFormValues)
+  let legacy = null;
+  try { legacy = (brands() || {})[slug] || null; } catch { legacy = null; }
   // #122 (SEC-9): the browser never receives tokenEnc — projected entry only
-  return Response.json({ ok: true, channel: stripTokenMaterial(entry) });
+  return Response.json({ ok: true, channel: stripTokenMaterial(entry), legacy });
 }
 
 export async function POST(req) {
   if (!(await requireRole(req, ['owner']))) return Response.json({ error: 'not signed in' }, { status: 401 });
 
-  const body = await req.json().catch(() => ({}));
+  let body = await req.json().catch(() => ({}));
   const { slug } = body;
   if (!slug) return Response.json({ error: 'missing slug' }, { status: 400 });
 
@@ -104,6 +109,12 @@ export async function POST(req) {
     reg.channels = reg.channels || [];
     reg.channels.push(entry);
   }
+
+  // live fix wave A2 (T4-02): an empty slots/tags/description/eyebrow/
+  // tagline/pillars/niche never wipes a filled one unless the client lists
+  // it in body.clear (an explicit clear). Kept fields are reported back.
+  const guard = protectFilledFields(body, entry);
+  body = guard.body;
 
   if (body.label) entry.label = String(body.label).slice(0, 60);
   if (body.niche != null) entry.niche = String(body.niche).slice(0, 120);
@@ -234,7 +245,7 @@ export async function POST(req) {
     const actor = (await getUser(req).catch(() => null))?.email || 'owner';
     await appendAudit(actor, 'profile-save', `${slug}: ${Object.keys(body).filter((k) => k !== 'slug').join(',')}`);
     // #122 (SEC-9): the saved entry is echoed WITHOUT token material
-    return Response.json({ ok: true, entry: stripTokenMaterial(entry) });
+    return Response.json({ ok: true, entry: stripTokenMaterial(entry), ...(guard.kept.length ? { kept: guard.kept } : {}) });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 502 });
   }

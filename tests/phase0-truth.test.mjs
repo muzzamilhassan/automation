@@ -76,8 +76,12 @@ test('P0-9: display severity ladder puts blocking first; consumers use real keys
   assert.match(read('studio/lib/cockpit-verdict.mjs'), /w\.severity === 'blocking'/);
 });
 
-test('P0-11: "today" counts only today\'s run', () => {
-  assert.match(read('studio/app/api/overview/route.js'), /s\.lastRunDate === todayStr/);
+// Live-fix wave A3 (2026-11-20): "today" now counts what the engine really made
+// today (UTC) from its state file — lastRunDate alone froze in October.
+test('P0-11: "today" counts only what was made today', () => {
+  const src = read('studio/app/api/overview/route.js');
+  assert.match(src, /const today = todayProduction\(s, now\)/);
+  assert.match(src, /todayVideos: today \? today\.count : null/);
 });
 
 test('P0-12: review/warnings show an error card, spinner only without an error', () => {

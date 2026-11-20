@@ -14,7 +14,8 @@ test('destructive/bulk actions confirm first', () => {
   };
   assert.ok(fnHasConfirm(read('studio/app/production/page.js'), 'const setAll = async'), 'Pause/Resume everything');
   assert.ok(fnHasConfirm(read('studio/components/TemplateAssignPanel.js'), 'const unassign = async'), 'template unassign');
-  assert.ok(fnHasConfirm(read('studio/components/ProviderRoutingPanel.js'), 'const removeProvider ='), 'provider remove');
+  // wave A1 (T3-11): remove only edits the local draft — the Save that writes it confirms
+  assert.ok(fnHasConfirm(read('studio/components/ProviderRoutingPanel.js'), 'const saveChanges ='), 'provider routing save');
 });
 
 test('mutating routes leave an audit row', () => {

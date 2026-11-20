@@ -64,7 +64,8 @@ test('no window.confirm in any of these files; destructive actions use useConfir
     return /await confirm\(\{/.test(src.slice(at, at + 600));
   };
   assert.ok(confirmIn(PANELS.TemplateAssignPanel, 'const unassign = async'), 'template unassign confirms');
-  assert.ok(confirmIn(PANELS.ProviderRoutingPanel, 'const removeProvider = async'), 'provider remove confirms');
+  // wave A1 (T3-11): remove is a local draft edit; the ONE write (Save) confirms
+  assert.ok(confirmIn(PANELS.ProviderRoutingPanel, 'const saveChanges = async'), 'provider routing save confirms');
   assert.ok(confirmIn(PANELS.ChannelKeysPanel, 'const remove = async'), 'key remove confirms');
   assert.match(LIST, /const confirm = useConfirm\(\);/);
   assert.match(LIST, /const ok = await confirm\(on\b/);

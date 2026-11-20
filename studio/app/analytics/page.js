@@ -125,7 +125,11 @@ export default function Analytics() {
   // P0-5: LIVE average-watched only. No Sep-2026 baseline — a channel without
   // analytics data shows an honest "no data" bar, never an old number.
   const channelScope = sel === 'all' ? active : active.filter((c) => c.slug === sel);
-  const retentionRows = channelScope.map((c) => {
+  // T2-15 (wave A3): a channel whose analytics READ failed is "unavailable
+  // right now" — never "needs analytics access" (that points at a re-auth)
+  const failedSlugs = new Set((real?.coverage?.failed || []).map((f) => f?.slug).filter(Boolean));
+  const failedNames = channelScope.filter((c) => failedSlugs.has(c.slug)).map((c) => c.label || c.slug);
+  const retentionRows = channelScope.filter((c) => !failedSlugs.has(c.slug)).map((c) => {
     const raw = sel === 'all' ? real?.channels?.[c.slug]?.avgWatched : real?.avgWatched;
     const live = Number(raw);
     const pct = Number.isFinite(live) && live > 0 ? Math.round(live) : null;
@@ -136,18 +140,25 @@ export default function Analytics() {
   // REAL daily views from the YouTube Analytics API (28 days)
 
   const keywords = (terms || []).filter((k) => k && k.term);
+  // T2-04 (wave A3): a source that didn't answer is null → "—", never 0.
+  // /api/overview names those sources in `degraded`.
+  const degraded = Array.isArray(data.degraded) ? data.degraded : [];
+  const fbDown = ovErr || degraded.includes('facebook');
+  const known = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+  const selYt = selChannel?.yt && !selChannel.yt.error ? selChannel.yt : null;
   const platformSlices = sel === 'all'
     ? [
-        { name: 'YouTube', value: totals.ytSubs || 0, color: 'var(--bad)' },
-        { name: 'Facebook', value: totals.fbFollowers || 0, color: 'var(--info)' },
-        { name: 'Instagram', value: totals.igFollowers || 0, color: 'var(--accent)' },
+        { name: 'YouTube', value: ovErr ? null : known(totals.ytSubs), color: 'var(--bad)' },
+        { name: 'Facebook', value: ovErr ? null : known(totals.fbFollowers), color: 'var(--info)' },
+        { name: 'Instagram', value: ovErr ? null : known(totals.igFollowers), color: 'var(--accent)' },
       ]
     : [
-        { name: 'YouTube', value: selChannel?.yt?.subs || 0, color: 'var(--bad)' },
-        { name: 'Facebook', value: selChannel?.fb?.followers || 0, color: 'var(--info)' },
-        { name: 'Instagram', value: selChannel?.ig?.followers || 0, color: 'var(--accent)' },
+        { name: 'YouTube', value: known(selYt?.subs), color: 'var(--bad)' },
+        // no linked page = a real 0; a failed Facebook read = unknown
+        { name: 'Facebook', value: selChannel?.fb ? known(selChannel.fb.followers) : fbDown ? null : 0, color: 'var(--info)' },
+        { name: 'Instagram', value: selChannel?.ig ? known(selChannel.ig.followers) : fbDown ? null : 0, color: 'var(--accent)' },
       ];
-  const platformTotal = platformSlices.reduce((a, s) => a + s.value, 0) || 1;
+  const platformTotal = platformSlices.every((s) => s.value != null) ? platformSlices.reduce((a, s) => a + s.value, 0) : null;
   // null (unknown) renders "—" in StatCard — never a fake 0
   const subsShown = ovErr ? null : sel === 'all' ? totals.ytSubs ?? null : selChannel?.yt?.subs ?? null;
   // moved from home (feedback r1, 2026-11-19): the lifetime totals this page
@@ -337,6 +348,15 @@ export default function Analytics() {
         <StatCard icon={Eye} label="Views · all time" value={lifetimeViews} fmt={fmt} color="var(--info)" iconBg="color-mix(in srgb, var(--info) 12%, transparent)" />
         <StatCard icon={Film} label="Videos · total" value={lifetimeVideos} fmt={fmt} />
       </div>
+      {!ovErr && (subsShown == null || lifetimeViews == null || lifetimeVideos == null || degraded.includes('youtube')) ? (
+        <p className="t-11 text-faint -mt-3 mb-5" role="status">
+          {sel === 'all' && totals.ytOf && totals.ytChannels && totals.ytChannels < totals.ytOf
+            ? `YouTube stats unavailable right now for ${totals.ytOf - totals.ytChannels} of ${totals.ytOf} channels — totals cover the rest.`
+            : 'YouTube stats unavailable right now — "—" means unknown, not zero.'}
+        </p>
+      ) : ovErr ? (
+        <p className="t-11 text-faint -mt-3 mb-5" role="status">Live totals unavailable right now — &quot;—&quot; means unknown, not zero.</p>
+      ) : null}
 
       <div className="grid lg:grid-cols-3 gap-4 mb-5">
         {/* retention */}
@@ -348,7 +368,14 @@ export default function Analytics() {
             right={realErr ? <Chip tone="bad">unavailable</Chip> : real ? <Chip tone={retentionLive ? 'ok' : 'warn'}>{retentionLive ? 'live data' : 'partial data'}</Chip> : null}
           />
           <div className="px-5 pb-5">
-            <RetentionBars rows={retentionRows} goal={RETENTION_GOAL} />
+            {realErr ? (
+              <p className="t-12 text-faint py-4 text-center">Unavailable right now — YouTube Analytics didn&apos;t answer, so no numbers are shown (not zero).</p>
+            ) : (
+              <RetentionBars rows={retentionRows} goal={RETENTION_GOAL} />
+            )}
+            {!realErr && failedNames.length ? (
+              <p className="t-11 text-faint mt-3">Unavailable right now: {failedNames.join(', ')}.</p>
+            ) : null}
             {sel === 'all' && worst && retentionLive ? (
               <div className="inset-tile p-3 mt-4 flex gap-2.5">
                 <Info size={14} className="shrink-0 mt-0.5" style={{ color: 'var(--info)' }} />
@@ -495,11 +522,11 @@ export default function Analytics() {
                 <div key={s.name} className="flex items-center gap-2 t-12">
                   <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: s.color }} />
                   <span className="text-muted">{s.name}</span>
-                  <span className="ml-auto tnum font-bold text-ink">{s.value && !ovErr ? fmt(s.value) : '—'}</span>
+                  <span className="ml-auto tnum font-bold text-ink">{s.value == null ? '—' : fmt(s.value)}</span>
                 </div>
               ))}
             </div>
-            <p className="t-10 text-faint mt-3">Followers, not views.{ovErr ? ' Live totals unavailable right now.' : ` Total ${fmt(platformTotal)}.`}</p>
+            <p className="t-10 text-faint mt-3">Followers, not views.{platformTotal == null ? ' Total unavailable right now.' : ` Total ${fmt(platformTotal)}.`}</p>
           </div>
         </Card>
 
@@ -569,7 +596,7 @@ export default function Analytics() {
         <Card className="overflow-hidden">
           <CardHead
             title="Today's researched topics"
-            sub="Picked from what is getting views in each niche right now"
+            sub="The latest picks per channel — each shows the day it was picked (UTC)"
             icon={Radar}
           />
           <div className="px-4 pb-4">
@@ -584,6 +611,7 @@ export default function Analytics() {
                       <span className="t-12 font-semibold text-ink truncate">{c.label || c.slug}</span>
                     </div>
                     <div className="flex flex-col gap-1.5">
+                      {c.todayTopics?.length && c.todayTopicsAt ? <span className="t-10 text-faint">Shorts topics · picked {c.todayTopicsAt}</span> : null}
                       {(c.todayTopics || []).map((t, i) => (
                         <span key={i} className="t-11 text-muted leading-snug flex gap-1.5">
                           <span style={{ color: c.accent || 'var(--accent)' }}>▸</span>
@@ -593,7 +621,7 @@ export default function Analytics() {
                       {c.episodeTopic ? (
                         <span className="t-11 text-muted leading-snug flex gap-1.5">
                           <span className="text-accent">▸</span>
-                          <span>episode: “{c.episodeTopic}”</span>
+                          <span>episode: “{c.episodeTopic}”{c.episodeTopicAt ? <span className="text-faint"> · picked {c.episodeTopicAt}</span> : null}</span>
                         </span>
                       ) : null}
                     </div>

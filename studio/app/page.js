@@ -28,6 +28,8 @@ import { deriveVerdict, channelToday, nextSlot, fmtIn, reviewStatusFromHttp, tod
 const VERDICT_ICON = { all_good: CheckCircle2, needs_you: AlertTriangle, unknown: HelpCircle, loading: Loader2, empty: HelpCircle };
 const TONE_INK = { ok: 'var(--ok-ink)', warn: 'var(--warn-ink)', bad: 'var(--bad-ink)', info: 'var(--info-ink)', plain: 'var(--muted)' };
 const TONE_DOT = { ok: 'var(--ok)', warn: 'var(--warn)', bad: 'var(--bad)', info: 'var(--info)', plain: 'var(--faint)' };
+// /api/overview `degraded` source keys → plain words (infra names, not channel data)
+const SOURCE_WORD = { github: 'GitHub', runs: 'run history', youtube: 'YouTube stats', facebook: 'Facebook' };
 
 // The one-line morning answer. Pure presentation — the rules live in
 // lib/cockpit-verdict.mjs (tested). No list here: problems are listed only in
@@ -69,7 +71,7 @@ function TodayList({ channels, marks, now }) {
   if (!channels.length) return null;
   return (
     <section className="mb-5">
-      <h2 className="overline mb-2">Channels today</h2>
+      <h2 className="overline mb-2">Channels today · UTC day</h2>
       <Card className="overflow-hidden">
         <ul className="divide-y divide-[var(--line)]">
           {channels.map((c) => {
@@ -108,6 +110,7 @@ function OverviewContent() {
   const [data, setData] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [analyticsCoverage, setAnalyticsCoverage] = useState(null);
+  const [analyticsErr, setAnalyticsErr] = useState(false);
   // pending approvals: 'ok' carries a real count; 503/401/network = unknown, never 0
   const [review, setReview] = useState({ status: 'loading', count: null });
   const [err, setErr] = useState(false);
@@ -115,25 +118,34 @@ function OverviewContent() {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshedAt, setRefreshedAt] = useState(null);
 
+  // T2-06 (wave A3): the analytics call is slow (~12 s), so it loads on its
+  // own — the verdict and the channel rows never wait for the chart.
+  const loadAnalytics = (fresh = false) =>
+    // #119 BUG-1: the non-fresh branch used to append '?fresh=1' onto a URL
+    // that already had '?slug=all' → server parsed slug='all?fresh=1' → null
+    // on every background poll. No param at all when not fresh.
+    fetch('/api/analytics?slug=all' + (fresh ? '&fresh=1' : ''))
+      .then((r) => r.json())
+      .then((a) => {
+        // every channel failed (coverage.ok empty) = zeros, not data → unavailable
+        setAnalytics(a && !a.error && !(a.coverage && !a.coverage.ok?.length) ? a : null);
+        // fetchedAt lives on the analytics payload, not inside coverage (the chip
+        // read coverage.fetchedAt → 'YouTube · Invalid Date')
+        setAnalyticsCoverage(a?.coverage ? { ...a.coverage, fetchedAt: a.fetchedAt || null } : null);
+        setAnalyticsErr(!a || Boolean(a.error));
+      })
+      .catch(() => setAnalyticsErr(true)); // keep the last good chart; say unavailable only when there is none
+
   const load = (fresh = false) => {
     if (fresh) setRefreshing(true);
+    loadAnalytics(fresh);
     return Promise.allSettled([
       fetch('/api/overview' + (fresh ? '?fresh=1' : '')).then((r) => (r.ok ? r.json() : Promise.reject(new Error('overview ' + r.status)))),
-      // #119 BUG-1: the non-fresh branch used to append '?fresh=1' onto a URL
-      // that already had '?slug=all' → server parsed slug='all?fresh=1' → null
-      // on every background poll. No param at all when not fresh.
-      fetch('/api/analytics?slug=all' + (fresh ? '&fresh=1' : '')).then((r) => r.json()),
       fetch('/api/review').then((r) => (r.ok
         ? r.json().then((d) => ({ status: 'ok', count: Array.isArray(d?.scripts) ? d.scripts.length : null }))
         : { status: reviewStatusFromHttp(r.status), count: null })),
-    ]).then(([ov, an, rv]) => {
+    ]).then(([ov, rv]) => {
       if (ov.status === 'fulfilled') { setData(ov.value); setErr(false); } else setErr(true);
-      const a = an.status === 'fulfilled' ? an.value : null;
-      // every channel failed (coverage.ok empty) = zeros, not data → unavailable
-      setAnalytics(a && !a.error && !(a.coverage && !a.coverage.ok?.length) ? a : null);
-      // fetchedAt lives on the analytics payload, not inside coverage (the chip
-      // read coverage.fetchedAt → 'YouTube · Invalid Date')
-      setAnalyticsCoverage(a?.coverage ? { ...a.coverage, fetchedAt: a.fetchedAt || null } : null);
       // a 200 without a scripts array is not a count either
       setReview(rv.status === 'fulfilled' && !(rv.value.status === 'ok' && rv.value.count === null) ? rv.value : { status: 'error', count: null });
       if (fresh) setRefreshedAt(new Date());
@@ -190,6 +202,7 @@ function OverviewContent() {
   // server-side). The last 14 days feed the chart.
   const daily = (analytics?.daily || []).slice(-14);
   const labels = daily.map((d) => d.date.slice(5));
+  const chartDown = !analytics && (analyticsErr || Boolean(analyticsCoverage && !analyticsCoverage.ok?.length));
 
   return (
     <div>
@@ -218,6 +231,12 @@ function OverviewContent() {
       {err ? (
         <p className="t-12 mb-3" role="status" style={{ color: 'var(--warn-ink)' }}>Couldn&apos;t refresh just now — showing the last overview that loaded.</p>
       ) : null}
+      {/* wave A3 (T2-04): a source that didn't answer is named, never shown as zeros */}
+      {data.degraded?.length ? (
+        <p className="t-12 mb-3" role="status" style={{ color: 'var(--warn-ink)' }}>
+          Unavailable right now: {data.degraded.map((k) => SOURCE_WORD[k] || k).join(', ')}. What they feed shows &quot;—&quot; or &quot;can&apos;t check&quot;, not zero.
+        </p>
+      ) : null}
 
       {/* 1. the morning answer — always first, one line */}
       <VerdictLine verdict={verdict} onRetry={() => { warnRetry?.(); load(); }} />
@@ -229,9 +248,11 @@ function OverviewContent() {
       <Card className="overflow-hidden">
         <CardHead
           title="Views per day"
-          sub={analytics ? 'All channels · last 14 days' : analyticsCoverage && !analyticsCoverage.ok?.length ? 'YouTube Analytics unavailable right now' : 'Loading YouTube Analytics…'}
+          sub={analytics ? 'All channels · last 14 days' : chartDown ? 'YouTube Analytics unavailable right now' : 'Loading YouTube Analytics…'}
           icon={Radar}
-          right={analyticsCoverage ? (
+          right={analyticsErr && !analytics && !analyticsCoverage ? (
+            <Chip tone="bad">YouTube unavailable · <button type="button" className="underline" onClick={() => loadAnalytics(true)}>Retry</button></Chip>
+          ) : analyticsCoverage ? (
             analyticsCoverage.failed?.length === 0 ? <Chip tone="ok">YouTube{analyticsCoverage.fetchedAt ? ` · ${new Date(analyticsCoverage.fetchedAt).toLocaleDateString()}` : ''}</Chip>
               : analyticsCoverage.ok?.length ? <Chip tone="warn">{analyticsCoverage.ok.length} of {analyticsCoverage.ok.length + analyticsCoverage.failed.length} channels</Chip>
                 : <Chip tone="bad">YouTube unavailable · <button type="button" className="underline" onClick={() => load(true)}>Retry</button></Chip>
@@ -242,7 +263,7 @@ function OverviewContent() {
             // div-based bars ONLY — the SVG MultiChart + real data combo crashed
             // tabs before (a7c4a8c); do not reintroduce it here
             <MiniBars data={daily.map((d) => d.views)} labels={labels.length ? labels : ['-']} color="var(--accent)" height={170} />
-          ) : analyticsCoverage && !analyticsCoverage.ok?.length ? (
+          ) : chartDown ? (
             <div className="px-4 py-10 text-center">
               <p className="t-12 font-semibold text-ink">— · unavailable</p>
               <p className="t-11 text-faint mt-1">YouTube Analytics didn&apos;t answer, so no views are shown (not zero).</p>

@@ -96,6 +96,8 @@ function SettingsContent() {
   const [newRole, setNewRole] = useState('staff');
   // 10-09 A1 — SECURITY (active sign-ins). null = loading · 'error' · sessions[]
   const [sessions, setSessions] = useState(null);
+  // Live fix wave A1 (T5-03): the API's `current` = this browser's session row id
+  const [currentSession, setCurrentSession] = useState(0);
   const [secBusy, setSecBusy] = useState(false);
   const [secErr, setSecErr] = useState('');
   // #123 (OPS-12) — change panel password
@@ -127,7 +129,9 @@ function SettingsContent() {
     fetch('/api/sessions')
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
       .then((d) => {
-        if (alive) setSessions(d.sessions || []);
+        if (!alive) return;
+        setSessions(d.sessions || []);
+        setCurrentSession(d.current || 0);
       })
       .catch(() => { if (alive) setSessions('error'); });
     return () => {
@@ -430,7 +434,10 @@ function SettingsContent() {
                   <div key={s.id} className="flex items-center gap-3 inset-tile px-3 py-2.5 min-w-0">
                     <MonitorSmartphone size={14} className="text-faint shrink-0" />
                     <span className="min-w-0 flex-1">
-                      <span className="block t-12 font-medium text-ink truncate">{s.device || 'Unknown device'}</span>
+                      <span className="flex items-center gap-2 min-w-0">
+                        <span className="block t-12 font-medium text-ink truncate">{s.device || 'Unknown device'}</span>
+                        {s.id === currentSession ? <Chip tone="accent" dot>this device</Chip> : null}
+                      </span>
                       <span className="block t-10 text-faint">
                         signed in {s.created ? new Date(s.created).toLocaleDateString() : '—'} · last used {s.lastUsed ? new Date(s.lastUsed).toLocaleString() : '—'}
                         {s.ip ? ` · ${s.ip}` : ''}

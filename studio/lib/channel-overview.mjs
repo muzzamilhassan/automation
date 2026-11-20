@@ -8,6 +8,7 @@
 // that rarely matches the upload slot, so that line was usually just wrong).
 import { isRealSeverity } from './notify-policy.mjs';
 import { validSlots, slotDate, todayUTC } from './channel-health.mjs';
+import { DAY_BASIS } from './channel-activity.mjs';
 
 export const PROBLEM_LABEL = 'Has a problem — see Inbox';
 export const INBOX_HREF = '/tasks';
@@ -21,20 +22,49 @@ export function channelHasRealProblem(rows, slug) {
   return rows.some((w) => w && w.channel_id === slug && isRealSeverity(w.severity));
 }
 
-/** Today's production as a plain fact: { tone: 'ok'|'plain', text }. Never a warning. */
-export function todayStatus(row, now = new Date()) {
+/**
+ * Today's production (UTC day) as a plain fact: { tone: 'ok'|'plain'|'bad', text }.
+ * Live-fix wave A3 (2026-11-20): reads the overview's `today` (made today from
+ * the engine state; null = couldn't read it) and `todayRun` (latest autopilot
+ * run today) — never the frozen lastRun date. A FAILED run is the one fact
+ * shown in red; everything else stays calm and never says "not run today".
+ */
+export function todayStatus(row) {
   if (!row || typeof row !== 'object') return { tone: 'plain', text: 'Unknown' };
-  const today = todayUTC(now);
-  if (row.lastRun === today) {
-    const n = Number.isFinite(row.todayVideos) ? row.todayVideos : 0;
-    return { tone: 'ok', text: n > 0 ? `Made ${n} video${n === 1 ? '' : 's'} today` : 'Ran today' };
-  }
+  const run = row.todayRun?.status || null;
+  const n = row.today ? Number(row.today.count) || 0 : Number(row.todayVideos) || 0;
+  const vids = (k) => `${k} video${k === 1 ? '' : 's'}`;
+  if (run === 'failed') return { tone: 'bad', text: n > 0 ? `Made ${n} · last run failed` : 'Run failed today' };
+  if (n > 0) return { tone: 'ok', text: `Made ${vids(n)} today` };
   if (row.flowPaused === true) return { tone: 'plain', text: 'Paused — nothing new today' };
-  if (!row.lastRun) return { tone: 'plain', text: 'No run yet' };
-  const last = Date.parse(`${row.lastRun}T00:00:00Z`);
-  const daysSince = Number.isFinite(last) ? Math.round((Date.parse(`${today}T00:00:00Z`) - last) / DAY_MS) : null;
-  if (daysSince !== null && daysSince > 1) return { tone: 'plain', text: `Last run ${row.lastRun}` };
+  if (run === 'running') return { tone: 'plain', text: 'Running now' };
+  if (run === 'succeeded') return { tone: 'ok', text: 'Ran today · nothing new' };
+  if (row.today === null) return { tone: 'plain', text: "Can't check today right now" };
   return { tone: 'plain', text: 'Not made yet today' };
+}
+
+const hhmmUTC = (iso) => {
+  const t = Date.parse(iso || '');
+  return Number.isFinite(t) ? `${new Date(t).toISOString().slice(11, 16)} ${DAY_BASIS}` : '';
+};
+
+/** The latest autopilot run today in a few words, e.g. 'Run failed 01:47 UTC'. */
+export function runText(todayRun) {
+  const at = hhmmUTC(todayRun?.at);
+  switch (todayRun?.status) {
+    case 'failed': return `Run failed${at ? ` ${at}` : ''}`;
+    case 'succeeded': return `Run succeeded${at ? ` ${at}` : ''}`;
+    case 'running': return 'Running now';
+    case 'other': return `Last run stopped${at ? ` ${at}` : ''}`;
+    case 'none': return 'No run yet today';
+    default: return "Can't check runs right now";
+  }
+}
+
+/** The newest thing this channel made, e.g. 'Last made: Clip Short · 2026-11-20'. */
+export function lastMadeText(last) {
+  if (!last || !last.date) return 'Nothing made yet';
+  return `Last made: ${last.label || 'Video'} · ${last.date}`;
 }
 
 /** How many of this channel's recorded YouTube uploads went live today (UTC), up to now. */

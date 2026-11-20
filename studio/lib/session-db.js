@@ -27,6 +27,14 @@ export async function createSession({ email, role, name = '', userAgent = '', ip
   return { token, fallback: null };
 }
 
+// A live sessions row → the signed-in user. Live fix wave A1 (T5-03):
+// route-auth reads `.id` while older callers read `.session_id`; returning
+// only session_id left /api/sessions' `current` at 0, so no row was ever
+// marked "this device". Both names carry the same row id.
+export function sessionUserFromRow(s) {
+  return { email: s.email, role: s.role, name: s.name || s.email, id: s.id, session_id: s.id };
+}
+
 // resolves the signed-in user from the opaque cookie token (or null)
 export async function userByToken(token) {
   if (!token || token.includes('.') || !dbReady) return null;
@@ -40,7 +48,7 @@ export async function userByToken(token) {
   if (s.revoked || new Date(s.expires_at) < new Date()) return null;
   // touch last_used at most once per minute (no write per request)
   db`UPDATE sessions SET last_used = now() WHERE id = ${s.id} AND last_used < now() - interval '60 seconds'`.catch(() => { });
-  return { email: s.email, role: s.role, name: s.name || s.email, session_id: s.id };
+  return sessionUserFromRow(s);
 }
 
 export async function revokeToken(token) {

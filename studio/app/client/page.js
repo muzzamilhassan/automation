@@ -10,9 +10,9 @@ import Link from 'next/link';
 import { Loader2, Lock, BadgeCheck, PauseCircle, Sparkles, Clock, KeyRound, CheckCircle2, XCircle, RefreshCw, AlertTriangle } from 'lucide-react';
 import Drawer from '@/components/Drawer';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { todayStatus, lastMadeText } from '@/lib/channel-overview.mjs';
 
 const fmt = (n) => (n == null ? '—' : Number(n).toLocaleString('en-US'));
-const day = (s) => (s ? String(s).slice(0, 10) : '—');
 
 export default function ClientPage() {
   const [data, setData] = useState(null);
@@ -60,6 +60,7 @@ export default function ClientPage() {
   }
 
   const channels = data?.channels || [];
+  const now = new Date();
   return (
     <main className="min-h-screen bg-bg text-ink">
       <div className="max-w-3xl mx-auto px-4 sm:px-5 py-10 sm:py-12">
@@ -81,32 +82,36 @@ export default function ClientPage() {
         ) : (
           <div className="space-y-5">
             {channels.map((c) => {
-              const upcoming = (c.todayVideos || 0) > 0;
+              // wave A3: today (UTC) + the newest thing made, from the engine's
+              // real signals — never the frozen "last production run" date
+              const today = todayStatus(c, now);
+              const statsDown = !c.yt || c.yt.error;
               return (
                 <div key={c.slug} className="card overflow-hidden">
                   <div className="px-5 pt-5 pb-4 flex flex-wrap items-center gap-2.5 border-b border-line">
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c.accent || 'var(--accent)' }} />
                     <div className="t-14 font-semibold text-ink min-w-0 truncate">{c.label}</div>
-                    <span className="ml-auto t-10 px-2 py-0.5 rounded-full border border-line flex items-center gap-1" style={{ color: c.flowPaused ? 'var(--warn-ink)' : (c.lastRun ? 'var(--ok-ink)' : 'var(--muted)') }}>
-                      {c.flowPaused ? <><PauseCircle size={11} /> paused</> : (c.lastRun ? <><BadgeCheck size={11} /> autopilot on</> : <>standby — never run</>)}
+                    <span className="ml-auto t-10 px-2 py-0.5 rounded-full border border-line flex items-center gap-1" style={{ color: c.flowPaused ? 'var(--warn-ink)' : 'var(--ok-ink)' }}>
+                      {c.flowPaused ? <><PauseCircle size={11} /> paused</> : <><BadgeCheck size={11} /> autopilot on</>}
                     </span>
                   </div>
                   <div className="px-5 py-4 grid grid-cols-3 gap-2">
                     <div><div className="t-10 uppercase tracking-wide text-faint">Subscribers</div><div className="t-16 font-semibold text-ink tnum">{fmt(c.yt?.subs)}</div></div>
                     <div><div className="t-10 uppercase tracking-wide text-faint">All-time views</div><div className="t-16 font-semibold text-ink tnum">{fmt(c.yt?.views)}</div></div>
                     <div><div className="t-10 uppercase tracking-wide text-faint">Videos live</div><div className="t-16 font-semibold text-ink tnum">{fmt(c.yt?.videos)}</div></div>
+                    {statsDown ? <p className="col-span-3 t-11 text-faint">YouTube stats unavailable right now — not zero.</p> : null}
                   </div>
                   <div className="px-5 pb-5 space-y-3">
                     <div className="inset-tile p-3 flex gap-2.5 items-start">
                       <Clock size={13} className="shrink-0 mt-0.5" style={{ color: 'var(--info-ink)' }} />
                       <p className="t-12 text-muted leading-relaxed">
-                        Last production run: <span className="text-ink font-medium">{day(c.lastRun)}</span>
-                        {upcoming ? ' · new videos are scheduled and will go public at their slot times.' : ''}
+                        Today (UTC): <span className="font-medium" style={{ color: today.tone === 'bad' ? 'var(--bad-ink)' : 'var(--ink)' }}>{today.text}</span>
+                        <span className="block t-11 text-faint">{lastMadeText(c.lastActivity)}</span>
                       </p>
                     </div>
                     {c.todayTopics?.length ? (
                       <div className="inset-tile p-3">
-                        <div className="flex items-center gap-1.5 t-11 uppercase tracking-wide text-faint mb-1.5"><Sparkles size={11} /> Topics in production</div>
+                        <div className="flex items-center gap-1.5 t-11 uppercase tracking-wide text-faint mb-1.5"><Sparkles size={11} /> Latest topics{c.todayTopicsAt ? ` · picked ${c.todayTopicsAt}` : ''}</div>
                         {c.todayTopics.slice(0, 3).map((t, i) => (
                           <div key={i} className="t-12 text-muted truncate">· {t}</div>
                         ))}

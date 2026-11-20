@@ -46,6 +46,7 @@
 // never-throw { ok } results, injected db client), lib/ntfy-alert.mjs
 // sendAlert (write-and-alert, never throws).
 import { sendAlert } from './ntfy-alert.mjs';
+import { REVIEW_ALERT_CODES, scriptIdOf, slotDateOf, staleReviewReason } from './notify-policy.mjs';
 
 // §4.1/D9 ladder, low → high. Order is load-bearing for UI chips and tests.
 export const SEVERITIES = ['advisory', 'warning', 'action_required', 'blocking', 'informational'];
@@ -416,7 +417,126 @@ END $$`, []);
     }
   }
 
-  return { ensureWarningsSchema, openWarning, acknowledge, resolve, markChecked, openBlockingFor, autoResolveIf, listWarnings };
+  /** Open (not resolved) rows with one of `codes` — the stale-alert sweep's
+   * reader. channelId null = every channel. Never throws. */
+  async function listOpenByCodes({ codes = [], channelId = null, limit = 500 } = {}) {
+    try {
+      if (!Array.isArray(codes) || !codes.length) return { ok: true, rows: [] };
+      const ensured = await ensureWarningsSchema();
+      if (!ensured.ok) return { ok: false, error: ensured.error };
+      const cap = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 1000) : 500;
+      // explicit placeholders (no driver array typing): code IN ($2, $3, …)
+      const list = codes.map((_, i) => `$${i + 2}`).join(', ');
+      const rows = await dbClient(
+        `SELECT * FROM warnings
+         WHERE code IN (${list}) AND state <> 'resolved' AND ($1::text IS NULL OR channel_id = $1)
+         ORDER BY created_at DESC LIMIT ${cap}`,
+        [channelId, ...codes],
+      );
+      return { ok: true, rows: rows ?? [] };
+    } catch (e) {
+      return { ok: false, error: redactedError(e) };
+    }
+  }
+
+  /** Resolve EVERY open row for channel+code with one audit note (e.g. a
+   * later finished run clears all of a channel's run_failed rows). Unlike
+   * autoResolveIf this is for conditions the caller has just proven over. */
+  async function resolveOpenFor({ channel_id, code, by = 'auto-resolve', note = null } = {}) {
+    try {
+      if (!isNonEmptyString(channel_id) || !isNonEmptyString(code)) return { ok: false, error: 'channel_id_and_code_required' };
+      const ensured = await ensureWarningsSchema();
+      if (!ensured.ok) return { ok: false, error: ensured.error };
+      const rows = await dbClient(
+        `SELECT id FROM warnings WHERE channel_id = $1 AND code = $2 AND state <> 'resolved'`,
+        [channel_id, code],
+      );
+      let resolved = 0;
+      for (const r of rows ?? []) {
+        const x = await resolve(r.id, { by, note: note ?? `auto-resolved: ${code} condition cleared` });
+        if (x.ok) resolved += 1;
+      }
+      return { ok: true, resolved };
+    } catch (e) {
+      return { ok: false, error: redactedError(e) };
+    }
+  }
+
+  return { ensureWarningsSchema, openWarning, acknowledge, resolve, markChecked, openBlockingFor, autoResolveIf, listWarnings, listOpenByCodes, resolveOpenFor };
+}
+
+/**
+ * Script lookups for the stale-alert resolver over a script store. Each
+ * returns null when the answer is unknown (store error, row missing) — and
+ * an unknown answer never resolves anything.
+ */
+export function scriptLookups(scriptStore) {
+  return {
+    getScript: async (id) => {
+      try {
+        const r = await scriptStore.getScript(id);
+        return r?.ok && r.script ? r.script : null;
+      } catch {
+        return null;
+      }
+    },
+    getSlotScripts: async (channelId, slotDate) => {
+      try {
+        const r = await scriptStore.scriptsForSlot(channelId, slotDate);
+        return r?.ok && Array.isArray(r.scripts) ? r.scripts : null;
+      } catch {
+        return null;
+      }
+    },
+  };
+}
+
+/**
+ * Live fix wave A4 (T2-03): close review alerts that are no longer real —
+ * the script was consumed / rejected / approved, or every script for a held
+ * slot is done. The rules are notify-policy's staleReviewReason; each close
+ * is a normal audited resolve (resolved_by 'auto-resolve' + the reason).
+ * Used by the nightly sweep (every channel) and at decision time (one
+ * channel). dispatchedScriptId: a resume dispatch for that script just
+ * worked, so its approval_dispatch_failed alert is over. Never throws.
+ */
+export async function resolveStaleReviewAlerts(store, {
+  channelId = null,
+  getScript = async () => null,
+  getSlotScripts = async () => null,
+  dispatchedScriptId = null,
+  by = 'auto-resolve',
+  log = () => {},
+} = {}) {
+  try {
+    if (!store || typeof store.listOpenByCodes !== 'function') return { ok: false, error: 'warnings_store_unavailable' };
+    const open = await store.listOpenByCodes({ codes: REVIEW_ALERT_CODES, channelId });
+    if (!open.ok) return { ok: false, error: open.error };
+    const scripts = new Map();
+    const slots = new Map();
+    const resolved = [];
+    for (const w of open.rows ?? []) {
+      const sid = scriptIdOf(w);
+      if (sid && !scripts.has(sid)) scripts.set(sid, await getScript(sid));
+      const day = w.code === 'review_hold' ? slotDateOf(w) : null;
+      const slotKey = day ? `${w.channel_id}::${day}` : null;
+      if (slotKey && !slots.has(slotKey)) slots.set(slotKey, await getSlotScripts(w.channel_id, day));
+      const note = staleReviewReason(w, {
+        script: sid ? scripts.get(sid) : null,
+        slotScripts: slotKey ? slots.get(slotKey) : null,
+        dispatchedScriptId,
+      });
+      if (!note) continue;
+      const r = await store.resolve(w.id, { by, note });
+      if (r?.ok) {
+        resolved.push({ id: w.id, code: w.code, channel_id: w.channel_id, note });
+        log(`[alerts] ${w.channel_id} ${w.code} #${w.id} — ${note}`);
+      }
+    }
+    return { ok: true, checked: (open.rows ?? []).length, resolved };
+  } catch (e) {
+    return { ok: false, error: redactedError(e) };
+  }
 }
 
 /**

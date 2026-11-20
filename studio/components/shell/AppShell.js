@@ -27,11 +27,13 @@ import PocketBar from './PocketBar';
 import { ConfirmProvider } from '@/components/ConfirmDialog';
 import { useBrands } from '@/components/use-brands';
 import { useOpenWarnings } from '@/components/use-open-warnings';
+import { needsYou } from '@/lib/notify-policy.mjs';
 import { useMe, initialsOf } from '@/components/use-me';
 // #126 (S-2): the bell's alert rows come from /api/warnings — the static
 // hand-written September alerts are deleted from site-data.
 import { cn } from '@/lib/utils';
 import { buildBreadcrumbs } from '@/lib/breadcrumbs.mjs';
+import { isBarePath, signedOutLoginUrl } from '@/lib/safe-next.mjs';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
 import { Badge, BadgeWithIcon } from '@/components/untitledui/base/badges/badges';
@@ -63,27 +65,47 @@ function Notifications({ open, onClose, warnings }) {
   const COLOR = { bad: 'text-error-primary', warn: 'text-warning-primary', info: 'text-fg-tertiary' };
   // #126 (S-2): real open warnings from /api/warnings — never hand-written rows
   const rows = warnings.rows || [];
+  // Live fix wave A4 (T2-02): THE one count — alerts + scripts awaiting
+  // approval (needsYou), the same number as home, /tasks and /warnings.
+  const need = needsYou({ rows, awaiting: warnings.awaiting || 0 });
+  const shown = need.approvals ? rows.filter((g) => !['review_hold', 'review_timeout'].includes(g.code)) : rows;
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
       <div className="absolute right-0 top-[calc(100%+10px)] w-[340px] rounded-lg border border-border-secondary bg-bg-primary shadow-xl z-50 overflow-hidden pop-in">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border-tertiary">
           <span className="text-sm font-semibold text-fg-primary">Alerts</span>
-          {warnings.canSee ? <Badge color={rows.length ? 'warning' : 'success'} size="sm">{rows.length} open</Badge> : null}
+          {warnings.canSee ? <Badge color={need.count ? 'warning' : 'success'} size="sm">{need.count} need you</Badge> : null}
         </div>
         <div className="max-h-[320px] overflow-y-auto">
+          {/* Live fix wave A1 (T1-02): only a SUCCESSFUL check may say "nothing
+              needs attention" — a failed check is "status unknown" + Retry. */}
           {warnings.status === 'error' ? (
             <div className="px-4 py-6 text-center">
-              <p className="t-12 font-semibold text-fg-primary">Can&apos;t check alerts right now</p>
-              <p className="t-11 text-fg-tertiary mt-1">Status unknown — this is not an all-clear.</p>
-              <button className="t-11 text-accent underline mt-2" onClick={() => warnings.retry?.()}>Retry</button>
+              <p className="t-12 font-semibold text-fg-primary">Can&apos;t check alerts right now — status unknown</p>
+              <button type="button" className="btn btn-outline btn-sm mt-3" onClick={() => warnings.retry?.()}>
+                Retry
+              </button>
             </div>
-          ) : !warnings.canSee || rows.length === 0 ? (
+          ) : warnings.status === 'loading' ? (
+            <div className="px-4 py-6 text-center">
+              <p className="t-12 text-fg-tertiary">Checking alerts…</p>
+            </div>
+          ) : warnings.status === 'forbidden' ? (
+            <div className="px-4 py-6 text-center">
+              <p className="t-12 text-fg-tertiary">Alerts are an owner/staff surface.</p>
+            </div>
+          ) : need.count === 0 ? (
             <div className="px-4 py-6 text-center">
               <p className="t-12 font-semibold text-fg-primary">Nothing needs attention</p>
-              <p className="t-11 text-fg-tertiary mt-1">{warnings.canSee ? 'All probes are quiet — no open warnings.' : 'Alerts are an owner/staff surface.'}</p>
+              <p className="t-11 text-fg-tertiary mt-1">All checks are quiet — no open alerts.</p>
             </div>
-          ) : rows.map((w) => {
+          ) : [need.approvals ? (
+            <Link key="approvals" href="/review" onClick={onClose} className="flex gap-3 px-4 py-3 border-b border-border-tertiary hover:bg-bg-secondary transition-colors">
+              <Info size={15} className="shrink-0 mt-0.5 text-accent" />
+              <span className="block t-12 font-semibold text-fg-primary">{need.approvals} script{need.approvals === 1 ? '' : 's'} waiting for your approval</span>
+            </Link>
+          ) : null, ...shown.map((w) => {
             const Icon = SEV_ICON[w.severity] || Info;
             return (
               <Link key={w.id} href="/warnings" onClick={onClose} className="flex gap-3 px-4 py-3 border-b border-border-tertiary last:border-0 hover:bg-bg-secondary transition-colors">
@@ -94,7 +116,7 @@ function Notifications({ open, onClose, warnings }) {
                 </span>
               </Link>
             );
-          })}
+          })]}
         </div>
         {warnings.canSee ? (
           <Link href="/warnings" onClick={onClose} className="block px-4 py-2.5 border-t border-border-tertiary t-11 text-accent hover:underline">
@@ -215,7 +237,7 @@ function Brand({ collapsed }) {
 // fetches with the cookie) the moment a real page opens.
 export default function AppShell({ children }) {
   const pathname = usePathname();
-  if (pathname === '/login' || pathname === '/proof' || pathname === '/client') return <ConfirmProvider>{children}</ConfirmProvider>;
+  if (isBarePath(pathname)) return <ConfirmProvider>{children}</ConfirmProvider>;
   return <ShellFrame>{children}</ShellFrame>;
 }
 
@@ -236,6 +258,19 @@ function ShellFrame({ children }) {
   const [loggingOut, setLoggingOut] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  // Live fix wave A4 (T2-02): scripts awaiting approval join the bell's count
+  // (needsYou) so the badge, home, /tasks and /warnings show ONE number.
+  const [awaiting, setAwaiting] = useState(0);
+  useEffect(() => {
+    if (!warningsCanSee) return undefined;
+    let alive = true;
+    fetch('/api/review')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive && d) setAwaiting(Array.isArray(d.scripts) ? d.scripts.length : 0); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [warningsCanSee, pathname]);
+  const bellCount = needsYou({ rows: openWarningRows, awaiting }).count;
 
   useEffect(() => {
     try {
@@ -258,6 +293,22 @@ function ShellFrame({ children }) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
   useEffect(() => setMobileOpen(false), [pathname]);
+
+  // Live fix wave A1 (T1-10): the proxy checks only the cookie's signature, so
+  // a REVOKED session still gets the frame — with every call failing 401.
+  // /api/me checks the live session row; a 401 there means this device is
+  // signed out → back to /login (remembering the page) with a plain reason.
+  // Bare pages never mount this frame, and isBarePath guards a redirect loop.
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/me')
+      .then((r) => {
+        if (!alive || r.status !== 401 || isBarePath(window.location.pathname)) return;
+        window.location.replace(signedOutLoginUrl(window.location.pathname + window.location.search));
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   // Bare pages — no sidebar, no topbar: login, the public /proof sales page,
   // and the DFY client workspace (it has its own minimal chrome).
@@ -373,12 +424,12 @@ function ShellFrame({ children }) {
               />
               {warnStatus === 'error' ? (
                 <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9.5px] font-bold flex items-center justify-center bg-bg-tertiary text-fg-tertiary pointer-events-none" title="Can't check alerts — status unknown">?</span>
-              ) : warningsCanSee && openWarningRows.length ? (
+              ) : warningsCanSee && bellCount ? (
                 <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9.5px] font-bold flex items-center justify-center bg-error-solid text-white pointer-events-none">
-                  {openWarningRows.length}
+                  {bellCount}
                 </span>
               ) : null}
-              <Notifications open={notifOpen} onClose={() => setNotifOpen(false)} warnings={{ rows: openWarningRows, canSee: warningsCanSee }} />
+              <Notifications open={notifOpen} onClose={() => setNotifOpen(false)} warnings={{ rows: openWarningRows, canSee: warningsCanSee, status: warnStatus, retry: warnRetry, awaiting }} />
             </div>
 
             <div className="shrink-0">

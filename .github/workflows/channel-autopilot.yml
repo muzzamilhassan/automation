@@ -272,3 +272,16 @@ jobs:
           git diff --cached --quiet || git commit -m "autopilot ${SLUG} daily state [skip ci]"
           git pull --rebase --autostash origin main || true
           git push || echo "::warning::state push failed for ${SLUG} — state stays local to this run"
+
+      # Live fix wave A4 (T2-01): a failed run raises ONE real alert
+      # (run_failed, action_required, with the run link) — before this, a job
+      # failing outside the doc lane was silent. Never fails the job further.
+      - name: 🚨 Raise an alert for this failed run
+        if: ${{ failure() }}
+        continue-on-error: true
+        timeout-minutes: 2
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/emit-run-failed.mjs

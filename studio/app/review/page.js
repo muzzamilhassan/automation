@@ -17,7 +17,7 @@ import { Card, CardHead, Chip, PageHeader, EmptyState } from '@/components/ui';
 import DataTable from '@/components/DataTable';
 import { useConfirm } from '@/components/ConfirmDialog';
 import apiFetch from '@/components/shell/api-fetch';
-import { DISCLOSURE_CATEGORIES } from '@/lib/review-actions.mjs';
+import { DISCLOSURE_CATEGORIES, reviewStatusView } from '@/lib/review-actions.mjs';
 
 const when = (iso) => (iso ? String(iso).replace('T', ' ').slice(0, 16) : '—');
 const ageOf = (iso) => {
@@ -144,6 +144,9 @@ export default function ReviewDeskPage() {
     return typeof block === 'string' && block.trim() ? block : '';
   })();
   const disclosureDone = !requiresDisclosure || DISCLOSURE_CATEGORIES.items.every((i) => typeof disclosure[i.text] === 'boolean');
+  // Live fix wave A4 (T2-08): the deep-link shows the script's REAL status and
+  // only the actions valid for it (approved → Redispatch; published/rejected → none).
+  const view = detail ? reviewStatusView(detail.script) : null;
   const flagged = (detail?.claims || []).filter((c) => c.verification && c.verification !== 'verified');
 
   const columns = [
@@ -214,8 +217,8 @@ export default function ReviewDeskPage() {
             <CardHead
               icon={ScrollText}
               title={detail.script.title || '(untitled)'}
-              sub={`${detail.script.channel_id} · ${detail.script.template_id || 'no template'}${detail.script.template_version ? ` @ v${detail.script.template_version}` : ''} · job ${detail.script.job_id || '—'}`}
-              right={<Chip tone="accent" dot>awaiting_review</Chip>}
+              sub={`${detail.script.channel_id}${view.slot ? ` · ${view.slot}` : ''} · ${detail.script.template_id || 'no template'}${detail.script.template_version ? ` @ v${detail.script.template_version}` : ''} · job ${detail.script.job_id || '—'}`}
+              right={<Chip tone={view.tone} dot>{view.label}</Chip>}
             />
             <div className="px-5 pb-5 grid grid-cols-1 md:grid-cols-2 gap-5 min-w-0">
               {/* script text LEFT (top on phones) */}
@@ -284,7 +287,7 @@ export default function ReviewDeskPage() {
           ) : null}
 
           {/* disclosure checklist — OFFICIAL wording (AC-P4-21) */}
-          {requiresDisclosure ? (
+          {requiresDisclosure && view.actions.includes('approve') ? (
             <Card>
               <CardHead
                 icon={ShieldCheck}
@@ -345,14 +348,18 @@ export default function ReviewDeskPage() {
             </Card>
           ) : null}
 
-          {/* approve / reject */}
+          {/* approve / reject — only the actions valid for this status */}
           <Card>
             <CardHead
               icon={ShieldCheck}
               title="Decision"
-              sub={requiresDisclosure && !disclosureDone ? 'answer every disclosure item to enable Approve (AC-P4-21)' : 'approve dispatches channel-autopilot with resume=job — the run resumes at render'}
+              sub={approvedNoDispatch || view.actions.includes('redispatch')
+                ? 'Approved — if no video came out, start the run again.'
+                : !view.actions.includes('approve') ? `This script is ${view.label} — nothing to decide.`
+                : requiresDisclosure && !disclosureDone ? 'answer every disclosure item to enable Approve (AC-P4-21)' : 'approve dispatches channel-autopilot with resume=job — the run resumes at render'}
             />
             <div className="px-5 pb-5 space-y-3">
+              {view.actions.includes('approve') || view.actions.includes('reject') ? (
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
@@ -361,8 +368,10 @@ export default function ReviewDeskPage() {
                 rows={2}
                 aria-label="Review note"
               />
+              ) : null}
               {/* phones: Approve + Reject share a full-width row of 44px buttons */}
               <div className="flex flex-wrap items-center gap-3">
+                {view.actions.includes('approve') && !approvedNoDispatch ? (
                 <button
                   onClick={() => act({ action: 'approve', id: detail.script.id, note, disclosure }, null)}
                   disabled={busy === 'approve' || !disclosureDone}
@@ -370,6 +379,8 @@ export default function ReviewDeskPage() {
                 >
                   {busy === 'approve' ? <Loader2 size={14} className="animate-spin" /> : <ThumbsUp size={14} />} Approve + resume run
                 </button>
+                ) : null}
+                {view.actions.includes('reject') && !approvedNoDispatch ? (
                 <button
                   onClick={() => act({ action: 'reject', id: detail.script.id, note }, 'Reject this script? It never uploads and the slot is skipped today.')}
                   disabled={busy === 'reject'}
@@ -377,7 +388,8 @@ export default function ReviewDeskPage() {
                 >
                   {busy === 'reject' ? <Loader2 size={14} className="animate-spin" /> : <ThumbsDown size={14} />} Reject
                 </button>
-                {approvedNoDispatch || detail.script.status === 'approved' ? (
+                ) : null}
+                {approvedNoDispatch || view.actions.includes('redispatch') ? (
                 <button
                   onClick={() => act({ action: 'redispatch', id: detail.script.id }, null)}
                   disabled={busy === 'redispatch'}

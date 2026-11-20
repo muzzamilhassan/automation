@@ -247,7 +247,12 @@ async function readRegistryRepo() {
   const res = await fetch(`https://api.github.com/repos/${REPO}/contents/${REG_PATH}?ref=main`, {
     headers: ghHeaders({ Accept: 'application/vnd.github.raw' }),
   });
-  if (res.status === 404) return { channels: [] };
+  // Live-test fix (2026-11-20): the engine registry ALWAYS exists in
+  // production. Treating a 404 (GitHub hiccup, token scope change) as an
+  // empty registry let a later sync write a near-empty file — every other
+  // channel would vanish from the engine. Fail loudly instead; callers that
+  // write (sync/cron/autopilot/remove) then write nothing.
+  if (res.status === 404) throw new Error('github 404 reading registry — refusing to treat it as empty');
   if (!res.ok) throw new Error(`github ${res.status} reading registry`);
   return JSON.parse(await res.text());
 }
@@ -261,7 +266,12 @@ async function readRegistryRepo() {
 // 'unknown channel', and the wizard showed 'secret missing'. The repo
 // registry (yt-mcp/studio-channels.json — the file the engine itself runs
 // on) is the truth for these two flags; a DB park/pause still wins.
+//
+// Live fix wave A2 (T4-01): repoChannels === null means NO repo copy is known
+// (cold start + GitHub down). Every entry is then flagged overlayDegraded and
+// keeps its DB values — callers show "status unknown" instead of guessing.
 export function overlayRepoFlags(dbEntries = [], repoChannels = []) {
+  if (repoChannels === null) return dbEntries.map((e) => ({ ...e, overlayDegraded: true }));
   const bySlug = new Map((repoChannels || []).map((c) => [c.slug, c]));
   return dbEntries.map((e) => {
     const r = bySlug.get(e.slug);
@@ -282,19 +292,77 @@ export function overlayRepoFlags(dbEntries = [], repoChannels = []) {
   });
 }
 
-let repoFlagsMemo = { at: 0, val: null };
+// Live fix wave A2 (T4-01, 2026-11-20): the overlay memo used to return []
+// whenever the repo read failed (GitHub 403 / timeout) — every legacy channel
+// then read inactive, keyless and without a start time. Now:
+//   - a good copy is reused for ttlMs (60s), exactly as before
+//   - a failed refresh serves the LAST GOOD copy (stale is fine) and warns
+//   - a failure is never cached; the next call after backoffMs retries
+//   - an empty list counts as a failed read (the feed is never really empty)
+//   - cold start + failure: the Neon feed mirror (setFallback), else null =
+//     degraded (overlayRepoFlags flags the entries; nothing is guessed)
+// `read` is injectable so tests run without the network.
+export function createOverlayMemo({ read, now = Date.now, ttlMs = 60_000, backoffMs = 15_000, warn = (m) => console.warn(m) } = {}) {
+  let good = null; // { at, channels } — the last good repo copy
+  let fallback = null; // Neon feed mirror channels (cold-start stand-in)
+  let failedAt = 0;
+  let inflight = null;
+  const served = () => (good ? good.channels : fallback);
+  const refresh = async () => {
+    try {
+      const reg = await read();
+      const channels = reg?.channels;
+      if (!Array.isArray(channels) || channels.length === 0) throw new Error('repo registry read returned no channels');
+      good = { at: now(), channels };
+      failedAt = 0;
+      return channels;
+    } catch (e) {
+      failedAt = now();
+      const using = good ? 'serving the last good copy' : fallback ? 'serving the Neon feed mirror' : 'overlay DEGRADED (no copy known)';
+      warn(`[registry] repo overlay refresh failed — ${using}: ${String(e?.message || e).slice(0, 100)}`);
+      return served();
+    }
+  };
+  return {
+    setFallback(channels) {
+      fallback = Array.isArray(channels) && channels.length ? channels : null;
+    },
+    async get() {
+      if (good && now() - good.at < ttlMs) return good.channels;
+      if (failedAt && now() - failedAt < backoffMs) return served();
+      if (!inflight) inflight = refresh().finally(() => { inflight = null; });
+      return inflight;
+    },
+  };
+}
+
+// channels.feed_entry (Step C1a) mirrors exactly what the engine feed holds
+// for each row — the cold-start stand-in when GitHub can't be read.
+export function feedMirrorChannels(rows) {
+  const out = [];
+  for (const r of rows || []) {
+    if (!r?.feed_entry) continue;
+    try {
+      const e = typeof r.feed_entry === 'string' ? JSON.parse(r.feed_entry) : r.feed_entry;
+      if (e?.slug) out.push(e);
+    } catch { /* a bad mirror row is skipped, never fatal */ }
+  }
+  return out.sort((a, b) => String(a.slug).localeCompare(String(b.slug)));
+}
+
+const overlayMemo = createOverlayMemo({ read: readRegistryRepo });
 async function repoChannelsForOverlay() {
-  if (repoFlagsMemo.val && Date.now() - repoFlagsMemo.at < 60_000) return repoFlagsMemo.val;
-  const val = ((await readRegistryRepo().catch(() => null)) || {}).channels || null;
-  if (val) repoFlagsMemo = { at: Date.now(), val };
-  return val || [];
+  return overlayMemo.get();
 }
 
 export async function readRegistry() {
   if (dbReady) {
     try {
       const rows = await db`SELECT * FROM channels ORDER BY slug`;
-      return { channels: overlayRepoFlags(rows.map(rowToEntry), await repoChannelsForOverlay()) };
+      overlayMemo.setFallback(feedMirrorChannels(rows));
+      const channels = overlayRepoFlags(rows.map(rowToEntry), await repoChannelsForOverlay());
+      // callers that care (wizard key chips) read this; flags are DB-only now
+      return channels.some((c) => c.overlayDegraded) ? { channels, overlayDegraded: true } : { channels };
     } catch (e) {
       console.error('[registry] db read failed — repo fallback:', String(e.message).slice(0, 80));
     }
@@ -314,22 +382,31 @@ export async function readRegistry() {
 //     tokenSecretSaved; the DB can still PARK (status parked/paused) but a
 //     sync never un-parks
 //   - tokenEnc is never written to the repo
+//   - live fix wave A2 (T4-01): an empty DB key name never blanks the repo's,
+//     and the read-side overlayDegraded flag never reaches the engine file
+// The engine-owned flags of an existing repo entry, as any DB-side write must
+// leave them (shared by the sync and upsertChannel's DB-down fallback).
+export function engineFlags(existing, fromDb) {
+  const cron = existing?.cron || fromDb?.kit?.gateCron || undefined;
+  if (!existing) return cron ? { cron } : {};
+  const parkedInDb = fromDb?.status === 'parked' || fromDb?.status === 'paused';
+  const tokenSecret = fromDb?.tokenSecret || existing.tokenSecret;
+  return {
+    ...(cron ? { cron } : {}),
+    active: parkedInDb ? false : existing.active !== false,
+    tokenSecretSaved: Boolean(existing.tokenSecretSaved || fromDb?.tokenSecretSaved),
+    ...(tokenSecret ? { tokenSecret } : {}),
+  };
+}
+
 export function mergeRegistrySync(repoChannels, dbEntry) {
   const channels = Array.isArray(repoChannels) ? repoChannels : [];
   if (!dbEntry?.slug) return channels;
-  const { tokenEnc: _dropped, ...fromDb } = dbEntry;
+  const { tokenEnc: _dropped, overlayDegraded: _readOnly, ...fromDb } = dbEntry;
   const existing = channels.find((c) => c.slug === dbEntry.slug);
-  const parkedInDb = dbEntry.status === 'parked' || dbEntry.status === 'paused';
-  const cron = existing?.cron || dbEntry.kit?.gateCron || undefined;
   const merged = existing
-    ? {
-      ...existing,
-      ...fromDb,
-      ...(cron ? { cron } : {}),
-      active: parkedInDb ? false : existing.active !== false,
-      tokenSecretSaved: Boolean(existing.tokenSecretSaved || dbEntry.tokenSecretSaved),
-    }
-    : { ...fromDb, ...(cron ? { cron } : {}) };
+    ? { ...existing, ...fromDb, ...engineFlags(existing, fromDb) }
+    : { ...fromDb, ...engineFlags(null, fromDb) };
   const out = channels.filter((c) => c.slug !== dbEntry.slug);
   out.push(merged);
   return out.sort((a, b) => a.slug.localeCompare(b.slug));
@@ -350,9 +427,19 @@ async function syncRegistryRepo(slug, dbEntry, message) {
   }
 }
 
+// Live fix wave A2 (T4-01): while the overlay is degraded the DB alone can't
+// tell a legacy channel's state, so an un-parked channel stays listed (Resume,
+// run buttons and state files keep working). A DB park/pause still hides it.
+export function activeRegistryChannels(channels) {
+  return (channels || []).filter((c) => {
+    if (c.active !== false) return true;
+    return Boolean(c.overlayDegraded) && c.status !== 'parked' && c.status !== 'paused';
+  });
+}
+
 export async function registryChannels() {
   const reg = await readRegistry();
-  return (reg.channels || []).filter((c) => c.active !== false);
+  return activeRegistryChannels(reg.channels);
 }
 
 export async function upsertChannel(entry, message) {
@@ -408,6 +495,10 @@ export async function upsertChannel(entry, message) {
   // fallback was missed). tokenEnc never reaches the repo.
   const { tokenEnc: _dropped, ...repoEntry } = entry;
   const reg = await readRegistryRepo();
+  // live fix wave A2 (T4-01): an entry read from Neon (possibly with a
+  // degraded overlay) can't switch the engine's copy off or drop its cron
+  delete repoEntry.overlayDegraded;
+  Object.assign(repoEntry, engineFlags((reg.channels || []).find((c) => c.slug === entry.slug), repoEntry));
   const channels = (reg.channels || []).filter((c) => c.slug !== entry.slug);
   channels.push({ ...repoEntry, kit });
   channels.sort((a, b) => a.slug.localeCompare(b.slug));

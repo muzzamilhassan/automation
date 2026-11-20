@@ -7,7 +7,7 @@
 // a REQUIRED note (AC-P4-15). Parked channels wear a badge; resolved history
 // sits below. review_gating_inactive rows surface here (M3).
 import { useEffect, useState } from 'react';
-import { isRealSeverity } from '@/lib/notify-policy.mjs';
+import { isRealSeverity, needsYou, scriptIdOf } from '@/lib/notify-policy.mjs';
 import Link from 'next/link';
 import { Loader2, TriangleAlert, Ban, Eye, RotateCw, CheckCircle2, Quote, ScrollText } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, StatCard, EmptyState } from '@/components/ui';
@@ -32,9 +32,8 @@ const chipTone = (severity) => ({
   informational: 'accent',
 }[severity] || 'plain');
 
-// approval_dispatch_failed evidence reads "script <id>, job …" — the script
-// id deep-links the Review desk straight to its Redispatch button.
-const scriptIdOf = (w) => (w.code === 'approval_dispatch_failed' ? /script ([\w-]+)/.exec(w.evidence || '')?.[1] || null : null);
+// Every review alert whose evidence names a script ("script <id> …") links
+// straight to that script on the Review desk (scriptIdOf, notify-policy).
 
 function WarningRow({ w, isOwner, onAck, onResolve, onRecheck, busy }) {
   const scriptId = scriptIdOf(w);
@@ -102,6 +101,9 @@ export default function WarningsDashboardPage() {
   // an inline input squeezed into the row
   const [resolving, setResolving] = useState(null);
   const [note, setNote] = useState('');
+  // scripts awaiting approval — the other half of the one "needs you" number
+  // (null = unknown: the stat then counts the alerts alone)
+  const [awaitingCount, setAwaitingCount] = useState(null);
   const me = useMe();
   const isOwner = me?.role === 'owner'; // the route re-checks; this only hides a control that would 403
 
@@ -113,6 +115,12 @@ export default function WarningsDashboardPage() {
         else setData(d);
       })
       .catch((e) => setErr(e.message));
+    apiFetch('/api/review')
+      .then(async (r) => {
+        const d = r.ok ? await r.json() : null;
+        setAwaitingCount(Array.isArray(d?.scripts) ? d.scripts.length : null);
+      })
+      .catch(() => setAwaitingCount(null));
   };
   useEffect(load, []);
 
@@ -151,6 +159,8 @@ export default function WarningsDashboardPage() {
     return acc;
   }, {});
   const parked = new Set(data?.parked || []);
+  // THE one number (same helper as home, /tasks and the bell)
+  const need = needsYou({ rows: open, awaiting: awaitingCount });
 
   return (
     <div>
@@ -173,7 +183,7 @@ export default function WarningsDashboardPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-5">
-            <StatCard icon={TriangleAlert} label="Need you" value={open.length} color={open.length ? 'var(--warn)' : undefined} />
+            <StatCard icon={TriangleAlert} label="Need you" value={need.count} color={need.count ? 'var(--warn)' : undefined} />
             <StatCard icon={Ban} label="Parked channels" value={parked.size} color="var(--bad)" />
             <StatCard icon={CheckCircle2} label="Resolved (recent)" value={(data.resolved || []).length} />
           </div>

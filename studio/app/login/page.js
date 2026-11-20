@@ -2,6 +2,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Pickaxe, Loader2, Lock } from 'lucide-react';
+// Live fix wave A1: ?next= goes through ONE same-origin check (T1-01 open
+// redirect) and ?error= shows only fixed messages for known codes (T1-14).
+import { safeNextPath } from '@/lib/safe-next.mjs';
+import { loginErrorMessage } from '@/lib/login-errors.mjs';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,10 +17,8 @@ export default function LoginPage() {
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     const id = requestAnimationFrame(() => {
-      const n = q.get('next');
-      if (n && n.startsWith('/')) setNext(n);
-      const err = q.get('error');
-      if (err) setError(err);
+      setNext(safeNextPath(q.get('next')));
+      setError(loginErrorMessage(q.get('error')));
     });
     return () => cancelAnimationFrame(id);
   }, []);
@@ -33,7 +35,7 @@ export default function LoginPage() {
       });
       const d = await r.json();
       if (r.ok && d.ok) {
-        router.replace(next);
+        router.replace(safeNextPath(next));
         router.refresh();
       } else {
         setError(d.error || 'Could not sign in.');

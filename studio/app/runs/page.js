@@ -146,7 +146,9 @@ export default function RunsPage() {
   }, [load, anyLive]);
 
   const summary = useMemo(
-    () => (data ? todaySummary(runs, brandList, { now, timeZone, coveredSince: data.coveredSince }) : null),
+    // Live fix (T2-12): "today" = the UTC day, the same day Today/channels use
+    // (the engine stamps every day in UTC); row times stay in the viewer's zone.
+    () => (data ? todaySummary(runs, brandList, { now, timeZone: 'UTC', coveredSince: data.coveredSince }) : null),
     [data, runs, brandList, now, timeZone],
   );
 
@@ -222,7 +224,7 @@ export default function RunsPage() {
             <CardHead
               icon={Clock}
               title="Today"
-              sub={`Times in ${timeZone}${data.fetchedAt ? ` · checked ${stamp(data.fetchedAt, timeZone)}` : ''}`}
+              sub={`"Today" = UTC day · times in ${timeZone}${data.fetchedAt ? ` · checked ${stamp(data.fetchedAt, timeZone)}` : ''}`}
               right={failedToday ? <Chip tone="bad">{failedToday} failed</Chip> : null}
             />
             <div className="px-5 pb-5">

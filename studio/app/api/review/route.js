@@ -29,7 +29,7 @@ import { db, dbReady } from '@/lib/db.mjs';
 import { adaptPostgres } from '@/lib/provider-routing';
 import { makeScriptStore, adaptPostgresTransact } from '@/lib/script-store.mjs';
 import { makeArtifactStore } from '@/lib/artifact-store.mjs';
-import { makeWarningsStore, emitWarning } from '@/lib/warnings-store.mjs';
+import { makeWarningsStore, emitWarning, resolveStaleReviewAlerts, scriptLookups } from '@/lib/warnings-store.mjs';
 import { ENV } from '@/lib/data.mjs';
 import { appendAudit } from '@/lib/audit';
 import {
@@ -60,6 +60,19 @@ function store() {
 // Action-required row; ntfy re-alerts are the dedupe's business).
 function warnings() {
   return makeWarningsStore(adaptPostgres(db));
+}
+
+// Live fix wave A4 (T2-03): at decision time, close this channel's review
+// alerts that the decision just made stale (approved / rejected script, a
+// dispatch that worked). Same resolver as the nightly sweep; never fatal.
+function resolveAlertsFor(s) {
+  return async ({ channelId, dispatchedScriptId = null } = {}) => {
+    try {
+      await resolveStaleReviewAlerts(warnings(), { channelId, dispatchedScriptId, ...scriptLookups(s) });
+    } catch {
+      // the nightly sweep is the backstop
+    }
+  };
 }
 
 async function recordDispatchFailure(script, scriptId, detail) {
@@ -150,6 +163,7 @@ export async function POST(req) {
       token: TOKEN,
       repo: REPO,
       fetchImpl: fetch,
+      resolveAlerts: resolveAlertsFor(s),
     });
     await appendAudit(user.email, 'review-approve',
       `${body.id}${r.dispatched ? ' · dispatched' : r.deferred ? ' · approved, run deferred (channel busy)' : r.approved ? ` · APPROVED BUT DISPATCH FAILED (${r.error})` : ` · refused (${r.error})`}`);
@@ -166,6 +180,8 @@ export async function POST(req) {
       return Response.json({ error: r.error || r.reason }, { status });
     }
     await appendAudit(user.email, 'review-reject', `${body.id} · ${body.note ?? ''}`);
+    const rejected = await s.getScript(body.id);
+    if (rejected?.ok && rejected.script) await resolveAlertsFor(s)({ channelId: rejected.script.channel_id });
     return Response.json({ ok: true, rejected: true });
   }
 
@@ -183,6 +199,7 @@ export async function POST(req) {
       return Response.json({ error: dispatch.error }, { status: 502 });
     }
     await appendAudit(user.email, 'review-redispatch', `${body.id} · dispatched`);
+    await resolveAlertsFor(s)({ channelId: g.script.channel_id, dispatchedScriptId: g.script.id });
     return Response.json({ ok: true, dispatched: true });
   }
 

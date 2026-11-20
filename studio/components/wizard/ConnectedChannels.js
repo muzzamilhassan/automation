@@ -8,7 +8,10 @@ import { Layers, ChevronRight, RefreshCw, Smartphone, Pencil, ExternalLink, Unpl
 import { Card, CardHead, Chip, EmptyState, BrandMark } from '@/components/ui';
 import Drawer from '@/components/Drawer';
 import { useConfirm } from '@/components/ConfirmDialog';
-import { keyStatus, describeSlots } from '@/lib/wizard-steps.mjs';
+import { describeSlots } from '@/lib/wizard-steps.mjs';
+// live fix wave A2 (T4-18): a saved legacy key (YT_TOKEN_<SLUG>) is healthy;
+// a degraded registry read shows "status unknown", never "re-connect"
+import { channelKeyStatus as keyStatus } from '@/lib/edit-prefill.mjs';
 import { ConnectLinkBox, Notice } from './fields';
 
 function Row({ label, children }) {
@@ -154,7 +157,7 @@ export default function ConnectedChannels({ reg, onRetry, onEdit, onChanged, nam
                 <Row label="Niche">{c.niche || 'Not set'}</Row>
                 <Row label="Video style">{c.style ? names.style(c.style) || c.style : 'Not set'}</Row>
                 <Row label="Voice">{c.voice ? names.voice(c.voice) || c.voice : 'Not set'}</Row>
-                <Row label="Daily shorts">{describeSlots(Array.isArray(c.slots) ? c.slots.join(', ') : c.slots, offsetMin)}</Row>
+                <Row label="Daily shorts">{describeSlots((c.slots?.length ? c.slots : c.kit?.slots || []).join(', '), offsetMin)}</Row>
                 <Row label="Weekly episode">{c.docDay || c.kit?.docDay || 'Not set'}</Row>
                 <Row label="Brand kit">{c.kit?.tags?.length ? 'Saved' : 'Not drafted yet'}</Row>
               </dl>

@@ -568,13 +568,43 @@ export async function getScriptStore() {
     const { db, dbReady } = await import('./db.mjs');
     if (!dbReady || !db) return null;
     const { adaptPostgres } = await import('./provider-routing.js');
-    return makeScriptStore({
+    return withConsumeAlertResolve(makeScriptStore({
       dbClient: adaptPostgres(db),
       transact: adaptPostgresTransact(db),
-    });
+    }));
   } catch {
     return null;
   }
+}
+
+/**
+ * Live fix wave A4 (T2-03): when an upload consumes a script (the D14
+ * write-back — yt-daily / yt-deepdive / review-seams all call markConsumed
+ * on a store from getScriptStore), that channel's review alerts about it
+ * are over: resolve them right away instead of waiting for the nightly
+ * sweep. Best-effort: the consume result is returned unchanged and nothing
+ * here can fail or slow a consume into an error. Seams injectable for tests;
+ * the defaults lazy-import the warnings store (no module-scope import).
+ */
+export function withConsumeAlertResolve(store, { getWarningsStore = null, resolver = null } = {}) {
+  if (!store || typeof store.markConsumed !== 'function') return store;
+  const markConsumed = async (id, videoId) => {
+    const result = await store.markConsumed(id, videoId);
+    if (!result?.ok) return result;
+    try {
+      const wsm = await import('./warnings-store.mjs');
+      const ws = await (getWarningsStore || wsm.getDefaultWarningsStore)();
+      if (!ws) return result;
+      const g = await store.getScript(id);
+      const channelId = g?.ok && g.script ? g.script.channel_id : null;
+      if (!channelId) return result;
+      await (resolver || wsm.resolveStaleReviewAlerts)(ws, { channelId, ...wsm.scriptLookups(store) });
+    } catch {
+      // never fatal — the nightly sweep is the backstop
+    }
+    return result;
+  };
+  return { ...store, markConsumed };
 }
 
 export default getScriptStore;

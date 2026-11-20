@@ -11,12 +11,14 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
   const url = new URL(req.url);
-  const back = (msg) => Response.redirect(`${url.origin}/login?error=${encodeURIComponent(msg)}`, 302);
+  // Live fix wave A1 (T1-14): the login page shows only fixed messages for
+  // known codes (studio/lib/login-errors.mjs) — never free text from the URL.
+  const back = (errorCode) => Response.redirect(`${url.origin}/login?error=${encodeURIComponent(errorCode)}`, 302);
 
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state') || '';
   const cookieState = (req.headers.get('cookie') || '').match(/qs_gstate=([a-f0-9]+)/)?.[1];
-  if (!code || !state || !cookieState || state !== cookieState) return back('Sign-in expired — try again.');
+  if (!code || !state || !cookieState || state !== cookieState) return back('google_expired');
 
   const r = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -30,12 +32,15 @@ export async function GET(req) {
     }),
   });
   const d = await r.json();
-  if (!d.id_token) return back('Google sign-in failed — try again.');
+  if (!d.id_token) return back('google_failed');
   const who = await verifyGoogleIdToken(d.id_token);
-  if (!who?.email) return back('Google sign-in failed — try again.');
+  if (!who?.email) return back('google_failed');
 
   const role = await roleForEmail(who.email);
-  if (!role) return back(`This email (${who.email}) is not invited. Ask the owner to add it to the team list.`);
+  if (!role) {
+    console.log(`[audit] google sign-in refused (not invited): ${who.email}`);
+    return back('not_invited');
+  }
 
   const ua = (req.headers.get('user-agent') || '').slice(0, 200);
   const ip = ((req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || '').slice(0, 60);

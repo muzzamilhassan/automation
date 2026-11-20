@@ -82,10 +82,14 @@ test('unknown: review 401 for an owner/staff session is unknown; a client being 
 });
 
 test('real problems still show when another source is unknown — with the unknown named', () => {
-  const v = deriveVerdict({ now: LATE, channels: [ch('a', { todayVideos: 0 })], warnings: { status: 'error', rows: [] }, review: okReview });
+  const v = deriveVerdict({ now: LATE, channels: [ch('a', { todayVideos: 0 })], warnings: { status: 'error', rows: [] }, review: { status: 'ok', count: 2 } });
   assert.equal(v.kind, 'needs_you');
-  assert.equal(v.items.length, 1);
+  assert.equal(v.count, 2);
   assert.match(v.sub, /Can't check warnings right now — status unknown/);
+  // live fix wave A4: a channel row alone is not counted, so an unknown source wins
+  const chOnly = deriveVerdict({ now: LATE, channels: [ch('a', { todayVideos: 0 })], warnings: { status: 'error', rows: [] }, review: okReview });
+  assert.equal(chOnly.kind, 'unknown');
+  assert.equal(chOnly.items.length, 1, 'the channel row is still listed');
 });
 
 test('loading: nothing claimed until the sources answer; missing overview is unknown', () => {

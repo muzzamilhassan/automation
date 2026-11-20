@@ -202,6 +202,8 @@ export async function POST(req) {
   // T4a (round 1): re-derive the registry gate cron on every save from the
   // channel's SHORT slots only when no gateCron is set yet (never overwrite an
   // existing hand-tuned 02:13-03:53 gate cron unless explicit gateCron is sent).
+  // Live-test fix: a degraded repo overlay (reg.overlayDegraded) can make an
+  // entry LOOK cron-less — never auto-derive a gate cron from that.
   let gateNote = '';
   let resolvedCron = null;
   try {
@@ -209,7 +211,7 @@ export async function POST(req) {
     const entry = (reg.channels || []).find((c) => c.slug === slug);
     const oldCron = entry?.cron || entry?.kit?.gateCron || '';
     resolvedCron = oldCron || null;
-    const cron = explicitCron || (!oldCron && entry?.slots?.length ? cronFromSlots(entry.slots) : null);
+    const cron = explicitCron || (!oldCron && !reg.overlayDegraded && entry?.slots?.length ? cronFromSlots(entry.slots) : null);
     if (cron && cron !== oldCron) {
       const res = await setChannelCron(slug, cron, `schedule: gate cron ${cron} for ${slug} (T4a slot gating)`);
       if (!res.ok) {

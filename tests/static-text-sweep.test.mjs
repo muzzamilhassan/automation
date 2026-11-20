@@ -39,7 +39,9 @@ test('#126 R1: the bell renders real open warnings with severity icons, channel 
 });
 
 test('#126 R2: the topbar badge shows the REAL count and hides for clients/failures (no fake number)', () => {
-  assert.match(shellSrc, /warningsCanSee && openWarningRows\.length \? \(/);
+  // live fix wave A4: the badge is THE one count (needsYou: alerts + approvals)
+  assert.match(shellSrc, /warningsCanSee && bellCount \? \(/);
+  assert.match(shellSrc, /const bellCount = needsYou\(\{ rows: openWarningRows, awaiting \}\)\.count/);
   assert.match(shellSrc, /status unknown/);
   assert.match(shellSrc, /useOpenWarnings\(\)/);
   assert.ok(!/\bALERTS\b/.test(stripComments(shellSrc)), 'ALERTS extinct in AppShell code');
@@ -83,7 +85,7 @@ test('#126 R4: /tasks is a LIVE board — warnings + approvals + resolved, hones
   assert.match(tasksSrc, /Awaiting your approval/);
   assert.match(tasksSrc, /Recently resolved/);
   assert.match(tasksSrc, /Owner \/ staff only/);
-  assert.match(tasksSrc, /\$\{total\} things need you/);
+  assert.match(tasksSrc, /\$\{need\.count\} things need you/); // live fix wave A4: the shared needsYou number
   assert.ok(!/from '@\/lib\/site-data'/.test(tasksSrc), 'tasks reads no static site data');
 });
 

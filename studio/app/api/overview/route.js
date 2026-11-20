@@ -1,10 +1,13 @@
-import { brands, state, trend, fbPages, ytChannels, allLogs, MODE, bustCache } from '../../../lib/data.mjs';
+import { brands, state, trend, fbPages, ytChannels, allLogs, MODE, bustCache, ENV } from '../../../lib/data.mjs';
 import { getUser } from '@/lib/route-auth';
 import { slugsForUser } from '@/lib/access';
 import { db, dbReady } from '@/lib/db';
 import { selectVisibleChannels } from '@/lib/overview-visible.mjs';
 import { summarizeClips } from '@/lib/clip-queue.mjs';
 import { enforceLimits } from '@/lib/rate-limit.mjs';
+import { DAY_BASIS, productionDay, todayProduction, lastActivity, autopilotSummary, todayRunFor } from '@/lib/channel-activity.mjs';
+import { fetchAutopilotRunsToday } from '@/lib/autopilot-runs.mjs';
+import { overviewSchedule, overviewTotals } from '@/lib/overview-truth.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +21,29 @@ function summarizeClipQueue(q) {
     broken,
     docTitle: q.docTitle || null,
     createdAt: q.createdAt || null,
+  };
+}
+
+// Live-fix wave A3 (2026-11-20): what the channel REALLY did, from its engine
+// state file + today's autopilot runs (lib/channel-activity.mjs). The old
+// lastRun / "only today's run" count read state.lastRunDate, which the clips
+// and episode lanes never write, so every channel looked frozen in October.
+// `s` = the channel's state, or null when the state source didn't answer
+// (unknown, never "nothing made"). "Today" = the UTC day (DAY_BASIS).
+function activityFields(s, runSummary, slug, now) {
+  const today = todayProduction(s, now);
+  const latestAt = (list) => (Array.isArray(list) ? list.map((t) => t?.at).filter(Boolean).sort().pop() || null : null);
+  return {
+    today,
+    lastActivity: lastActivity(s),
+    todayRun: todayRunFor(runSummary, slug),
+    todayVideos: today ? today.count : null, // compat: the verdict counts through channelToday
+    imageDate: s?.imageDate || null,
+    deepdiveDate: s?.deepdiveDate || null,
+    todayTopics: Array.isArray(s?.todayTopics) ? s.todayTopics.map((t) => t.topic) : null,
+    todayTopicsAt: latestAt(s?.todayTopics),
+    episodeTopic: s?.todayTopic?.topic || null,
+    episodeTopicAt: s?.todayTopic?.at || null,
   };
 }
 
@@ -37,7 +63,16 @@ export async function GET(req) {
   }
   const [fb, yt, st, logs] = await Promise.all([fbPages(), ytChannels(), state(), allLogs()]);
   const b = brands();
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const todayStr = productionDay(now);
+  // a failed upstream read comes back null: treat it as "no rows" and say so
+  // in `degraded` (wave A3, T2-04) instead of crashing or printing zeros
+  const ytRows = Array.isArray(yt) ? yt : [];
+  const fbRows = Array.isArray(fb) ? fb : [];
+  // the state source answered when at least one channel's state came back; a
+  // channel without a state file then simply hasn't produced yet
+  const stateOk = Boolean(st && Object.keys(st).length);
+  const stateFor = (slug) => (stateOk ? st[slug] || {} : null);
 
   // T4d (#106): ONE registry read feeds both the destination map and the
   // wizard append. FB page IDs (and cross-post handles) live in the registry
@@ -48,40 +83,55 @@ export async function GET(req) {
   let regBySlug = new Map();
   let destBySlug = new Map();
   let cadence = {};
+  let regOk = false;
   try {
     const { registryChannels, readRepoJSON } = await import('../../../lib/channels-registry.js');
     reg = await registryChannels();
     regBySlug = new Map(reg.map((e) => [e.slug, e]));
     destBySlug = new Map(reg.map((e) => [e.slug, e.destinations || null]));
+    regOk = true;
     try {
       cadence = (await readRepoJSON('yt-mcp/cadence.json')) || {};
     } catch { cadence = {}; }
   } catch { }
 
+  // today's autopilot runs (UTC day), tagged per channel by run-name with the
+  // same rules /runs uses; a failed read is 'unknown', never "no run today"
+  const runChannels = [
+    ...Object.entries(b).map(([slug, k]) => ({ slug, label: k.label || slug })),
+    ...reg.map((e) => ({ slug: e.slug, label: e.label || e.slug })),
+  ];
+  const runs = await fetchAutopilotRunsToday({
+    repo: ENV.GITHUB_REPO || 'muzzamilhassan/automation',
+    token: ENV.GITHUB_TOKEN || ENV.GITHUB_PAT || '',
+    now,
+    channels: runChannels,
+  });
+  const runSummary = autopilotSummary(runs, runChannels, now);
+
   const channels = Object.entries(b).map(([slug, k]) => {
-    const ytRow = yt.find(c => c.slug === slug) || null;
+    const ytRow = ytRows.find(c => c.slug === slug) || null;
     const regEntry = regBySlug.get(slug) || null;
     const dest = destBySlug.get(slug);
     const fbId = dest?.fbPageId;
-    const fbRow = fbId ? fb.find(f => f.id === fbId) || null : null;
+    const fbRow = fbId ? fbRows.find(f => f.id === fbId) || null : null;
     const ig = fbRow?.ig || null;
-    const s = st[slug] || {};
+    const s = stateFor(slug);
     const cad = cadence[slug] || {};
     return {
       slug, ...k,
+      // wave A3 (T3-01): the registry kit wins over static brands.json, as in the engine
+      ...overviewSchedule(k, regEntry),
       active: k.active,
       threadsHandle: dest?.threadsHandle || null,
         yt: ytRow ? (ytRow.error ? { error: ytRow.error } : { title: ytRow.ytTitle, handle: ytRow.ytCustomUrl, subs: ytRow.subs, views: ytRow.views, videos: ytRow.videos, error: null }) : null,
       fb: fbRow ? { name: fbRow.name, username: fbRow.username, followers: fbRow.followers } : null,
       ig: ig ? { username: ig.username, followers: ig.followers, posts: ig.posts } : null,
-      lastRun: s.lastRunDate || null, imageDate: s.imageDate || null,
-      deepdiveDate: s.deepdiveDate || null, todayVideos: s.lastRunDate === todayStr ? (s.lastVideos || []).length : 0, // P0-11: only today's run counts
-      todayTopics: Array.isArray(s.todayTopics) ? s.todayTopics.map(t => t.topic) : null,
-      episodeTopic: s.todayTopic?.topic || null,
-      flowPaused: (s.pausedUntil || '') >= todayStr,
+      ...activityFields(s, runSummary, slug, now),
+      flowPaused: (s?.pausedUntil || '') >= todayStr,
       shortsSource: cad.shortsSource || regEntry?.shortsSource || regEntry?.kit?.shortsSource || 'generated',
       docDays: Array.isArray(cad.docDays) ? cad.docDays : (k.docDay ? [k.docDay] : []),
-      clipQueue: summarizeClipQueue(s.clipQueue),
+      clipQueue: summarizeClipQueue(s?.clipQueue),
     };
   });
   // 10-08 CHANNEL FACTORY: wizard channels appear after the legacy brands
@@ -91,8 +141,8 @@ export async function GET(req) {
       if (b[e.slug]) continue;
       if (seenLabels.has((e.label || '').toLowerCase())) continue; // duplicate of a legacy brand (e.g. OLD MONEY CODE)
       seenLabels.add((e.label || '').toLowerCase());
-      const ytRow = yt.find((c) => c.slug === e.slug) || null;
-      const s = st[e.slug] || {};
+      const ytRow = ytRows.find((c) => c.slug === e.slug) || null;
+      const s = stateFor(e.slug);
       const cad = cadence[e.slug] || {};
       channels.push({
         slug: e.slug,
@@ -102,19 +152,17 @@ export async function GET(req) {
         accent: e.accent || '#38BDF8',
         active: true,
         fromRegistry: true,
-        slots: e.slots || [],
+        ...overviewSchedule(null, e),
         voice: e.voice || '',
         threadsHandle: e.destinations?.threadsHandle || null,
-        yt: ytRow ? { title: ytRow.ytTitle, handle: ytRow.ytCustomUrl, subs: ytRow.subs, views: ytRow.views, videos: ytRow.videos, error: ytRow.error || null } : (ytRow === null ? { error: 're-connect once in Studio to show live stats' } : null),
+        yt: ytRow ? { title: ytRow.ytTitle, handle: ytRow.ytCustomUrl, subs: ytRow.subs, views: ytRow.views, videos: ytRow.videos, error: ytRow.error || null } : (Array.isArray(yt) ? { error: 're-connect once in Studio to show live stats' } : null), // wave A3: YouTube read down = unavailable (null), not "re-connect"
         fb: null, ig: null,
-        lastRun: s.lastRunDate || null, imageDate: null,
-        deepdiveDate: s.deepdiveDate || null, todayVideos: s.lastRunDate === todayStr ? (s.lastVideos || []).length : 0, // P0-11: only today's run counts
-        todayTopics: Array.isArray(s.todayTopics) ? s.todayTopics.map((t) => t.topic) : null,
-        episodeTopic: s.todayTopic?.topic || null,
-        flowPaused: e.autopilot === false || (s.pausedUntil || '') >= todayStr,
+        ...activityFields(s, runSummary, e.slug, now),
+        imageDate: null,
+        flowPaused: e.autopilot === false || (s?.pausedUntil || '') >= todayStr,
         shortsSource: cad.shortsSource || e.shortsSource || e.kit?.shortsSource || 'generated',
         docDays: Array.isArray(cad.docDays) ? cad.docDays : (e.docDay ? [e.docDay] : []),
-        clipQueue: summarizeClipQueue(s.clipQueue),
+        clipQueue: summarizeClipQueue(s?.clipQueue),
       });
     }
   }
@@ -140,13 +188,14 @@ export async function GET(req) {
   const controlChannels = (owned ? channels.filter((c) => owned.includes(c.slug)) : channels)
     .map((c) => ({ slug: c.slug, label: c.label || c.slug, accent: c.accent }));
 
-  const totals = {
-    ytSubs: visible.reduce((a, c) => a + (c.yt?.subs || 0), 0),
-    ytViews: visible.reduce((a, c) => a + (c.yt?.views || 0), 0),
-    ytVideos: visible.reduce((a, c) => a + (c.yt?.videos || 0), 0),
-    fbFollowers: visible.reduce((a, c) => a + (c.fb?.followers || 0), 0),
-    igFollowers: visible.reduce((a, c) => a + (c.ig?.followers || 0), 0),
-  };
+  // wave A3 (T2-04 / P13): a source that didn't answer is null (shown "—"),
+  // never 0; `degraded` names every live source that didn't fully answer
+  const { totals, degraded: statDegraded } = overviewTotals(visible, { ytOk: Array.isArray(yt), fbOk: Array.isArray(fb) });
+  const degraded = [
+    ...(!regOk || !stateOk ? ['github'] : []),
+    ...(runs.ok ? [] : ['runs']),
+    ...statDegraded,
+  ];
   const trends = {};
   for (const c of visible) {
     const t = await trend(c.slug);
@@ -159,5 +208,5 @@ export async function GET(req) {
       openWarnings = Number(rows?.[0]?.cnt || 0);
     } catch { openWarnings = 0; }
   }
-  return Response.json({ channels: visible, controlChannels, totals, logs: visibleLogs.slice(0, 40), trends, openWarnings, mode: MODE });
+  return Response.json({ channels: visible, controlChannels, totals, degraded, dayBasis: DAY_BASIS, today: todayStr, logs: visibleLogs.slice(0, 40), trends, openWarnings, mode: MODE });
 }

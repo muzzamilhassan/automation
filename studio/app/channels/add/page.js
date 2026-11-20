@@ -16,6 +16,7 @@ import { Card, PageHeader, PageSkeleton } from '@/components/ui';
 import { STYLE_BY_ID } from '@/lib/styles-catalog';
 import { VOICES } from '@/lib/voices';
 import { STEPS, STEP_INDEX, EMPTY_FORM, stepIssues, allIssues, canOpenStep, stepStates, reviewSummary } from '@/lib/wizard-steps.mjs';
+import { engineFormValues, editPayload, withReviewKeyRow } from '@/lib/edit-prefill.mjs';
 import StepIndicator from '@/components/wizard/StepIndicator';
 import ConnectStep from '@/components/wizard/ConnectStep';
 import IdentityStep from '@/components/wizard/IdentityStep';
@@ -70,6 +71,9 @@ export default function AddChannel() {
   const [visited, setVisited] = useState([0]);
   const headingRef = useRef(null);
   const navigated = useRef(false);
+  // live fix wave A2 (T4-02): the form exactly as it was loaded for an
+  // existing channel — an edit Save sends only what differs from it
+  const savedForm = useRef(null);
 
   // connect / link
   const [connectError, setConnectError] = useState('');
@@ -108,26 +112,12 @@ export default function AddChannel() {
 
   const loadReg = useCallback(() => readRegistry().then(setReg), []);
 
-  const prefill = (entry) => {
-    const rawNiches = Array.isArray(entry.kit?.niches)
-      ? entry.kit.niches
-      : Array.isArray(entry.niches)
-        ? entry.niches
-        : (entry.niche ? [entry.niche] : []);
-    setForm((f) => ({
-      ...f,
-      label: entry.label || '',
-      niche: entry.niche || '',
-      subNiches: rawNiches.join(', '),
-      style: entry.style || f.style || 'cinematic',
-      voice: entry.voice || f.voice || 'am_michael',
-      accent: entry.accent || f.accent || '#38BDF8',
-      slots: Array.isArray(entry.slots) ? entry.slots.join(', ') : (entry.slots || '22:35'),
-      docDay: entry.docDay || entry.kit?.docDay || 'Tue',
-      eyebrow: entry.kit?.eyebrow || '',
-      tagline: entry.kit?.tagline || '',
-      tags: entry.kit?.tags?.length ? entry.kit.tags.join(', ') : (entry.ytKeywords || ''),
-      description: entry.kit?.description || entry.ytDescription || '',
+  // live fix wave A2 (T4-02): show what the ENGINE runs on — registry entry,
+  // then its kit (kit.slots for the legacy 4), then the static brand kit
+  // (legacy) — never the empty top-level registry fields.
+  const prefill = (entry, legacy = null) => {
+    const values = {
+      ...engineFormValues(entry, legacy),
       fbPageId: entry.destinations?.fbPageId || '',
       igHandle: entry.destinations?.igHandle || '',
       threadsHandle: entry.destinations?.threadsHandle || '',
@@ -135,7 +125,12 @@ export default function AddChannel() {
       // feedback r1 A: the saved thumbnail designs (only when the kit has a
       // list — an untouched save then never sends, and never wipes, the field)
       thumbTemplates: Array.isArray(entry.kit?.thumbTemplates) ? entry.kit.thumbTemplates : undefined,
-    }));
+    };
+    setForm((f) => {
+      const next = { ...f, ...values };
+      savedForm.current = next;
+      return next;
+    });
   };
 
   // the saved profile wins; the registry row is the fallback
@@ -146,7 +141,7 @@ export default function AddChannel() {
     };
     return fetch(`/api/channels/profile?slug=${encodeURIComponent(slug)}`)
       .then((x) => x.json())
-      .then((d) => (d?.channel ? prefill(d.channel) : fallback()))
+      .then((d) => (d?.channel ? prefill(d.channel, d.legacy || null) : fallback()))
       .catch(fallback);
   };
 
@@ -352,6 +347,39 @@ export default function AddChannel() {
     }
   };
 
+  // The whole profile as the form holds it (the create flow sends all of it).
+  const profileBody = (form) => {
+    const subNichesList = String(form.subNiches || '')
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+    return {
+      slug: connectedSlug,
+      label: form.label,
+      niche: form.niche,
+      subNiches: subNichesList,
+      style: form.style,
+      voice: form.voice,
+      accent: form.accent,
+      slots: form.slots,
+      docDay: form.docDay,
+      kit: {
+        eyebrow: form.eyebrow,
+        tagline: form.tagline,
+        tags: String(form.tags || '').split(',').map((t) => t.trim()).filter(Boolean),
+        niches: subNichesList.length ? subNichesList : (form.niche ? [form.niche.toLowerCase()] : []),
+        description: form.description,
+        ...(Array.isArray(form.thumbTemplates) ? { thumbTemplates: form.thumbTemplates } : {}),
+      },
+      destinations: {
+        fbPageId: form.fbPageId,
+        igHandle: form.igHandle,
+        threadsHandle: form.threadsHandle,
+        tiktokHandle: form.tiktokHandle,
+      },
+    };
+  };
+
   // start=undefined saves settings and leaves the autopilot flag alone;
   // start === true records consent and flips the autopilot on (YouTube API
   // express-consent requirement). A plain save must never send `false` —
@@ -360,42 +388,22 @@ export default function AddChannel() {
     setSaving(true);
     setSaveError('');
     try {
-      const subNichesList = String(form.subNiches || '')
-        .split(',')
-        .map((s) => s.trim().toLowerCase())
-        .filter(Boolean);
+      // T4-02: editing an existing channel sends only the changed fields (an
+      // emptied field goes out with `clear`), so an untouched field can never
+      // overwrite the live value
+      const full = profileBody(form);
+      const payload = editing && savedForm.current ? editPayload(full, profileBody(savedForm.current)) : full;
       const r = await fetch('/api/channels/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          slug: connectedSlug,
-          label: form.label,
-          niche: form.niche,
-          subNiches: subNichesList,
-          style: form.style,
-          voice: form.voice,
-          accent: form.accent,
-          slots: form.slots,
-          docDay: form.docDay,
+          ...payload,
           ...(start === true ? { startAutopilot: true } : {}),
-          kit: {
-            eyebrow: form.eyebrow,
-            tagline: form.tagline,
-            tags: String(form.tags || '').split(',').map((t) => t.trim()).filter(Boolean),
-            niches: subNichesList.length ? subNichesList : (form.niche ? [form.niche.toLowerCase()] : []),
-            description: form.description,
-            ...(Array.isArray(form.thumbTemplates) ? { thumbTemplates: form.thumbTemplates } : {}),
-          },
-          destinations: {
-            fbPageId: form.fbPageId,
-            igHandle: form.igHandle,
-            threadsHandle: form.threadsHandle,
-            tiktokHandle: form.tiktokHandle,
-          },
         }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'Save failed');
+      if (editing) savedForm.current = form;
       setSaved(true);
       setStarted(start === true);
       loadReg();
@@ -420,6 +428,7 @@ export default function AddChannel() {
     setStarted(false);
     setConnectedSlug('');
     setEditing(false);
+    savedForm.current = null;
     setForm({ ...EMPTY_FORM });
     setKitMood('');
     setKitDraft(null);
@@ -443,7 +452,7 @@ export default function AddChannel() {
     resetWizard();
     setConnectedSlug(c.slug);
     setEditing(true);
-    prefill(c);
+    loadProfile(c.slug, reg?.channels);
     setStep(1);
     setVisited([0, 1]);
     // after the drawer closes (and hands focus back to its row), bring the
@@ -549,6 +558,8 @@ export default function AddChannel() {
               {current.id === 'identity' ? (
                 <IdentityStep
                   form={form}
+                  channels={reg.channels}
+                  selfSlug={connectedSlug}
                   setField={setField}
                   setForm={setForm}
                   names={NAMES}
@@ -608,7 +619,7 @@ export default function AddChannel() {
 
               {current.id === 'review' ? (
                 <ReviewStep
-                  sections={reviewSummary(form, { channel: entry || { slug: connectedSlug, label: channelName }, offsetMin: -new Date().getTimezoneOffset(), names: NAMES })}
+                  sections={withReviewKeyRow(reviewSummary(form, { channel: entry || { slug: connectedSlug, label: channelName }, offsetMin: -new Date().getTimezoneOffset(), names: NAMES }), entry)}
                   onEdit={(id) => goTo(STEP_INDEX[id])}
                   issues={blocking}
                   consent={consent}

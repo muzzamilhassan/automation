@@ -3,7 +3,9 @@
 // channel that just came back from Google ("Is this the right channel?").
 import { ArrowRight, CheckCircle2, ShieldCheck, Smartphone, RefreshCw, HelpCircle } from 'lucide-react';
 import { Chip } from '@/components/ui';
-import { keyStatus } from '@/lib/wizard-steps.mjs';
+// live fix wave A2 (T4-18): the honest key status (saved legacy keys are
+// healthy; a degraded registry read is "status unknown")
+import { channelKeyStatus as keyStatus, secretNameFor } from '@/lib/edit-prefill.mjs';
 import { ConnectLinkBox, Notice } from './fields';
 
 const WHAT_YOU_SEE = ['Choose your Gmail account', 'Choose the YouTube channel', 'Press Allow'];
@@ -57,7 +59,7 @@ export default function ConnectStep({
             below retries it.
             <details className="mt-1.5">
               <summary className="t-11 text-faint cursor-pointer">Developer fix</summary>
-              <span className="font-mono t-11 block mt-1 break-all">gh secret set {entry?.tokenSecret || '<SECRET_NAME>'} {'<'} token.json</span>
+              <span className="font-mono t-11 block mt-1 break-all">gh secret set {entry?.tokenSecret || secretNameFor(connectedSlug) || '<SECRET_NAME>'} {'<'} token.json</span>
             </details>
           </Notice>
         ) : null}

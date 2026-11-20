@@ -134,7 +134,18 @@ export async function approveScriptAndDispatch({
   repo,
   fetchImpl = fetch,
   log = () => {},
+  // Live fix wave A4: once approved, the script's "waiting for you" alerts
+  // are over — the route injects the warnings-store resolver. Never fatal.
+  resolveAlerts = null,
 } = {}) {
+  const closeAlerts = async (dispatchedScriptId = null) => {
+    if (typeof resolveAlerts !== 'function') return;
+    try {
+      await resolveAlerts({ channelId: script.channel_id, dispatchedScriptId });
+    } catch (e) {
+      log(`[review] WARN alert auto-resolve degraded (non-fatal): ${String((e && e.message) || e).slice(0, 100)}`);
+    }
+  };
   const g = await scriptStore.getScript(scriptId);
   if (!g?.ok || !g.script) return { ok: false, approved: false, dispatched: false, error: 'script_not_found' };
   const script = g.script;
@@ -156,6 +167,7 @@ export async function approveScriptAndDispatch({
   // Never knock out a waiting run (GitHub keeps one pending per channel).
   const busy = await channelRunBusy({ slug: script.channel_id, token, repo, fetchImpl });
   if (busy.busy) {
+    await closeAlerts();
     return {
       ok: true,
       approved: true,
@@ -185,9 +197,35 @@ export async function approveScriptAndDispatch({
         log(`[review] WARN dispatch-failure row degraded (non-fatal): ${String((e && e.message) || e).slice(0, 100)}`);
       }
     }
+    await closeAlerts();
     return { ok: false, approved: true, dispatched: false, error: dispatch.error };
   }
+  await closeAlerts(scriptId);
   return { ok: true, approved: true, dispatched: true, scriptId };
+}
+
+/**
+ * What the /review detail shows for a script (live fix wave A4, T2-08): the
+ * REAL status, only the actions valid for it, and its slot day + time.
+ *   awaiting_review → approve, reject · approved → redispatch · consumed /
+ *   rejected → none.
+ */
+export function reviewStatusView(script) {
+  const status = script?.status || 'awaiting_review';
+  const VIEW = {
+    awaiting_review: { label: 'awaiting review', tone: 'accent', actions: ['approve', 'reject'] },
+    draft: { label: 'draft', tone: 'plain', actions: [] },
+    approved: { label: 'approved', tone: 'ok', actions: ['redispatch'] },
+    consumed: { label: 'published', tone: 'ok', actions: [] },
+    rejected: { label: 'rejected', tone: 'plain', actions: [] },
+  };
+  const v = VIEW[status] || { label: String(status).replace(/_/g, ' '), tone: 'plain', actions: [] };
+  const day = /^\d{4}-\d{2}-\d{2}/.exec(String(script?.slot_date || ''))?.[0] || null;
+  const at = script?.publish_at ? new Date(script.publish_at) : null;
+  const time = at && !Number.isNaN(at.getTime()) ? at.toISOString().slice(11, 16) : null;
+  const slotDay = day || (time ? at.toISOString().slice(0, 10) : null);
+  const slot = slotDay ? `slot ${slotDay}${time ? ` · ${time} UTC` : ''}` : null;
+  return { status, label: v.label, tone: v.tone, actions: v.actions, slot };
 }
 
 // ---------------------------------------------------------------------------

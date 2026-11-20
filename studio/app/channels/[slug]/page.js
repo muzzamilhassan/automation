@@ -20,7 +20,7 @@ import { useConfirm } from '@/components/ConfirmDialog';
 import { useOpenWarnings } from '@/components/use-open-warnings';
 import { fmt, when } from '@/lib/utils';
 import {
-  resolveChannelView, validSlots, slotDate, channelUploads, realUploads, editHref, todayUTC,
+  resolveChannelView, validSlots, slotDate, channelUploads, realUploads, editHref,
 } from '@/lib/channel-health.mjs';
 import { channelHasRealProblem } from '@/lib/channel-overview.mjs';
 
@@ -231,7 +231,6 @@ export default function ChannelPage() {
   const slots = validSlots(c.slots);
   const longSlot = validSlots([c.longSlot])[0] || null;
   const uploads = channelUploads(data.logs, slug);
-  const topicsFromToday = c.lastRun === todayUTC(now);
   const handle = c.yt && !c.yt.error ? (c.yt.handle || c.yt.title) : c.handle;
   const isClient = role === 'client';
   const drawerKeys = drawersFor(role);
@@ -338,14 +337,18 @@ export default function ChannelPage() {
           <CardHead
             title="Topics"
             icon={Lightbulb}
-            sub={c.lastRun ? (topicsFromToday ? "Picked in today's run" : `From the last run (${c.lastRun}) — today's run hasn't picked yet`) : 'No run recorded yet'}
+            sub="The latest picks — each shows the day it was picked (UTC)"
           />
           <div className="px-5 pb-5 space-y-2.5">
+            {/* wave A3: each pick carries its own date — never the frozen last-run date */}
             {c.episodeTopic ? (
               <div className="inset-tile p-3">
-                <div className="overline mb-1">Long-form episode</div>
+                <div className="overline mb-1">Long-form episode{c.episodeTopicAt ? ` · picked ${c.episodeTopicAt}` : ''}</div>
                 <p className="t-13 text-ink">{c.episodeTopic}</p>
               </div>
+            ) : null}
+            {Array.isArray(c.todayTopics) && c.todayTopics.length ? (
+              <div className="overline">Shorts topics{c.todayTopicsAt ? ` · picked ${c.todayTopicsAt}` : ''}</div>
             ) : null}
             {Array.isArray(c.todayTopics) && c.todayTopics.length ? (
               <ul className="space-y-1.5">

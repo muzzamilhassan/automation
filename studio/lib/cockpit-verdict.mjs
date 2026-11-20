@@ -8,6 +8,7 @@
 //   warnings  — { status: 'loading'|'ok'|'forbidden'|'error', rows } (useOpenWarnings)
 //   review    — { status: 'loading'|'ok'|'forbidden'|'error', count } (/api/review)
 //   now       — Date (for the next-slot math)
+import { needsYou } from './notify-policy.mjs';
 
 // /api/review answers 401/403 for anyone who isn't owner/staff, 503 when the
 // DB is down. Only a 2xx is a real count.
@@ -17,12 +18,26 @@ export function reviewStatusFromHttp(httpStatus) {
   return 'error';
 }
 
-// One channel's state for today. A YouTube error outranks everything (made
-// videos can't upload), then a deliberate pause, then did-it-run.
+// One channel's state for today (the UTC day). A YouTube error outranks
+// everything (made videos can't upload), then a deliberate pause, then a
+// FAILED run, then what was made / whether it ran.
+// Wave A3 (2026-11-20): reads the truthful overview fields — `today` (made
+// today from the engine state; null = couldn't read it) and `todayRun` (the
+// latest autopilot run today). Rows without them fall back to `todayVideos`.
+// States: yt_error | paused | failed | made | waiting | unknown | not_run.
+// 'running' is reported as state 'waiting' (a run in progress is not a
+// missed day); a succeeded run with nothing new is 'made' (it ran).
 export function channelToday(c, now = new Date()) {
   if (c?.health === 'youtube_error' || c?.yt?.error) return { state: 'yt_error', label: "can't reach YouTube", tone: 'bad' };
   if (c?.flowPaused) return { state: 'paused', label: 'paused', tone: 'info' };
-  if (Number(c?.todayVideos) > 0) return { state: 'made', label: `${c.todayVideos} made today`, tone: 'ok' };
+  const run = c?.todayRun?.status || null;
+  const n = c?.today ? Number(c.today.count) || 0 : Number(c?.todayVideos) || 0;
+  if (run === 'failed') return { state: 'failed', label: n > 0 ? `${n} made · run failed` : 'run failed', tone: 'bad' };
+  if (n > 0) return { state: 'made', label: `${n} made today`, tone: 'ok' };
+  if (run === 'running') return { state: 'waiting', label: 'running now', tone: 'info' };
+  if (run === 'succeeded') return { state: 'made', label: 'ran · nothing new', tone: 'ok' };
+  // the state file AND the run history didn't answer: unknown, never "made"
+  if (c?.today === null && (run === 'unknown' || run === null)) return { state: 'unknown', label: "can't check today", tone: 'warn' };
   // Not run yet is only a problem once today's FIRST slot has passed — before
   // that, the channel is simply waiting (no morning false alarms).
   const first = firstSlotMin(c?.slots, c?.longSlot);
@@ -64,11 +79,13 @@ export function nextSlot(slots = [], longSlot = null, now = new Date()) {
 
 // Feedback r1 (2026-11-19): the home row marks the poster / episode only when
 // it was made TODAY (UTC, the same day key the production line always used).
+// Wave A3: plus 'clip' when a clip Short went up today (overview today.clips).
 export function todayMarks(c, now = new Date()) {
   const day = now.toISOString().slice(0, 10);
   const marks = [];
   if (c?.imageDate === day) marks.push('poster');
   if (c?.deepdiveDate === day) marks.push('episode');
+  if (Number(c?.today?.clips) > 0) marks.push('clip');
   return marks;
 }
 
@@ -93,10 +110,15 @@ export function fmtIn(min) {
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
+// Live fix wave A4 (2026-11-20): the headline number is THE shared needsYou
+// count (notify-policy) — the same number /tasks, /warnings and the bell
+// show. Channel states (didn't run / paused / YouTube error) stay in `items`
+// for the channel rows but are NOT added to the count.
 export function deriveVerdict({ channels, warnings, review, now = new Date() } = {}) {
-  const items = [];   // things that need the owner — each one counts
+  const items = [];   // things to show: channel states + the alerts/approvals lines
   const unknown = []; // sources that could not be checked — never counted as zero
   let pending = false;
+  const counted = { rows: [], awaiting: 0 };
 
   // channels (from /api/overview)
   let ran = 0;
@@ -121,11 +143,7 @@ export function deriveVerdict({ channels, warnings, review, now = new Date() } =
   if (ws === 'error') unknown.push('warnings');
   else if (ws === 'loading' || ws == null) pending = true;
   else if (ws === 'ok') {
-    const rows = Array.isArray(warnings.rows) ? warnings.rows : [];
-    if (rows.length) {
-      const blocking = rows.some((w) => w.severity === 'blocking');
-      items.push({ key: 'warnings', tone: blocking ? 'bad' : 'warn', text: `${plural(rows.length, 'real problem', 'real problems')} to look at`, href: '/warnings' });
-    }
+    counted.rows = Array.isArray(warnings.rows) ? warnings.rows : [];
   } // 'forbidden' = a client login; warnings aren't theirs to see
 
   // scripts waiting for approval (/api/review)
@@ -137,23 +155,42 @@ export function deriveVerdict({ channels, warnings, review, now = new Date() } =
     // we genuinely don't know the queue
     if (ws !== 'forbidden') unknown.push('approvals');
   } else if (rs === 'ok') {
-    const n = Number(review.count) || 0;
-    if (n > 0) items.push({ key: 'review', tone: 'warn', text: `${plural(n, 'script', 'scripts')} waiting for your approval — nothing publishes until you approve`, href: '/review' });
+    counted.awaiting = Number(review.count) || 0;
   }
+
+  const need = needsYou({ rows: counted.rows, awaiting: counted.awaiting });
+  const count = need.count;
+  if (need.alerts > 0) {
+    const blocking = need.groups.some((w) => w.severity === 'blocking');
+    items.push({ key: 'warnings', tone: blocking ? 'bad' : 'warn', text: `${plural(need.alerts, 'real problem', 'real problems')} to look at`, href: '/warnings' });
+  }
+  if (need.approvals > 0) items.push({ key: 'review', tone: 'warn', text: `${plural(need.approvals, 'script', 'scripts')} waiting for your approval — nothing publishes until you approve`, href: '/review' });
 
   const unknownText = unknown.length ? `Can't check ${unknown.join(' or ')} right now — status unknown` : null;
+  const base = { items, unknown, ran, total, count };
 
-  if (items.length) {
-    return { kind: 'needs_you', tone: items.some((i) => i.tone === 'bad') ? 'bad' : 'warn', headline: `${plural(items.length, 'thing needs you', 'things need you')}`, sub: unknownText, items, unknown, ran, total };
+  if (count > 0) {
+    return { ...base, kind: 'needs_you', tone: items.some((i) => i.tone === 'bad') ? 'bad' : 'warn', headline: `${plural(count, 'thing needs you', 'things need you')}`, sub: unknownText };
   }
   if (unknown.length) {
-    return { kind: 'unknown', tone: 'warn', headline: "Can't check right now — status unknown", sub: `${unknownText}. This is not an all-clear.`, items, unknown, ran, total };
+    return { ...base, kind: 'unknown', tone: 'warn', headline: "Can't check right now — status unknown", sub: `${unknownText}. This is not an all-clear.` };
   }
   if (pending) {
-    return { kind: 'loading', tone: 'plain', headline: 'Checking your channels…', sub: null, items, unknown, ran, total };
+    return { ...base, kind: 'loading', tone: 'plain', headline: 'Checking your channels…', sub: null };
   }
   if (!total) {
-    return { kind: 'empty', tone: 'plain', headline: 'No live channels yet', sub: 'Add a channel to start the machine.', items, unknown, ran, total };
+    return { ...base, kind: 'empty', tone: 'plain', headline: 'No live channels yet', sub: 'Add a channel to start the machine.' };
   }
-  return { kind: 'all_good', tone: 'ok', headline: `All good — ${plural(ran, 'channel', 'channels')} ran today`, sub: 'No real problems and nothing waiting for approval.', items, unknown, ran, total };
+  if (items.length) {
+    // Only channel states: nothing is counted; say what the rows below show.
+    const n = (p) => items.filter((i) => i.key.startsWith(p)).length;
+    const parts = [
+      n('yt:') ? `${n('yt:')} can't reach YouTube` : '',
+      n('run:') ? `${n('run:')} didn't run today` : '',
+      n('pause:') ? `${n('pause:')} paused` : '',
+    ].filter(Boolean);
+    const tone = n('yt:') ? 'bad' : n('run:') ? 'warn' : 'info';
+    return { ...base, kind: 'all_good', tone, headline: 'Nothing needs you', sub: `Channels: ${parts.join(' · ')} — see the rows below.` };
+  }
+  return { ...base, kind: 'all_good', tone: 'ok', headline: `All good — ${plural(ran, 'channel', 'channels')} ran today`, sub: 'No real problems and nothing waiting for approval.' };
 }

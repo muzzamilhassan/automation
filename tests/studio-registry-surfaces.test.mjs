@@ -112,7 +112,7 @@ test('T4d: overview FB rows come from registry destinations.fbPageId — the har
   }
   assert.ok(/\.destinations\b/.test(overviewSrc) && /fbPageId/.test(overviewSrc), 'the route must read the registry destination schema');
   // absent destination = the channel honestly shows no FB row
-  assert.match(overviewSrc, /fbId\s*\?\s*fb\.find/, 'a channel without a registry destination must omit the FB row');
+  assert.match(overviewSrc, /fbId\s*\?\s*fbRows\.find/, 'a channel without a registry destination must omit the FB row');
 });
 
 test('T4d: overview drops the quotequarry force-flag — k.active is used as-is', () => {

@@ -21,7 +21,7 @@ export async function main(argv = process.argv) {
   loadEnv(); // repo-root .env (CI env always wins)
   const { emitWarning, getDefaultWarningsStore } = await import('../lib/warnings-store.mjs');
   const { getScriptStore } = await import('../lib/script-store.mjs');
-  const { sweepReviewTimeouts, sweepApprovedNotPublished } = await import('../lib/review-gate.mjs');
+  const { sweepReviewTimeouts, sweepApprovedNotPublished, sweepStaleReviewAlerts } = await import('../lib/review-gate.mjs');
 
   if (!process.env.DATABASE_URL) {
     console.error('[review-sweep] DATABASE_URL not set — no script ledger to sweep');
@@ -50,6 +50,11 @@ export async function main(argv = process.argv) {
   const lost = await sweepApprovedNotPublished({ scriptStore: scripts, warningsStore: warnings, emit: emitWarning, log: (m) => console.log(m) });
   if (!lost.ok) console.error(`[review-sweep] approved-not-published check failed: ${lost.error}`);
   else console.log(`[review-sweep] ${lost.flagged} approved script(s) never published — flagged for the owner`);
+  // Live fix wave A4: close review alerts whose script/slot is already done
+  // (consumed, rejected/skipped, approved). Unknown state keeps the alert.
+  const stale = await sweepStaleReviewAlerts({ scriptStore: scripts, warningsStore: warnings, log: (m) => console.log(m) });
+  if (!stale.ok) console.error(`[review-sweep] stale-alert check failed: ${stale.error}`);
+  else console.log(`[review-sweep] ${stale.resolved} of ${stale.checked} open review alert(s) auto-resolved (script or slot already done)`);
   return 0;
 }
 

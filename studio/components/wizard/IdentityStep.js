@@ -5,11 +5,14 @@ import { useState } from 'react';
 import { Sparkles, Plus, X } from 'lucide-react';
 import { NICHE_CATALOG, NICHE_MAP } from '@/lib/niches';
 import { subNicheList, togglePillar } from '@/lib/wizard-steps.mjs';
+import { findLabelClash } from '@/lib/brand-list.mjs';
 import { Field, Notice } from './fields';
 import AiDraftPanel from './AiDraftPanel';
 
-export default function IdentityStep({ form, setField, setForm, kit, names }) {
+export default function IdentityStep({ form, setField, setForm, kit, names, channels = [], selfSlug = '' }) {
   const [customPillar, setCustomPillar] = useState('');
+  // live fix wave A2 (T4-11): two channels with one name are easy to mix up
+  const clash = findLabelClash(form.label, channels, selfSlug);
   const pillars = subNicheList(form.subNiches);
   const recommended = (NICHE_MAP[form.niche] || []).filter((p) => !pillars.includes(p.toLowerCase()));
 
@@ -27,9 +30,16 @@ export default function IdentityStep({ form, setField, setForm, kit, names }) {
   return (
     <div className="space-y-5">
       <div className="grid sm:grid-cols-2 gap-4">
-        <Field label="Channel name" hint="Shown across Studio and on the videos.">
-          {(id) => <input id={id} className="input w-full" value={form.label} onChange={(e) => setField('label', e.target.value)} placeholder="e.g. Quote Quarry" />}
-        </Field>
+        <div className="min-w-0">
+          <Field label="Channel name" hint="Shown across Studio and on the videos.">
+            {(id) => <input id={id} className="input w-full" value={form.label} onChange={(e) => setField('label', e.target.value)} placeholder="e.g. Quote Quarry" aria-describedby={clash ? 'name-clash' : undefined} />}
+          </Field>
+          {clash ? (
+            <p id="name-clash" className="t-11 mt-1.5" style={{ color: 'var(--warn-ink)' }} role="status">
+              Another channel is already called “{clash.label || clash.slug}”. Pick a different name so you can tell them apart.
+            </p>
+          ) : null}
+        </div>
         <Field label="Niche" hint="Tap a proven niche below, or type your own.">
           {(id) => <input id={id} className="input w-full" value={form.niche} onChange={(e) => setField('niche', e.target.value)} placeholder="e.g. Old money habits & quiet wealth" />}
         </Field>

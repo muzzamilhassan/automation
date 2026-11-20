@@ -19,7 +19,7 @@ import { CHANNEL_DRAWERS, drawersFor } from '@/components/ChannelDrawers';
 import { when, timeAgo } from '@/lib/utils';
 import { youtubeConnection, nextScheduled, channelHref } from '@/lib/channel-health.mjs';
 import {
-  todayStatus, uploadedToday, nextSlot, scheduleSummary, INBOX_HREF, PROBLEM_LABEL,
+  todayStatus, uploadedToday, nextSlot, scheduleSummary, runText, lastMadeText, INBOX_HREF, PROBLEM_LABEL,
 } from '@/lib/channel-overview.mjs';
 
 function localTime(at) {
@@ -50,22 +50,30 @@ function ProblemLine() {
   );
 }
 
-function StatusTile({ label, value, tone = 'plain', sub }) {
+function StatusTile({ label, value, tone = 'plain', sub, subTone = 'plain' }) {
   const color = { ok: 'var(--ok-ink)', bad: 'var(--bad-ink)' }[tone] || 'var(--ink)';
+  const subColor = { bad: 'var(--bad-ink)' }[subTone];
   return (
     <div className="inset-tile p-3 min-w-0">
       <div className="overline mb-1">{label}</div>
       <div className="t-13 font-semibold truncate" style={{ color }} title={typeof value === 'string' ? value : undefined}>{value}</div>
-      {sub ? <div className="t-11 text-faint mt-0.5 truncate" title={sub}>{sub}</div> : null}
+      {sub ? <div className={'t-11 mt-0.5 truncate' + (subColor ? '' : ' text-faint')} style={subColor ? { color: subColor } : undefined} title={sub}>{sub}</div> : null}
     </div>
   );
 }
 
-/** Status tiles for one overview row: YouTube, autopilot, today, next upload. Facts only. */
+/**
+ * Status tiles for one overview row: YouTube, autopilot (+ today's run),
+ * today (+ last made), next upload. Facts only. Live-fix wave A3: "today" is
+ * the UTC day and comes from the engine state + today's autopilot run —
+ * never the frozen lastRun date.
+ */
 export function ChannelStatus({ c, logs, now, hasProblem }) {
   const conn = youtubeConnection(c);
   const today = todayStatus(c, now);
   const live = uploadedToday(logs, c.slug, now);
+  const run = runText(c.todayRun);
+  const madeSub = today.tone === 'ok' && live ? `${live} uploaded today` : lastMadeText(c.lastActivity);
   const next = nextScheduled(logs, c.slug, now);
   const slot = next ? null : nextSlot(c, now);
   return (
@@ -73,8 +81,8 @@ export function ChannelStatus({ c, logs, now, hasProblem }) {
       {hasProblem ? <ProblemLine /> : null}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
         <StatusTile label="YouTube" value={conn.text} tone={conn.state === 'ok' ? 'ok' : conn.state === 'error' ? 'bad' : 'plain'} sub={conn.detail} />
-        <StatusTile label="Autopilot" value={c.flowPaused ? 'Paused' : 'On'} tone={c.flowPaused ? 'plain' : 'ok'} />
-        <StatusTile label="Today" value={today.text} tone={today.tone} sub={live ? `${live} uploaded today` : 'None uploaded yet today'} />
+        <StatusTile label="Autopilot" value={c.flowPaused ? 'Paused' : 'On'} tone={c.flowPaused ? 'plain' : 'ok'} sub={run} subTone={c.todayRun?.status === 'failed' ? 'bad' : 'plain'} />
+        <StatusTile label="Today (UTC)" value={today.text} tone={today.tone} sub={madeSub} />
         {next ? (
           <StatusTile label="Next upload" value={when(next.at)} sub={`${timeAgo(next.at)} · ${next.kind || 'video'}`} />
         ) : slot ? (
