@@ -11,8 +11,10 @@ import { Card, CardHead, Chip, PageHeader, StatCard } from '@/components/ui';
 import DataTable from '@/components/DataTable';
 import apiFetch from '@/components/shell/api-fetch';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { localTime } from '@/lib/session-view.mjs';
 
-const when = (iso) => (iso ? String(iso).replace('T', ' ').slice(0, 16) : '—');
+// Live fix wave C4 (T5-07): the same local, labelled format as Settings › Security
+const when = (iso) => localTime(iso);
 
 export default function SessionsAdminPage() {
   const [sessions, setSessions] = useState(null);
@@ -94,7 +96,7 @@ export default function SessionsAdminPage() {
       label: 'Device',
       render: (r) => (
         <div className={`max-w-[260px] ${r.dead ? 'text-faint' : 'text-muted'}`}>
-          <div className="truncate t-12" title={r.device}>{r.device || 'unknown device'}</div>
+          <div className="truncate t-12" title={r.agent || r.device}>{r.device || 'Unknown device'}</div>
           {r.ip ? <div className="t-10 text-faint tnum">{r.ip}</div> : null}
         </div>
       ),

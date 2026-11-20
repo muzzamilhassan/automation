@@ -20,13 +20,18 @@
 // discarding the difference (T3-05, frame opts.dirty), and the saved start
 // hour stays pickable on the timeline even when another channel shares it
 // (T3-09).
+//
+// Live fix wave C3: warnings pass through plainScheduleWarnings — the
+// developer "Quota advisory" is dropped, a real limit reads in plain words
+// (T3-16); "goes public" names the long-form time and day(s) too (T3-17).
 import { useCallback, useEffect, useState } from 'react';
 import { CalendarDays, AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import { Chip, Progress } from '@/components/ui';
 import { projection, DAY_NAMES } from '@/lib/schedule-projection';
 import SlotTimeline from '@/components/SlotTimeline';
-import { parseDailyCron, cronFromUtc, parseHHMM, takenHours, suggestStartHours, localClock, scheduleDirty } from '@/lib/slot-planner.mjs';
+import { parseDailyCron, cronFromUtc, parseHHMM, takenHours, suggestStartHours, scheduleDirty } from '@/lib/slot-planner.mjs';
+import { plainScheduleWarnings, longPublicText, shortsPublicText } from '@/lib/channel-overview.mjs';
 
 const TONE_INK = { error: 'var(--bad-ink)', warn: 'var(--warn-ink)', ok: 'var(--ok-ink)' };
 
@@ -87,6 +92,7 @@ export default function SchedulePanel({ slug, frame }) {
   const [modelWarnings, setModelWarnings] = useState([]);
   const [channels, setChannels] = useState([]); // every channel's times (live registry) → taken hours
   const [publish, setPublish] = useState([]); // this channel's "goes public" slots (UTC HH:MM)
+  const [publishLong, setPublishLong] = useState(null); // this channel's long-form "goes public" time (UTC HH:MM)
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
   // Admin-panel review #3: a failed load used to fall back to an EMPTY
@@ -110,9 +116,10 @@ export default function SchedulePanel({ slug, frame }) {
         setSaved({ ...loaded, gateCron: d.gateCron || '' });
         setServerProj(d.projection || null);
         setGateCron(d.gateCron || '');
-        setModelWarnings(d.projection?.warnings || []);
+        setModelWarnings(plainScheduleWarnings(d.projection?.warnings));
         setChannels(Array.isArray(d.channels) ? d.channels : []);
         setPublish(Array.isArray(d.publish?.slots) ? d.publish.slots : []);
+        setPublishLong(d.publish?.long || null);
       })
       .catch((e) => {
         setSchedule(null);
@@ -135,6 +142,8 @@ export default function SchedulePanel({ slug, frame }) {
   const offsetMin = -new Date().getTimezoneOffset();
   const taken = takenHours(channels, { exclude: slug, kind: 'start' });
   const publishAt = publish.map(parseHHMM).filter(Boolean);
+  const shortsLine = shortsPublicText(publish, offsetMin);
+  const longLine = longPublicText(publishLong, draft.docDays, offsetMin); // follows the long-form days being edited
   const suggestions = suggestStartHours({ publishHours: publishAt.map((p) => p.hour), takenHours: taken });
   // keep the channel's existing minute; only the hour changes
   const pickHour = (hour) => setGateCron(cronFromUtc(hour, cronState.at ? cronState.at.minute : 0));
@@ -163,7 +172,7 @@ export default function SchedulePanel({ slug, frame }) {
         if (j.gateCron) setGateCron(j.gateCron);
         setSaved({ ...draft, gateCron: j.gateCron || gateCron });
         setMsg({ tone: 'ok', text: 'Saved — the next runs pick this up.' });
-        const saveWarnings = [...new Set([...(j.projection?.warnings || []), ...(j.warnings || [])])];
+        const saveWarnings = plainScheduleWarnings([...(j.projection?.warnings || []), ...(j.warnings || [])]);
         if (saveWarnings.length) setMsg({ tone: 'warn', text: saveWarnings.join(' ') });
       }
     } catch (e) {
@@ -239,9 +248,9 @@ export default function SchedulePanel({ slug, frame }) {
         disabled={!schedule}
         footer={
           <>
-            {publishAt.length ? (
+            {shortsLine || longLine ? (
               <p className="t-12 text-muted">
-                Goes public at {publishAt.map((p) => localClock(p.hour, p.minute, offsetMin)).join(', ')} your time. The start time doesn&apos;t change that.
+                {[shortsLine, longLine].filter(Boolean).map((l) => `${l}.`).join(' ')} The start time doesn&apos;t change that.
               </p>
             ) : null}
             <details className="t-12">

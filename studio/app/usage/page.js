@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { Coins, Gauge, Bot, CheckCircle2, XCircle, ReceiptText, CircleAlert, RefreshCw } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, PageSkeleton, StatCard, Segmented } from '@/components/ui';
 import DataTable from '@/components/DataTable';
+import { failureSummary } from '@/lib/usage-view.mjs';
 
 const WINDOWS = [
   { value: '7', label: '7 days' },
@@ -20,9 +21,13 @@ const when = (iso) => (iso ? String(iso).replace('T', ' ').slice(0, 16) : '');
 
 // One rollup table's shape is identical across the three dimensions.
 const rollupColumns = [
-  { key: 'key', label: 'Name', rowHeader: true, render: (r) => (
+  { key: 'key', label: 'Name', rowHeader: true, render: (r) => (r.other ? (
+    <span className="t-12 font-semibold text-ink truncate">
+      Other <span className="t-11 font-normal text-faint font-mono">({r.parts.join(', ')})</span>
+    </span>
+  ) : (
     <span className="t-12 font-semibold text-ink font-mono truncate">{none(r.key)}</span>
-  ) },
+  )) },
   { key: 'calls', label: 'Calls', render: (r) => (
     <span className="tnum t-12 text-ink">
       {fmt(r.calls)}{' '}
@@ -110,10 +115,12 @@ export default function UsageDashboard() {
   const totals = data?.totals || {};
   const loaded = Boolean(data);
   const isEmpty = loaded && !err && (totals.events || 0) === 0;
+  // Live fix wave C4 (T5-13): failures with their top reason, in words
+  const failures = loaded ? failureSummary(totals, data.topErrors) : '';
 
   return (
     <div>
-      <PageHeader icon={Coins} title="Usage & cost" sub={`AI usage ledger · last ${days} days · tokens, calls and measured-vs-estimated split`} />
+      <PageHeader icon={Coins} title="AI usage" sub={`AI calls and tokens · last ${days} days`} />
 
       <div className="mb-5 flex items-center gap-3 flex-wrap">
         <Segmented options={WINDOWS} value={days} onChange={setWindow} />
@@ -161,9 +168,14 @@ export default function UsageDashboard() {
             <StatCard icon={CheckCircle2} label="OK calls" value={totals.ok_calls} fmt={fmt} color="var(--ok)" iconBg="color-mix(in srgb, var(--ok) 12%, transparent)" />
             <StatCard icon={XCircle} label="Failed calls" value={totals.fail_calls} fmt={fmt} color="var(--bad)" iconBg="color-mix(in srgb, var(--bad) 12%, transparent)" />
           </div>
+          {failures ? (
+            <p className="t-12 text-muted -mt-2 mb-5 flex items-center gap-1.5">
+              <XCircle size={13} style={{ color: 'var(--bad-ink)' }} className="shrink-0" /> {failures}
+            </p>
+          ) : null}
 
           <div className="mb-5">
-            <RollupCard title="By channel" sub={`Token spend per channel · last ${days} days`} icon={Gauge} rows={data.byChannel} sort={sort} />
+            <RollupCard title="By channel" sub={`Tokens per channel · calls not tied to a channel are under Other · last ${days} days`} icon={Gauge} rows={data.byChannel} sort={sort} />
           </div>
           <div className="mb-5">
             <RollupCard title="By provider" sub={`Token spend per provider · last ${days} days`} icon={Bot} rows={data.byProvider} sort={sort} />

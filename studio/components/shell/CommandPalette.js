@@ -22,6 +22,8 @@ import {
 import { ALL_NAV_ITEMS } from './nav';
 import { startNavProgress } from './NavProgress';
 import { cn } from '@/lib/utils';
+// Live fix wave C1 (T1-28): channel names read like the sidebar's.
+import { channelDisplayName } from '@/lib/channel-display.mjs';
 // Live fix wave B3 (T1-11): Enter runs the first result, so results are ranked
 // best match first (exact label → starts with → contains → keyword → description).
 import { rankPaletteItems } from '@/lib/palette-rank.mjs';
@@ -83,7 +85,7 @@ export default function CommandPalette({ open, onClose }) {
     if (!open || chans) return;
     fetch('/api/overview')
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
-      .then((d) => setChans((d?.controlChannels || d?.channels || []).map((c) => ({ slug: c.slug, label: c.label || c.slug }))))
+      .then((d) => setChans((d?.controlChannels || d?.channels || []).map((c) => ({ slug: c.slug, label: channelDisplayName(c.label, c.slug) }))))
       .catch(() => setChans([]));
   }, [open, chans]);
 

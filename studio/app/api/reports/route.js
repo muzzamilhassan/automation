@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ENV } from '../../../lib/data.mjs';
 import { requireRole } from '@/lib/route-auth';
+import { reportDay } from '@/lib/analytics-view.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,7 @@ export async function GET(req) {
             .filter((f) => f.endsWith('.xlsx'))
             .map((f) => {
               const st = fs.statSync(path.join(dir, f));
-              return { name: f, when: st.mtime.toISOString().slice(0, 10), size: st.size };
+              return { name: f, when: reportDay(f) || st.mtime.toISOString().slice(0, 10), size: st.size };
             })
         : [];
       rows.sort((a, b) => b.name.localeCompare(a.name));
@@ -42,7 +43,9 @@ export async function GET(req) {
     const list = await res.json();
     const rows = (Array.isArray(list) ? list : [])
       .filter((f) => f.name.endsWith('.xlsx'))
-      .map((f) => ({ name: f.name, when: (f.metadata?.time || '').slice(0, 10) || '—', size: f.size }))
+      // wave C2 (T2-22): the contents API has no file time — the report's day
+      // is in its name ("daily-report-2026-09-19.xlsx"); unknown stays null
+      .map((f) => ({ name: f.name, when: reportDay(f.name), size: f.size }))
       .sort((a, b) => b.name.localeCompare(a.name));
     return Response.json({ reports: rows });
   } catch {

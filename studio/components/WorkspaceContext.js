@@ -1,9 +1,14 @@
 'use client';
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
+import { isBarePath } from '@/lib/safe-next.mjs';
 
 const WorkspaceContext = createContext(null);
 
 export function WorkspaceProvider({ children }) {
+  // Live fix wave C1 (T1-18): bare pages (/login, /proof, /client) are signed
+  // out or client-scoped — polling /api/overview there was a 401 on every load.
+  const bare = isBarePath(usePathname());
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -26,6 +31,7 @@ export function WorkspaceProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    if (bare) return undefined;
     let alive = true;
     (async () => {
       await Promise.resolve();
@@ -36,7 +42,7 @@ export function WorkspaceProvider({ children }) {
       alive = false;
       clearInterval(interval);
     };
-  }, [refresh]);
+  }, [refresh, bare]);
 
   const channels = data?.channels || [];
   const activeChannels = channels.filter((c) => c.active);

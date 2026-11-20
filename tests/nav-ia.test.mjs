@@ -158,7 +158,8 @@ test('navSectionFor: every screen lights exactly the menu item it lives under', 
   assert.equal(at('/'), 'Today');
   assert.equal(at('/review'), 'Inbox');
   assert.equal(at('/warnings'), 'Inbox');
-  assert.equal(at('/templates/drafts'), 'Inbox');
+  // live fix wave C1 (T1-12): the highlight follows the breadcrumb (Create › Templates › Drafts)
+  assert.equal(at('/templates/drafts'), 'Create');
   assert.equal(at('/templates'), 'Create');
   assert.equal(at('/templates/registry/detail'), 'Create');
   assert.equal(at('/production'), 'Runs');

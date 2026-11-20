@@ -5,6 +5,7 @@ import { db, dbReady } from '@/lib/db.mjs';
 import { registryChannels, readRepoJSON } from '@/lib/channels-registry';
 import { listAudit } from '@/lib/audit';
 import { decryptKeys } from '@/lib/keys-vault';
+import { channelOwnership, clientChannelCount, keysForChannels } from '@/lib/users-view.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,29 +41,23 @@ export async function GET(req) {
       } catch { }
     }
 
-    // channels bound to each user (registry ownerEmail); legacy 4 = owner's own
-    const byEmail = new Map();
-    const bound = (email) => {
-      if (!byEmail.has(email)) byEmail.set(email, []);
-      return byEmail.get(email);
-    };
-    for (const e of registry) {
-      if (e.ownerEmail) bound(String(e.ownerEmail).toLowerCase()).push({ slug: e.slug, label: e.label || e.slug });
+    // Live fix wave C4 (T5-12): channels bound to each user by registry
+    // ownerEmail; a channel with NO ownerEmail is the owner's own. Only a
+    // channel naming an email not on the team is "no owner assigned".
+    const { byEmail, unbound } = channelOwnership(users, registry);
+    const bound = (email) => byEmail.get(email) || [];
+
+    // Vault keys per channel — the same file + decrypt /providers reads
+    // (provider NAMES only; values stay encrypted, never returned).
+    const keysBySlug = {};
+    for (const [slug, entry] of Object.entries(keysFile)) {
+      const keys = entry?.enc ? decryptKeys(entry.enc) : null;
+      if (keys) keysBySlug[slug] = Object.keys(keys).filter((p) => keys[p]);
     }
 
     const list = users.map((u) => {
       const email = String(u.email).toLowerCase();
       const myChannels = bound(email);
-      const mySlugs = new Set(myChannels.map((c) => c.slug));
-      // keys summary: provider NAMES only (values stay encrypted, never returned)
-      const keyProviders = {};
-      for (const c of myChannels) {
-        const entry = keysFile[c.slug];
-        if (!entry?.enc) continue;
-        const keys = decryptKeys(entry.enc) || {};
-        const set = Object.keys(keys).filter((p) => keys[p]);
-        if (set.length) keyProviders[c.slug] = set;
-      }
       const lastAction = audit.find((a) => String(a.actor || '').toLowerCase() === email) || null;
       const recentActivity = audit
         .filter((a) => String(a.actor || '').toLowerCase() === email)
@@ -74,26 +69,25 @@ export async function GET(req) {
         name: u.name,
         createdAt: u.createdAt || null,
         channels: myChannels,
-        keysFiles: Object.keys(keyProviders),
+        keys: keysForChannels(myChannels, keysBySlug),
         sessionsActive: sessCounts[email] || 0,
         lastAction: lastAction ? { at: lastAction.at, action: lastAction.action, detail: lastAction.detail } : null,
         recentActivity,
       };
     });
 
-    // unbound registry channels (connected but no ownerEmail) — owner awareness
-    const unbound = registry.filter((e) => !e.ownerEmail).map((e) => ({ slug: e.slug, label: e.label || e.slug }));
     // T4d (#106): the owner's own channels come from the registry bindings
     // (the requesting owner's bound entries), not a hardcoded legacy-4 list —
     // the wizard binds channels to the owner email the same way it does for
-    // clients. Depends on Neon owner_email (db mode); repo-file fallback
-    // entries carry no ownerEmail, so a DB-less server resolves an empty list.
+    // clients. Entries with no owner_email (and repo-file fallback entries)
+    // count as the owner's own (live fix wave C4, T5-12).
     // Informational payload; the users page renders unboundChannels.
     const legacy = bound(String(user.email).toLowerCase()).map((c) => ({ slug: c.slug }));
 
     return Response.json({
       users: list,
       unboundChannels: unbound,
+      clientChannels: clientChannelCount(list),
       legacyOwnerChannels: legacy,
       totalSessions: Object.values(sessCounts).reduce((a, b) => a + b, 0),
       auditWindow: 300,

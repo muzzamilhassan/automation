@@ -5,6 +5,7 @@
 import crypto from 'node:crypto';
 import { db, dbReady } from './db.mjs';
 import { parseSessionCookie } from './session.js';
+import { deviceLabel } from './session-view.mjs';
 
 const DAY_MS = 86400000;
 
@@ -68,10 +69,13 @@ export async function listSessions(email) {
     const rows = await db`
       SELECT id, user_agent, ip, created_at, last_used, expires_at, revoked
       FROM sessions WHERE email = ${email} AND revoked = FALSE AND expires_at > now()
-      ORDER BY last_used DESC LIMIT 20`;
+      ORDER BY last_used DESC LIMIT 200`;
+    // Live fix wave C4 (T5-08): no hidden 20-row cap — the panel shows the
+    // first 20 and says "Showing 20 of N". Device = a readable label.
     return rows.map((r) => ({
       id: r.id,
-      device: String(r.user_agent || '').slice(0, 60),
+      device: deviceLabel(r.user_agent),
+      agent: String(r.user_agent || '').slice(0, 200),
       ip: r.ip || '',
       created: r.created_at,
       lastUsed: r.last_used,
@@ -124,7 +128,8 @@ export async function listAllSessions(dbClient) {
       email: r.email,
       role: r.role,
       name: r.name || '',
-      device: String(r.user_agent || '').slice(0, 60),
+      device: deviceLabel(r.user_agent),
+      agent: String(r.user_agent || '').slice(0, 200),
       ip: r.ip || '',
       created: r.created_at,
       lastUsed: r.last_used,

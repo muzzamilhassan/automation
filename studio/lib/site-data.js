@@ -87,7 +87,9 @@ export const TRACKED_KEYWORDS = [
   { kw: 'dividend investing explained', pos: 26, delta: +2, channel: 'investors-compass' },
 ];
 
-// Music — locked 13-track pool (approved Sep 16) + per-brand moods.
+// Music — locked 13-track pool (approved Sep 16). Wave C3 (T3-07): the static
+// per-brand MUSIC_MOODS map was DELETED — a channel's mood is its kit/brand
+// `musicFeels` from /api/overview. Never reintroduce a slug map in code.
 export const MUSIC_POOL = [
   { name: 'Skye Cuillin', mood: 'EPIC', brand: 'shared' },
   { name: 'Heroic Age', mood: 'EPIC', brand: 'quotequarry' },
@@ -103,13 +105,6 @@ export const MUSIC_POOL = [
   { name: 'Bass Walker', mood: 'DRIVE', brand: 'shared' },
   { name: 'Hustle', mood: 'DRIVE', brand: 'money-rulebook' },
 ];
-
-export const MUSIC_MOODS = {
-  quotequarry: ['Epic', 'Inspiring', 'Heroic'],
-  'investors-compass': ['Calming', 'Inspiring', 'Mystical'],
-  'money-rulebook': ['Bright', 'Uplifting', 'Grooving'],
-  'debt-free-doctrine': ['Driving', 'Hopeful'],
-};
 
 export const INTEGRATIONS = [
   { name: 'YouTube Data API', status: 'ok', note: '5 channels linked (4 legacy + FAJR OF QUR\'AN) · uploads own bucket', icon: 'youtube' },

@@ -166,7 +166,7 @@ export default function WarningsDashboardPage() {
     <div>
       <PageHeader
         icon={TriangleAlert}
-        title="Warnings"
+        title="Alerts"
         sub="Every pipeline alert, durably — severity per the policy ladder, official citations on blocking rows. ntfy stays the bell; this is the record."
       />
 

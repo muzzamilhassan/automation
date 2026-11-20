@@ -25,6 +25,11 @@ import { RETENTION_GOAL } from '@/lib/site-data';
 import { useBrands } from '@/components/use-brands'; // #125: live brand marks
 import { fmt } from '@/lib/utils';
 import DataTable from '@/components/DataTable';
+// live fix wave C2: one total, honest zeros, real names, readable watch time
+import {
+  watchMinutes, fmtWatchTime, fmtDelta, countedOnly, lastDataDay, fmtDay,
+  viewSplit, pickerOptions, boardRows, reportDay, reportsState,
+} from '@/lib/analytics-view.mjs';
 
 // #106 S5: snapshot-backed section (nightly analytics_snapshots — zero live
 // YouTube calls). Analytics settle 48–72h, so every panel here carries the
@@ -172,13 +177,18 @@ export default function Analytics() {
   const liveRows = retentionRows.filter((r) => r.live);
   const best = [...liveRows].sort((a, b) => b.pct - a.pct)[0];
   const worst = liveRows.length > 1 ? [...liveRows].sort((a, b) => a.pct - b.pct)[0] : null;
-  const splitTotal = (real?.split?.shortsViews || 0) + (real?.split?.longViews || 0);
-  const shortPct = splitTotal ? Math.round((real.split.shortsViews / splitTotal) * 100) : 0;
+  // T2-13 (wave C2): ONE 28-day total on the page — the split is shown
+  // against the tile total; views the per-video report didn't sort are named.
+  const split = viewSplit({ total: real?.totals?.views, shorts: real?.split?.shortsViews, long: real?.split?.longViews });
+  const through = lastDataDay(real?.daily); // YouTube Analytics lags 2–3 days
+  const countries = countedOnly(real?.audience?.countries); // T2-18: no "ID 0"
+  const reportsNow = reportsState(reports); // T2-22: say when reports stopped
   const genderTotal = (real?.audience?.gender || []).reduce((a, g) => a + g.views, 0) || 1;
   const GENDER_NAME = { gender_female: 'Women', gender_male: 'Men', gender_user_specified: 'Other' };
 
   // snapshot-backed panels (leaderboard / win rates) — lag stamp is mandatory
-  const snapRows = snap?.rows || [];
+  // T2-19 (wave C2): the leaderboard follows the channel picker
+  const snapRows = boardRows(snap?.rows, sel);
   const snapThrough = snap?.dataThrough || null;
   const winRates = snap?.winRates || null;
   const winRows = winRates?.available ? [...(winRates.templates || []).map((t) => ({ ...t, kind: 'template' })), ...(winRates.topics || []).map((t) => ({ ...t, kind: 'topic' }))] : [];
@@ -187,14 +197,22 @@ export default function Analytics() {
 
   return (
     <div>
-      <PageHeader icon={TrendingUp} title="Analytics" sub={sel === 'all' ? 'All channels · real YouTube data for the last 28 days' : `${selChannel?.label || sel} · real YouTube data for the last 28 days`} />
+      {/* T2-13 (wave C2): the live window's "data through" is stated ONCE, here */}
+      <PageHeader
+        icon={TrendingUp}
+        title="Analytics"
+        sub={`${sel === 'all' ? 'All channels' : BRAND[sel]?.label || selChannel?.label || sel} · YouTube, last 28 days${through ? ` · data through ${fmtDay(through)}` : ''}`}
+      />
 
       <div className="mb-5 flex items-center gap-3 flex-wrap">
-        <Segmented
-          options={[{ value: 'all', label: 'All channels' }, ...active.map((c) => ({ value: c.slug, label: BRAND[c.slug]?.short || c.slug }))]}
-          value={sel}
-          onChange={setSel}
-        />
+        {/* T2-19 (wave C2): real channel names, not QU / IN / TH codes */}
+        <div className="max-w-full overflow-x-auto">
+          <Segmented
+            options={pickerOptions(active, BRAND)}
+            value={sel}
+            onChange={setSel}
+          />
+        </div>
         <button className="btn btn-outline" onClick={() => { load(true); loadSnap(snapDays); }}>
           <RefreshCw size={16} /> Refresh
         </button>
@@ -213,9 +231,9 @@ export default function Analytics() {
         <Card className="lg:col-span-2 overflow-hidden">
           <CardHead
             title="Channel leaderboard"
-            sub={`Nightly snapshots · ranked by views · last ${snapDays} days`}
+            sub={`${sel === 'all' ? 'All channels' : BRAND[sel]?.label || sel} · Saved nightly · ${snapDays} days${snapThrough ? ` to ${fmtDay(snapThrough)}` : ''} · ranked by views`}
             icon={Trophy}
-            right={snapErr ? <Chip tone="bad">unavailable</Chip> : snapThrough ? <Chip tone="info" dot>data through {snapThrough}</Chip> : snap ? <Chip tone="warn">no snapshots yet</Chip> : null}
+            right={snapErr ? <Chip tone="bad">unavailable</Chip> : snapThrough ? <Chip tone="info" dot>snapshot</Chip> : snap ? <Chip tone="warn">no snapshots yet</Chip> : null}
           />
           <div className="px-5 pb-5">
             <div className="mb-3">
@@ -245,8 +263,9 @@ export default function Analytics() {
                           </span>
                         </td>
                         <td className="tnum font-bold text-ink">{fmt(r.views)}</td>
-                        <td className="tnum">{Number(r.watchHours || 0).toLocaleString('en-US')}</td>
-                        <td className="tnum">{r.subsDelta ? (r.subsDelta > 0 ? '+' : '') + r.subsDelta : '—'}</td>
+                        <td className="tnum">{fmtWatchTime(watchMinutes(r.watchHours))}</td>
+                        {/* T2-18: a real 0 reads "0"; only unknown reads "—" */}
+                        <td className="tnum">{fmtDelta(r.subsDelta)}</td>
                         <td>
                           {r.trendPct == null ? (
                             <Chip>new</Chip>
@@ -258,6 +277,7 @@ export default function Analytics() {
                     ))}
                   </tbody>
                 </table>
+                <p className="t-11 text-faint mt-2">Saved each night, so it can differ a little from the live 28-day numbers below.</p>
               </div>
             ) : snapErr ? (
               <EmptyState icon={Trophy} title="Can't load the leaderboard right now" sub="The snapshots weren't readable — this is not an empty leaderboard.">
@@ -266,7 +286,11 @@ export default function Analytics() {
             ) : !snap ? (
               <div className="space-y-2">{[0, 1, 2, 3].map((i) => <div key={i} className="skeleton h-6" />)}</div>
             ) : (
-              <EmptyState icon={Trophy} title="No snapshots yet" sub="The nightly analytics job (05:17 UTC) fills this after its first run." />
+              snap?.rows?.length ? (
+                <EmptyState icon={Trophy} title="No snapshot for this channel yet" sub="Pick All channels to see the others." />
+              ) : (
+                <EmptyState icon={Trophy} title="No snapshots yet" sub="The nightly analytics job (05:17 UTC) fills this after its first run." />
+              )
             )}
           </div>
         </Card>
@@ -276,7 +300,7 @@ export default function Analytics() {
             title="Template & topic win rates"
             sub="Views per published video, by template and topic"
             icon={Target}
-            right={snapThrough ? <Chip tone="info" dot>data through {snapThrough}</Chip> : null}
+            right={snapThrough ? <Chip tone="info" dot>saved nightly</Chip> : null}
           />
           <div className="px-5 pb-5">
             {snapErr ? (
@@ -340,10 +364,12 @@ export default function Analytics() {
       ) : null}
 
       {/* REAL 28-day numbers */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-5">
-        <StatCard icon={Eye} label="Views · 28 days" value={real ? real.totals?.views ?? null : null} fmt={fmt} color="var(--info)" iconBg="color-mix(in srgb, var(--info) 12%, transparent)" />
-        <StatCard icon={Clock} label="Watch time · hours" value={real ? real.totals?.watchHours ?? null : null} fmt={(v) => Number(v).toLocaleString('en-US')} color="var(--ok)" iconBg="color-mix(in srgb, var(--ok) 12%, transparent)" />
-        <StatCard icon={UserPlus} label="Subs gained · 28 days" value={real ? real.totals?.subsGained ?? null : null} fmt={(v) => Number(v).toLocaleString('en-US')} color="var(--accent)" iconBg="var(--accent-soft)" />
+      {/* T2-26 (wave C2): short labels + 3 across until 2xl, so none is cut at 1440.
+          T2-14: watch time counts up in whole MINUTES (the count-up rounds). */}
+      <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-4 mb-5">
+        <StatCard icon={Eye} label="Views · 28d" value={real ? real.totals?.views ?? null : null} fmt={fmt} color="var(--info)" iconBg="color-mix(in srgb, var(--info) 12%, transparent)" />
+        <StatCard icon={Clock} label="Watch time · 28d" value={real ? watchMinutes(real.totals?.watchHours) : null} fmt={fmtWatchTime} color="var(--ok)" iconBg="color-mix(in srgb, var(--ok) 12%, transparent)" />
+        <StatCard icon={UserPlus} label="New subs · 28d" value={real ? real.totals?.subsGained ?? null : null} fmt={(v) => Number(v).toLocaleString('en-US')} color="var(--accent)" iconBg="var(--accent-soft)" />
         <StatCard icon={Users} label="Subscribers · total" value={subsShown} fmt={fmt} />
         <StatCard icon={Eye} label="Views · all time" value={lifetimeViews} fmt={fmt} color="var(--info)" iconBg="color-mix(in srgb, var(--info) 12%, transparent)" />
         <StatCard icon={Film} label="Videos · total" value={lifetimeVideos} fmt={fmt} />
@@ -415,7 +441,7 @@ export default function Analytics() {
               <div className="px-4 py-10 space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="skeleton h-5" />)}</div>
             ) : real.daily.length ? (
               <div className="px-3">
-                <MiniBars data={real.daily.map((d) => d.views)} labels={real.daily.map((d) => d.date.slice(5))} color="var(--accent)" height={170} />
+                <MiniBars data={real.daily.map((d) => d.views)} labels={real.daily.map((d) => d.date.slice(5))} color="var(--accent)" height={170} ariaLabel={`Views per day, ${sel === 'all' ? 'all channels' : BRAND[sel]?.label || sel}`} />
               </div>
             ) : (
               <p className="t-12 text-faint px-4 py-10 text-center">No views recorded in this period.</p>
@@ -427,27 +453,34 @@ export default function Analytics() {
       <div className="grid lg:grid-cols-3 gap-4 mb-5">
         {/* shorts vs long */}
         <Card>
-          <CardHead title="Shorts vs long-form" sub="Views in the last 28 days" icon={Scissors} />
+          <CardHead title="Shorts vs long-form" sub={split ? `Of the same ${fmt(split.total)} views, last 28 days` : 'Views in the last 28 days'} icon={Scissors} />
           <div className="px-5 pb-5">
             {realErr ? (
               <p className="t-12 text-faint py-6 text-center">Unavailable right now.</p>
             ) : !real ? (
               <div className="skeleton h-16" />
-            ) : splitTotal ? (
+            ) : split ? (
               <>
                 <div className="flex h-3.5 rounded-full overflow-hidden border border-line mb-3">
-                  <div style={{ width: shortPct + '%', background: 'var(--accent)' }} />
-                  <div style={{ width: 100 - shortPct + '%', background: 'var(--info)' }} />
+                  <div style={{ width: split.shortPct + '%', background: 'var(--accent)' }} />
+                  <div style={{ width: split.longPct + '%', background: 'var(--info)' }} />
+                  {split.other ? <div style={{ width: split.otherPct + '%', background: 'var(--surface-2)' }} /> : null}
                 </div>
                 <div className="space-y-2 t-12">
                   <p className="flex items-center justify-between">
                     <span className="flex items-center gap-1.5 text-muted"><Scissors size={13} /> Shorts</span>
-                    <span className="tnum font-bold text-ink">{fmt(real.split.shortsViews)} · {shortPct}%</span>
+                    <span className="tnum font-bold text-ink">{fmt(split.shorts)} · {split.shortPct}%</span>
                   </p>
                   <p className="flex items-center justify-between">
                     <span className="flex items-center gap-1.5 text-muted"><Film size={13} /> Long-form</span>
-                    <span className="tnum font-bold text-ink">{fmt(real.split.longViews)} · {100 - shortPct}%</span>
+                    <span className="tnum font-bold text-ink">{fmt(split.long)} · {split.longPct}%</span>
                   </p>
+                  {split.other ? (
+                    <p className="flex items-center justify-between" title="Each channel's top 100 videos are sorted into Shorts or long-form. Views on the rest are counted here.">
+                      <span className="text-muted">Not sorted (other videos)</span>
+                      <span className="tnum font-bold text-ink">{fmt(split.other)} · {split.otherPct}%</span>
+                    </p>
+                  ) : null}
                 </div>
               </>
             ) : (
@@ -458,10 +491,10 @@ export default function Analytics() {
 
         {/* audience: countries */}
         <Card>
-          <CardHead title="Top countries" sub="Where the 28-day views came from" icon={Globe} />
+          <CardHead title="Top countries" sub="Views where YouTube knows the country · 28 days" icon={Globe} />
           <div className="px-5 pb-5 space-y-2">
-            {(real?.audience?.countries || []).slice(0, 6).map((c) => {
-              const max = real.audience.countries[0]?.views || 1;
+            {countries.map((c) => {
+              const max = countries[0]?.views || 1;
               return (
                 <div key={c.key}>
                   <div className="flex justify-between t-12 mb-0.5">
@@ -474,7 +507,7 @@ export default function Analytics() {
                 </div>
               );
             })}
-            {!(real?.audience?.countries || []).length ? (
+            {!countries.length ? (
               <p className="t-12 text-faint py-4 text-center">{realErr ? 'Unavailable right now.' : !real ? 'Loading…' : 'No audience data yet.'}</p>
             ) : null}
           </div>
@@ -567,8 +600,17 @@ export default function Analytics() {
 
         {/* reports */}
         <Card>
-          <CardHead title="Reports" sub="Daily Excel reports from the reporting pipeline" icon={FileSpreadsheet} />
+          {/* T2-22 (wave C2): the real date, and a plain line when reports stopped */}
+          <CardHead
+            title="Reports"
+            sub="Daily Excel reports from the reporting pipeline"
+            icon={FileSpreadsheet}
+            right={reportsNow?.stale ? <Chip tone="warn" dot>not current</Chip> : null}
+          />
           <div className="px-3 pb-3">
+            {reportsNow && !reportsErr ? (
+              <p className="t-11 px-2 pb-2" role="status" style={reportsNow.stale ? { color: 'var(--warn-ink)' } : undefined}>{reportsNow.line}</p>
+            ) : null}
             {reportsErr ? (
               <p className="t-12 text-faint py-6 text-center">Can&apos;t list reports right now.</p>
             ) : reports.length === 0 ? (
@@ -581,7 +623,7 @@ export default function Analytics() {
                   </span>
                   <span className="flex-1 min-w-0">
                     <span className="block t-12 font-medium text-ink truncate font-mono">{r.name}</span>
-                    <span className="block t-10 text-faint">{r.when}{r.size ? ` · ${Math.round(r.size / 1024)} KB` : ''}</span>
+                    <span className="block t-10 text-faint">{fmtDay(reportDay(r.name)) || '—'}{r.size ? ` · ${Math.round(r.size / 1024)} KB` : ''}</span>
                   </span>
                   <Chip>repo /reports</Chip>
                 </div>

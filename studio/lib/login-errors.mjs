@@ -19,3 +19,24 @@ export function loginErrorMessage(code) {
   if (typeof code !== 'string' || !Object.hasOwn(LOGIN_ERRORS, code)) return '';
   return LOGIN_ERRORS[code];
 }
+
+// Live fix wave C1 (T1-29, T1-30) — the password form's own words.
+// The login route counts wrong tries over the last 15 minutes
+// (lib/session-db.js recentFailures, default 15) and says "N tries left this
+// window"; "this window" meant nothing to a person, so the form rewrites it.
+export const LOGIN_WINDOW_MINUTES = 15;
+export const EMPTY_PASSWORD = 'Enter your password';
+
+export function wrongPasswordMessage(serverError) {
+  const text = typeof serverError === 'string' ? serverError.trim() : '';
+  if (!text) return 'Could not sign in.';
+  const m = text.match(/^Wrong password\.\s+(\d+) tries left this window\.$/);
+  if (!m) return text;
+  const n = Number(m[1]);
+  return `Wrong password. ${n} ${n === 1 ? 'try' : 'tries'} left. Try again in ${LOGIN_WINDOW_MINUTES} minutes if you run out.`;
+}
+
+// A password of only spaces is not a password: the button stays off.
+export function canSubmitPassword(password) {
+  return typeof password === 'string' && password.trim().length > 0;
+}

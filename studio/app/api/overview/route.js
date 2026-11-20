@@ -8,6 +8,7 @@ import { enforceLimits } from '@/lib/rate-limit.mjs';
 import { DAY_BASIS, productionDay, todayProduction, lastActivity, autopilotSummary, todayRunFor } from '@/lib/channel-activity.mjs';
 import { fetchAutopilotRunsToday } from '@/lib/autopilot-runs.mjs';
 import { overviewSchedule, overviewTotals } from '@/lib/overview-truth.mjs';
+import { overviewMusicFeels } from '@/lib/channel-overview.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -122,6 +123,8 @@ export async function GET(req) {
       slug, ...k,
       // wave A3 (T3-01): the registry kit wins over static brands.json, as in the engine
       ...overviewSchedule(k, regEntry),
+      // wave C3 (T3-07): the card's music mood, same precedence as the engine
+      musicFeels: overviewMusicFeels(k, regEntry),
       active: k.active,
       threadsHandle: dest?.threadsHandle || null,
         yt: ytRow ? (ytRow.error ? { error: ytRow.error } : { title: ytRow.ytTitle, handle: ytRow.ytCustomUrl, subs: ytRow.subs, views: ytRow.views, videos: ytRow.videos, error: null }) : null,
@@ -148,11 +151,12 @@ export async function GET(req) {
         slug: e.slug,
         short: (e.label || e.slug).slice(0, 2).toUpperCase(),
         label: e.label || e.slug,
-        niche: e.niche || 'wizard channel — finish setup',
+        niche: e.niche || '', // wave C3 (T3-22): the page says "Setup not finished" (never a fake niche)
         accent: e.accent || '#38BDF8',
         active: true,
         fromRegistry: true,
         ...overviewSchedule(null, e),
+        musicFeels: overviewMusicFeels(null, e),
         voice: e.voice || '',
         threadsHandle: e.destinations?.threadsHandle || null,
         yt: ytRow ? { title: ytRow.ytTitle, handle: ytRow.ytCustomUrl, subs: ytRow.subs, views: ytRow.views, videos: ytRow.videos, error: ytRow.error || null } : (Array.isArray(yt) ? { error: 're-connect once in Studio to show live stats' } : null), // wave A3: YouTube read down = unavailable (null), not "re-connect"
@@ -186,7 +190,7 @@ export async function GET(req) {
   // production filter above hides exactly those, and that is when the owner
   // needs a manual run. Unfiltered registry-derived list, still client-scoped.
   const controlChannels = (owned ? channels.filter((c) => owned.includes(c.slug)) : channels)
-    .map((c) => ({ slug: c.slug, label: c.label || c.slug, accent: c.accent }));
+    .map((c) => ({ slug: c.slug, label: c.label || c.slug, accent: c.accent, musicFeels: c.musicFeels || [] }));
 
   // wave A3 (T2-04 / P13): a source that didn't answer is null (shown "—"),
   // never 0; `degraded` names every live source that didn't fully answer

@@ -4,12 +4,14 @@
 // audit log + registry bindings + encrypted-keys presence).
 import { useEffect, useState } from 'react';
 import { Loader2, Users as UsersIcon, KeyRound, Tv, Activity, ShieldCheck, RefreshCw } from 'lucide-react';
-import { Card } from '@/components/ui';
+import { Card, PageHeader } from '@/components/ui';
 import Drawer from '@/components/Drawer';
+import { localTime } from '@/lib/session-view.mjs';
 
-const fmtDay = (s) => (s ? String(s).slice(0, 16).replace('T', ' ') : '—');
-
-export default function UsersPage() {
+// Live fix wave C4: on /users this is the page (an <h1>); inside Settings ›
+// Team it is a section (embedded) and re-reads whenever refreshKey changes,
+// so the Accounts count follows team adds/removes without a reload (T5-11).
+export default function UsersPage({ embedded = false, refreshKey = 0 } = {}) {
   const [data, setData] = useState(null);
   const [err, setErr] = useState('');
   const [open, setOpen] = useState(null); // email whose activity drawer is open
@@ -23,15 +25,19 @@ export default function UsersPage() {
         else { setErr(''); setData(d); }
       })
       .catch((e) => setErr(e.message));
-  }, [nonce]);
+  }, [nonce, refreshKey]);
   const openUser = data?.users?.find((u) => u.email === open) || null;
 
   return (
     <div>
-      <div className="mb-4">
-        <h2 className="font-display t-16 font-bold tracking-tight text-ink flex items-center gap-2"><UsersIcon size={18} /> Users</h2>
-        <p className="t-12 text-muted mt-0.5">Super admin view — every account, their channels, keys, sessions and last activity.</p>
-      </div>
+      {embedded ? (
+        <div className="mb-4">
+          <h2 className="font-display t-16 font-bold tracking-tight text-ink flex items-center gap-2"><UsersIcon size={18} /> Users</h2>
+          <p className="t-12 text-muted mt-0.5">Every account, their channels, keys, sessions and last activity.</p>
+        </div>
+      ) : (
+        <PageHeader icon={UsersIcon} title="Users" sub="Every account, their channels, keys, sessions and last activity." />
+      )}
 
       {err ? (
         <Card className="p-5 text-center">
@@ -53,8 +59,8 @@ export default function UsersPage() {
               <div className="text-[length:var(--text-xl)] font-bold mt-1 font-display text-ink tnum">{data.totalSessions}</div>
             </div>
             <div className="inset-tile p-4">
-              <div className="t-11 uppercase tracking-wide text-muted">Client channels bound</div>
-              <div className="text-[length:var(--text-xl)] font-bold mt-1 font-display text-ink tnum">{data.users.reduce((a, u) => a + u.channels.length, 0)}</div>
+              <div className="t-11 uppercase tracking-wide text-muted">Client channels</div>
+              <div className="text-[length:var(--text-xl)] font-bold mt-1 font-display text-ink tnum">{data.clientChannels ?? 0}</div>
             </div>
           </div>
 
@@ -79,25 +85,25 @@ export default function UsersPage() {
                     <div className="inset-tile p-2.5 flex items-start gap-2">
                       <Tv size={12} className="shrink-0 mt-0.5" style={{ color: 'var(--info)' }} />
                       <div className="t-12">
-                        <div className="text-faint t-10 uppercase tracking-wide">Channels bound</div>
+                        <div className="text-faint t-10 uppercase tracking-wide">Channels</div>
                         {u.channels.length
                           ? u.channels.map((c) => <div key={c.slug} className="text-muted">{c.label}</div>)
-                          : <span className="text-muted">{u.role === 'owner' ? 'all legacy channels (owner)' : 'none bound'}</span>}
+                          : <span className="text-muted">none</span>}
                       </div>
                     </div>
                     <div className="inset-tile p-2.5 flex items-start gap-2">
                       <KeyRound size={12} className="shrink-0 mt-0.5" style={{ color: 'var(--info)' }} />
                       <div className="t-12">
                         <div className="text-faint t-10 uppercase tracking-wide">API keys</div>
-                        {u.keysFiles.length
-                          ? u.keysFiles.map((s) => <div key={s} className="text-muted">{s}: keys configured</div>)
+                        {u.keys?.length
+                          ? u.keys.map((k) => <div key={k.slug} className="text-muted">{k.label}: {k.providers.join(', ')}</div>)
                           : <span className="text-muted">none saved (shared keys in use)</span>}
                       </div>
                     </div>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 mt-2.5">
-                    <span className="t-11 text-muted flex items-center gap-1 min-w-0"><Activity size={11} /> Last action: {u.lastAction ? `${fmtDay(u.lastAction.at)} · ${u.lastAction.action}` : 'none recorded'}</span>
+                    <span className="t-11 text-muted flex items-center gap-1 min-w-0"><Activity size={11} /> Last action: {u.lastAction ? `${localTime(u.lastAction.at)} · ${u.lastAction.action}` : 'none recorded'}</span>
                     <button onClick={() => setOpen(u.email)} className="btn btn-outline btn-sm ml-auto">
                       Recent activity
                     </button>
@@ -129,7 +135,7 @@ export default function UsersPage() {
           <ul className="space-y-1.5">
             {openUser.recentActivity.map((a, i) => (
               <li key={i} className="inset-tile px-3 py-2 t-12 text-muted">
-                <span className="text-faint tnum">{fmtDay(a.at)}</span> · <span className="text-ink font-medium">{a.action}</span>{a.detail ? ` — ${a.detail}` : ''}
+                <span className="text-faint tnum">{localTime(a.at)}</span> · <span className="text-ink font-medium">{a.action}</span>{a.detail ? ` — ${a.detail}` : ''}
               </li>
             ))}
           </ul>

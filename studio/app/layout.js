@@ -15,8 +15,11 @@ const jetbrainsMono = JetBrains_Mono({ variable: "--font-jetbrains-mono", subset
 // Pocket mode: viewportFit cover makes env(safe-area-inset-bottom) real on iOS.
 export const viewport = { width: 'device-width', initialScale: 1, viewportFit: 'cover' };
 
+// Live fix wave C1 (T1-25): the plain default. Each page's own tab title
+// ("Channels · Quarry Studio") is set by the shell from its breadcrumb
+// (components/shell/AppShell.js); the login page names itself.
 export const metadata = {
-  title: "Quarry Studio — Command Center",
+  title: "Quarry Studio",
   description: "Multi-platform content control room — live channels, production pipeline & analytics",
 };
 

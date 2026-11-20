@@ -149,9 +149,37 @@ export function statusAt(at, now = Date.now()) {
   return t > now ? 'scheduled' : 'published';
 }
 
+// Live fix wave C2 (T2-11): why a row has no YouTube link, in plain words.
+//   not-saved — a Short the engine uploaded but recorded by title only
+//               (titleHistory is written AFTER a successful upload, without
+//               the videoId; only the latest upload keeps its id)
+//   scheduled — uploaded and set to go public later
+//   none      — no link and no known reason
+export const LINK_NOTE = Object.freeze({
+  'not-saved': 'Link not saved',
+  scheduled: 'Scheduled',
+  none: 'No link',
+});
+
+export function linkNoteFor(r, status) {
+  if (status === 'scheduled') return 'scheduled';
+  if (r.videoId) return null;
+  return r.source === 'title-history' ? 'not-saved' : 'none';
+}
+
+// a YouTube search for the exact title — the only way back to an upload whose
+// id wasn't saved (no API quota spent)
+export function findUrl(title) {
+  const t = String(title || '').trim();
+  return t ? `https://www.youtube.com/results?search_query=${encodeURIComponent(`"${t}"`)}` : null;
+}
+
 export function toItem(r, now = Date.now()) {
   const status = statusAt(r.at, now);
+  const linkNote = linkNoteFor(r, status);
   return {
+    linkNote,
+    findUrl: linkNote === 'not-saved' ? findUrl(r.title) : null,
     id: r.videoId || `${r.slug}|${normTitle(r.title)}|${r.at || ''}`,
     slug: r.slug,
     title: r.title || '',
@@ -214,6 +242,48 @@ export function paginate(items, { limit, offset } = {}) {
   const l = clampLimit(limit);
   const o = clampOffset(offset);
   return { items: items.slice(o, o + l), total: items.length, limit: l, offset: o };
+}
+
+// ---- 5. page wording + URL filters (live fix wave C2) ----------------------------
+
+// T2-17: say what renders. Grid/phone list: "Showing 24 of 86"; the desktop
+// table pages itself: "86 videos · 25 per page".
+export function countLine({ shown = 0, matched = 0, recorded = 0, perPage = 0 } = {}) {
+  const filtered = recorded > matched ? ` (filtered from ${recorded})` : '';
+  if (perPage) {
+    const noun = `${matched} video${matched === 1 ? '' : 's'}`;
+    return matched > perPage ? `${noun} · ${perPage} per page${filtered}` : `${noun}${filtered}`;
+  }
+  return `Showing ${Math.min(shown, matched)} of ${matched}${filtered}`;
+}
+
+// T2-24: the filters live in the URL so Back/Forward restore them.
+const FILTER_DEFAULTS = Object.freeze({ channel: 'all', kind: 'all', status: 'all', view: 'table' });
+const FILTER_ALLOWED = Object.freeze({
+  kind: ['all', 'short', 'long', 'other'],
+  status: ['all', 'published', 'scheduled'],
+  view: ['table', 'grid'],
+});
+
+export function libraryFilters(sp) {
+  const get = (k) => (sp && typeof sp.get === 'function' ? sp.get(k) : null) || '';
+  const out = { channel: get('channel') || FILTER_DEFAULTS.channel };
+  for (const k of ['kind', 'status', 'view']) {
+    const v = get(k);
+    out[k] = FILTER_ALLOWED[k].includes(v) ? v : FILTER_DEFAULTS[k];
+  }
+  return out;
+}
+
+// current query string + a patch → the next href; defaults drop out of the URL
+export function libraryHref(pathname, search, patch = {}) {
+  const sp = new URLSearchParams(search || '');
+  for (const [k, v] of Object.entries(patch)) {
+    if (v == null || v === '' || v === FILTER_DEFAULTS[k]) sp.delete(k);
+    else sp.set(k, v);
+  }
+  const s = sp.toString();
+  return s ? `${pathname}?${s}` : pathname;
 }
 
 export function countLibrary(items) {

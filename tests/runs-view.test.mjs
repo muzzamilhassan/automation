@@ -231,8 +231,10 @@ test('route: same token/repo as the dispatch route, 60s cache', () => {
 });
 
 test('route: GitHub failure answers 502 ok:false — never an empty all-good list', () => {
-  assert.match(ROUTE, /if \(!res\.ok\) throw new Error/);
-  assert.match(ROUTE, /catch \(e\) \{\s*return Response\.json\(\{ ok: false, error:[\s\S]{0,120}\{ status: 502 \}\)/);
+  // wave C2 (T2-16): a failure throws a plain-English reason (githubFailText)
+  assert.match(ROUTE, /if \(!res\.ok\) \{\s*const e = new Error\(githubFailText\(res\.status\)\)/);
+  // with no earlier good answer it is still 502 ok:false; a kept copy is served marked stale
+  assert.match(ROUTE, /catch \(e\) \{[\s\S]{0,300}if \(lastGood\) return Response\.json\(\{ \.\.\.lastGood, stale: true[\s\S]{0,120}return Response\.json\(\{ ok: false, error: reason \}, \{ status: 502 \}\)/);
   assert.match(ROUTE, /if \(!TOKEN\) \{\s*return Response\.json\(\{ ok: false[^}]*\}, \{ status: 502 \}\)/);
   // an unreadable body is a failure too, not []
   assert.match(ROUTE, /if \(!runs\) throw new Error/);
@@ -243,7 +245,8 @@ test('route: GitHub failure answers 502 ok:false — never an empty all-good lis
 const PAGE = read('studio/app/runs/page.js');
 
 test('page: error card with Retry, empty state, loading skeleton', () => {
-  assert.match(PAGE, /Can&apos;t load run history — GitHub didn&apos;t answer\./);
+  // wave C2 (T2-16): no "didn't answer" for a reply that came back 403
+  assert.match(PAGE, /Can&apos;t load run history right now\./);
   assert.match(PAGE, /onClick=\{refresh\}[^>]*>[\s\S]{0,200}Retry/);
   assert.match(PAGE, /<EmptyState icon=\{History\} title="No runs yet"/);
   assert.match(PAGE, /<Skeleton /);
@@ -251,7 +254,7 @@ test('page: error card with Retry, empty state, loading skeleton', () => {
 });
 
 test('page: a failed refresh keeps old data but says it is stale', () => {
-  assert.match(PAGE, /Couldn't refresh — showing runs checked/);
+  assert.match(PAGE, /Couldn't refresh — showing runs from/);
 });
 
 test('page: design kit only — t-NN scale, no arbitrary px text, no hex text colors', () => {

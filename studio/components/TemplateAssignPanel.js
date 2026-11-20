@@ -574,7 +574,9 @@ export default function TemplateAssignPanel({ slug, frame }) {
         </button>
       ) : null}
       <Button color="primary" onClick={assign} isDisabled={!templateId || pinnedMajor === '' || assigning || asg.status !== 'ready'}>
-        {assigning ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Assign &amp; pin
+        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+          {assigning ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Assign &amp; pin
+        </span>
       </Button>
     </>
   ) : null;

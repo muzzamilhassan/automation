@@ -73,22 +73,48 @@ export async function createJob({ topic, dna, brand, subline, voice, beatCount, 
   return { id, brief };
 }
 
+// Live fix wave C4 (T5-06): a GitHub error is said out loud, never a silent [].
+export const JOBS_UNREACHABLE = "Couldn't check rendered videos right now";
+
+// Reads hf-out/ through the GitHub contents API (fetchImpl injectable for tests).
+// A real job folder has its OWN status.json (createJob writes it first), so a
+// folder whose status.json is 404 — like the nested hf-out/tech/ — is not a
+// job and is skipped. Any other failure reading one job's status keeps the
+// job as state 'unknown' (the page shows "Status unknown", never a spinner).
+export async function readJobs({ fetchImpl = fetch, repo = GITHUB_REPO, headers = GH_HEADERS, max = 24 } = {}) {
+  const base = `https://api.github.com/repos/${repo}/contents/hf-out`;
+  let res;
+  try {
+    res = await fetchImpl(`${base}?ref=main`, { headers });
+  } catch (e) {
+    throw new Error(`${JOBS_UNREACHABLE} (${String(e?.message || e).slice(0, 80)})`);
+  }
+  if (res.status === 404) return []; // no render has ever run — honestly empty
+  if (!res.ok) throw new Error(`${JOBS_UNREACHABLE} (GitHub ${res.status})`);
+  const list = await res.json().catch(() => null);
+  if (!Array.isArray(list)) throw new Error(`${JOBS_UNREACHABLE} (unexpected GitHub reply)`);
+  const dirs = list.filter((e) => e && e.type === 'dir').slice(0, max);
+  const jobs = await Promise.all(dirs.map(async (d) => {
+    const unknown = { id: d.name, state: 'unknown', videoUrl: null };
+    try {
+      const r = await fetchImpl(`${base}/${d.name}/status.json?ref=main`, { headers: { ...headers, Accept: 'application/vnd.github.raw' } });
+      if (r.status === 404) return null; // not a job folder
+      if (!r.ok) return unknown;
+      const s = await r.json();
+      if (!s || typeof s !== 'object') return unknown;
+      return { ...s, id: s.id || d.name, videoUrl: s.state === 'done' ? `https://raw.githubusercontent.com/${repo}/main/hf-out/${d.name}/video.mp4` : null };
+    } catch { return unknown; }
+  }));
+  return jobs
+    .filter(Boolean)
+    .sort((a, b) => String(b.createdAt || b.finishedAt || '').localeCompare(String(a.createdAt || a.finishedAt || '')));
+}
+
 const cache = { at: 0, val: null };
 export async function listJobs(max = 24) {
   if (cache.val && Date.now() - cache.at < 30_000) return cache.val;
   if (!ghReady()) return [];
-  const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/hf-out?ref=main`, { headers: GH_HEADERS });
-  if (!res.ok) { cache.at = Date.now(); cache.val = []; return []; }
-  const dirs = (await res.json()).filter((e) => e.type === 'dir').slice(0, max);
-  const jobs = await Promise.all(dirs.map(async (d) => {
-    try {
-      const r = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/hf-out/${d.name}/status.json?ref=main`, { headers: { ...GH_HEADERS, Accept: 'application/vnd.github.raw' } });
-      if (!r.ok) return { id: d.name, state: 'unknown' };
-      const s = await r.json();
-      return { ...s, videoUrl: s.state === 'done' ? `https://raw.githubusercontent.com/${GITHUB_REPO}/main/hf-out/${d.name}/video.mp4` : null };
-    } catch { return { id: d.name, state: 'unknown' }; }
-  }));
-  const val = jobs.sort((a, b) => String(b.createdAt || b.finishedAt || '').localeCompare(String(a.createdAt || a.finishedAt || '')));
+  const val = await readJobs({ max }); // throws on a GitHub error — never cached
   cache.at = Date.now(); cache.val = val;
   return val;
 }

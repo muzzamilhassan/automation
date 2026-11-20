@@ -13,7 +13,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, BrandMark, EmptyState, PageSkeleton } from '@/components/ui';
-import { MUSIC_MOODS } from '@/lib/site-data';
+import { moodText } from '@/lib/channel-overview.mjs'; // wave C3 (T3-07): live kit mood, no static map
 import { useBrands } from '@/components/use-brands'; // #125: live brand marks
 import MUSIC_URLS from '@/lib/music-urls.json';
 import { cn } from '@/lib/utils';
@@ -42,7 +42,7 @@ export default function MusicPage() {
       if (!d) { setLoadErr("Can't load your channels right now."); return; }
       // Round 1 (#106): controlChannels (unfiltered by the production filter)
       // keeps a channel's tab when its live YouTube read errors.
-      const list = (d?.controlChannels || d?.channels || []).map((c) => ({ slug: c.slug, label: c.label || c.slug, accent: c.accent }));
+      const list = (d?.controlChannels || d?.channels || []).map((c) => ({ slug: c.slug, label: c.label || c.slug, accent: c.accent, musicFeels: c.musicFeels }));
       setLoadErr('');
       setChans(list);
       // first channel that actually has a pool, else the first channel
@@ -94,7 +94,8 @@ export default function MusicPage() {
     );
   }
   if (!chans) return <PageSkeleton />;
-  const moods = MUSIC_MOODS[slug] || null;
+  const moodLine = moodText(chans.find((c) => c.slug === slug)?.musicFeels);
+  const moods = moodLine ? moodLine.split(' · ') : null;
 
   return (
     <div>

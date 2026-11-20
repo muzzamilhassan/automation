@@ -35,7 +35,7 @@ export default function TemplateDetailPage() {
   const [msg, setMsg] = useState(null);         // { ok, text }
 
   const fetchView = useCallback(() => {
-    if (template === null) return;
+    if (template === null || template === '') return;
     fetch(`/api/templates?template=${encodeURIComponent(template || '')}`)
       .then(async (r) => {
         const d = await r.json();
@@ -85,6 +85,21 @@ export default function TemplateDetailPage() {
   const invalidEntry = useMemo(() => (data?.invalid || []).find((x) => x.familyId === template) || null, [data, template]);
   const usage = data?.usage || [];
   const isOwner = data?.role === 'owner';
+
+  // Live fix wave C4 (T5-17): no ?template= → ask for a pick, never `"" has no registry metadata`
+  if (template === '') {
+    return (
+      <div>
+        <PageHeader icon={Layers} title="Template detail" sub="No template chosen." />
+        <Card className="p-5">
+          <EmptyState icon={Layers} title="Pick a template from the registry" sub="Open any template in the registry to see its details here." />
+          <Link href="/templates/registry" className="inline-flex items-center gap-1 t-12 text-muted hover:text-ink mt-4">
+            <ArrowLeft size={13} /> Back to the registry
+          </Link>
+        </Card>
+      </div>
+    );
+  }
 
   if (template === null || (!data && !loadErr)) return <PageSkeleton />;
 

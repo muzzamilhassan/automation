@@ -17,16 +17,13 @@ import ChannelDrawers, { CHANNEL_DRAWERS } from '@/components/ChannelDrawers';
 import ChannelOverviewDrawer, { ProblemDot } from '@/components/ChannelOverviewDrawer';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { useOpenWarnings } from '@/components/use-open-warnings';
-import { MUSIC_MOODS } from '@/lib/site-data';
 import { useBrands } from '@/components/use-brands'; // #125: live brand marks
-import { validSlots, slotDate, editHref } from '@/lib/channel-health.mjs';
-import { channelHasRealProblem, todayStatus } from '@/lib/channel-overview.mjs';
+import { validSlots, editHref } from '@/lib/channel-health.mjs';
+import {
+  channelHasRealProblem, todayStatus, moodText, channelCounts, countsText, needsSetup, SETUP_TEXT, slotLocalText,
+} from '@/lib/channel-overview.mjs';
+import { channelDisplayName, channelInitials } from '@/lib/channel-display.mjs';
 import { fmt } from '@/lib/utils';
-
-function localTime(hhmm) {
-  const d = slotDate(hhmm, new Date());
-  return d ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
-}
 
 function Fact({ icon: Icon, label, children }) {
   return (
@@ -237,12 +234,14 @@ export default function Channels() {
 
   const active = data.channels.filter((c) => c.active);
   const parked = data.channels.filter((c) => !c.active);
+  const counts = channelCounts(data.channels); // wave C3 (T3-22): a paused channel is not "live"
   const now = new Date();
+  const offsetMin = -now.getTimezoneOffset();
   const overviewRow = drawer?.which === 'overview' ? active.find((c) => c.slug === drawer.slug) || null : null;
 
   return (
     <div>
-      {header(`${active.length} live channel${active.length === 1 ? '' : 's'}${parked.length ? ` · ${parked.length} parked` : ''} · every platform account in one place`)}
+      {header(`${countsText(counts)} · every platform account in one place`)}
 
       {flowMsg ? (
         <div role="status" aria-live="polite" className="t-12 mb-3" style={{ color: flowMsg.tone === 'bad' ? 'var(--bad-ink)' : 'var(--ok-ink)' }}>
@@ -260,12 +259,17 @@ export default function Channels() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
           {active.map((c) => {
-            const label = c.label || c.slug;
-            const moods = MUSIC_MOODS[c.slug] || [];
+            const label = channelDisplayName(c.label, c.slug);
+            const mood = moodText(c.musicFeels); // wave C3 (T3-07): the channel's own kit/brand data
             const hasProblem = channelHasRealProblem(openWarningRows, c.slug);
             const slots = validSlots(c.slots);
             const longSlot = validSlots([c.longSlot])[0] || null;
             const accounts = accountLines(c);
+            // wave C3 (T3-21): each next upload on the viewer's clock, naming the day when not today
+            const localTimes = [
+              ...slots.map((s) => slotLocalText(s, now, offsetMin)),
+              ...(longSlot && slotLocalText(longSlot, now, offsetMin, c.docDays) ? [`${slotLocalText(longSlot, now, offsetMin, c.docDays)} long`] : []),
+            ].filter(Boolean);
             const today = todayStatus(c, now); // wave A3: made today / run state (UTC day), never the frozen lastRun
             const openDrawer = (which) => () => setDrawer({ slug: c.slug, label, which });
             const items = [
@@ -284,12 +288,18 @@ export default function Channels() {
               >
                 {/* identity + state (no warning text — a real problem is one red dot → Inbox) */}
                 <div className="flex items-start gap-3 min-w-0">
-                  <BrandMark short={BRAND[c.slug]?.short || '•'} accent={c.accent || 'var(--accent)'} size={40} />
+                  <BrandMark short={channelInitials(c.label, c.slug) || BRAND[c.slug]?.short || '•'} accent={c.accent || 'var(--accent)'} size={40} />
                   <div className="min-w-0 flex-1">
                     <h2 className="font-display t-16 font-bold tracking-tight text-ink truncate" title={label}>
                       <button type="button" data-kit="title" className="hover:underline underline-offset-2 text-left max-w-full truncate" onClick={openDrawer('overview')}>{label}</button>
                     </h2>
-                    <p className="t-12 text-muted line-clamp-2 break-words" title={c.niche || undefined}>{c.niche || 'No niche set'}</p>
+                    {needsSetup(c) ? (
+                      <p className="t-12 text-faint">
+                        {SETUP_TEXT} · <Link href={editHref(c.slug)} className="underline underline-offset-2 hover:text-ink">Finish setup</Link>
+                      </p>
+                    ) : (
+                      <p className="t-12 text-muted line-clamp-2 break-words" title={c.niche || undefined}>{c.niche || 'No niche set'}</p>
+                    )}
                     <p className="t-11 mt-0.5 truncate" style={{ color: today.tone === 'bad' ? 'var(--bad-ink)' : today.tone === 'ok' ? 'var(--ok-ink)' : 'var(--muted)' }}>
                       Today (UTC): {today.text}
                     </p>
@@ -303,20 +313,22 @@ export default function Channels() {
                 {/* key facts */}
                 <dl className="grid grid-cols-1 @xs:grid-cols-2 gap-x-4 gap-y-3 mt-4">
                   <Fact icon={Mic} label="Voice">
-                    <span className="block font-mono truncate" title={c.voice || undefined}>{c.voice || 'Default voice'}</span>
+                    <span className="block font-mono break-words">{c.voice || 'Default voice'}</span>
                   </Fact>
                   <Fact icon={Music} label="Music mood">
-                    <span className="block truncate">{moods.length ? moods.join(' · ') : <span className="text-faint">Not set</span>}</span>
+                    <span className="block break-words">{mood || <span className="text-faint">Not set</span>}</span>
                   </Fact>
                   <Fact icon={Clock} label="Upload slots">
                     {slots.length || longSlot ? (
                       <>
-                        <span className="block tnum truncate">
+                        <span className="block tnum break-words">
                           {[...slots, ...(longSlot ? [`${longSlot} long`] : [])].join(' · ')} UTC
                         </span>
-                        <span className="block t-11 text-faint tnum truncate">
-                          {[...slots, ...(longSlot ? [longSlot] : [])].map(localTime).filter(Boolean).join(' · ')} your time
-                        </span>
+                        {localTimes.length ? (
+                          <span className="block t-11 text-faint tnum break-words">
+                            Your time: {localTimes.join(' · ')}
+                          </span>
+                        ) : null}
                       </>
                     ) : (
                       <span className="text-faint">No slot set</span>
@@ -327,7 +339,7 @@ export default function Channels() {
                       accounts.map((a) => (
                         <span
                           key={a.key}
-                          className={'block truncate tnum' + (a.tone === 'faint' ? ' text-faint' : '')}
+                          className={'block break-words tnum' + (a.tone === 'faint' ? ' text-faint' : '')}
                           title={a.title}
                         >
                           {a.text}
@@ -362,13 +374,13 @@ export default function Channels() {
               <button
                 key={c.slug}
                 type="button"
-                onClick={() => setDrawer({ slug: c.slug, label: c.label || c.slug, which: 'keys' })}
-                aria-label={`API keys for ${c.label || c.slug}`}
+                onClick={() => setDrawer({ slug: c.slug, label: channelDisplayName(c.label, c.slug), which: 'keys' })}
+                aria-label={`API keys for ${channelDisplayName(c.label, c.slug)}`}
                 className="inset-tile p-3 flex items-center gap-2.5 text-left hover:bg-surface-2 transition-colors min-w-0"
               >
-                <BrandMark short={BRAND[c.slug]?.short || '•'} accent={c.accent || 'var(--faint)'} size={28} />
+                <BrandMark short={channelInitials(c.label, c.slug) || BRAND[c.slug]?.short || '•'} accent={c.accent || 'var(--faint)'} size={28} />
                 <span className="min-w-0 flex-1">
-                  <span className="block t-12 font-semibold text-ink truncate">{c.label || c.slug}</span>
+                  <span className="block t-12 font-semibold text-ink truncate">{channelDisplayName(c.label, c.slug)}</span>
                   <span className="block t-11 text-faint truncate">{c.niche || '—'}</span>
                 </span>
                 <span className="t-11 text-muted flex items-center gap-1 shrink-0"><KeyRound size={12} aria-hidden /> Keys</span>

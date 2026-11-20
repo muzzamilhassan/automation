@@ -6,6 +6,8 @@ import { Pickaxe, Loader2, Lock } from 'lucide-react';
 // redirect) and ?error= shows only fixed messages for known codes (T1-14).
 import { safeNextPath } from '@/lib/safe-next.mjs';
 import { loginErrorMessage } from '@/lib/login-errors.mjs';
+// Live fix wave C1 (T1-29, T1-30): plain wrong-password copy + no blank submits.
+import { wrongPasswordMessage, canSubmitPassword, EMPTY_PASSWORD } from '@/lib/login-errors.mjs';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -24,8 +26,32 @@ export default function LoginPage() {
     return () => cancelAnimationFrame(id);
   }, []);
 
+  // Live fix wave C1 (T1-25): this page's own tab title (no app frame here).
+  useEffect(() => {
+    document.title = 'Sign in · Quarry Studio';
+  }, []);
+
+  // Live fix wave C1 (T1-20): already signed in on this device → no form;
+  // go straight to ?next= (through the one same-origin check) or Today.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    let alive = true;
+    fetch('/api/me', { cache: 'no-store' })
+      .then((r) => {
+        if (alive && r.ok) router.replace(safeNextPath(q.get('next')));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [router]);
+
   const submit = async (e) => {
     e.preventDefault();
+    if (!canSubmitPassword(password)) {
+      setError(EMPTY_PASSWORD);
+      return;
+    }
     setBusy(true);
     setError('');
     try {
@@ -39,7 +65,8 @@ export default function LoginPage() {
         router.replace(safeNextPath(next));
         router.refresh();
       } else {
-        setError(d.error || 'Could not sign in.');
+        setError(wrongPasswordMessage(d.error));
+        setPassword('');
       }
     } catch {
       setError('Network error — try again.');
@@ -114,6 +141,12 @@ export default function LoginPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !canSubmitPassword(password)) {
+                e.preventDefault();
+                setError(EMPTY_PASSWORD);
+              }
+            }}
             autoFocus
             placeholder="Your studio password"
             className="w-full h-11 pl-9 pr-3 rounded-xl border border-line bg-surface-2 t-14 text-ink placeholder:text-faint outline-none focus:border-line-strong"
@@ -122,7 +155,7 @@ export default function LoginPage() {
 
         {error ? <p className="t-12 mt-3 px-1" style={{ color: 'var(--bad)' }}>{error}</p> : null}
 
-        <button type="submit" disabled={busy || !password} className="btn btn-primary w-full mt-5 h-11">
+        <button type="submit" disabled={busy || !canSubmitPassword(password)} className="btn btn-primary w-full mt-5 h-11">
           {busy ? <Loader2 size={15} className="animate-spin" /> : null}
           {busy ? 'Checking…' : 'Open the studio'}
         </button>

@@ -14,7 +14,6 @@ import {
   ChevronsLeft,
   ChevronsRight,
   ChevronRight,
-  ExternalLink,
   AlertTriangle,
   Info,
   OctagonAlert,
@@ -34,7 +33,10 @@ import { useMe, initialsOf } from '@/components/use-me';
 // #126 (S-2): the bell's alert rows come from /api/warnings — the static
 // hand-written September alerts are deleted from site-data.
 import { cn } from '@/lib/utils';
-import { buildBreadcrumbs } from '@/lib/breadcrumbs.mjs';
+import { buildBreadcrumbs, notFoundCrumbs, phoneCrumbs, tabTitle } from '@/lib/breadcrumbs.mjs';
+// Live fix wave C1 (T1-28): one display rule for channel names + initials.
+import { channelDisplayName, displayChannel } from '@/lib/channel-display.mjs';
+import { usePageMissing, useHydrated } from './page-missing';
 import { isBarePath, signedOutLoginUrl } from '@/lib/safe-next.mjs';
 import { placePopover } from '@/lib/popover-place.mjs';
 import { shortcutLabel } from '@/lib/palette-rank.mjs';
@@ -198,7 +200,7 @@ function Notifications({ open, onClose, warnings }) {
         </div>
         {warnings.canSee ? (
           <Link href="/warnings" onClick={onClose} className="block px-4 py-2.5 border-t border-border-tertiary t-11 text-accent hover:underline">
-            open the warning triage →
+            See all alerts →
           </Link>
         ) : null}
     </>
@@ -270,18 +272,6 @@ function NavGroups({ collapsed, onNavigate, channels }) {
         </div>
       </div>
 
-      <div className={cn('mt-4 pt-3 border-t border-white/10', collapsed ? 'flex justify-center' : '')}>
-        <a
-          href="https://muzzamilhassan.github.io/quarrystudio/dashboard.html"
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-center gap-2 px-2 t-11 text-[#6b7671] hover:text-[#98a2a7] transition-colors"
-          title="TikTok dashboard"
-        >
-          <ExternalLink size={12} />
-          {!collapsed ? 'TikTok dashboard' : null}
-        </a>
-      </div>
     </nav>
   );
 }
@@ -331,6 +321,13 @@ function ShellFrame({ children }) {
   // the old hardcoded list; nothing renders until it loads. The same names
   // feed the breadcrumb (/channels/<slug> → the channel's display name).
   const { channels: liveChannels, bySlug } = useBrands();
+  // Live fix wave C1 (T1-28): ALL CAPS labels read in Title Case; initials
+  // from the significant words (MR, not TH). The stored label is unchanged.
+  const sideChannels = liveChannels.map(displayChannel);
+  // Live fix wave C1 (T1-15, T1-23): the 404 page marks itself; guessed
+  // crumbs wait for hydration (the static 404 is prerendered as /_not-found).
+  const pageMissing = usePageMissing();
+  const hydrated = useHydrated();
   const [userOpen, setUserOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const pathname = usePathname();
@@ -424,13 +421,19 @@ function ShellFrame({ children }) {
   };
 
   // Feedback round 1 (C): full, clickable trail on every page at every width.
-  const channelNames = Object.fromEntries(Object.entries(bySlug).map(([slug, c]) => [slug, c.label]));
-  const crumbs = buildBreadcrumbs(pathname, { items: ALL_NAV_ITEMS, menu: MENU_ITEMS, channelNames });
+  const channelNames = Object.fromEntries(Object.entries(bySlug).map(([slug, c]) => [slug, channelDisplayName(c.label, slug)]));
+  const crumbs = pageMissing ? notFoundCrumbs() : buildBreadcrumbs(pathname, { items: ALL_NAV_ITEMS, menu: MENU_ITEMS, channelNames });
+  const showCrumbs = hydrated || !crumbs.some((c) => c.guessed);
+  // Live fix wave C1 (T1-25): every page its own tab title, from its crumb.
+  const tabLabel = tabTitle(crumbs);
+  useEffect(() => {
+    document.title = tabLabel;
+  }, [tabLabel]);
 
   const sidebarInner = (collapsedState, isMobile = false) => (
     <>
       <Brand collapsed={collapsedState && !isMobile} />
-      <NavGroups collapsed={collapsedState && !isMobile} onNavigate={() => setMobileOpen(false)} channels={liveChannels} />
+      <NavGroups collapsed={collapsedState && !isMobile} onNavigate={() => setMobileOpen(false)} channels={sideChannels} />
       <div className={cn('qs-side-foot p-3 shrink-0', collapsedState && !isMobile ? 'flex flex-col items-center gap-2' : 'flex items-center justify-between')}>
 
         {!isMobile ? (
@@ -480,19 +483,22 @@ function ShellFrame({ children }) {
               <Menu size={16} />
             </button>
 
-            {/* One line at every width: earlier crumbs truncate, the current page keeps most of the room. */}
+            {/* One line at every width: earlier crumbs truncate, the current page keeps most of the room.
+                Phones (T1-27): a deep trail collapses to "… › parent › page". */}
             <nav aria-label="Breadcrumb" className="flex-1 min-w-0">
               <ol className="flex items-center min-w-0 overflow-hidden whitespace-nowrap t-13">
-                {crumbs.map((c, idx) => (
-                  <li key={`${idx}-${c.label}`} className={cn('flex items-center min-w-0', c.current && 'shrink-0 max-w-[65%] md:max-w-none md:shrink')}>
-                    {idx > 0 ? <ChevronRight size={13} aria-hidden="true" className="shrink-0 mx-1 text-faint" /> : null}
+                {showCrumbs ? phoneCrumbs(crumbs).map((c, idx) => (
+                  <li key={`${idx}-${c.label}`} className={cn('flex items-center min-w-0', c.current && 'shrink-0 max-w-[65%] md:max-w-none md:shrink', c.only === 'phone' && 'md:hidden', c.only === 'desk' && 'hidden md:flex')}>
+                    {c.sep ? <ChevronRight size={13} aria-hidden="true" className="shrink-0 mx-1 text-faint" /> : null}
                     {c.current ? (
                       <span aria-current="page" className="min-w-0 truncate font-semibold text-ink">{c.label}</span>
+                    ) : c.ellipsis ? (
+                      <Link href={c.href} title={c.title} aria-label={c.title} className="shrink-0 px-0.5 text-faint hover:text-ink transition-colors">…</Link>
                     ) : (
                       <Link href={c.href} className="min-w-0 max-w-[96px] md:max-w-[220px] truncate text-faint hover:text-ink transition-colors">{c.label}</Link>
                     )}
                   </li>
-                ))}
+                )) : null}
               </ol>
             </nav>
 
@@ -575,9 +581,9 @@ function ShellFrame({ children }) {
           <div key={pathname} className="fade-up">
             {children}
           </div>
-          <footer className="mt-14 pb-6 flex items-center justify-between t-11 text-fg-quaternary">
+          <footer className="mt-14 pb-6 flex items-center justify-between gap-3 t-11 text-fg-quaternary">
             <span>Quarry Studio · runs on GitHub Actions · nothing lives on this PC</span>
-            <span className="font-mono">v4.0 · Dreams UI</span>
+            <span className="font-mono shrink-0 whitespace-nowrap">v4.0 · Dreams UI</span>
           </footer>
         </main>
       </div>

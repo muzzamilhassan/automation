@@ -12,7 +12,12 @@ import apiFetch from '@/components/shell/api-fetch';
 import { useBrands } from '@/components/use-brands';
 import {
   todaySummary, filterRuns, runLabel, stateTone, STATE_WORD, stamp, durationText,
+  runScope, runOrigin, SCOPE_LABEL, parseSavedRuns,
 } from '@/lib/runs-view.mjs';
+
+// Live fix wave C2 (T2-16): the last good answer, kept for this browser tab so
+// a GitHub outage shows the last known runs instead of an error page.
+const SAVED_KEY = 'quarry:runs:last-good';
 
 const STATE_ICON = {
   ok: CircleCheck, failed: CircleX, running: Loader2, queued: Clock,
@@ -49,8 +54,11 @@ function LogLink({ url, children = 'View log' }) {
   );
 }
 
-function ChannelCell({ slug, brand }) {
-  if (!slug) return <span className="t-12 text-faint">Untagged</span>;
+// wave C2 (T2-23): a run with no single channel says what it is — a
+// heartbeat that checks every channel, or an all-channel batch run
+function ChannelCell({ run, brand }) {
+  const slug = run.channel;
+  if (!slug) return <span className="t-12 text-muted">{SCOPE_LABEL[runScope(run)]}</span>;
   return (
     <span className="inline-flex items-center gap-2 min-w-0">
       <BrandMark name={brand?.label || slug} accent={brand?.accent || 'var(--muted)'} short={brand?.short || slug.slice(0, 2).toUpperCase()} size={20} />
@@ -111,16 +119,34 @@ export default function RunsPage() {
         }
         if (r.status === 429) throw new Error(d.error || 'Too many refreshes — try again in a few minutes.');
         if (!r.ok || d.ok === false) throw new Error(d.error || `The server answered ${r.status}.`);
-        dataRef.current = d;
-        setData(d);
         setErr('');
         setDenied(false);
+        // the server kept an older good answer during a GitHub outage
+        if (d.stale) {
+          const mine = dataRef.current;
+          const shown = mine && String(mine.fetchedAt) > String(d.fetchedAt) ? mine : d;
+          dataRef.current = shown;
+          setData(shown);
+          setNotice(`Couldn't refresh — showing runs from ${stamp(shown.fetchedAt, timeZone)}. ${d.staleReason || ''}`.trim());
+          return;
+        }
+        dataRef.current = d;
+        setData(d);
         setNotice('');
+        try { window.sessionStorage.setItem(SAVED_KEY, JSON.stringify(d)); } catch { /* storage full or blocked: the live copy still shows */ }
       })
       .catch((e) => {
-        // keep the last good timeline on screen, but say it's stale
-        const prev = dataRef.current;
-        if (prev) setNotice(`Couldn't refresh — showing runs checked ${stamp(prev.fetchedAt, timeZone)}. ${e.message}`);
+        // keep the last good timeline on screen (this view, else this tab's
+        // saved copy), but say it's stale
+        let prev = dataRef.current;
+        if (!prev && !e.denied) {
+          try { prev = parseSavedRuns(window.sessionStorage.getItem(SAVED_KEY)); } catch { prev = null; }
+          if (prev) {
+            dataRef.current = prev;
+            setData(prev);
+          }
+        }
+        if (prev) setNotice(`Couldn't refresh — showing runs from ${stamp(prev.fetchedAt, timeZone)}. ${e.message}`);
         else {
           setDenied(Boolean(e.denied));
           setErr(e.message || 'network error');
@@ -157,7 +183,7 @@ export default function RunsPage() {
     for (const c of brandList) if (!slugs.includes(c.slug)) slugs.push(c.slug);
     for (const r of runs) if (r.channel && !slugs.includes(r.channel)) slugs.push(r.channel);
     const opts = [{ value: 'all', label: 'All channels' }, ...slugs.map((s) => ({ value: s, label: bySlug[s]?.label || s }))];
-    if (runs.some((r) => !r.channel)) opts.push({ value: 'untagged', label: 'Untagged' });
+    if (runs.some((r) => !r.channel)) opts.push({ value: 'untagged', label: 'All-channel runs' });
     return opts;
   }, [brandList, runs, bySlug]);
 
@@ -172,11 +198,11 @@ export default function RunsPage() {
       render: (r) => (
         <span className="flex flex-col min-w-0">
           <span className="t-12 text-ink truncate">{r.name || r.workflow}</span>
-          <span className="t-10 text-faint truncate">{r.workflow} · {r.event === 'schedule' ? 'scheduled' : r.event === 'workflow_dispatch' ? 'started by hand or clock' : r.event}</span>
+          <span className="t-10 text-faint truncate">{runOrigin(r)} · {r.workflow}</span>
         </span>
       ),
     },
-    { key: 'channel', label: 'Channel', render: (r) => <ChannelCell slug={r.channel} brand={bySlug[r.channel]} /> },
+    { key: 'channel', label: 'Channel', render: (r) => <ChannelCell run={r} brand={bySlug[r.channel]} /> },
     { key: 'createdAt', label: 'Started', render: (r) => <span className="t-12 text-muted tnum whitespace-nowrap" title={runLabel(r, { now, timeZone })}>{stamp(r.startedAt || r.createdAt, timeZone)}</span> },
     { key: 'durationSec', label: 'Duration', render: (r) => <span className="t-12 text-muted tnum font-mono">{durationText(r, now)}</span> },
     { key: 'url', label: 'Log', render: (r) => <LogLink url={r.url} /> },
@@ -203,7 +229,7 @@ export default function RunsPage() {
         </Card>
       ) : err && !data ? (
         <Card className="p-6 text-center">
-          <p className="t-14 font-semibold text-ink">Can&apos;t load run history — GitHub didn&apos;t answer.</p>
+          <p className="t-14 font-semibold text-ink">Can&apos;t load run history right now.</p>
           <p className="t-12 text-faint mt-1">{err} Your scheduled runs are unaffected; only this view is.</p>
           <button className="btn btn-outline mt-3" onClick={refresh} disabled={loading}>
             {loading ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <RotateCw size={13} aria-hidden />} Retry
@@ -218,7 +244,7 @@ export default function RunsPage() {
         </div>
       ) : (
         <>
-          {notice ? <p className="t-12 mb-3" style={{ color: 'var(--warn-ink)' }}>{notice}</p> : null}
+          {notice ? <p className="t-12 mb-3" role="status" style={{ color: 'var(--warn-ink)' }}>{notice}</p> : null}
 
           <Card className="mb-5">
             <CardHead
@@ -240,8 +266,8 @@ export default function RunsPage() {
               )}
               {summary.untaggedToday ? (
                 <p className="t-11 text-faint mt-3 text-pretty">
-                  {summary.untaggedToday} scheduled run{summary.untaggedToday === 1 ? '' : 's'} today aren&apos;t tagged with a channel yet, so a channel can read
-                  &ldquo;No channel-tagged run today&rdquo; even when the scheduler produced for it. Open the scheduler&apos;s log to check.
+                  {summary.untaggedToday} all-channel run{summary.untaggedToday === 1 ? '' : 's'} today (heartbeats and batch jobs). A channel can read
+                  &ldquo;No channel-tagged run today&rdquo; even when one of these made its video. Open that run&apos;s log to check.
                 </p>
               ) : null}
               {summary.partial ? (

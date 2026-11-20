@@ -45,12 +45,14 @@ test('R3: nested URLs get one crumb per level, with the short crumb label', () =
   assert.equal(labels('/channels/add'), 'Channels › Add channel');
 });
 
-test('R4: a channel page shows the live display name, else the prettified slug', () => {
+// Live fix wave C1 (T1-24): before the live names load, the crumb is the
+// neutral "Channel" — the prettified slug ("Quotequarry") flashed for ~3 s.
+test('R4: a channel page shows the live display name, else the neutral "Channel"', () => {
   assert.equal(labels('/channels/money-rulebook', { 'money-rulebook': 'Money Rulebook' }), 'Channels › Money Rulebook');
   assert.equal(labels('/channels/qq', { qq: 'QuoteQuarry' }), 'Channels › QuoteQuarry');
-  assert.equal(labels('/channels/money-rulebook'), 'Channels › Money Rulebook', 'names not loaded yet');
-  assert.equal(labels('/channels/money-rulebook', {}), 'Channels › Money Rulebook');
-  assert.equal(labels('/channels/the_old-money_code', null), 'Channels › The Old Money Code');
+  assert.equal(labels('/channels/money-rulebook'), 'Channels › Channel', 'names not loaded yet');
+  assert.equal(labels('/channels/money-rulebook', {}), 'Channels › Channel');
+  assert.equal(labels('/channels/the_old-money_code', null), 'Channels › Channel');
   // a real page wins over the names map (add is a page, not a channel)
   assert.equal(labels('/channels/add', { add: 'Some Channel' }), 'Channels › Add channel');
 });
@@ -75,7 +77,8 @@ test('edge cases: trailing slash, query, unknown paths, empty input', () => {
   assert.equal(labels('/nowhere'), 'Nowhere');
   assert.deepEqual(crumbs(''), []);
   assert.deepEqual(crumbs(null), []);
-  assert.deepEqual(buildBreadcrumbs('/users'), [{ label: 'Users', href: null, current: true }], 'no menu given → prettified URL only');
+  // live fix wave C1 (T1-15): a label prettified from the URL is flagged `guessed`
+  assert.deepEqual(buildBreadcrumbs('/users'), [{ label: 'Users', href: null, current: true, guessed: true }], 'no menu given → prettified URL only');
 });
 
 test('prettifySegment: dashes/underscores to spaces, words capitalised, URL-decoded, never throws', () => {
@@ -92,7 +95,7 @@ test('breadcrumbs.mjs is plain-node testable: no @/ imports, no imports at all',
 });
 
 test('R1: AppShell renders the breadcrumb at every width (no hidden md: gate), fed by buildBreadcrumbs + live names', () => {
-  assert.match(shell, /import \{ buildBreadcrumbs \} from '@\/lib\/breadcrumbs\.mjs';/);
+  assert.match(shell, /import \{ buildBreadcrumbs, notFoundCrumbs, phoneCrumbs, tabTitle \} from '@\/lib\/breadcrumbs\.mjs';/);
   assert.match(shell, /buildBreadcrumbs\(pathname, \{ items: ALL_NAV_ITEMS, menu: MENU_ITEMS, channelNames \}\)/);
   const nav = shell.match(/<nav aria-label="Breadcrumb" className="([^"]*)"/);
   assert.ok(nav, 'breadcrumb is a labelled <nav>');

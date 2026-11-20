@@ -25,6 +25,7 @@ import {
   Users as UsersIcon,
   MonitorSmartphone,
 } from 'lucide-react';
+import { menuSectionFor } from '../../lib/breadcrumbs.mjs';
 
 // Phase 2 (decision #3): the menu is named after the owner's jobs, not our
 // internal hubs. No menu item carries a count badge: owner rule (feedback
@@ -65,7 +66,7 @@ const SCREENS = [
   { href: '/review', label: 'Script approvals', icon: ClipboardCheck, group: 'Inbox', desc: 'Approve or reject scripts before they render', keywords: ['review queue'] },
   { href: '/topics', label: 'Topics', icon: ListChecks, group: 'Inbox', desc: 'Approve the topic backlog', keywords: ['topic desk'] },
   { href: '/templates/drafts', label: 'Template drafts', crumb: 'Drafts', icon: FileStack, group: 'Inbox', desc: 'New template drafts waiting for a yes or no', keywords: ['drafts inbox'] },
-  { href: '/warnings', label: 'Alerts', icon: TriangleAlert, group: 'Inbox', desc: 'Open warnings: what broke and what to do', keywords: ['warnings', 'triage'] },
+  { href: '/warnings', label: 'Alerts', icon: TriangleAlert, group: 'Inbox', desc: 'Every alert: what broke and what to do', keywords: ['warnings', 'triage'] },
   { href: '/channels/add', label: 'Add channel', icon: UserPlus, group: 'Channels', desc: 'Connect a new YouTube channel', keywords: ['wizard', 'new channel'] },
   { href: '/production', label: 'Run a pipeline', icon: Zap, group: 'Runs', desc: 'Start a channel run by hand', keywords: ['pipelines', 'production'] },
   { href: '/logs', label: 'Upload log', icon: ScrollText, group: 'Runs', desc: 'Every post the machine made, newest first', keywords: ['execution logs', 'posting'] },
@@ -77,7 +78,7 @@ const SCREENS = [
   { href: '/templates/registry', label: 'Template registry', crumb: 'Registry', icon: Layers, group: 'Create', desc: 'Versioned templates and which channels use them', keywords: ['registry'] },
   { href: '/styles', label: 'Video styles', icon: Palette, group: 'Create', desc: 'The style catalog channels pick from', keywords: ['style catalog'] },
   { href: '/providers', label: 'AI services', icon: PlugZap, group: 'Settings', desc: 'Your own AI keys and which provider runs what', keywords: ['providers', 'byok', 'keys'] },
-  { href: '/usage', label: 'Quota & costs', icon: Gauge, group: 'Settings', desc: 'YouTube quota and AI spend', keywords: ['usage', 'quota ledger'] },
+  { href: '/usage', label: 'AI usage', icon: Gauge, group: 'Settings', desc: 'AI calls, tokens and failures', keywords: ['usage', 'quota ledger'] },
   { href: '/users', label: 'Team', icon: UsersIcon, group: 'Settings', desc: 'Who can sign in and what they can do', keywords: ['users', 'user admin'] },
   { href: '/sessions', label: 'Sign-ins', icon: MonitorSmartphone, group: 'Settings', desc: 'Devices signed in to the panel', keywords: ['sessions'] },
 ];
@@ -103,12 +104,9 @@ export function navItemFor(pathname) {
   return best;
 }
 
-// The sidebar item that owns a path (its active state). A screen's `group`
-// is the label of the menu item it lives under, so this replaces the
-// hand-kept prefix lists in AppShell's isPathActive.
+// The sidebar item that owns a path (its active state). Live fix wave C1
+// (T1-12): the SAME rule the breadcrumb starts with (lib/breadcrumbs.mjs), so
+// /templates/drafts lights Create — the trail's "Create › Templates › Drafts".
 export function navSectionFor(pathname) {
-  const hit = navItemFor(pathname);
-  if (!hit) return null;
-  const top = NAV.flatMap((g) => g.items);
-  return top.find((i) => i.href === hit.href) || top.find((i) => i.label === hit.group) || null;
+  return menuSectionFor(pathname, { items: ALL_NAV_ITEMS, menu: MENU_ITEMS });
 }

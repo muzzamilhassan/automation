@@ -256,19 +256,40 @@ export function RetentionBars({ rows, goal }) {
 
 /* -------------------------------- MiniBars -------------------------------- */
 
-export function MiniBars({ data, color = 'var(--accent)', height = 56, labels }) {
+// Live fix wave C2 (T2-20): a y-axis (the real max at the top, 0 at the
+// bottom) and a value per bar — every bar is a list item a screen reader reads
+// ("11-17: 55 views"), with a small tooltip on hover. Used by Today + Analytics.
+export function MiniBars({ data, color = 'var(--accent)', height = 56, labels, unit = 'views', ariaLabel = 'Bar chart' }) {
   const max = Math.max(...data, 1);
+  const barArea = height - 14;
   return (
-    <div className="flex items-end gap-1.5" style={{ height }}>
-      {data.map((v, i) => (
-        <div key={i} className="flex-1 flex flex-col items-center gap-1 group" title={`${labels?.[i] ?? i}: ${v}`}>
-          <div
-            className="w-full rounded-t-md transition-[height,opacity] duration-500 ease-out group-hover:opacity-80"
-            style={{ height: `${Math.max(4, (v / max) * (height - 14))}px`, background: color, opacity: 0.32 + 0.68 * (v / max) }}
-          />
-          {labels ? <span className="t-10 text-faint font-mono whitespace-nowrap overflow-hidden max-w-full hidden sm:block">{labels[i]}</span> : null}
-        </div>
-      ))}
+    <div className="flex gap-2" style={{ height }}>
+      <div className="flex flex-col justify-between items-end shrink-0 t-10 text-faint font-mono tnum" style={{ height: barArea }} aria-hidden>
+        <span>{max.toLocaleString('en-US')}</span>
+        <span>0</span>
+      </div>
+      <ol className="flex-1 min-w-0 flex items-end gap-1.5 border-l border-line pl-1.5" style={{ height }} aria-label={ariaLabel}>
+        {data.map((v, i) => (
+          <li
+            key={i}
+            className="relative flex-1 flex flex-col items-center gap-1 group"
+            aria-label={`${labels?.[i] ?? i}: ${v.toLocaleString('en-US')} ${unit}`}
+          >
+            <span
+              role="tooltip"
+              className="pointer-events-none absolute left-1/2 -translate-x-1/2 z-10 whitespace-nowrap rounded-md border border-line bg-surface px-1.5 py-0.5 t-10 text-ink tnum shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ bottom: `${Math.min(Math.max(4, (v / max) * barArea) + 18, height - 20)}px` }}
+            >
+              {labels?.[i] ?? i}: {v.toLocaleString('en-US')}
+            </span>
+            <div
+              className="w-full rounded-t-md transition-[height,opacity] duration-500 ease-out group-hover:opacity-80"
+              style={{ height: `${Math.max(4, (v / max) * barArea)}px`, background: color, opacity: 0.32 + 0.68 * (v / max) }}
+            />
+            {labels ? <span className="t-10 text-faint font-mono whitespace-nowrap overflow-hidden max-w-full hidden sm:block" aria-hidden>{labels[i]}</span> : null}
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }

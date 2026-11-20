@@ -19,6 +19,7 @@ import UsersPage from '@/app/users/page';
 import SessionsAdminPage from '@/app/sessions/page';
 import Tasks from '@/app/tasks/page';
 import { cn } from '@/lib/utils';
+import { localTime, capList } from '@/lib/session-view.mjs';
 
 const SETTINGS_TABS = [
   { id: 'general', label: 'General & Appearance', icon: Settings },
@@ -94,12 +95,18 @@ function SettingsContent() {
   const [teamBusy, setTeamBusy] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [newRole, setNewRole] = useState('staff');
+  // Live fix wave C4 (T5-09/T5-11): optional name; bumping teamVersion makes
+  // the Users section below re-read its counts after any team change.
+  const [newName, setNewName] = useState('');
+  const [teamVersion, setTeamVersion] = useState(0);
   // 10-09 A1 — SECURITY (active sign-ins). null = loading · 'error' · sessions[]
   const [sessions, setSessions] = useState(null);
   // Live fix wave A1 (T5-03): the API's `current` = this browser's session row id
   const [currentSession, setCurrentSession] = useState(0);
   const [secBusy, setSecBusy] = useState(false);
   const [secErr, setSecErr] = useState('');
+  // Live fix wave C4 (T5-08): first 20 sign-ins, then "See all"
+  const [showAllSessions, setShowAllSessions] = useState(false);
   // #123 (OPS-12) — change panel password
   const [pwCurrent, setPwCurrent] = useState('');
   const [pwNew, setPwNew] = useState('');
@@ -192,12 +199,14 @@ function SettingsContent() {
       const r = await fetch('/api/team', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: newEmail, role: newRole }),
+        body: JSON.stringify({ email: newEmail, role: newRole, name: newName }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'Could not add');
       setTeam(d.users || team);
       setNewEmail('');
+      setNewName('');
+      setTeamVersion((v) => v + 1);
     } catch (e) {
       setTeamErr(e.message);
     }
@@ -219,11 +228,43 @@ function SettingsContent() {
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'Could not remove');
       setTeam(d.users || team);
+      setTeamVersion((v) => v + 1);
     } catch (e) {
       setTeamErr(e.message);
     }
     setTeamBusy(false);
   };
+
+  // T5-09: staff ↔ client, confirmed. The server refuses owner changes and
+  // never demotes the last owner.
+  const changeRole = async (email, role) => {
+    const ok = await confirm({
+      title: `Make ${email} ${role}?`,
+      body: role === 'client'
+        ? 'They will only see their own channels. They are signed out now and get the new role when they sign back in.'
+        : 'They get the dashboard and run buttons. They are signed out now and get the new role when they sign back in.',
+      confirmLabel: `Make ${role}`,
+    });
+    if (!ok) return;
+    setTeamBusy(true);
+    setTeamErr('');
+    try {
+      const r = await fetch('/api/team', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, role }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Could not change the role');
+      setTeam(d.users || team);
+      setTeamVersion((v) => v + 1);
+    } catch (e) {
+      setTeamErr(e.message);
+    }
+    setTeamBusy(false);
+  };
+
+  const signins = capList(sessions, showAllSessions);
 
   return (
     <div className="space-y-6">
@@ -279,7 +320,7 @@ function SettingsContent() {
               <p className="t-11 text-muted leading-relaxed">Which providers have a key, what each one costs, and the per-task routing — all live.</p>
               <div className="flex flex-wrap gap-2 mt-3">
                 <Link href="/providers" className="btn btn-outline btn-sm">Providers</Link>
-                <Link href="/usage" className="btn btn-outline btn-sm">Usage &amp; cost</Link>
+                <Link href="/usage" className="btn btn-outline btn-sm">AI usage</Link>
               </div>
             </Card>
 
@@ -327,7 +368,20 @@ function SettingsContent() {
                         <span className="block t-12 font-semibold text-ink truncate">{u.name || u.email}</span>
                         <span className="block t-10 text-faint truncate">{u.email}</span>
                       </span>
-                      <Chip tone={u.role === 'owner' ? 'ok' : 'accent'}>{u.role}</Chip>
+                      {u.role === 'owner' ? (
+                        <Chip tone="ok">owner</Chip>
+                      ) : (
+                        <select
+                          className="input w-auto"
+                          aria-label={`Role for ${u.email}`}
+                          value={u.role}
+                          disabled={teamBusy}
+                          onChange={(e) => changeRole(u.email, e.target.value)}
+                        >
+                          <option value="staff">staff</option>
+                          <option value="client">client</option>
+                        </select>
+                      )}
                       {u.role !== 'owner' ? (
                         <button className="icon-btn shrink-0" title="Remove from team" aria-label={`Remove ${u.email} from the team`} disabled={teamBusy} onClick={() => removeMember(u.email)}>
                           <Trash2 size={14} />
@@ -346,6 +400,16 @@ function SettingsContent() {
                     value={newEmail}
                     onChange={(e) => setNewEmail(e.target.value)}
                   />
+                  <label className="sr-only" htmlFor="team-name">Name (optional)</label>
+                  <input
+                    id="team-name"
+                    type="text"
+                    className="input flex-1 min-w-[160px]"
+                    placeholder="Name (optional)"
+                    maxLength={60}
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                  />
                   <label className="sr-only" htmlFor="team-role">Role</label>
                   <select id="team-role" className="input w-auto" value={newRole} onChange={(e) => setNewRole(e.target.value)}>
                     <option value="staff">staff</option>
@@ -357,12 +421,12 @@ function SettingsContent() {
                 </form>
                 {teamErr ? <p className="t-11 mt-2" role="alert" style={{ color: 'var(--bad-ink)' }}>{teamErr}</p> : null}
                 <p className="t-11 text-faint mt-3">
-                  New members sign in with Google on the login page — their email must match exactly. Owners are added by editing the invite file in the repo.
+                  New members sign in with Google on the login page — their email must match exactly. Ask Claude to add another owner.
                 </p>
               </>
             )}
           </Card>
-          <UsersPage />
+          <UsersPage embedded refreshKey={teamVersion} />
         </div>
       )}
 
@@ -430,21 +494,26 @@ function SettingsContent() {
               <p className="t-12" role="alert" style={{ color: 'var(--bad-ink)' }}>Can&apos;t load your sign-ins right now — reload to try again.</p>
             ) : (
               <div className="space-y-1.5">
-                {sessions.map((s) => (
+                {signins.shown.map((s) => (
                   <div key={s.id} className="flex items-center gap-3 inset-tile px-3 py-2.5 min-w-0">
                     <MonitorSmartphone size={14} className="text-faint shrink-0" />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2 min-w-0">
-                        <span className="block t-12 font-medium text-ink truncate">{s.device || 'Unknown device'}</span>
+                        <span className="block t-12 font-medium text-ink truncate" title={s.agent || undefined}>{s.device || 'Unknown device'}</span>
                         {s.id === currentSession ? <Chip tone="accent" dot>this device</Chip> : null}
                       </span>
                       <span className="block t-10 text-faint">
-                        signed in {s.created ? new Date(s.created).toLocaleDateString() : '—'} · last used {s.lastUsed ? new Date(s.lastUsed).toLocaleString() : '—'}
+                        signed in {localTime(s.created)} · last used {localTime(s.lastUsed)}
                         {s.ip ? ` · ${s.ip}` : ''}
                       </span>
                     </span>
                   </div>
                 ))}
+                {signins.note ? (
+                  <p className="t-12 text-muted pt-1">
+                    {signins.note} — <button type="button" className="btn btn-outline btn-sm" onClick={() => setShowAllSessions(true)}>See all</button>
+                  </p>
+                ) : null}
                 {!sessions.length ? (
                   <p className="t-12 text-faint py-2">No active sessions found for your account yet — sign out and back in once to register this device.</p>
                 ) : null}

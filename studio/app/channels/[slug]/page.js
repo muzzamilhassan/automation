@@ -18,22 +18,22 @@ import ChannelDrawers, { CHANNEL_DRAWERS, drawersFor } from '@/components/Channe
 import { ChannelStatus } from '@/components/ChannelOverviewDrawer';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { useOpenWarnings } from '@/components/use-open-warnings';
+import { PageMissingMark } from '@/components/shell/page-missing';
 import { fmt, when } from '@/lib/utils';
 import {
-  resolveChannelView, validSlots, slotDate, channelUploads, realUploads, editHref,
+  resolveChannelView, validSlots, realUploads, editHref,
 } from '@/lib/channel-health.mjs';
-import { channelHasRealProblem } from '@/lib/channel-overview.mjs';
+import {
+  channelHasRealProblem, recentUploads, slotLocalText, needsSetup, SETUP_TEXT,
+} from '@/lib/channel-overview.mjs';
+import { channelDisplayName, channelInitials } from '@/lib/channel-display.mjs';
+import { KIND_LABEL } from '@/lib/library-view.mjs';
 
 const YT_ID = /^[A-Za-z0-9_-]{11}$/;
 
 function safeDecode(v) {
   if (typeof v !== 'string') return '';
   try { return decodeURIComponent(v); } catch { return v; }
-}
-
-function localTime(hhmm) {
-  const d = slotDate(hhmm, new Date());
-  return d ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
 }
 
 function Shortcut({ href, icon: Icon, title, sub }) {
@@ -58,6 +58,56 @@ function DrawerShortcut({ icon: Icon, title, sub, onClick }) {
         <span className="block t-11 text-faint truncate">{sub}</span>
       </span>
     </button>
+  );
+}
+
+// Wave C3 (T3-10): this channel's OWN upload records (/api/library, the same
+// source as the Library page) — never the 20-row global log, which skipped
+// months and showed duplicate pairs. One row per title + day (the published
+// one), newest 10. Dates are on the viewer's clock.
+function RecentUploads({ slug }) {
+  const [state, setState] = useState({ phase: 'loading', rows: [], note: '' });
+  useEffect(() => {
+    let live = true;
+    fetch(`/api/library?slug=${encodeURIComponent(slug)}&limit=60`)
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+        if (!live) return;
+        const rows = recentUploads(d.items, 10);
+        setState({ phase: 'done', rows, note: d.complete === false ? "Some upload records couldn't be read right now — this list may be missing some." : '' });
+      })
+      .catch(() => { if (live) setState({ phase: 'done', rows: [], note: "Couldn't load this channel's uploads right now." }); });
+    return () => { live = false; };
+  }, [slug]);
+
+  if (state.phase === 'loading') return <p className="t-12 text-muted">Loading uploads…</p>;
+  return (
+    <div className="space-y-2">
+      {state.note ? <p className="t-12 text-muted">{state.note}</p> : null}
+      {state.rows.length ? (
+        <ul className="divide-y divide-[var(--line)]">
+          {state.rows.map((u) => (
+            <li key={`${u.id || u.videoId || u.title}-${u.at}`} className="py-2 flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
+              <Chip tone={u.status === 'scheduled' ? 'info' : u.status === 'published' ? 'ok' : 'plain'}>
+                {u.status === 'scheduled' ? 'Scheduled' : u.status === 'published' ? 'Published' : 'Unknown'}
+              </Chip>
+              <span className="t-11 text-faint shrink-0">{KIND_LABEL[u.kind] || 'Video'}</span>
+              {u.videoId && YT_ID.test(u.videoId) ? (
+                <a href={`https://www.youtube.com/watch?v=${u.videoId}`} target="_blank" rel="noreferrer" className="t-13 text-ink break-words min-w-0 flex-1 hover:underline">
+                  {u.title} <ExternalLink size={11} className="inline text-faint" aria-hidden />
+                </a>
+              ) : (
+                <span className="t-13 text-ink break-words min-w-0 flex-1">{u.title}</span>
+              )}
+              <span className="t-11 text-faint tnum shrink-0">{u.at ? when(u.at) : '—'}</span>
+            </li>
+          ))}
+        </ul>
+      ) : !state.note ? (
+        <p className="t-12 text-muted">No uploads recorded for this channel yet.</p>
+      ) : null}
+    </div>
   );
 }
 
@@ -202,10 +252,16 @@ export default function ChannelPage() {
     );
   }
   if (view.kind === 'not-found' || view.kind === 'invalid') {
+    // T1-24: a clean, friendly not-found; the mark makes the shell's crumb say "Page not found"
     return (
       <Card className="p-5">
-        <EmptyState icon={SearchX} title="Channel not found" sub={`There's no channel called "${slug || '(blank)'}" in this studio. It may have been removed or renamed.`} />
-        <div className="flex justify-center">{back}</div>
+        <PageMissingMark />
+        <EmptyState icon={SearchX} title="Channel not found" sub="This channel doesn't exist. It may have been removed or renamed." />
+        <div className="flex justify-center">
+          <Link href="/channels" className="btn btn-primary btn-sm">
+            <ArrowLeft size={14} aria-hidden /> Back to Channels
+          </Link>
+        </div>
       </Card>
     );
   }
@@ -215,9 +271,9 @@ export default function ChannelPage() {
         <div className="mb-4">{back}</div>
         <Card className="p-5">
           <div className="flex items-center gap-3 min-w-0 mb-2">
-            <BrandMark short={bySlug[slug]?.short || '•'} accent={view.row.accent || 'var(--faint)'} size={40} />
-            <h1 className="font-display t-16 font-bold text-ink truncate">{view.row.label || slug}</h1>
-            <Chip tone="plain">PARKED</Chip>
+            <BrandMark short={channelInitials(view.row.label, slug) || bySlug[slug]?.short || '•'} accent={view.row.accent || 'var(--faint)'} size={40} />
+            <h1 className="font-display t-16 font-bold text-ink truncate">{channelDisplayName(view.row.label, slug)}</h1>
+            <Chip tone="plain">Parked</Chip>
           </div>
           <p className="t-13 text-muted">{"This channel isn't producing, so there's no health or schedule to show. It wakes up when you activate it."}</p>
         </Card>
@@ -226,22 +282,33 @@ export default function ChannelPage() {
   }
 
   const c = view.row;
+  const label = channelDisplayName(c.label, slug); // wave C3 (T3-23): one display name everywhere
   const now = new Date();
+  const offsetMin = -now.getTimezoneOffset();
   const hasProblem = channelHasRealProblem(openWarningRows, slug);
   const slots = validSlots(c.slots);
   const longSlot = validSlots([c.longSlot])[0] || null;
-  const uploads = channelUploads(data.logs, slug);
   const handle = c.yt && !c.yt.error ? (c.yt.handle || c.yt.title) : c.handle;
   const isClient = role === 'client';
   const drawerKeys = drawersFor(role);
   const askPause = async () => {
     const ok = await confirm({
-      title: `Pause ${c.label || slug}?`,
+      title: `Pause ${label}?`,
       body: 'Nothing new will be made. Videos already scheduled on YouTube still publish.',
       confirmLabel: 'Pause autopilot',
       tone: 'danger',
     });
     if (ok) setFlow(false);
+  };
+  // same confirm as the Channels list's Manage menu
+  const askResume = async () => {
+    const ok = await confirm({
+      title: `Resume ${label}?`,
+      body: 'The next daily run produces new videos again.',
+      confirmLabel: 'Resume autopilot',
+      tone: 'primary',
+    });
+    if (ok) setFlow(true);
   };
 
   return (
@@ -250,25 +317,31 @@ export default function ChannelPage() {
       <nav aria-label="Breadcrumb" className="t-12 text-muted mb-3 flex items-center gap-1.5 min-w-0">
         <Link href="/channels" className="hover:text-ink">Channels</Link>
         <span aria-hidden>/</span>
-        <span className="text-ink truncate">{c.label || slug}</span>
+        <span className="text-ink truncate">{label}</span>
       </nav>
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
         <div className="flex items-center gap-3.5 min-w-0 flex-1">
-          <BrandMark short={bySlug[slug]?.short || (c.label || slug).slice(0, 2).toUpperCase()} accent={c.accent || 'var(--accent)'} size={48} />
+          <BrandMark short={channelInitials(c.label, slug) || bySlug[slug]?.short || '•'} accent={c.accent || 'var(--accent)'} size={48} />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2 min-w-0">
-              <h1 className="font-display font-bold leading-tight tracking-tight text-ink truncate" style={{ fontSize: 'var(--text-2xl)' }}>{c.label || slug}</h1>
-              {c.flowPaused ? <Chip tone="plain">PAUSED</Chip> : <Chip tone="ok" dot>ACTIVE</Chip>}
+              <h1 className="font-display font-bold leading-tight tracking-tight text-ink truncate" style={{ fontSize: 'var(--text-2xl)' }}>{label}</h1>
+              {c.flowPaused ? <Chip tone="plain">Paused</Chip> : <Chip tone="ok" dot>Active</Chip>}
             </div>
-            <p className="t-12 text-muted mt-0.5 truncate">
-              {[c.niche, handle].filter(Boolean).join(' · ') || '—'}
-            </p>
+            {needsSetup(c) ? (
+              <p className="t-12 text-faint mt-0.5">
+                {SETUP_TEXT}{handle ? ` · ${handle}` : ''} · <Link href={editHref(slug)} className="underline underline-offset-2 hover:text-ink">Finish setup</Link>
+              </p>
+            ) : (
+              <p className="t-12 text-muted mt-0.5 truncate">
+                {[c.niche, handle].filter(Boolean).join(' · ') || '—'}
+              </p>
+            )}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {c.flowPaused ? (
-            <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => setFlow(true)}>
+            <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={askResume}>
               <Play size={14} /> Resume autopilot
             </button>
           ) : (
@@ -307,12 +380,12 @@ export default function ChannelPage() {
             <div className="inset-tile p-3 min-w-0">
               <dt className="overline mb-1">Shorts upload slots</dt>
               <dd className="t-12 text-ink tnum">
-                {slots.length ? slots.map((s) => `${s} UTC${localTime(s) ? ` (${localTime(s)} your time)` : ''}`).join(' · ') : 'No slot set'}
+                {slots.length ? slots.map((s) => `${s} UTC${slotLocalText(s, now, offsetMin) ? ` (your time: ${slotLocalText(s, now, offsetMin)})` : ''}`).join(' · ') : 'No slot set'}
               </dd>
             </div>
             <div className="inset-tile p-3 min-w-0">
               <dt className="overline mb-1">Long-form slot</dt>
-              <dd className="t-12 text-ink tnum">{longSlot ? `${longSlot} UTC (${localTime(longSlot)} your time)` : '—'}</dd>
+              <dd className="t-12 text-ink tnum">{longSlot ? `${longSlot} UTC${slotLocalText(longSlot, now, offsetMin, c.docDays) ? ` (next, your time: ${slotLocalText(longSlot, now, offsetMin, c.docDays)})` : ''}` : '—'}</dd>
             </div>
             <div className="inset-tile p-3 min-w-0">
               <dt className="overline mb-1">Long-form days</dt>
@@ -321,7 +394,7 @@ export default function ChannelPage() {
             <div className="inset-tile p-3 min-w-0">
               <dt className="overline mb-1">Shorts come from</dt>
               <dd className="t-12 text-ink">
-                {c.shortsSource === 'clips' ? 'Clips of the long video' : c.shortsSource === 'generated' ? 'Made fresh each day' : c.shortsSource || '—'}
+                {c.shortsSource === 'clips' ? 'Clips from long videos' : c.shortsSource === 'generated' ? 'Made fresh each day' : c.shortsSource || '—'}
                 {c.clipQueue ? (
                   <span className="block t-11 text-faint mt-0.5 tnum">
                     Clip queue: {c.clipQueue.remaining} of {c.clipQueue.total} left{c.clipQueue.broken ? ` · ${c.clipQueue.broken} can't be posted` : ''}
@@ -368,30 +441,9 @@ export default function ChannelPage() {
 
       {/* recent uploads */}
       <Card className="mb-4">
-        <CardHead title="Recent uploads" icon={Film} sub="What the pipeline recorded for this channel (newest first)" />
+        <CardHead title="Recent uploads" icon={Film} sub="This channel's latest 10, newest first · dates in your time" />
         <div className="px-5 pb-5 space-y-3">
-          {uploads.length ? (
-            <ul className="divide-y divide-[var(--line)]">
-              {uploads.map((u, i) => (
-                <li key={`${u.videoId || i}-${u.at}`} className="py-2 flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
-                  <Chip tone={u.status === 'scheduled' ? 'info' : u.status === 'published' ? 'ok' : 'plain'}>
-                    {u.status === 'scheduled' ? 'Scheduled' : u.status === 'published' ? 'Published' : 'Unknown'}
-                  </Chip>
-                  <span className="t-11 text-faint shrink-0">{u.kind || 'Video'}</span>
-                  {u.videoId && YT_ID.test(u.videoId) ? (
-                    <a href={`https://www.youtube.com/watch?v=${u.videoId}`} target="_blank" rel="noreferrer" className="t-13 text-ink truncate min-w-0 flex-1 hover:underline">
-                      {u.title} <ExternalLink size={11} className="inline text-faint" />
-                    </a>
-                  ) : (
-                    <span className="t-13 text-ink truncate min-w-0 flex-1">{u.title}</span>
-                  )}
-                  <span className="t-11 text-faint tnum shrink-0">{u.at ? when(u.at) : '—'}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="t-12 text-muted">No uploads in the recent record for this channel.</p>
-          )}
+          <RecentUploads slug={slug} />
           <LiveUploads slug={slug} />
         </div>
       </Card>
@@ -424,7 +476,7 @@ export default function ChannelPage() {
         </div>
       </Card>
 
-      <ChannelDrawers slug={slug} label={c.label || slug} open={drawer} onClose={closeDrawer} />
+      <ChannelDrawers slug={slug} label={label} open={drawer} onClose={closeDrawer} />
     </div>
   );
 }

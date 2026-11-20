@@ -35,7 +35,7 @@ test('#126 R1: the bell renders real open warnings with severity icons, channel 
   assert.match(shellSrc, /Nothing needs attention/);
   assert.match(shellSrc, /SEV_ICON\[w\.severity\]/); // P0-9 refresh: real severity keys
   assert.match(shellSrc, /w\.channel_id/);
-  assert.match(shellSrc, /open the warning triage →/);
+  assert.match(shellSrc, /See all alerts →/); // live fix wave C1 (T2-21): one name, "Alerts"
 });
 
 test('#126 R2: the topbar badge shows the REAL count and hides for clients/failures (no fake number)', () => {

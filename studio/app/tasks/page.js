@@ -10,6 +10,7 @@ import { SquareKanban, OctagonAlert, ScrollText, CircleCheck, Circle } from 'luc
 import { Card, CardHead, Chip, PageHeader } from '@/components/ui';
 import Link from 'next/link';
 import { groupRealWarnings, needsYou } from '@/lib/notify-policy.mjs';
+import { withoutDrills } from '@/lib/drill-rows.mjs'; // wave C2 (T1-17): drills never reach the owner's lists
 
 const sevTone = { blocking: 'bad', action_required: 'warn', warning: 'warn', advisory: 'info', informational: 'plain' }; // P0-9 real keys
 
@@ -36,8 +37,12 @@ export default function Tasks() {
   const anyError = warnings === 'error' || pending === 'error';
   // Owner policy 2026-11-19: the inbox lists REAL problems, grouped (repeats
   // count once); quiet advisory notes live on /warnings under FYI.
+  // Open rows stay as they are so this count matches the bell and Today (one
+  // number everywhere); an OPEN drill is a live exercise the owner is running.
   const open = Array.isArray(warnings?.open) ? groupRealWarnings(warnings.open) : [];
-  const resolved = Array.isArray(warnings?.resolved) ? warnings.resolved : [];
+  // wave C2 (T1-17): finished drills/tests ("DRILL 2: simulated revoked token")
+  // are not the owner's history
+  const resolved = Array.isArray(warnings?.resolved) ? withoutDrills(warnings.resolved) : [];
   const scripts = Array.isArray(pending) ? pending : [];
   // THE one number (notify-policy needsYou — same as home, /warnings, bell):
   // a held-slot alert and its waiting script count once.
@@ -46,7 +51,7 @@ export default function Tasks() {
   if (denied && loaded) {
     return (
       <div>
-        <PageHeader icon={SquareKanban} title="Tasks" sub="Live operations queue" />
+        <PageHeader icon={SquareKanban} title="Inbox" sub="Live operations queue" />
         <Card className="p-8 text-center">
           <p className="t-13 font-semibold text-ink">Owner / staff only</p>
           <p className="t-12 text-faint mt-1">The live task queue (warnings + approvals) is a staff surface.</p>
@@ -57,7 +62,7 @@ export default function Tasks() {
 
   return (
     <div>
-      <PageHeader icon={SquareKanban} title="Tasks" sub={!loaded || warnings === null || pending === null ? 'loading live queue…' : anyError ? "some sources can't be checked right now — counts may be incomplete" : `${need.count} things need you · ${need.alerts} problems · ${need.approvals} awaiting approval`} />
+      <PageHeader icon={SquareKanban} title="Inbox" sub={!loaded || warnings === null || pending === null ? 'loading live queue…' : anyError ? "some sources can't be checked right now — counts may be incomplete" : `${need.count} things need you · ${need.alerts} problems · ${need.approvals} awaiting approval`} />
 
       {/* Live fix wave B3 (T1-03): min-w-0 grid items + wrapping titles — one
           long alert title used to stretch the page to 980px on phones */}

@@ -261,6 +261,60 @@ export function todaySummary(rows, channels = [], { now = Date.now(), timeZone, 
   };
 }
 
+/* --------------------------- scope + origin (wave C2) --------------------------- */
+
+// Live fix wave C2 (T2-23): a run with no single channel is not "Untagged" —
+// it is a heartbeat (the 30-minute check that looks at every channel's slot)
+// or an all-channel batch run. Read from the run-name convention
+// ("heartbeat · <event>") the workflow writes.
+export function runScope(row) {
+  if (row?.channel) return 'channel';
+  const first = String(row?.title || '').split(' · ')[0].trim().toLowerCase();
+  return first === 'heartbeat' ? 'heartbeat' : 'all';
+}
+
+export const SCOPE_LABEL = Object.freeze({
+  heartbeat: 'Heartbeat — checks all channels',
+  all: 'All channels',
+});
+
+// Plain origin words. A channel dispatch can be the owner's Run button OR an
+// approval's resume (the run list can't tell them apart), so it says both.
+export function runOrigin(row) {
+  if (runScope(row) === 'heartbeat') return 'Scheduled check';
+  switch (row?.event) {
+    case 'schedule': return 'On schedule';
+    case 'workflow_dispatch': return row?.channel ? 'You or an approval started it' : 'Started on request';
+    case 'repository_dispatch': return 'Started on request';
+    case 'push': return 'After a code change';
+    case 'workflow_run': return 'After another workflow';
+    default: return row?.event || 'Unknown start';
+  }
+}
+
+// One plain sentence per GitHub failure — never "didn't answer" for a reply.
+export function githubFailText(status) {
+  const s = Number(status);
+  if (!Number.isFinite(s) || s <= 0) return "GitHub couldn't be reached.";
+  if (s === 401) return "GitHub didn't accept the panel's token (401).";
+  if (s === 403 || s === 429) return `GitHub refused the request (${s}) — often a short rate limit.`;
+  if (s >= 500) return `GitHub had a problem on its side (${s}).`;
+  return `GitHub refused the request (${s}).`;
+}
+
+// The last good /api/runs answer kept in sessionStorage: shown during a
+// GitHub outage instead of an error page. Anything malformed = nothing saved.
+export function parseSavedRuns(raw) {
+  if (typeof raw !== 'string' || !raw) return null;
+  try {
+    const d = JSON.parse(raw);
+    if (!d || !Array.isArray(d.runs) || typeof d.fetchedAt !== 'string' || !d.fetchedAt) return null;
+    return d;
+  } catch {
+    return null;
+  }
+}
+
 // Timeline filter: channel ('all' | slug | 'untagged') × status ('all' | state group).
 export function filterRuns(rows, { channel = 'all', status = 'all' } = {}) {
   return (rows || []).filter((r) => {

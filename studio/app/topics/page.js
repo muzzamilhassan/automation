@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ListChecks, Flame, Search, Plus, X, PenLine, RefreshCw, Clock3, AlertTriangle } from 'lucide-react';
+import { ListChecks, Flame, Search, Plus, X, PenLine, RefreshCw, Clock3, AlertTriangle, ChevronRight } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, PageSkeleton, EmptyState, BrandMark, Segmented } from '@/components/ui';
 import { useBrands } from '@/components/use-brands'; // #125: live brand marks
 import { fmt } from '@/lib/utils';
@@ -14,7 +14,9 @@ export default function TopicDesk() {
 
   const [ov, setOv] = useState(null);
   const [reg, setReg] = useState(null);
-  const [sel, setSel] = useState('');
+  // wave C2 (T2-19): opens on "All channels" — every channel's queue at a glance
+  const [sel, setSel] = useState('all');
+  const [all, setAll] = useState({ key: '', rows: null }); // per-channel summary for "All"
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [manual, setManual] = useState('');
@@ -28,24 +30,48 @@ export default function TopicDesk() {
     fetch('/api/channels/registry').then((r) => r.json()).then(setReg).catch(() => setReg({ channels: [] }));
   }, []);
 
-  const options = (() => {
-    const legacy = (ov?.channels || []).filter((c) => c.active).map((c) => ({ value: c.slug, label: BRAND[c.slug]?.short || c.slug }));
+  // real channel names (never QU / DE codes), "All channels" first
+  const channelOpts = (() => {
+    const legacy = (ov?.channels || []).filter((c) => c.active).map((c) => ({ value: c.slug, label: BRAND[c.slug]?.label || c.label || c.slug }));
     const mine = (reg?.channels || [])
       .filter((c) => c.active !== false && !legacy.some((l) => l.value === c.slug))
-      .map((c) => ({ value: c.slug, label: (c.label || c.slug).slice(0, 6).toUpperCase() }));
+      .map((c) => ({ value: c.slug, label: BRAND[c.slug]?.label || c.label || c.slug }));
     return [...legacy, ...mine];
   })();
+  const options = channelOpts.length ? [{ value: 'all', label: 'All channels' }, ...channelOpts] : [];
+  const allKey = channelOpts.map((o) => o.value).join(',');
 
-  // deferred one tick so the setState isn't synchronous in the effect body
+  // "All": read every channel's queue + research state in parallel; a channel
+  // that can't be read says so (never an empty queue)
+  const loadAll = async () => {
+    const slugs = channelOpts.map((o) => o.value);
+    if (!slugs.length) return;
+    setLoading(true);
+    const rows = await Promise.all(slugs.map((slug) =>
+      fetch('/api/topics?slug=' + encodeURIComponent(slug))
+        .then(async (r) => {
+          const d = await r.json().catch(() => ({}));
+          if (!r.ok || d.error) throw new Error(d.error || `the server answered ${r.status}`);
+          return { slug, ok: true, queue: d.queue || [], researchAt: d.researchAt || null, ideas: (d.trends || []).length + (d.terms || []).length };
+        })
+        .catch(() => ({ slug, ok: false, queue: [], researchAt: null, ideas: 0 }))));
+    setAll({ key: allKey, rows });
+    setLoading(false);
+  };
   useEffect(() => {
-    const id = requestAnimationFrame(() => {
-      if (!sel && options.length) setSel(options[0].value);
-    });
-    return () => cancelAnimationFrame(id);
-  }, [options.length]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (sel !== 'all' || !allKey) return undefined;
+    let alive = true;
+    (async () => {
+      await Promise.resolve();
+      if (alive) await loadAll();
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [sel, allKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const load = async () => {
-    if (!sel) return;
+    if (!sel || sel === 'all') return;
     setLoading(true);
     setLoadErr('');
     await fetch('/api/topics?slug=' + encodeURIComponent(sel))
@@ -103,13 +129,13 @@ export default function TopicDesk() {
   return (
     <div>
       <PageHeader icon={ListChecks} title="Topic Desk" sub="Research proposes → you approve → the nightly run makes exactly these first. One topic = one slot.">
-        <button className="btn btn-outline" onClick={load} disabled={loading || !sel}>
+        <button className="btn btn-outline" onClick={sel === 'all' ? loadAll : load} disabled={loading || !sel}>
           <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
         </button>
       </PageHeader>
 
       {options.length ? (
-        <div className="mb-5">
+        <div className="mb-5 max-w-full overflow-x-auto">
           <Segmented options={options} value={sel} onChange={setSel} />
         </div>
       ) : (
@@ -121,7 +147,48 @@ export default function TopicDesk() {
       )}
 
       {actErr ? <p className="t-13 mb-4" role="alert" style={{ color: 'var(--bad-ink)' }}>{actErr}</p> : null}
-      {sel && loadErr && !loading ? (
+      {sel === 'all' && options.length ? (
+        <Card className="overflow-hidden">
+          <CardHead title="All channels" sub="Approved topics waiting per channel. Open one to add or remove topics." icon={Clock3} />
+          <div className="px-2 pb-2">
+            {all.key !== allKey || !all.rows ? (
+              <div className="px-3 py-6 space-y-2">{[...Array(4)].map((_, i) => <div key={i} className="skeleton h-6" />)}</div>
+            ) : (
+              <ul className="divide-y divide-[var(--line)]">
+                {all.rows.map((r) => {
+                  const name = channelOpts.find((o) => o.value === r.slug)?.label || r.slug;
+                  return (
+                    <li key={r.slug}>
+                      <button
+                        type="button"
+                        data-kit="row"
+                        onClick={() => setSel(r.slug)}
+                        className="w-full flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 rounded-xl text-left hover:bg-surface-2 transition-colors min-w-0"
+                        aria-label={`Open ${name}'s topics`}
+                      >
+                        <BrandMark short={BRAND[r.slug]?.short || '•'} accent={BRAND[r.slug]?.accent || 'var(--accent)'} size={22} />
+                        <span className="t-13 font-semibold text-ink min-w-0 flex-1 truncate">{name}</span>
+                        {r.ok ? (
+                          <>
+                            <Chip tone={r.queue.length ? 'ok' : 'plain'}>{r.queue.length} waiting</Chip>
+                            <Chip tone={r.researchAt ? 'ok' : 'warn'}>{r.researchAt ? `${r.ideas} ideas` : 'no research yet'}</Chip>
+                          </>
+                        ) : (
+                          <Chip tone="bad">can&apos;t read right now</Chip>
+                        )}
+                        <ChevronRight size={15} className="text-faint shrink-0 hidden sm:block" aria-hidden />
+                        <span className="basis-full t-11 text-faint truncate pl-[34px]">{r.ok ? (r.queue[0]?.text ? `Next: ${r.queue[0].text}` : 'Queue empty — auto-research picks the topics.') : 'Not an empty queue — it just could not be read.'}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </Card>
+      ) : null}
+
+      {sel && sel !== 'all' && loadErr && !loading ? (
         <Card className="p-5 mb-4">
           <div className="flex items-start gap-3 flex-wrap">
             <AlertTriangle size={18} style={{ color: 'var(--bad-ink)' }} className="shrink-0 mt-0.5" aria-hidden />
@@ -134,7 +201,7 @@ export default function TopicDesk() {
         </Card>
       ) : null}
 
-      {sel && !loadErr ? (
+      {sel && sel !== 'all' && !loadErr ? (
         <div className="grid lg:grid-cols-2 gap-4">
           {/* candidates */}
           <Card className="overflow-hidden">

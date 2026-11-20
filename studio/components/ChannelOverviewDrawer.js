@@ -16,15 +16,12 @@ import { Tv, CalendarDays } from 'lucide-react';
 import Drawer from '@/components/Drawer';
 import { Chip } from '@/components/ui';
 import { CHANNEL_DRAWERS, drawersFor } from '@/components/ChannelDrawers';
-import { when, timeAgo } from '@/lib/utils';
+import { timeAgo } from '@/lib/utils';
 import { youtubeConnection, nextScheduled, channelHref } from '@/lib/channel-health.mjs';
 import {
-  todayStatus, uploadedToday, nextSlot, scheduleSummary, runText, lastMadeText, INBOX_HREF, PROBLEM_LABEL,
+  todayStatus, uploadedToday, nextSlot, scheduleSummary, runText, lastMadeText, localWhen, INBOX_HREF, PROBLEM_LABEL,
 } from '@/lib/channel-overview.mjs';
-
-function localTime(at) {
-  return at ? at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
-}
+import { channelDisplayName } from '@/lib/channel-display.mjs';
 
 /** Small red dot for a card: "Has a problem — see Inbox". */
 export function ProblemDot() {
@@ -76,6 +73,8 @@ export function ChannelStatus({ c, logs, now, hasProblem }) {
   const madeSub = today.tone === 'ok' && live ? `${live} uploaded today` : lastMadeText(c.lastActivity);
   const next = nextScheduled(logs, c.slug, now);
   const slot = next ? null : nextSlot(c, now);
+  // wave C3 (T3-21): local times say "your time" and name the day when not today; UTC stays labelled
+  const offsetMin = -now.getTimezoneOffset();
   return (
     <div className="space-y-3">
       {hasProblem ? <ProblemLine /> : null}
@@ -84,9 +83,9 @@ export function ChannelStatus({ c, logs, now, hasProblem }) {
         <StatusTile label="Autopilot" value={c.flowPaused ? 'Paused' : 'On'} tone={c.flowPaused ? 'plain' : 'ok'} sub={run} subTone={c.todayRun?.status === 'failed' ? 'bad' : 'plain'} />
         <StatusTile label="Today (UTC)" value={today.text} tone={today.tone} sub={madeSub} />
         {next ? (
-          <StatusTile label="Next upload" value={when(next.at)} sub={`${timeAgo(next.at)} · ${next.kind || 'video'}`} />
+          <StatusTile label="Next upload (your time)" value={localWhen(next.at, now, offsetMin)} sub={`${timeAgo(next.at)} · ${next.kind || 'video'}`} />
         ) : slot ? (
-          <StatusTile label="Next slot" value={`${slot.hhmm} UTC`} sub={`${slot.kind} · ${localTime(slot.at)} your time`} />
+          <StatusTile label="Next slot" value={`${slot.hhmm} UTC`} sub={`${slot.kind} · your time: ${localWhen(slot.at, now, offsetMin)}`} />
         ) : (
           <StatusTile label="Next slot" value="No slot set" />
         )}
@@ -100,7 +99,7 @@ export default function ChannelOverviewDrawer({ channel, logs, open, onClose, on
   const now = new Date();
   const schedule = scheduleSummary(channel);
   return (
-    <Drawer open onClose={onClose} title={channel.label || channel.slug} icon={Tv} size="xl">
+    <Drawer open onClose={onClose} title={channelDisplayName(channel.label, channel.slug)} icon={Tv} size="xl">
       <div className="space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           {channel.flowPaused ? <Chip tone="plain">Paused</Chip> : <Chip tone="ok" dot>Active</Chip>}

@@ -11,7 +11,9 @@ const STATE_CHIP = {
   queued: { tone: 'warn', label: 'Rendering on CI…' },
   done: { tone: 'ok', label: 'Ready' },
   failed: { tone: 'bad', label: 'Failed' },
-  unknown: { tone: 'plain', label: 'In progress…' },
+  // Live fix wave C4 (T5-06): a status we couldn't read is said plainly —
+  // never an endless "In progress…" spinner
+  unknown: { tone: 'plain', label: 'Status unknown' },
 };
 
 // the poster frame sits next to the rendered mp4 — derive it from the URL the
@@ -51,8 +53,9 @@ function CreatePageContent() {
           return { ...f, dna: ids[0] };
         });
         setJobs(d.jobs || []);
-        // the route answers 200 with error set when GitHub couldn't be read
-        setJobsErr(d.error ? `Couldn't read the render history (${d.error}).` : '');
+        // the route answers 200 with error set when GitHub couldn't be read:
+        // "Couldn't check rendered videos right now (GitHub 502)" (T5-06)
+        setJobsErr(d.error || '');
       })
       .catch((e) => setJobsErr(e.message || 'network error'))
       .finally(() => setLoadingJobs(false));
@@ -210,7 +213,7 @@ function CreatePageContent() {
         />
         <div className="px-5 pb-5">
           {jobsErr ? (
-            <p className="t-12 mb-3" role="alert" style={{ color: 'var(--bad-ink)' }}>{jobsErr} This is not an empty list.</p>
+            <p className="t-12 mb-3" role="alert" style={{ color: 'var(--bad-ink)' }}>{jobsErr.replace(/\.$/, '')}. Try Refresh in a minute.</p>
           ) : null}
           {!meta && !jobsErr ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{[0, 1].map((i) => <div key={i} className="skeleton h-64 rounded-xl" />)}</div>
@@ -220,6 +223,7 @@ function CreatePageContent() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {jobs.map((j) => {
                 const chip = STATE_CHIP[j.state] || STATE_CHIP.unknown;
+                const unknownState = j.state === 'unknown' || !STATE_CHIP[j.state];
                 return (
                   <div key={j.id} className="overflow-hidden rounded-xl border border-line bg-surface-2 min-w-0">
                     {playing === j.id && j.videoUrl ? (
@@ -232,10 +236,20 @@ function CreatePageContent() {
                           <PlayCircle className="w-14 h-14 text-white drop-shadow-lg" />
                         </span>
                       </button>
+                    ) : unknownState ? (
+                      <div className="flex w-full flex-col items-center justify-center gap-3 aspect-[9/16] max-h-[480px]" style={{ background: 'var(--surface-3)' }}>
+                        <div className="flex items-center gap-2 t-13 text-muted">
+                          <AlertTriangle size={20} style={{ color: 'var(--warn-ink)' }} />
+                          {chip.label}
+                        </div>
+                        <button type="button" onClick={loadJobs} className="btn btn-outline btn-sm" disabled={loadingJobs}>
+                          <RefreshCw size={13} /> Refresh
+                        </button>
+                      </div>
                     ) : (
                       <div className="flex w-full items-center justify-center aspect-[9/16] max-h-[480px]" style={{ background: 'var(--surface-3)' }}>
                         <div className="flex items-center gap-2 t-13 text-muted">
-                          {j.state === 'failed' ? <XCircle size={20} style={{ color: 'var(--bad-ink)' }} /> : <Loader2 size={20} className="animate-spin" />}
+                          {j.state === 'queued' ? <Loader2 size={20} className="animate-spin" /> : <XCircle size={20} style={{ color: 'var(--bad-ink)' }} />}
                           {chip.label}
                         </div>
                       </div>

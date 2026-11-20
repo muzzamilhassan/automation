@@ -9,6 +9,8 @@
 // DB failure → { error } with 502 (house pattern, channels/registry route).
 import { requireRole } from '@/lib/route-auth';
 import { db, dbReady } from '@/lib/db.mjs';
+import { readRegistry } from '@/lib/channels-registry';
+import { groupChannelRows } from '@/lib/usage-view.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,7 +82,7 @@ export async function GET(req) {
       FROM usage_events
       WHERE created_at >= now() - make_interval(days => ${days})`;
 
-    const [byChannel, byProvider, byCapability, recent] = await Promise.all([
+    const [byChannel, byProvider, byCapability, recent, topErrors, slugs] = await Promise.all([
       rollup(DIMS.channel, days),
       rollup(DIMS.provider, days),
       rollup(DIMS.capability, days),
@@ -91,9 +93,23 @@ export async function GET(req) {
         WHERE created_at >= now() - make_interval(days => ${days})
         ORDER BY created_at DESC, id DESC
         LIMIT 50`,
+      // Live fix wave C4 (T5-13): the top failure reasons, so the page can say
+      // "29 of 129 calls failed · most often groq — HTTP error (16)"
+      db`
+        SELECT provider, error_class, COUNT(*)::int AS n
+        FROM usage_events
+        WHERE NOT ok AND created_at >= now() - make_interval(days => ${days})
+        GROUP BY provider, error_class
+        ORDER BY n DESC
+        LIMIT 3`,
+      // every registry channel (paused ones too): anything else ("web-message",
+      // none) is "Other". Registry unreadable → null → rows stay as they are.
+      readRegistry().then((r) => (Array.isArray(r?.channels) ? r.channels.map((e) => e.slug) : null)).catch(() => null),
     ]);
 
-    return Response.json({ window: days, totals, byChannel, byProvider, byCapability, recent });
+    return Response.json({
+      window: days, totals, byChannel: groupChannelRows(byChannel, slugs), byProvider, byCapability, recent, topErrors,
+    });
   } catch (e) {
     return Response.json({ error: String(e.message || e).slice(0, 200) }, { status: 502 });
   }

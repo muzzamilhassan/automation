@@ -11,7 +11,7 @@ import UsagePage from '@/app/usage/page';
 const NETWORK_TABS = [
   { id: 'channels', label: 'Channels', icon: Tv },
   { id: 'providers', label: 'AI Providers (BYOK)', icon: PlugZap },
-  { id: 'usage', label: 'Quota & Costs', icon: Gauge },
+  { id: 'usage', label: 'AI usage', icon: Gauge },
 ];
 
 function NetworkContent() {

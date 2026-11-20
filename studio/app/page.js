@@ -24,6 +24,7 @@ import { useBrands } from '@/components/use-brands'; // #125: live brand marks
 import { useOpenWarnings } from '@/components/use-open-warnings'; // #126: live alerts
 import { useMe } from '@/components/use-me'; // P0-7: greet the signed-in user, never a hardcoded name
 import { deriveVerdict, channelToday, nextSlot, fmtIn, reviewStatusFromHttp, todayMarks, verdictHref } from '@/lib/cockpit-verdict.mjs';
+import { lastDataDay, fmtDay } from '@/lib/analytics-view.mjs'; // wave C2 (T2-20): "data through" from the real last point
 
 const VERDICT_ICON = { all_good: CheckCircle2, needs_you: AlertTriangle, unknown: HelpCircle, loading: Loader2, empty: HelpCircle };
 const TONE_INK = { ok: 'var(--ok-ink)', warn: 'var(--warn-ink)', bad: 'var(--bad-ink)', info: 'var(--info-ink)', plain: 'var(--muted)' };
@@ -205,6 +206,9 @@ function OverviewContent() {
   // server-side). The last 14 days feed the chart.
   const daily = (analytics?.daily || []).slice(-14);
   const labels = daily.map((d) => d.date.slice(5));
+  // T2-20 (wave C2): YouTube Analytics lags 2–3 days — the chip names the last
+  // day that has data, never the day it was fetched
+  const through = lastDataDay(analytics?.daily);
   const chartDown = !analytics && (analyticsErr || Boolean(analyticsCoverage && !analyticsCoverage.ok?.length));
 
   return (
@@ -256,7 +260,7 @@ function OverviewContent() {
           right={analyticsErr && !analytics && !analyticsCoverage ? (
             <Chip tone="bad">YouTube unavailable · <button type="button" className="underline" onClick={() => loadAnalytics(true)}>Retry</button></Chip>
           ) : analyticsCoverage ? (
-            analyticsCoverage.failed?.length === 0 ? <Chip tone="ok">YouTube{analyticsCoverage.fetchedAt ? ` · ${new Date(analyticsCoverage.fetchedAt).toLocaleDateString()}` : ''}</Chip>
+            analyticsCoverage.failed?.length === 0 ? <Chip tone="ok">{through ? `YouTube · data through ${fmtDay(through)}` : 'YouTube'}</Chip>
               : analyticsCoverage.ok?.length ? <Chip tone="warn">{analyticsCoverage.ok.length} of {analyticsCoverage.ok.length + analyticsCoverage.failed.length} channels</Chip>
                 : <Chip tone="bad">YouTube unavailable · <button type="button" className="underline" onClick={() => load(true)}>Retry</button></Chip>
           ) : null}
@@ -265,7 +269,7 @@ function OverviewContent() {
           {analytics ? (
             // div-based bars ONLY — the SVG MultiChart + real data combo crashed
             // tabs before (a7c4a8c); do not reintroduce it here
-            <MiniBars data={daily.map((d) => d.views)} labels={labels.length ? labels : ['-']} color="var(--accent)" height={170} />
+            <MiniBars data={daily.map((d) => d.views)} labels={labels.length ? labels : ['-']} color="var(--accent)" height={170} ariaLabel="Views per day, all channels" />
           ) : chartDown ? (
             <div className="px-4 py-10 text-center">
               <p className="t-12 font-semibold text-ink">— · unavailable</p>

@@ -172,7 +172,7 @@ test('H4: the overview drawer links to the full page, which keeps working', () =
 });
 
 test('parked brands open the keys drawer (not an inline panel below the grid)', () => {
-  assert.match(LIST, /onClick=\{\(\) => setDrawer\(\{ slug: c\.slug, label: c\.label \|\| c\.slug, which: 'keys' \}\)\}/);
+  assert.match(LIST, /onClick=\{\(\) => setDrawer\(\{ slug: c\.slug, label: channelDisplayName\(c\.label, c\.slug\), which: 'keys' \}\)\}/);
   assert.doesNotMatch(LIST, /<ChannelKeysPanel/);
 });
 
@@ -184,7 +184,7 @@ test('failed overview load shows an error with Retry, never "0 channels"', () =>
 
 test('the per-channel page opens the SAME drawers from its settings shortcuts', () => {
   assert.match(SLUG, /import ChannelDrawers, \{ CHANNEL_DRAWERS, drawersFor \} from '@\/components\/ChannelDrawers'/);
-  assert.match(SLUG, /<ChannelDrawers slug=\{slug\} label=\{c\.label \|\| slug\} open=\{drawer\} onClose=\{closeDrawer\} \/>/);
+  assert.match(SLUG, /<ChannelDrawers slug=\{slug\} label=\{label\} open=\{drawer\} onClose=\{closeDrawer\} \/>/);
   assert.match(SLUG, /drawerKeys\.map\(\(k\) => \(\s*<DrawerShortcut key=\{k\}[^>]*onClick=\{\(\) => setDrawer\(k\)\}/);
   assert.match(SLUG, /const drawerKeys = drawersFor\(role\);/);
   // the old "jump to /channels#slug to find the panels" shortcut is gone

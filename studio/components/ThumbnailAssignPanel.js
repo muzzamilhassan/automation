@@ -154,7 +154,9 @@ export default function ThumbnailAssignPanel({ slug, frame }) {
         </button>
       ) : null}
       <Button color="primary" onClick={save} isDisabled={!canSaveThumbSet(picked.length) || saving || !loaded}>
-        {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Save designs
+        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+          {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Save designs
+        </span>
       </Button>
     </>
   ) : null;

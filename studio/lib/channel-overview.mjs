@@ -9,6 +9,7 @@
 import { isRealSeverity } from './notify-policy.mjs';
 import { validSlots, slotDate, todayUTC } from './channel-health.mjs';
 import { DAY_BASIS } from './channel-activity.mjs';
+import { formatClock } from './wizard-steps.mjs';
 
 export const PROBLEM_LABEL = 'Has a problem — see Inbox';
 export const INBOX_HREF = '/tasks';
@@ -114,4 +115,175 @@ export function scheduleSummary(row) {
   const days = (Array.isArray(row.docDays) ? row.docDays : []).filter((d) => typeof d === 'string' && d.trim());
   if (longSlot && days.length) out.push(`Long-form ${longSlot} UTC · ${days.join(' · ')}`);
   return out;
+}
+
+/* ------------------------ live fix wave C3 (2026-11-20) ------------------------ */
+// Spec + QA: docs/qa/live-fix-wave-c3-qa.md.
+
+const cleanList = (a) => (Array.isArray(a) ? a.map((x) => String(x ?? '').trim()).filter(Boolean) : []);
+
+/**
+ * T3-07: a channel's music feels, in the engine's order (lib/brand-resolve.mjs:
+ * the registry kit wins over the brand file). No data → [] (the card says "Not set").
+ */
+export function overviewMusicFeels(staticEntry, reg) {
+  const kit = cleanList(reg?.kit?.musicFeels);
+  return kit.length ? kit : cleanList(staticEntry?.musicFeels);
+}
+
+// The engine matches music by word STEMS ("inspir"); read them as words.
+const FEEL_WORDS = { inspir: 'Inspiring' };
+const moodWord = (f) => FEEL_WORDS[f.toLowerCase()] || f[0].toUpperCase() + f.slice(1).toLowerCase();
+
+/** T3-07: ['calming', 'bright'] → 'Calming · Bright'; nothing → ''. */
+export function moodText(feels) {
+  return cleanList(feels).map(moodWord).join(' · ');
+}
+
+/** T3-22: { active, paused, parked } — a paused channel is not counted as active. */
+export function channelCounts(channels) {
+  const out = { active: 0, paused: 0, parked: 0 };
+  for (const c of Array.isArray(channels) ? channels : []) {
+    if (!c) continue;
+    if (!c.active) out.parked += 1;
+    else if (c.flowPaused) out.paused += 1;
+    else out.active += 1;
+  }
+  return out;
+}
+
+/** T3-22: '4 active · 1 paused' (zero paused/parked are left out). */
+export function countsText({ active = 0, paused = 0, parked = 0 } = {}) {
+  return [`${active} active`, paused ? `${paused} paused` : '', parked ? `${parked} parked` : ''].filter(Boolean).join(' · ');
+}
+
+export const SETUP_TEXT = 'Setup not finished';
+
+/** T3-22: a wizard channel whose setup never got a niche. */
+export function needsSetup(row) {
+  return Boolean(row?.fromRegistry && !String(row.niche || '').trim());
+}
+
+const ms = (v) => {
+  const t = v instanceof Date ? v.getTime() : Date.parse(v || '');
+  return Number.isFinite(t) ? t : null;
+};
+const normTitle = (t) => String(t || '').toLowerCase().replace(/\s+/g, ' ').trim();
+const STATUS_RANK = { published: 0, scheduled: 1 };
+
+/**
+ * T3-10: this channel's uploads for the "Recent uploads" list. One row per
+ * title + UTC day (the published one wins, then one with a video id),
+ * newest first, undated last, at most `limit`.
+ */
+export function recentUploads(items, limit = 10) {
+  const rank = (it) => (STATUS_RANK[it.status] ?? 2) * 2 + (it.videoId ? 0 : 1);
+  const byKey = new Map();
+  for (const it of Array.isArray(items) ? items : []) {
+    if (!it || !normTitle(it.title)) continue;
+    const t = ms(it.at);
+    const key = `${normTitle(it.title)}|${t == null ? '' : new Date(t).toISOString().slice(0, 10)}`;
+    const prev = byKey.get(key);
+    if (!prev || rank(it) < rank(prev)) byKey.set(key, it);
+  }
+  return [...byKey.values()]
+    .sort((a, b) => {
+      const ta = ms(a.at);
+      const tb = ms(b.at);
+      if (ta == null || tb == null) return ta == null ? (tb == null ? 0 : 1) : -1;
+      return tb - ta;
+    })
+    .slice(0, limit);
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const pad2 = (n) => String(n).padStart(2, '0');
+
+/**
+ * T3-21: an instant on the viewer's clock, naming the day when it isn't
+ * today: '9:00 pm', '3:35 am tomorrow', '7:30 pm Sun'. `offsetMin` = minutes
+ * ahead of UTC (-new Date().getTimezoneOffset()). Bad input → ''.
+ */
+export function localWhen(at, now = new Date(), offsetMin = 0) {
+  const t = ms(at);
+  if (t == null) return '';
+  const off = Math.round(Number(offsetMin) || 0) * 60000;
+  const local = new Date(t + off);
+  const clock = formatClock(`${pad2(local.getUTCHours())}:${pad2(local.getUTCMinutes())}`);
+  const days = Math.floor((t + off) / DAY_MS) - Math.floor((now.getTime() + off) / DAY_MS);
+  if (days === 0) return clock;
+  if (days === 1) return `${clock} tomorrow`;
+  if (days > 1 && days < 7) return `${clock} ${DAY_NAMES[local.getUTCDay()]}`;
+  return `${clock} ${MONTHS[local.getUTCMonth()]} ${local.getUTCDate()}`;
+}
+
+/** T3-21: the next instant of a UTC 'HH:MM' slot (only on `days`, UTC weekdays, when given). */
+export function nextSlotAt(hhmm, now = new Date(), days = null) {
+  if (!validSlots([hhmm]).length) return null;
+  const want = Array.isArray(days) && days.length ? new Set(days.map(dayKey).filter(Boolean)) : null;
+  for (let i = 0; i < 8; i++) {
+    const day = new Date(now.getTime() + i * DAY_MS);
+    const at = slotDate(hhmm, day);
+    if (at.getTime() <= now.getTime()) continue;
+    if (want && !want.has(DAY_NAMES[at.getUTCDay()].toLowerCase())) continue;
+    return at;
+  }
+  return null;
+}
+
+/** T3-21: the next instant of a slot on the viewer's clock ('3:35 am tomorrow'); '' when unknown. */
+export function slotLocalText(hhmm, now = new Date(), offsetMin = 0, days = null) {
+  const at = nextSlotAt(hhmm, now, days);
+  return at ? localWhen(at, now, offsetMin) : '';
+}
+
+const WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const andList = (a) => (a.length < 2 ? a.join('') : `${a.slice(0, -1).join(', ')} & ${a[a.length - 1]}`);
+
+// UTC 'HH:MM' → { clock: '3:35 am', shift: -1 | 0 | 1 } on the viewer's clock
+function localClockShift(hhmm, offsetMin) {
+  if (!validSlots([hhmm]).length) return null;
+  const [h, m] = String(hhmm).trim().split(':').map(Number);
+  const total = h * 60 + m + Math.round(Number(offsetMin) || 0);
+  const lm = ((total % 1440) + 1440) % 1440;
+  return { clock: formatClock(`${pad2(Math.floor(lm / 60))}:${pad2(lm % 60)}`), shift: Math.floor(total / 1440) };
+}
+
+/**
+ * T3-17: 'Long videos go public at 7:30 pm your time on Tue & Sat'. The UTC
+ * long-form days move with the clock when the local time crosses midnight.
+ * No time or no days → ''.
+ */
+export function longPublicText(longHHMM, days, offsetMin = 0) {
+  const lc = localClockShift(longHHMM, offsetMin);
+  if (!lc) return '';
+  const idx = new Set();
+  for (const d of Array.isArray(days) ? days : []) {
+    const i = DAY_NAMES.findIndex((n) => n.toLowerCase() === dayKey(d));
+    if (i >= 0) idx.add((((i + lc.shift) % 7) + 7) % 7);
+  }
+  if (!idx.size) return '';
+  const local = WEEK.filter((w) => idx.has(DAY_NAMES.indexOf(w)));
+  return `Long videos go public at ${lc.clock} your time on ${andList(local)}`;
+}
+
+/** T3-17: 'Shorts go public at 3:35 am your time' (daily); no slots → ''. */
+export function shortsPublicText(slots, offsetMin = 0) {
+  const clocks = validSlots(slots).map((s) => localClockShift(s, offsetMin).clock);
+  return clocks.length ? `Shorts go public at ${clocks.join(' and ')} your time` : '';
+}
+
+/**
+ * T3-16: schedule warnings fit for the owner. The quota-model advisory is
+ * developer information (it only says the limit is roomier) — dropped. The
+ * insert-bucket limit is real and is said in plain words. Others pass through.
+ */
+export function plainScheduleWarnings(list) {
+  const out = [];
+  for (const s of Array.isArray(list) ? list : []) {
+    if (typeof s !== 'string' || !s.trim() || /^Quota advisory:/i.test(s)) continue;
+    const m = /^Advisory: the busiest day plans (\d+) uploads, over this project's insert bucket of (\d+)\/day/i.exec(s);
+    out.push(m ? `Too many uploads on the busiest day: ${m[1]} planned, YouTube takes ${m[2]} a day. The rest would be refused.` : s);
+  }
+  return [...new Set(out)];
 }

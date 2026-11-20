@@ -9,11 +9,12 @@ import { Film, Search, ArrowUpRight, AlertTriangle, RotateCw, Copy } from 'lucid
 import { Card, Chip, PageHeader, PageSkeleton, EmptyState, BrandMark, Segmented } from '@/components/ui';
 import { useBrands } from '@/components/use-brands'; // #125: live channel names + marks
 import { when, timeAgo } from '@/lib/utils';
-import { filterLibrary, KIND_LABEL } from '@/lib/library-view.mjs';
+import { filterLibrary, KIND_LABEL, LINK_NOTE, countLine, libraryFilters, libraryHref } from '@/lib/library-view.mjs';
 import DataTable from '@/components/DataTable';
 
 const FETCH_LIMIT = 200; // the route's max page
 const STEP = 24; // grid / phone list reveal step
+const TABLE_PAGE = 25; // the desktop table's page size
 
 export default function VideosPage() {
   // useSearchParams needs a Suspense boundary (brief rule 7)
@@ -42,7 +43,7 @@ function Thumb({ item, className = '', showLabel = false }) {
     );
   }
   // honest placeholder — never a stand-in picture
-  const why = item.status === 'scheduled' ? 'Not live yet' : item.videoId ? 'No preview' : 'No link recorded';
+  const why = item.status === 'scheduled' ? 'Not live yet' : item.videoId ? 'No preview' : LINK_NOTE[item.linkNote] || LINK_NOTE.none;
   return (
     <div
       className={`aspect-video rounded-md shrink-0 flex flex-col items-center justify-center gap-1 ${className}`}
@@ -75,11 +76,27 @@ function TimeText({ item }) {
   );
 }
 
+// wave C2 (T2-11): a row without a link says WHY. "Link not saved" = the
+// engine uploaded the Short but kept only its title — search YouTube for it.
 function OpenLink({ item, compact = false }) {
+  if (!item.url && item.findUrl) {
+    return (
+      <a
+        href={item.findUrl}
+        target="_blank"
+        rel="noreferrer noopener"
+        className={compact ? 'icon-btn shrink-0' : 'btn btn-sm btn-ghost whitespace-nowrap shrink-0'}
+        title="Uploaded, but only its title was saved. This searches YouTube for that title."
+        aria-label={`Find "${item.title || 'video'}" on YouTube (link not saved)`}
+      >
+        {compact ? <Search size={15} /> : <><Search size={13} /> Find on YouTube</>}
+      </a>
+    );
+  }
   if (!item.url) {
     return (
-      <span className="t-11 text-faint whitespace-nowrap" title="This upload was logged without its YouTube link">
-        No link
+      <span className="t-11 text-faint whitespace-nowrap" title={item.linkNote === 'scheduled' ? 'Uploaded and set to go public later' : 'This upload was logged without its YouTube link'}>
+        {LINK_NOTE[item.linkNote] || LINK_NOTE.none}
       </span>
     );
   }
@@ -122,6 +139,7 @@ function StackRow({ item, brand, label }) {
             {item.status === 'scheduled' ? 'Scheduled' : item.status === 'published' ? 'Published' : 'Time unknown'}
           </span>
           <TimeText item={item} />
+          {item.linkNote === 'not-saved' ? <span className="text-faint">· {LINK_NOTE['not-saved']}</span> : null}
         </div>
         {item.dupTitle ? <div className="mt-1"><DupChip item={item} /></div> : null}
       </div>
@@ -171,12 +189,10 @@ function Library() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const channel = searchParams.get('channel') || 'all';
-
-  const [kind, setKind] = useState('all');
-  const [status, setStatus] = useState('all');
-  const [q, setQ] = useState('');
-  const [view, setView] = useState('table');
+  // wave C2 (T2-24): channel, type, status and view live in the URL, and a
+  // change is a history PUSH — Back restores the previous filter, not another page
+  const { channel, kind, status, view } = libraryFilters(searchParams);
+  const [q, setQ] = useState(''); // typing is not a history step
   const [nonce, setNonce] = useState(0); // Retry bumps this
   // keyed result: a stale key = loading, so no synchronous setState in effects
   const [res, setRes] = useState({ key: null, data: null, error: null });
@@ -213,13 +229,11 @@ function Library() {
   const brandOf = (slug) => BRAND[slug] || null;
   const labelOf = (slug) => BRAND[slug]?.label || (brandsLoaded ? 'Unlisted channel' : '…');
 
-  const setChannel = (v) => {
-    const sp = new URLSearchParams(searchParams.toString());
-    if (v === 'all') sp.delete('channel');
-    else sp.set('channel', v);
-    const s = sp.toString();
-    router.replace(s ? `${pathname}?${s}` : pathname, { scroll: false });
-  };
+  const setFilter = (patch) => router.push(libraryHref(pathname, searchParams.toString(), patch), { scroll: false });
+  const setChannel = (v) => setFilter({ channel: v });
+  const setKind = (v) => setFilter({ kind: v });
+  const setStatus = (v) => setFilter({ status: v });
+  const setView = (v) => setFilter({ view: v });
 
   const loadOlder = () => {
     if (!data) return;
@@ -251,8 +265,7 @@ function Library() {
   ];
   const filtersActive = kind !== 'all' || status !== 'all' || q.trim() !== '';
   const clearFilters = () => {
-    setKind('all');
-    setStatus('all');
+    setFilter({ kind: 'all', status: 'all' });
     setQ('');
   };
   const total = data?.total ?? 0;
@@ -393,9 +406,18 @@ function Library() {
           ) : null}
 
           <div className="flex items-center justify-between gap-2 mb-3 flex-wrap t-11 text-faint">
+            {/* wave C2 (T2-17): say what renders — "Showing 24 of 86" */}
             <span className="tnum">
-              {filtered.length} shown · {total} recorded for {channelLabel}
-              {partialLoad ? ` · newest ${items.length} loaded` : ''}
+              {view === 'grid' ? (
+                countLine({ shown, matched: filtered.length, recorded: items.length })
+              ) : (
+                <>
+                  <span className="lg:hidden">{countLine({ shown, matched: filtered.length, recorded: items.length })}</span>
+                  <span className="hidden lg:inline">{countLine({ matched: filtered.length, recorded: items.length, perPage: TABLE_PAGE })}</span>
+                </>
+              )}
+              {` · ${channelLabel}`}
+              {partialLoad ? ` · newest ${items.length} of ${total} loaded` : ''}
             </span>
             {filtersActive ? (
               <button type="button" className="btn btn-sm btn-outline" onClick={clearFilters}>Clear filters</button>
@@ -433,7 +455,7 @@ function Library() {
                   label="Video library"
                   rows={filtered}
                   columns={columns}
-                  pageSize={25}
+                  pageSize={TABLE_PAGE}
                   emptyIcon={Film}
                   emptyTitle="No videos match these filters"
                 />

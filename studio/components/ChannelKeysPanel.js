@@ -7,9 +7,12 @@
 // Round 2: rendered inside a Drawer via ChannelDrawers (`frame(body)`); each
 // provider row keeps its own Save & test, so there is no single footer action.
 // Wave B4: a typed, unsaved key marks the drawer dirty (it asks before closing).
+// Wave C3 (T3-19): typing clears the row's old message ("Paste a key first.");
+// a key that doesn't look like its provider's gets a soft hint (never blocks).
 import { useEffect, useState } from 'react';
 import { KeyRound, Loader2, CheckCircle2, XCircle, Trash2, ExternalLink, Info, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { keyFormatHint } from '@/lib/key-hints.mjs';
 
 export default function ChannelKeysPanel({ slug, frame }) {
   const confirm = useConfirm();
@@ -105,6 +108,7 @@ export default function ChannelKeysPanel({ slug, frame }) {
         <ul className="divide-y divide-[var(--line)] border-y border-[var(--line)]">
           {Object.entries(providers).map(([p, v]) => {
             const inputId = `key-${slug}-${p}`;
+            const hint = keyFormatHint(p, inputs[p], v.label);
             return (
               <li key={p} className="py-3 min-w-0">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -122,7 +126,11 @@ export default function ChannelKeysPanel({ slug, frame }) {
                     type="password"
                     placeholder={v.set ? 'Paste a new key to replace it' : `Paste a ${v.label.split(' ')[0]} key`}
                     value={inputs[p] || ''}
-                    onChange={(e) => setInputs((s) => ({ ...s, [p]: e.target.value }))}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setInputs((s) => ({ ...s, [p]: value }));
+                      setMsg((m) => (m[p] ? { ...m, [p]: null } : m));
+                    }}
                     className="input flex-1 min-w-0 basis-56"
                     autoComplete="new-password"
                   />
@@ -142,6 +150,7 @@ export default function ChannelKeysPanel({ slug, frame }) {
                   ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+                  {hint && !msg[p] ? <p className="t-12 text-muted min-w-0">{hint}</p> : null}
                   {msg[p] ? (
                     <p role="status" className="t-12 flex items-center gap-1 min-w-0" style={{ color: msg[p].ok ? 'var(--ok-ink)' : 'var(--bad-ink)' }}>
                       {msg[p].ok ? <CheckCircle2 size={12} className="shrink-0" /> : <XCircle size={12} className="shrink-0" />} <span className="min-w-0">{msg[p].text}</span>

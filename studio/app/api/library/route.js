@@ -64,6 +64,9 @@ export async function GET(req) {
     notes: [
       'Shorts older than the last 60 per channel are not recorded here.',
       'Published/Scheduled is worked out from the publish time, not read from YouTube.',
+      // wave C2 (T2-11): the engine saves only the newest Short's link; older
+      // Shorts are recorded by title + time after they upload
+      '"Link not saved" means the Short was uploaded but only its title was kept. "Find on YouTube" searches for it.',
     ],
     mode: MODE,
   });
