@@ -8,9 +8,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "PWyfQhXK8Yc",
-      "publishAt": "2026-11-19T22:35:00Z",
-      "title": "Why Your Brain Chases Empty Promises (45% Dopamine Surge)"
+      "videoId": "q0cySkr3b_o",
+      "publishAt": "2026-11-20T22:35:00Z",
+      "title": "The Confirmation Bias Trap: Ignoring 68% of Facts"
     }
   ],
   "deepdiveDate": "2026-11-18",
@@ -107,13 +107,17 @@
     {
       "t": "Why Your Brain Chases Empty Promises (45% Dopamine Surge)",
       "at": "2026-11-19T22:35:00Z"
+    },
+    {
+      "t": "The Confirmation Bias Trap: Ignoring 68% of Facts",
+      "at": "2026-11-20T22:35:00Z"
     }
   ],
   "cooldownSeeds": [
     "THE POWER OF SOLITUDE WILL CHANGE YOUR LIFE | Jim Rohn Motivation"
   ],
   "uploadsToday": {
-    "date": "2026-11-18",
+    "date": "2026-11-19",
     "count": 1
   },
   "clipQueue": {
@@ -149,7 +153,8 @@
         "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/761665667",
         "startSec": 63.8,
         "durSec": 21.6,
-        "file": "tt-lf/clipfeed-quotequarry/clips/clip-02.mp4"
+        "file": "tt-lf/clipfeed-quotequarry/clips/clip-02.mp4",
+        "postedAt": "2026-11-20T01:59:44.454Z"
       },
       {
         "part": 3,
@@ -171,7 +176,7 @@
       }
     ]
   },
-  "clipLastPostDate": "2026-11-19",
+  "clipLastPostDate": "2026-11-20",
   "usedLongSeeds": [
     "3 Psychological Tricks to Win Any Fight 🥶🥊 | Dark Psychology #Shorts #psychology #fighting #viral",
     "⭐ 10 RÈGLES STOÏCIENNES POUR ATTEINDRE TES OBJECTIFS ET CRÉER LA VIE QUE TU VEUX | STOÏCISME",
@@ -191,6 +196,6 @@
   "reviewGate": {
     "assigned": false,
     "gated": false,
-    "checkedAt": "2026-11-19T02:37:39.319Z"
+    "checkedAt": "2026-11-20T01:59:34.176Z"
   }
 }
