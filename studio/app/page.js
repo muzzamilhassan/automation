@@ -78,12 +78,15 @@ function TodayList({ channels, marks, now }) {
             const t = channelToday(c, now);
             const done = todayMarks(c, now);
             const next = t.state === 'paused' ? null : nextSlot(c.slots, c.longSlot, now);
+            // Live fix wave B3 (T1-07): on phones the name takes the whole first
+            // line beside the mark (it used to shrink to "Q."); the status and
+            // next slot stack under it. From sm up: one line, as before.
             return (
               <li key={c.slug}>
                 <Link href={`/channels/${c.slug}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 min-w-0 hover:bg-surface-2 transition-colors">
                   <BrandMark short={marks[c.slug]?.short || c.short || '•'} accent={c.accent || 'var(--accent)'} size={26} />
-                  <span className="t-13 font-semibold text-ink truncate min-w-0 flex-1 sm:flex-none sm:w-48">{c.label || c.slug}</span>
-                  <span className="flex flex-wrap items-center gap-1.5">
+                  <span className="t-13 font-semibold text-ink min-w-0 flex-1 basis-[calc(100%-38px)] sm:basis-auto break-words sm:truncate sm:flex-none sm:w-48">{c.label || c.slug}</span>
+                  <span className="flex flex-wrap items-center gap-1.5 pl-[38px] sm:pl-0">
                     <Chip tone={t.tone} dot>{t.label}</Chip>
                     {done.map((m) => <Chip key={m} tone="ok">{m} ✓</Chip>)}
                   </span>

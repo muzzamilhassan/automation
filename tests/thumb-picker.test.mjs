@@ -83,7 +83,7 @@ describe('A3 — the wizard Thumbnails step + payload', () => {
 describe('A6 — ThumbnailAssignPanel (drawer contract = SchedulePanel)', () => {
   test('signature + frame contract with Save in the footer', () => {
     assert.match(PANEL, /export default function ThumbnailAssignPanel\(\{ slug, frame \}\)/);
-    assert.match(PANEL, /if \(frame\) return frame\(body, footer\);/);
+    assert.match(PANEL, /if \(frame\) return frame\(body, footer, \{ dirty \}\);/); // + B4 dirty-guard contract
     assert.match(PANEL, /const footer = isOwner \? \([\s\S]*Save designs/);
   });
 
@@ -101,7 +101,7 @@ describe('A6 — ThumbnailAssignPanel (drawer contract = SchedulePanel)', () => 
 
 describe('G1/G2 — TemplateAssignPanel shows real demos', () => {
   test('fetches the CI previews and renders the shared media component', () => {
-    assert.match(TPL, /fetch\('\/api\/template-previews'\)/);
+    assert.match(TPL, /fetchJsonWithTimeout\('\/api\/template-previews', \{ timeoutMs: LOAD_TIMEOUT_MS \}\)/); // live-fix B1 T3-04: time-limited
     assert.match(TPL, /import TemplatePreviewMedia from '@\/components\/TemplatePreviewMedia'/);
     assert.match(TPL, /<TemplatePreviewMedia\b/);
     assert.match(TPL, /previewFor\(t\.templateId, samples\.samples\)/);

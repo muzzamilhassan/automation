@@ -23,6 +23,11 @@ export const DOC_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
 export const MAX_SLOTS = 6; // the route keeps the first 6
 
+// The profile route keeps the first 60 characters of a name (wave B4, T4-15).
+export const NAME_MAX = 60;
+// Auto-built eyebrows ("NICHE // NAME") fit a thumbnail label (T4-16).
+export const EYEBROW_MAX = 60;
+
 // One empty form, used for the first render AND "Connect another channel"
 // (the old reset object forgot subNiches and crashed the next save).
 export const EMPTY_FORM = Object.freeze({
@@ -169,8 +174,11 @@ export function stepIssues(stepId, ctx = {}) {
   switch (stepId) {
     case 'connect':
       return ctx.connectedSlug ? [] : ['Connect a YouTube channel first.'];
-    case 'identity':
-      return String(form.niche || '').trim() ? [] : ['Pick or type a niche.'];
+    case 'identity': {
+      const out = String(form.niche || '').trim() ? [] : ['Pick or type a niche.'];
+      if (String(form.label || '').length > NAME_MAX) out.push(`Keep the name to ${NAME_MAX} characters.`);
+      return out;
+    }
     case 'look': {
       const out = [];
       if (!String(form.style || '').trim()) out.push('Pick a video style.');
@@ -181,6 +189,10 @@ export function stepIssues(stepId, ctx = {}) {
     case 'schedule': {
       const out = [];
       const rows = parseSlots(form.slots);
+      // wave B4 (T4-10): the engine has no "no shorts" mode in the kit — an
+      // empty list falls back to old kit times or breaks a new channel. Long
+      // videos only = turn off Shorts days in the channel's Schedule drawer.
+      if (!rows.length) out.push('Add at least one daily short.');
       for (const r of rows) if (r.utc == null) out.push(`Can't read the time "${r.raw}" — use a time like 19:30.`);
       if (rows.length > MAX_SLOTS) out.push(`At most ${MAX_SLOTS} short times.`);
       if (!DOC_DAYS.includes(form.docDay)) out.push('Pick the weekly episode day.');
@@ -252,28 +264,162 @@ export function thumbDesignsForNiche(registry, niche) {
 const orDash = (v, empty = 'Not set') => (String(v ?? '').trim() ? String(v).trim() : empty);
 const clip = (s, n) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
+// A daily short is DAILY, so no "(next day)": "3:35 am your time (22:35 UTC)"
+// (wave B4, T4-17).
 export function describeSlots(slotsStr, offsetMin) {
   const rows = parseSlots(slotsStr).filter((r) => r.utc);
   if (!rows.length) return 'No daily short time set';
   return rows
-    .map((r) => {
-      const l = utcToLocal(r.utc, offsetMin);
-      const shift = l.dayShift > 0 ? ' (next day)' : l.dayShift < 0 ? ' (previous day)' : '';
-      return `${formatClock(l.time)}${shift} your time · ${r.utc} UTC`;
-    })
+    .map((r) => `${formatClock(utcToLocal(r.utc, offsetMin).time)} your time (${r.utc} UTC)`)
     .join('; ');
 }
 
+// "quote-card" → "Quote card" (a design id without a loaded name).
+const humanizeId = (id) => {
+  const s = String(id ?? '').replace(/^v2\//, '').replace(/[-_]+/g, ' ').trim();
+  return s ? s[0].toUpperCase() + s.slice(1) : '';
+};
+
+/* ------------------------------ name + eyebrow ----------------------------- */
+
+const caps = (s) => String(s ?? '').trim().replace(/\s+/g, ' ').toUpperCase();
+const initialsOf = (s) => caps(s).split(' ').filter((w) => w && w !== 'THE').map((w) => w[0]).join('');
+const DANGLING = /(?:\s*(?:[,&·:;/+-]|\b(?:AND|OF|THE|FOR|WITH)\b))+$/i;
+
+function splitEyebrow(e) {
+  const at = String(e ?? '').lastIndexOf('//');
+  return at < 0 ? null : { left: e.slice(0, at).trim(), right: e.slice(at + 2).trim() };
+}
+
+// Is `right` the name part for `label`? 'full' = the name or a cut-off start
+// of it ("QUOTE QU"); 'initials' = "MR" for "The Money Rulebook".
+function nameKind(right, label) {
+  const name = caps(label);
+  if (right === '') return 'full';
+  if (name && (right === name || (right.length >= 3 && name.startsWith(right)))) return 'full';
+  if (name && right.length >= 2 && right === initialsOf(label)) return 'initials';
+  return '';
+}
+
+// Drop whole words from the end until it fits — never cut mid-word.
+function fitWords(text, max) {
+  const words = String(text ?? '').trim().split(/\s+/).filter(Boolean);
+  while (words.length > 1 && words.join(' ').length > max) words.pop();
+  const out = words.join(' ');
+  return out.length > max ? out.slice(0, max).trim() : out; // one giant word: the only hard cut
+}
+
+function joinEyebrow(left, right, max) {
+  let l = String(left ?? '').trim();
+  const r = fitWords(right, max);
+  if (!r) return fitWords(l, max);
+  const room = max - r.length - 4; // " // "
+  if (room <= 0) return r;
+  l = fitWords(l, room).replace(DANGLING, '').trim();
+  while (l && l.length > room) l = l.split(' ').slice(0, -1).join(' ').replace(DANGLING, '').trim();
+  return l ? `${l} // ${r}` : r;
+}
+
+// The eyebrow with the CURRENT name and whole words only (T4-16). Used when
+// an AI / template eyebrow is applied ("… // QUOTE QU" → "… // QUOTE QUARRY").
+export function eyebrowFor(eyebrow, label, max = EYEBROW_MAX) {
+  const e = String(eyebrow ?? '').trim();
+  if (!e) return '';
+  const parts = splitEyebrow(e);
+  if (!parts) return fitWords(e, max);
+  const kind = nameKind(parts.right, label);
+  const right = kind === 'full' && caps(label) ? caps(label) : parts.right;
+  return joinEyebrow(parts.left, right, max);
+}
+
+// After a rename, the old name in the eyebrow becomes the new one. A custom
+// eyebrow that does not carry the name is left exactly as it is.
+export function renameEyebrow(eyebrow, oldLabel, newLabel, max = EYEBROW_MAX) {
+  const e = String(eyebrow ?? '');
+  const parts = splitEyebrow(e);
+  if (!e.trim() || !parts) return e;
+  const kind = nameKind(parts.right, oldLabel);
+  if (!kind || (kind === 'full' && parts.right === '' && !caps(newLabel))) return e;
+  const right = kind === 'initials' ? initialsOf(newLabel) : caps(newLabel);
+  return right ? joinEyebrow(parts.left, right, max) : `${parts.left} //`;
+}
+
+// One form field change. The name is capped at NAME_MAX (the API keeps 60)
+// and carries the eyebrow along with it.
+export function withField(form, key, value) {
+  const f = { ...(form || {}) };
+  if (key === 'label') {
+    const label = String(value ?? '').slice(0, NAME_MAX);
+    return { ...f, label, eyebrow: renameEyebrow(f.eyebrow, f.label, label) };
+  }
+  return { ...f, [key]: value };
+}
+
+/* ------------------------- unsaved draft (T4-08) -------------------------- */
+
+// The wizard keeps its in-progress form in sessionStorage, per mode + slug.
+// Only the plain form fields are stored — never tokens, keys or secrets.
+export const DRAFT_PREFIX = 'qs-wizard-draft';
+const DRAFT_FIELDS = [...Object.keys(EMPTY_FORM), 'thumbTemplates'];
+const SECRETISH = /token|secret|password|passwd|api_?key|credential|auth/i;
+
+export function draftKey(mode, slug) {
+  const s = String(slug ?? '').trim();
+  return s ? `${DRAFT_PREFIX}:${mode === 'edit' ? 'edit' : 'new'}:${s}` : '';
+}
+
+function draftFields(src) {
+  const out = {};
+  if (!src || typeof src !== 'object' || Array.isArray(src)) return out;
+  for (const k of DRAFT_FIELDS) {
+    if (SECRETISH.test(k)) continue;
+    const v = src[k];
+    if (k === 'thumbTemplates') {
+      if (Array.isArray(v)) out[k] = v.filter((x) => typeof x === 'string').slice(0, 24);
+    } else if (typeof v === 'string') {
+      out[k] = v.slice(0, 2000);
+    }
+  }
+  return out;
+}
+
+export function draftSnapshot(form, { step = 0, audience = '' } = {}) {
+  return { v: 1, form: draftFields(form), step: Number.isInteger(step) ? step : 0, audience: typeof audience === 'string' ? audience : '' };
+}
+
+// sessionStorage text → { form, step, audience } | null (junk is ignored).
+export function parseDraft(raw) {
+  let d;
+  try { d = JSON.parse(String(raw ?? '')); } catch { return null; }
+  if (!d || typeof d !== 'object' || Array.isArray(d) || d.v !== 1) return null;
+  if (!d.form || typeof d.form !== 'object' || Array.isArray(d.form)) return null;
+  return {
+    form: draftFields(d.form),
+    step: Number.isInteger(d.step) && d.step >= 0 && d.step < STEPS.length ? d.step : 0,
+    audience: typeof d.audience === 'string' ? d.audience : '',
+  };
+}
+
+// Same values in every saved field? (undefined, '' and [] designs are equal)
+export function sameForm(a, b) {
+  if (!a || !b) return false;
+  const norm = (f, k) => (k === 'thumbTemplates' ? (Array.isArray(f[k]) ? f[k].join('\u0001') : '') : String(f[k] ?? ''));
+  return DRAFT_FIELDS.every((k) => norm(a, k) === norm(b, k));
+}
+
 // One section per editable step, each row a plain [label, value] pair.
-// names = { style(id) → name, voice(id) → label } (lookups passed in so this
-// file stays dependency-free).
-export function reviewSummary(form, { channel = null, offsetMin = 0, names = {} } = {}) {
+// names = { style(id) → name, voice(id) → label, thumb(id) → design name }
+// (lookups passed in so this file stays dependency-free); audience = the
+// picked audience's label (wizard-local, shown so Review lists every choice).
+export function reviewSummary(form, { channel = null, offsetMin = 0, names = {}, audience = '' } = {}) {
   const f = { ...EMPTY_FORM, ...(form || {}) };
   const styleName = (names.style && names.style(f.style)) || f.style || 'Not set';
   const voiceName = (names.voice && names.voice(f.voice)) || f.voice || 'Not set';
   const pillars = subNicheList(f.subNiches);
   const tags = String(f.tags || '').split(',').map((t) => t.trim()).filter(Boolean);
   const key = channel ? keyStatus(channel) : null;
+  const designs = Array.isArray(f.thumbTemplates) ? f.thumbTemplates : [];
+  const designName = (id) => (names.thumb && names.thumb(id)) || humanizeId(id);
   const handle = (h) => (String(h || '').trim() ? `@${String(h).trim().replace(/^@+/, '')}` : 'Not posting');
   return [
     {
@@ -308,6 +454,7 @@ export function reviewSummary(form, { channel = null, offsetMin = 0, names = {} 
       step: 'thumbnails',
       title: 'Thumbnails',
       rows: [
+        ['Designs', designs.length ? designs.map(designName).join(', ') : 'Not picked — the niche’s designs take turns'],
         ['Eyebrow label', orDash(f.eyebrow)],
         ['Tagline', orDash(f.tagline)],
       ],
@@ -316,6 +463,7 @@ export function reviewSummary(form, { channel = null, offsetMin = 0, names = {} 
       step: 'schedule',
       title: 'Schedule',
       rows: [
+        ['Audience', orDash(audience, 'Not picked')],
         ['Daily shorts', describeSlots(f.slots, offsetMin)],
         ['Weekly long episode', `Every ${orDash(f.docDay)}`],
       ],

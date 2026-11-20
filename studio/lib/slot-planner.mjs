@@ -108,8 +108,9 @@ export function channelTimes(channels) {
     });
 }
 
-// Hours OTHER channels hold, as [{ hour (UTC), slug, label }], sorted by hour.
-// kind: 'start' (autopilot runs) or 'publish' (shorts going public).
+// Hours OTHER channels hold, as [{ hour (UTC), minute, slug, label }], sorted
+// by hour. kind: 'start' (autopilot runs) or 'publish' (shorts going public).
+// `minute` is the real minute (wave B4, T3-21: the legend shows "7:13 am").
 export function takenHours(times, { exclude = '', kind = 'start' } = {}) {
   const out = [];
   for (const c of Array.isArray(times) ? times : []) {
@@ -120,10 +121,42 @@ export function takenHours(times, { exclude = '', kind = 'start' } = {}) {
       const p = parseHHMM(t);
       if (!p || seen.has(p.hour)) continue;
       seen.add(p.hour);
-      out.push({ hour: p.hour, slug: c.slug, label: c.label || c.slug });
+      out.push({ hour: p.hour, minute: p.minute, slug: c.slug, label: c.label || c.slug });
     }
   }
   return out.sort((a, b) => a.hour - b.hour || a.label.localeCompare(b.label));
+}
+
+// The "Taken:" legend, one "Label 7:13 am" per taken time, sorted by the
+// VIEWER's clock (T4-20) with the real minutes (T3-21).
+export function takenLegend(taken, offsetMin) {
+  return (Array.isArray(taken) ? taken : [])
+    .filter((t) => t && isHour(t.hour))
+    .map((t) => {
+      const minute = isMinute(t.minute) ? t.minute : 0;
+      return { at: utcToLocalMinutes(t.hour, minute, offsetMin), text: `${t.label || t.slug || ''} ${localClock(t.hour, minute, offsetMin).replace(':00 ', ' ')}`.trim() };
+    })
+    .sort((a, b) => a.at - b.at || a.text.localeCompare(b.text))
+    .map((t) => t.text);
+}
+
+// What one timeline cell shows (wave B4):
+//   owners   other channels' labels at this hour (or null)
+//   own      this hour is the channel's SAVED time (T3-09: always pickable,
+//            even when another channel shares it)
+//   star     the suggestion for this hour (or null)
+//   loading  the registry has not arrived: no stars, no picks (T4-13)
+// → { blocked, tag ('shared' | 'taken' | 'saved' | ''), strike, star }
+// Tags stay short so a narrow cell never truncates them (T3-25).
+export function timelineCell({ owners = null, selected = false, own = false, star = null, loading = false } = {}) {
+  const taken = Array.isArray(owners) && owners.length > 0;
+  const tag = taken ? (selected || own ? 'shared' : 'taken') : own && !selected ? 'saved' : '';
+  return {
+    blocked: loading || (taken && !selected && !own),
+    tag,
+    strike: taken && !selected && !own,
+    star: Boolean(star) && !loading,
+  };
 }
 
 /* ------------------------------ suggestions ------------------------------ */
@@ -162,6 +195,37 @@ function pickFree(ranked, taken, count, gapHours) {
   const gapped = ranked.filter((h) => t.every((x) => hourDistance(h, x) > gapHours));
   const loose = ranked.filter((h) => !t.includes(h) && !gapped.includes(h));
   return [...gapped, ...loose].slice(0, count);
+}
+
+/**
+ * A free "HH:MM" near `prefer` (wave B4, T4-09): the preferred hour when it
+ * keeps the `gapHours` gap from every taken hour, else the nearest hour that
+ * does, else the nearest hour that is merely not taken (same rule as the
+ * suggestions — pickFree). `own` = the channel's other short times (two shorts
+ * never share an hour). The minute of `prefer` is kept. null = nothing free.
+ */
+export function freeSlotTime({ prefer = '22:35', taken = [], own = [], gapHours = 1 } = {}) {
+  const p = parseHHMM(prefer) || { hour: 22, minute: 35 };
+  const blockers = [...takenSet(taken), ...(Array.isArray(own) ? own : []).map(parseHHMM).filter(Boolean).map((x) => x.hour)];
+  const ranked = [...Array(24).keys()].sort((a, b) => hourDistance(a, p.hour) - hourDistance(b, p.hour) || a - b);
+  const [hour] = pickFree(ranked, blockers, 1, gapHours);
+  return hour == null ? null : toHHMM(hour, p.minute);
+}
+
+/* --------------------------- schedule drawer state ------------------------ */
+
+const daySet = (d) => [...new Set((Array.isArray(d) ? d : []).map(String))].sort().join(',');
+
+// Has the Schedule drawer changed anything since it was loaded/saved?
+// (wave B4, T3-18: Save stays disabled until it has.) Day order is ignored.
+export function scheduleDirty(saved, draft) {
+  if (!saved || !draft) return false;
+  return (
+    daySet(saved.docDays) !== daySet(draft.docDays) ||
+    daySet(saved.shortDays) !== daySet(draft.shortDays) ||
+    String(saved.shortsSource || '') !== String(draft.shortsSource || '') ||
+    String(saved.gateCron || '').trim() !== String(draft.gateCron || '').trim()
+  );
 }
 
 function normaliseAudience(audienceHours) {

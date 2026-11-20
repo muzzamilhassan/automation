@@ -4,7 +4,8 @@
 // clients: their bound channel. The /thumbs editor loads these as defaults.
 import { getUser } from '@/lib/route-auth';
 import { canAccessChannelSlug } from '@/lib/access';
-import { readRepoJSON, writeRepoJSON } from '@/lib/channels-registry';
+import { readRepoJSON, writeRepoJSON, readRegistry } from '@/lib/channels-registry';
+import { brands } from '@/lib/data.mjs';
 import { appendAudit } from '@/lib/audit';
 import { TEMPLATES } from '@/lib/thumb-templates';
 import { isV2Template } from '@/lib/thumb-templates-v2';
@@ -30,13 +31,29 @@ const clean = (b) => ({
     : undefined,
 });
 
+// live fix wave B2 (P14): the editor's fallback text comes from THIS
+// channel's own kit (registry entry, then the static brand kit) — never from
+// another channel. Read-only; a failed read means empty, not someone else's.
+async function kitDefaults(slug) {
+  let eyebrow = '';
+  try {
+    const reg = await readRegistry();
+    const entry = (reg.channels || []).find((c) => c.slug === slug);
+    eyebrow = String(entry?.kit?.eyebrow || '');
+  } catch { eyebrow = ''; }
+  if (!eyebrow) {
+    try { eyebrow = String((brands() || {})[slug]?.eyebrow || ''); } catch { eyebrow = ''; }
+  }
+  return { eyebrow: eyebrow.trim().slice(0, 40) };
+}
+
 export async function GET(req) {
   const user = await getUser(req);
   if (!user) return Response.json({ error: 'not signed in' }, { status: 401 });
   const slug = new URL(req.url).searchParams.get('slug') || '';
   if (!(await canAccessChannelSlug(user, slug))) return Response.json({ error: 'this channel is not linked to your account' }, { status: 403 });
   const entry = (await loadFile())[slug] || {};
-  return Response.json({ slug, branding: clean(entry) });
+  return Response.json({ slug, branding: clean(entry), kit: await kitDefaults(slug) });
 }
 
 export async function POST(req) {

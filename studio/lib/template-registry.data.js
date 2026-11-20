@@ -15,6 +15,10 @@
 //   gallery/aspect-ratio join. Optional on the legacy 7 (their family IS the
 //   key); required together with template_id on new entries, which lets many
 //   templates share one visual family (e.g. myth-vs-money on stats-counters).
+// - `display_name` — the template's own human name, shown on every Studio
+//   surface (templateDisplayName in template-registry.js). Unique across the
+//   registry (tests/template-names.test.mjs). Missing → the family's name for
+//   the family itself, else the id made readable.
 //
 // Brain thresholds (#105 Phase 3, spec D8 / review R-1): `variation_threshold`
 // and `cross_channel_threshold` are per-template DATA consumed by the
@@ -46,6 +50,7 @@ export const REGISTRY_META = {
   'documentary-frames': {
     version: '1.0.0',
     template_id: 'documentary-frames',
+    display_name: 'Documentary Master Frames',
     niches: ['History stories'],
     formats: ['long', 'short'],
     renderer: 'remotion',
@@ -62,6 +67,7 @@ export const REGISTRY_META = {
   'timeline-history': {
     version: '1.0.0',
     template_id: 'timeline-history',
+    display_name: 'Chronological Timeline Rail',
     niches: ['History stories'],
     formats: ['long'],
     renderer: 'remotion',
@@ -78,6 +84,7 @@ export const REGISTRY_META = {
   'photo-stories': {
     version: '1.0.0',
     template_id: 'photo-stories',
+    display_name: '2.5D Parallax Photo Story',
     niches: ['History stories'],
     formats: ['long', 'short'],
     renderer: 'remotion',
@@ -96,6 +103,7 @@ export const REGISTRY_META = {
   'finance-explainers': {
     version: '1.0.0',
     template_id: 'finance-explainers',
+    display_name: 'Macroeconomics & Ledger Story',
     niches: [
       'Investing psychology & market wisdom',
       'Personal finance rules & money habits',
@@ -130,6 +138,7 @@ export const REGISTRY_META = {
     // 9:16 variant FIRST; then this declaration may add 'short' again.
     version: '1.0.1',
     template_id: 'editorial-headlines',
+    display_name: 'Investigative Paper Headlines',
     niches: ['History stories'],
     formats: ['long'],
     renderer: 'remotion',
@@ -168,6 +177,7 @@ export const REGISTRY_META = {
   'myth-vs-money': {
     version: '1.0.1',
     template_id: 'myth-vs-money',
+    display_name: 'Myth vs Money',
     family: 'documentary-frames',
     niches: ['Personal finance rules & money habits'],
     formats: ['short', 'long'],
@@ -241,6 +251,7 @@ export const REGISTRY_META = {
   'red-flags-explained': {
     version: '1.2.0',
     template_id: 'red-flags-explained',
+    display_name: 'Red Flags Explained',
     family: 'documentary-frames',
     niches: ['Personal finance rules & money habits'],
     formats: ['long', 'short'],
@@ -317,6 +328,7 @@ export const REGISTRY_META = {
   'history-storybook': {
     version: '1.0.0',
     template_id: 'history-storybook',
+    display_name: 'History Storybook',
     family: 'documentary-frames',
     niches: ['History stories'],
     formats: ['long', 'short'],
@@ -356,6 +368,7 @@ export const REGISTRY_META = {
   'wisdom-storybook': {
     version: '1.0.0',
     template_id: 'wisdom-storybook',
+    display_name: 'Wisdom Storybook',
     family: 'documentary-frames',
     niches: ['Timeless wisdom, self-mastery & human psychology', 'Human psychology & social dynamics', 'Leadership & management wisdom'],
     formats: ['long', 'short'],
@@ -395,6 +408,7 @@ export const REGISTRY_META = {
   'science-storybook': {
     version: '1.0.0',
     template_id: 'science-storybook',
+    display_name: 'Science Storybook',
     family: 'documentary-frames',
     niches: ['Science & how things work'],
     formats: ['long', 'short'],
@@ -440,6 +454,7 @@ export const REGISTRY_META = {
   'investing-psychology-storybook': {
     version: '1.0.0',
     template_id: 'investing-psychology-storybook',
+    display_name: 'Investing Psychology Storybook',
     family: 'documentary-frames',
     niches: ['Investing psychology & market wisdom'],
     formats: ['long', 'short'],
@@ -470,6 +485,7 @@ export const REGISTRY_META = {
   'oldmoney-storybook': {
     version: '1.0.0',
     template_id: 'oldmoney-storybook',
+    display_name: 'Old Money Storybook',
     family: 'documentary-frames',
     niches: ['Old money habits & quiet wealth'],
     formats: ['long', 'short'],
@@ -500,6 +516,7 @@ export const REGISTRY_META = {
   'realestate-storybook': {
     version: '1.0.0',
     template_id: 'realestate-storybook',
+    display_name: 'Real Estate Storybook',
     family: 'documentary-frames',
     niches: ['Real estate wisdom & property'],
     formats: ['long', 'short'],
@@ -530,6 +547,7 @@ export const REGISTRY_META = {
   'insurance-storybook': {
     version: '1.0.0',
     template_id: 'insurance-storybook',
+    display_name: 'Insurance Storybook',
     family: 'documentary-frames',
     niches: ['Insurance explained simply'],
     formats: ['long', 'short'],
@@ -560,6 +578,7 @@ export const REGISTRY_META = {
   'tax-storybook': {
     version: '1.0.0',
     template_id: 'tax-storybook',
+    display_name: 'Tax Storybook',
     family: 'documentary-frames',
     niches: ['Small-business tax & legal principles'],
     formats: ['long', 'short'],
@@ -590,6 +609,7 @@ export const REGISTRY_META = {
   'business-storybook': {
     version: '1.0.0',
     template_id: 'business-storybook',
+    display_name: 'Business Storybook',
     family: 'documentary-frames',
     niches: ['Entrepreneurship & lean business'],
     formats: ['long', 'short'],
@@ -620,6 +640,7 @@ export const REGISTRY_META = {
   'sales-storybook': {
     version: '1.0.0',
     template_id: 'sales-storybook',
+    display_name: 'Sales Storybook',
     family: 'documentary-frames',
     niches: ['Sales & negotiation psychology'],
     formats: ['long', 'short'],
@@ -650,6 +671,7 @@ export const REGISTRY_META = {
   'travel-storybook': {
     version: '1.0.0',
     template_id: 'travel-storybook',
+    display_name: 'Travel Storybook',
     family: 'documentary-frames',
     niches: ['Travel & geography explained'],
     formats: ['long', 'short'],
@@ -680,6 +702,7 @@ export const REGISTRY_META = {
   'ai-storybook': {
     version: '1.0.0',
     template_id: 'ai-storybook',
+    display_name: 'AI Storybook',
     family: 'documentary-frames',
     niches: ['AI & future tech'],
     formats: ['long', 'short'],
@@ -710,6 +733,7 @@ export const REGISTRY_META = {
   'focus-storybook': {
     version: '1.0.0',
     template_id: 'focus-storybook',
+    display_name: 'Focus Storybook',
     family: 'documentary-frames',
     niches: ['Focus & productivity systems'],
     formats: ['long', 'short'],
@@ -740,6 +764,7 @@ export const REGISTRY_META = {
   'cashflow-challenge-storybook': {
     "version": "1.0.0",
     "template_id": "cashflow-challenge-storybook",
+    "display_name": "Cashflow Challenge Storybook",
     "family": "documentary-frames",
     "niches": [
       "Personal finance rules & money habits"
@@ -829,6 +854,7 @@ export const REGISTRY_META = {
   'deep-reset-storybook': {
     "version": "1.0.0",
     "template_id": "deep-reset-storybook",
+    "display_name": "Deep Reset Storybook",
     "family": "documentary-frames",
     "niches": [
       "Sleep & recovery science"
@@ -918,6 +944,7 @@ export const REGISTRY_META = {
   'evidence-room-storybook': {
     "version": "1.0.0",
     "template_id": "evidence-room-storybook",
+    "display_name": "Evidence Room Storybook",
     "family": "documentary-frames",
     "niches": [
       "AI & future tech"
@@ -1007,6 +1034,7 @@ export const REGISTRY_META = {
   'fine-print-storybook': {
     "version": "1.0.0",
     "template_id": "fine-print-storybook",
+    "display_name": "Fine Print Storybook",
     "family": "documentary-frames",
     "niches": [
       "Small-business tax & legal principles"
@@ -1096,6 +1124,7 @@ export const REGISTRY_META = {
   'grit-code-storybook': {
     "version": "1.0.0",
     "template_id": "grit-code-storybook",
+    "display_name": "Grit Code Storybook",
     "family": "documentary-frames",
     "niches": [
       "Gym & training motivation"
@@ -1185,6 +1214,7 @@ export const REGISTRY_META = {
   'heirloom-storybook': {
     "version": "1.0.0",
     "template_id": "heirloom-storybook",
+    "display_name": "Heirloom Storybook",
     "family": "documentary-frames",
     "niches": [
       "Old money habits & quiet wealth"
@@ -1274,6 +1304,7 @@ export const REGISTRY_META = {
   'money-flow-diagram': {
     "version": "1.0.0",
     "template_id": "money-flow-diagram",
+    "display_name": "Money Flow Diagram",
     "family": "documentary-frames",
     "niches": [
       "Personal finance rules & money habits",
@@ -1363,6 +1394,7 @@ export const REGISTRY_META = {
   'mr-case-files-storybook': {
     "version": "1.0.0",
     "template_id": "mr-case-files-storybook",
+    "display_name": "Case Files Storybook",
     "family": "documentary-frames",
     "niches": [
       "Personal finance rules & money habits"
@@ -1453,6 +1485,7 @@ export const REGISTRY_META = {
   'no-spend-30day-storybook': {
     "version": "1.0.0",
     "template_id": "no-spend-30day-storybook",
+    "display_name": "30-Day No-Spend Storybook",
     "family": "documentary-frames",
     "niches": [
       "Personal finance rules & money habits"
@@ -1542,6 +1575,7 @@ export const REGISTRY_META = {
   'old-verses-storybook': {
     "version": "1.0.0",
     "template_id": "old-verses-storybook",
+    "display_name": "Old Verses Storybook",
     "family": "documentary-frames",
     "niches": [
       "Timeless wisdom, self-mastery & human psychology"
@@ -1632,6 +1666,7 @@ export const REGISTRY_META = {
   'paper-trail-storybook': {
     "version": "1.0.0",
     "template_id": "paper-trail-storybook",
+    "display_name": "Paper Trail Storybook",
     "family": "documentary-frames",
     "niches": [
       "Personal finance rules & money habits"
@@ -1722,6 +1757,7 @@ export const REGISTRY_META = {
   'salt-and-iron-storybook': {
     "version": "1.0.0",
     "template_id": "salt-and-iron-storybook",
+    "display_name": "Salt and Iron Storybook",
     "family": "documentary-frames",
     "niches": [
       "History stories"
@@ -1811,6 +1847,7 @@ export const REGISTRY_META = {
   'silicon-pulse-storybook': {
     "version": "1.0.0",
     "template_id": "silicon-pulse-storybook",
+    "display_name": "Silicon Pulse Storybook",
     "family": "documentary-frames",
     "niches": [
       "AI & future tech"
@@ -1901,6 +1938,7 @@ export const REGISTRY_META = {
   'switchboard-storybook': {
     "version": "1.0.0",
     "template_id": "switchboard-storybook",
+    "display_name": "Switchboard Storybook",
     "family": "documentary-frames",
     "niches": [
       "Focus & productivity systems"
@@ -1991,6 +2029,7 @@ export const REGISTRY_META = {
   'systems-diagram': {
     "version": "1.0.0",
     "template_id": "systems-diagram",
+    "display_name": "Systems Diagram",
     "family": "documentary-frames",
     "niches": [
       "AI & future tech",
@@ -2075,6 +2114,7 @@ export const REGISTRY_META = {
   'full-current-storybook': {
     "version": "1.0.0",
     "template_id": "full-current-storybook",
+    "display_name": "Full Current Storybook",
     "family": "documentary-frames",
     "niches": [
       "Focus & productivity systems"
@@ -2164,6 +2204,7 @@ export const REGISTRY_META = {
   'marble-quill-storybook': {
     "version": "1.0.0",
     "template_id": "marble-quill-storybook",
+    "display_name": "Marble Quill Storybook",
     "family": "documentary-frames",
     "niches": [
       "Timeless wisdom, self-mastery & human psychology"
@@ -2253,6 +2294,7 @@ export const REGISTRY_META = {
   'iron-five-storybook': {
     "version": "1.0.0",
     "template_id": "iron-five-storybook",
+    "display_name": "Iron Five Storybook",
     "family": "documentary-frames",
     "niches": [
       "Gym & training motivation"
@@ -2343,6 +2385,7 @@ export const REGISTRY_META = {
   'night-signal-storybook': {
     "version": "1.0.0",
     "template_id": "night-signal-storybook",
+    "display_name": "Night Signal Storybook",
     "family": "documentary-frames",
     "niches": [
       "Sleep & recovery science"
@@ -2433,6 +2476,7 @@ export const REGISTRY_META = {
   'old-banners-storybook': {
     "version": "1.0.0",
     "template_id": "old-banners-storybook",
+    "display_name": "Old Banners Storybook",
     "family": "documentary-frames",
     "niches": [
       "History stories"
@@ -2523,6 +2567,7 @@ export const REGISTRY_META = {
   'lecture-notes-paper': {
     "version": "1.0.0",
     "template_id": "lecture-notes-paper",
+    "display_name": "Lecture Notes Paper",
     "family": "documentary-frames",
     "niches": [
       "AI & future tech",

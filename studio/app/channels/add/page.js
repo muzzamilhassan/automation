@@ -9,13 +9,26 @@
 // ConnectedChannels), /api/channels/profile (GET prefill, POST save),
 // /api/channels/kit (#113 AI draft), /api/oauth/start (+ ?mode=link),
 // /api/templates + /api/template-previews + /api/templates/assign (#115).
+// The AI kit draft (#113, T4-06) lives in IdentityStep since live fix wave B2.
+//
+// Live fix wave B4:
+//   T4-08  the in-progress form is kept in this tab's sessionStorage (per mode
+//          + slug, plain fields only — never tokens or keys), restored on load
+//          with a "Restored your unsaved setup — Start over" note, cleared after
+//          a successful save; leaving the site with unsaved changes asks first
+//   T4-09  a NEW channel's default short time moves to a free hour
+//   T4-15/16  the name is capped at 60 and carries the eyebrow along
+//          (withField); a drafted eyebrow gets the current name, whole words
+//   T4-17  Review lists the picked thumbnail designs and the audience
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { UserPlus, CheckCircle2, ArrowLeft, ArrowRight, Plus, Pencil, ExternalLink, Play, PauseCircle } from 'lucide-react';
 import { Card, PageHeader, PageSkeleton } from '@/components/ui';
 import { STYLE_BY_ID } from '@/lib/styles-catalog';
 import { VOICES } from '@/lib/voices';
-import { STEPS, STEP_INDEX, EMPTY_FORM, stepIssues, allIssues, canOpenStep, stepStates, reviewSummary } from '@/lib/wizard-steps.mjs';
+import { STEPS, STEP_INDEX, EMPTY_FORM, stepIssues, allIssues, canOpenStep, stepStates, reviewSummary, withField, eyebrowFor, draftKey, draftSnapshot, parseDraft, sameForm } from '@/lib/wizard-steps.mjs';
+import { channelTimes, takenHours, freeSlotTime } from '@/lib/slot-planner.mjs';
+import { suggestionFor } from '@/lib/audiences';
 import { engineFormValues, editPayload, withReviewKeyRow } from '@/lib/edit-prefill.mjs';
 import StepIndicator from '@/components/wizard/StepIndicator';
 import ConnectStep from '@/components/wizard/ConnectStep';
@@ -74,6 +87,16 @@ export default function AddChannel() {
   // live fix wave A2 (T4-02): the form exactly as it was loaded for an
   // existing channel — an edit Save sends only what differs from it
   const savedForm = useRef(null);
+  // wave B4 (T4-08): the form as last loaded or saved — the baseline the
+  // unsaved draft is compared with; draftReady = restore finished (nothing is
+  // stored before that, so a slow load never overwrites a stored draft)
+  const cleanForm = useRef(null);
+  const draftReady = useRef(false);
+  const formRef = useRef(form);
+  const leaving = useRef(false); // the Google redirect is not "losing" anything
+  const [draftNote, setDraftNote] = useState(false);
+  // T4-17: the thumbnail designs as loaded by the Thumbnails step (names for Review)
+  const [thumbDesigns, setThumbDesigns] = useState([]);
 
   // connect / link
   const [connectError, setConnectError] = useState('');
@@ -83,14 +106,6 @@ export default function AddChannel() {
   const [makingLink, setMakingLink] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
-
-  // #113 — LLM kit drafts: reviewable per-field suggestions with explicit
-  // Apply. Template fallback fills as before and is stated as such.
-  const [fillingKit, setFillingKit] = useState(false);
-  const [kitMood, setKitMood] = useState('');
-  const [kitDraft, setKitDraft] = useState(null); // { kit, suggestion, applied }
-  const [kitNote, setKitNote] = useState('');
-  const [kitError, setKitError] = useState('');
 
   // #115 — production templates + CI sample MP4s, per-template assign state
   const [tpl, setTpl] = useState({ status: 'loading', templates: [], assignedIds: [] });
@@ -107,7 +122,13 @@ export default function AddChannel() {
   const [saved, setSaved] = useState(false);
   const [started, setStarted] = useState(false);
 
-  const setField = useCallback((key, value) => setForm((f) => ({ ...f, [key]: value })), []);
+  const setField = useCallback((key, value) => setForm((f) => withField(f, key, value)), []);
+  // T4-16: an eyebrow drafted in IdentityStep (AI / template) gets the
+  // current name and whole words only
+  const setDraftForm = useCallback((update) => setForm((f) => {
+    const next = typeof update === 'function' ? update(f) : update;
+    return next && next.eyebrow && next.eyebrow !== f.eyebrow ? { ...next, eyebrow: eyebrowFor(next.eyebrow, next.label) } : next;
+  }), []);
   const closeSetup = useCallback(() => setShowSetup(false), []);
 
   const loadReg = useCallback(() => readRegistry().then(setReg), []);
@@ -129,6 +150,7 @@ export default function AddChannel() {
     setForm((f) => {
       const next = { ...f, ...values };
       savedForm.current = next;
+      cleanForm.current = next;
       return next;
     });
   };
@@ -143,6 +165,39 @@ export default function AddChannel() {
       .then((x) => x.json())
       .then((d) => (d?.channel ? prefill(d.channel, d.legacy || null) : fallback()))
       .catch(fallback);
+  };
+
+  // T4-09: a NEW channel (no saved times) gets a default short time no other
+  // channel holds, with the 1-hour gap (lib/slot-planner.mjs)
+  const applyFreeDefault = (slug, channels) => {
+    const row = (channels || []).find((c) => c.slug === slug);
+    if (row?.slots?.length || row?.kit?.slots?.length) return;
+    const free = freeSlotTime({ prefer: EMPTY_FORM.slots, taken: takenHours(channelTimes(channels), { exclude: slug, kind: 'publish' }) });
+    if (!free || free === EMPTY_FORM.slots) return;
+    setForm((f) => {
+      if (f.slots !== EMPTY_FORM.slots) return f;
+      const next = { ...f, slots: free };
+      if (!cleanForm.current || sameForm(cleanForm.current, f)) cleanForm.current = next;
+      return next;
+    });
+  };
+
+  // T4-08: bring back this tab's unsaved setup for the channel (after the
+  // profile prefill, so the draft wins and edit saves still diff against
+  // the loaded values)
+  const restoreDraft = (mode, slug) => {
+    let d = null;
+    try { d = parseDraft(window.sessionStorage.getItem(draftKey(mode, slug))); } catch { d = null; }
+    if (d) {
+      setForm((f) => ({ ...f, ...d.form }));
+      if (d.audience) setAudience(d.audience);
+      if (d.step > 0 && canOpenStep(d.step, { form: { ...EMPTY_FORM, ...d.form }, connectedSlug: slug })) {
+        setStep(d.step);
+        setVisited((v) => [...new Set([...v, ...Array.from({ length: d.step + 1 }, (_, i) => i)])]);
+      }
+      setDraftNote(true);
+    }
+    draftReady.current = true;
   };
 
   // first load: registry + the OAuth return (?connected= / ?error= /
@@ -165,13 +220,43 @@ export default function AddChannel() {
           setStep(1);
           setVisited([0, 1]);
         }
-        loadProfile(slug, r.channels);
+        loadProfile(slug, r.channels).then(() => {
+          if (!alive) return;
+          if (!editSlug) applyFreeDefault(slug, r.channels);
+          restoreDraft(editSlug ? 'edit' : 'new', slug);
+        });
       }
     })();
     return () => {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // T4-08: keep the in-progress setup in this tab's sessionStorage while it
+  // differs from what was loaded/saved (removed once it matches again)
+  useEffect(() => {
+    formRef.current = form;
+    if (!draftReady.current || !connectedSlug || saved) return;
+    const key = draftKey(editing ? 'edit' : 'new', connectedSlug);
+    try {
+      if (sameForm(form, cleanForm.current || EMPTY_FORM)) window.sessionStorage.removeItem(key);
+      else window.sessionStorage.setItem(key, JSON.stringify(draftSnapshot(form, { step, audience })));
+    } catch {
+      // storage blocked or full — the leave warning below still protects
+    }
+  }, [form, step, audience, connectedSlug, editing, saved]);
+
+  // …and leaving the site with unsaved changes asks first
+  useEffect(() => {
+    const onBeforeUnload = (e) => {
+      if (leaving.current || !draftReady.current) return;
+      if (sameForm(formRef.current, cleanForm.current || EMPTY_FORM)) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, []);
 
   // #115 — registry templates (with this channel's current assignments when
@@ -239,70 +324,6 @@ export default function AddChannel() {
     }
   };
 
-  const autoFillKit = async () => {
-    if (!form.niche.trim()) {
-      setKitError('Type a niche first — the kit generator drafts from it.');
-      return;
-    }
-    setFillingKit(true);
-    setKitError('');
-    setKitNote('');
-    try {
-      const r = await fetch('/api/channels/kit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug: connectedSlug, niche: form.niche, label: form.label, useLLM: true }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'Kit generation failed');
-      setKitMood(d.kit.mood || '');
-      if (d.source === 'llm') {
-        // AI draft — NEVER fills silently: every field becomes a reviewable
-        // suggestion with an explicit Apply action.
-        setKitDraft({ kit: d.kit, suggestion: d.suggestion || {}, applied: {} });
-      } else {
-        // template path (or AI fallback) — fills as before, and says which path
-        setKitDraft(null);
-        setKitNote(d.note ? `AI unavailable (${d.note}) — drafted by the template generator and filled in.` : 'Drafted by the template generator and filled in.');
-        setForm((f) => ({
-          ...f,
-          subNiches: Array.isArray(d.kit.niches) ? d.kit.niches.join(', ') : f.subNiches,
-          eyebrow: d.kit.eyebrow || f.eyebrow,
-          tagline: d.kit.tagline || f.tagline,
-          tags: (d.kit.tags || []).join(', '),
-          description: d.kit.description || f.description,
-        }));
-      }
-    } catch (e) {
-      setKitError(e.message);
-    }
-    setFillingKit(false);
-  };
-
-  // #113 — one explicit Apply per drafted field; the form only changes on click.
-  const applyDraftField = (key) => {
-    if (!kitDraft) return;
-    const { kit, suggestion } = kitDraft;
-    setForm((f) => {
-      switch (key) {
-        case 'eyebrow': return { ...f, eyebrow: kit.eyebrow || f.eyebrow };
-        case 'tagline': return { ...f, tagline: kit.tagline || f.tagline };
-        case 'description': return { ...f, description: kit.description || f.description };
-        case 'tags': return { ...f, tags: (kit.tags || []).join(', ') || f.tags };
-        case 'subNiches': return { ...f, subNiches: (kit.niches || []).join(', ') || f.subNiches };
-        case 'voice': return suggestion.voice ? { ...f, voice: suggestion.voice } : f;
-        case 'style': return suggestion.style ? { ...f, style: suggestion.style } : f;
-        default: return f;
-      }
-    });
-    setKitDraft((kd) => ({ ...kd, applied: { ...kd.applied, [key]: true } }));
-  };
-
-  const applyAllDraftFields = () => {
-    if (!kitDraft) return;
-    ['eyebrow', 'tagline', 'description', 'tags', 'subNiches', ...(kitDraft.suggestion.voice ? ['voice'] : []), ...(kitDraft.suggestion.style ? ['style'] : [])].forEach(applyDraftField);
-  };
-
   const makeLink = async () => {
     setMakingLink(true);
     setCopied(false);
@@ -340,6 +361,7 @@ export default function AddChannel() {
         setConnecting(false);
         return;
       }
+      leaving.current = true;
       window.location.href = d.url;
     } catch {
       setConnectError('Network error starting the login.');
@@ -380,6 +402,17 @@ export default function AddChannel() {
     };
   };
 
+  // T4-08: drop this channel's stored draft (after a save, or Start over)
+  const forgetDraft = () => {
+    try { window.sessionStorage.removeItem(draftKey(editing ? 'edit' : 'new', connectedSlug)); } catch { }
+    setDraftNote(false);
+  };
+  const startOverDraft = () => {
+    forgetDraft();
+    setForm({ ...(cleanForm.current || EMPTY_FORM) });
+    setAudience('');
+  };
+
   // start=undefined saves settings and leaves the autopilot flag alone;
   // start === true records consent and flips the autopilot on (YouTube API
   // express-consent requirement). A plain save must never send `false` —
@@ -404,6 +437,8 @@ export default function AddChannel() {
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'Save failed');
       if (editing) savedForm.current = form;
+      cleanForm.current = form;
+      forgetDraft();
       setSaved(true);
       setStarted(start === true);
       loadReg();
@@ -429,11 +464,11 @@ export default function AddChannel() {
     setConnectedSlug('');
     setEditing(false);
     savedForm.current = null;
+    cleanForm.current = null;
+    draftReady.current = false;
+    setDraftNote(false);
+    setThumbDesigns([]);
     setForm({ ...EMPTY_FORM });
-    setKitMood('');
-    setKitDraft(null);
-    setKitNote('');
-    setKitError('');
     setAssignState({});
     setAudience('');
     setConsent(false);
@@ -452,7 +487,8 @@ export default function AddChannel() {
     resetWizard();
     setConnectedSlug(c.slug);
     setEditing(true);
-    loadProfile(c.slug, reg?.channels);
+    const loaded = loadProfile(c.slug, reg?.channels);
+    loaded.then(() => restoreDraft('edit', c.slug));
     setStep(1);
     setVisited([0, 1]);
     // after the drawer closes (and hands focus back to its row), bring the
@@ -529,6 +565,13 @@ export default function AddChannel() {
             </div>
 
             <div className="px-5 sm:px-6 py-5">
+              {draftNote ? (
+                <div className="mb-4">
+                  <Notice tone="info" action={<button type="button" className="btn btn-sm btn-outline" onClick={startOverDraft}>Start over</button>}>
+                    Restored your unsaved setup.
+                  </Notice>
+                </div>
+              ) : null}
               {connectError && current.id !== 'connect' ? (
                 <div className="mb-4">
                   <Notice tone="bad" title="Google connection problem" action={<button type="button" className="btn btn-sm btn-outline" onClick={() => setShowSetup(true)}>Setup help</button>}>{connectError}</Notice>
@@ -561,19 +604,8 @@ export default function AddChannel() {
                   channels={reg.channels}
                   selfSlug={connectedSlug}
                   setField={setField}
-                  setForm={setForm}
+                  setForm={setDraftForm}
                   names={NAMES}
-                  kit={{
-                    filling: fillingKit,
-                    onAutoFill: autoFillKit,
-                    draft: kitDraft,
-                    note: kitNote,
-                    mood: kitMood,
-                    error: kitError,
-                    onApply: applyDraftField,
-                    onApplyAll: applyAllDraftFields,
-                    onDiscard: () => setKitDraft(null),
-                  }}
                 />
               ) : null}
 
@@ -601,7 +633,7 @@ export default function AddChannel() {
               ) : null}
 
               {current.id === 'thumbnails' ? (
-                <ThumbnailStep form={form} setField={setField} onEditAccent={() => goTo(STEP_INDEX.look)} />
+                <ThumbnailStep form={form} setField={setField} onEditAccent={() => goTo(STEP_INDEX.look)} onDesigns={setThumbDesigns} />
               ) : null}
 
               {current.id === 'schedule' ? (
@@ -612,6 +644,8 @@ export default function AddChannel() {
                   onDocDay={(d) => setField('docDay', d)}
                   audience={audience}
                   onAudience={setAudience}
+                  slug={connectedSlug}
+                  editing={editing}
                 />
               ) : null}
 
@@ -619,7 +653,12 @@ export default function AddChannel() {
 
               {current.id === 'review' ? (
                 <ReviewStep
-                  sections={withReviewKeyRow(reviewSummary(form, { channel: entry || { slug: connectedSlug, label: channelName }, offsetMin: -new Date().getTimezoneOffset(), names: NAMES }), entry)}
+                  sections={withReviewKeyRow(reviewSummary(form, {
+                    channel: entry || { slug: connectedSlug, label: channelName },
+                    offsetMin: -new Date().getTimezoneOffset(),
+                    names: { ...NAMES, thumb: (id) => thumbDesigns.find((d) => d.id === id)?.label || '' },
+                    audience: suggestionFor(audience)?.label || '',
+                  }), entry)}
                   onEdit={(id) => goTo(STEP_INDEX[id])}
                   issues={blocking}
                   consent={consent}

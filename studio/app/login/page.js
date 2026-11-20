@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [googleBusy, setGoogleBusy] = useState(false);
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
@@ -46,6 +47,25 @@ export default function LoginPage() {
     setBusy(false);
   };
 
+  // Live fix wave B3: /api/auth/google/start answers JSON {url} (and sets the
+  // state cookie) — a plain link showed that raw JSON. Fetch it, then go.
+  const signInWithGoogle = async () => {
+    setGoogleBusy(true);
+    setError('');
+    try {
+      const r = await fetch('/api/auth/google/start', { cache: 'no-store' });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && typeof d.url === 'string' && d.url.startsWith('https://accounts.google.com/')) {
+        window.location.assign(d.url);
+        return; // stay busy while the browser leaves
+      }
+      setError('Google sign-in is not available right now. Use your password.');
+    } catch {
+      setError('Network error — try again.');
+    }
+    setGoogleBusy(false);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4 page-glow relative bg-bg">
       <form onSubmit={submit} className="w-full max-w-sm card p-7 pop-in">
@@ -62,19 +82,23 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <a
-          href="/api/auth/google/start"
+        <button
+          type="button"
+          onClick={signInWithGoogle}
+          disabled={googleBusy}
           className="btn btn-primary w-full h-11 flex items-center justify-center gap-2"
           style={{ background: '#ffffff', color: '#17171c', border: '1px solid var(--line-strong)' }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24">
+          {googleBusy ? <Loader2 size={15} className="animate-spin" /> : (
+          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z" />
             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
             <path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18A10.97 10.97 0 0 0 1 12c0 1.77.43 3.45 1.18 4.94l3.66-2.84z" />
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
           </svg>
-          Sign in with Google
-        </a>
+          )}
+          {googleBusy ? 'Opening Google…' : 'Sign in with Google'}
+        </button>
 
         <div className="flex items-center gap-3 my-5">
           <div className="h-px flex-1 bg-line" />

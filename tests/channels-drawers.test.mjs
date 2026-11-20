@@ -29,7 +29,8 @@ test('no inline panel expansion remains on the Channels list', () => {
 
 test('ChannelDrawers renders each of the 4 panels inside <Drawer> via the frame prop', () => {
   assert.match(DRAWERS, /import Drawer from '@\/components\/Drawer'/);
-  assert.match(DRAWERS, /const frame = \(body, footer\) => \(\s*<Drawer\b[\s\S]*?footer=\{footer \|\| undefined\}[\s\S]*?>\s*\{body\}\s*<\/Drawer>/);
+  // wave B4 (T3-05): frame(body, footer, opts) — opts.dirty guards the close
+  assert.match(DRAWERS, /const frame = \(body, footer, opts\) => \(\s*<Drawer\b[\s\S]*?footer=\{footer \|\| undefined\}[\s\S]*?>\s*\{body\}\s*<\/Drawer>/);
   for (const name of Object.keys(PANELS)) {
     assert.match(DRAWERS, new RegExp(String.raw`<${name} key=\{k\} slug=\{slug\} frame=\{frame\} />`), name);
   }
@@ -41,10 +42,10 @@ test('ChannelDrawers renders each of the 4 panels inside <Drawer> via the frame 
 test('every panel hands its content to the frame (drawer) when one is given', () => {
   for (const [name, src] of Object.entries(PANELS)) {
     assert.match(src, new RegExp(String.raw`export default function ${name}\(\{ slug, frame \}\)`), name);
-    assert.match(src, /if \(frame\) return frame\(body, (footer|null)\);/, name);
+    assert.match(src, /if \(frame\) return frame\(body, (footer|null)(, \{ dirty \})?\);/, name);
   }
   // panels with one primary action put it in the drawer's sticky footer
-  assert.match(PANELS.SchedulePanel, /if \(frame\) return frame\(body, footer\);/);
+  assert.match(PANELS.SchedulePanel, /if \(frame\) return frame\(body, footer, \{ dirty \}\);/);
   assert.match(PANELS.SchedulePanel, /const footer = \(\s*<>[\s\S]*Save schedule/);
   assert.match(PANELS.TemplateAssignPanel, /const footer = isOwner && templates\.length \? \([\s\S]*Assign &amp; pin/);
 });

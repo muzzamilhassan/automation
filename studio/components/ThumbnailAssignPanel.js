@@ -6,9 +6,9 @@
 // ONLY { kit: { thumbTemplates } } — the route patches just that key.
 // Owner edits; staff sees the same view read-only (the route is owner-only).
 //
-// Drawer contract (same as SchedulePanel): `frame(body, footer)` lets the
-// drawer own the layout with Save in its sticky footer; without a frame the
-// panel falls back to a plain inline tile.
+// Drawer contract (same as SchedulePanel): `frame(body, footer, { dirty })`
+// lets the drawer own the layout with Save in its sticky footer (and warn on
+// close while `dirty`); without a frame the panel falls back to an inline tile.
 import { useCallback, useEffect, useState } from 'react';
 import { ImageIcon, CheckCircle2, XCircle, Info, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/untitledui/base/buttons/button';
@@ -79,8 +79,10 @@ export default function ThumbnailAssignPanel({ slug, frame }) {
     }
   };
 
-  const wrap = (body, footer) => {
-    if (frame) return frame(body, footer);
+  // B4 drawer contract: `dirty` = the picked set differs from the saved one,
+  // so the drawer can warn before closing over unsaved changes.
+  const wrap = (body, footer, dirty = false) => {
+    if (frame) return frame(body, footer, { dirty });
     return (
       <div className="inset-tile p-4 mt-1 space-y-4">
         <div className="flex items-center gap-2 overline"><ImageIcon size={12} /> Thumbnail designs</div>
@@ -109,7 +111,7 @@ export default function ThumbnailAssignPanel({ slug, frame }) {
     );
   }
 
-  const dirty = !sameSet(picked, saved);
+  const dirty = loaded && !sameSet(picked, saved);
 
   const body = (
     <div className="space-y-4 min-w-0">
@@ -157,5 +159,5 @@ export default function ThumbnailAssignPanel({ slug, frame }) {
     </>
   ) : null;
 
-  return wrap(body, footer);
+  return wrap(body, footer, dirty);
 }

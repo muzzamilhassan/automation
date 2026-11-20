@@ -6,6 +6,7 @@
 //
 // Round 2: rendered inside a Drawer via ChannelDrawers (`frame(body)`); each
 // provider row keeps its own Save & test, so there is no single footer action.
+// Wave B4: a typed, unsaved key marks the drawer dirty (it asks before closing).
 import { useEffect, useState } from 'react';
 import { KeyRound, Loader2, CheckCircle2, XCircle, Trash2, ExternalLink, Info, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useConfirm } from '@/components/ConfirmDialog';
@@ -19,6 +20,8 @@ export default function ChannelKeysPanel({ slug, frame }) {
   const [meta, setMeta] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadErr, setLoadErr] = useState(null); // friendly denial / network error (AC-12)
+  // live fix wave B4 (T3-05): a typed but unsaved key → the drawer asks before closing
+  const dirty = Object.values(inputs).some((v) => String(v || '').trim());
 
   const load = () => {
     setLoading(true);
@@ -165,7 +168,7 @@ export default function ChannelKeysPanel({ slug, frame }) {
     </div>
   );
 
-  if (frame) return frame(body, null);
+  if (frame) return frame(body, null, { dirty });
   return (
     <div className="inset-tile p-4 mt-1 space-y-4">
       <div className="flex items-center gap-2 overline"><KeyRound size={12} /> API keys</div>

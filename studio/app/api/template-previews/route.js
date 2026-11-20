@@ -2,35 +2,29 @@
 // the Neon template_previews table (CI-written render outputs — the
 // sanctioned pipeline-artifact data class). Owner-gated like the desk
 // surfaces.
+// Live-fix wave B1 (P8): media URLs carry `v` (the render time) so the media
+// route can serve them immutable from the CDN; a re-render gets a new URL.
+// The shared DB client (@/lib/db) replaces a new connection per request.
 import { getUser } from '@/lib/route-auth';
+import { db, dbReady } from '@/lib/db';
+import { previewMediaUrl } from '@/lib/template-media.mjs';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
   const user = await getUser(req);
   if (!user || !['owner', 'staff'].includes(user.role)) return Response.json({ error: 'not signed in' }, { status: 401 });
-  const { default: postgres } = await import('postgres');
-  const url = process.env.DATABASE_URL;
-  if (!url) return Response.json({ samples: {}, error: 'db unavailable' }, { status: 503 });
-  // #119 BUG-4: the constructor ran OUTSIDE the try — a malformed DATABASE_URL
-  // threw synchronously → raw 500, and the finally-block's sql.end() threw
-  // again. Construction failure now returns the same 503 as a missing URL.
-  let sql;
+  // #119 BUG-4 kept: no usable DATABASE_URL → the same honest 503, never a raw 500.
+  if (!dbReady) return Response.json({ samples: {}, error: 'db unavailable' }, { status: 503 });
   try {
-    sql = postgres(url, { max: 1, idle_timeout: 5 });
-  } catch {
-    return Response.json({ samples: {}, error: 'db unavailable' }, { status: 503 });
-  }
-  try {
-    const rows = await sql`SELECT family_id, template_id, mp4_url, poster_url, rendered_at FROM template_previews ORDER BY rendered_at DESC`;
+    const rows = await db`SELECT family_id, template_id, mp4_url, poster_url, rendered_at FROM template_previews ORDER BY rendered_at DESC`;
     const samples = {};       // keyed by template_id — one row per template
     const familySamples = {}; // keyed by family — the family card's latest
     for (const r of rows) {
       if (r.mp4_url) {
-        const enc = encodeURIComponent(r.template_id);
         samples[r.template_id] = {
-          mp4: `/api/template-previews/media?id=${enc}&kind=mp4`,
-          poster: r.poster_url ? `/api/template-previews/media?id=${enc}&kind=poster` : null,
+          mp4: previewMediaUrl(r.template_id, 'mp4', r.rendered_at),
+          poster: r.poster_url ? previewMediaUrl(r.template_id, 'poster', r.rendered_at) : null,
           familyId: r.family_id,
           renderedAt: r.rendered_at,
         };
@@ -40,7 +34,5 @@ export async function GET(req) {
     return Response.json({ samples, familySamples });
   } catch (e) {
     return Response.json({ samples: {}, error: String(e.message || e).slice(0, 120) }, { status: 502 });
-  } finally {
-    await sql.end();
   }
 }

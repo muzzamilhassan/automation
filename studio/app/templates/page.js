@@ -368,9 +368,15 @@ function TemplateDrawer({ item, role, previewState, onClose }) {
     </>
   ) : (
     <>
-      <Link className="btn btn-outline" href={createHref(item.id)}>
-        <Sparkles size={14} /> Create a video with this style
-      </Link>
+      {/* T5-05: Create makes short vertical videos in its own looks — offered
+          only when the template's DATA maps it to one (create_style) */}
+      {item.createStyle ? (
+        <Link className="btn btn-outline" href={createHref(item.createStyle)}>
+          <Sparkles size={14} /> Create a video with this style
+        </Link>
+      ) : (
+        <span className="t-12 text-muted mr-auto">Made by your channels&apos; autopilot — Create can&apos;t make this look.</span>
+      )}
       {item.assignable && isOwner && !item.deprecated ? (
         <button type="button" className="btn btn-primary" onClick={() => { setMode('assign'); setMsg(null); }}>
           Use on a channel… <ArrowRight size={14} />
@@ -594,12 +600,15 @@ function TemplateDrawer({ item, role, previewState, onClose }) {
                 <ul className="space-y-1.5">
                   {usage.rows.map((u) => {
                     const b = bySlug[u.channel_id];
+                    // T3-13: the version the channel's next video uses (minor
+                    // updates adopt automatically inside the pinned major)
+                    const uses = Number(u.pinned_major) === majorOf(item.version) ? item.version : u.pinned_version;
                     return (
                       <li key={u.channel_id} className="inset-tile flex items-center gap-2.5 px-3 py-2 min-w-0">
                         {b ? <BrandMark short={b.short} accent={b.accent} size={26} /> : null}
                         <span className="min-w-0 flex-1">
                           <span className="block t-13 font-medium text-ink truncate">{labelFor(u.channel_id)}</span>
-                          <span className="block t-11 text-faint">pinned v{u.pinned_version}</span>
+                          <span className="block t-11 text-faint">uses v{uses}</span>
                         </span>
                         <Link href={`/channels/${encodeURIComponent(u.channel_id)}`} className="btn btn-ghost btn-sm shrink-0">
                           Open <ArrowRight size={12} />

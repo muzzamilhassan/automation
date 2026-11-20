@@ -20,7 +20,11 @@ import {
   CornerDownLeft,
 } from 'lucide-react';
 import { ALL_NAV_ITEMS } from './nav';
+import { startNavProgress } from './NavProgress';
 import { cn } from '@/lib/utils';
+// Live fix wave B3 (T1-11): Enter runs the first result, so results are ranked
+// best match first (exact label → starts with → contains → keyword → description).
+import { rankPaletteItems } from '@/lib/palette-rank.mjs';
 
 const PAGE_ICONS = {
   '/': LayoutDashboard,
@@ -98,10 +102,10 @@ export default function CommandPalette({ open, onClose }) {
     label: 'Channel: ' + c.label,
     sub: `Open ${c.label}'s channel page`,
     icon: Tv,
-    run: () => router.push(`/channels/${c.slug}`),
+    run: () => { startNavProgress(`/channels/${c.slug}`); router.push(`/channels/${c.slug}`); },
   }));
 
-  const items = [
+  const items = rankPaletteItems([
     ...ALL_NAV_ITEMS.map((n) => ({
       kind: 'page',
       id: n.href,
@@ -109,7 +113,7 @@ export default function CommandPalette({ open, onClose }) {
       sub: n.desc,
       icon: n.icon || PAGE_ICONS[n.href] || LayoutDashboard,
       keywords: n.keywords || [],
-      run: () => router.push(n.href),
+      run: () => { startNavProgress(n.href); router.push(n.href); },
     })),
     ...channelJumps,
     ...channelRuns,
@@ -129,7 +133,7 @@ export default function CommandPalette({ open, onClose }) {
       icon: theme === 'dark' ? Sun : Moon,
       run: () => setTheme(theme === 'dark' ? 'light' : 'dark'),
     },
-  ].filter((i) => [i.label, i.sub, ...(i.keywords || [])].join(' ').toLowerCase().includes(q.toLowerCase()));
+  ], q);
 
   const pick = (i) => {
     const it = items[i];

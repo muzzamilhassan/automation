@@ -13,6 +13,7 @@ import { NICHE_MAP } from '@/lib/niches';
 import { appendAudit } from '@/lib/audit';
 import { llmKitDraft } from '@/lib/llm-kit';
 import { enforceLimits } from '@/lib/rate-limit.mjs';
+import { normalizeTags } from '@/lib/tag-normalize.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,7 +68,11 @@ export async function POST(req) {
         llmDraft = await llmKitDraft({ niche: nick, label: lab, slug });
         await appendAudit(actor, 'kit-llm-draft', `ok · ${nick}`);
       } catch (e) {
-        llmNote = `AI draft failed (${String(e.message || e).slice(0, 80)})`;
+        // live fix wave B2 (P9): keep Groq's own code + message (llm-kit
+        // redacts the key) so the next failure is diagnosable from the log.
+        const detail = String(e.message || e).slice(0, 300);
+        console.error('[kit-llm-draft]', detail);
+        llmNote = `AI draft failed (${detail})`;
         await appendAudit(actor, 'kit-llm-draft', `failed: ${llmNote} · ${nick}`);
       }
     }
@@ -78,11 +83,12 @@ export async function POST(req) {
   const mood = detectMood(low);
   const kwShort = words.slice(0, 2).join(' ') || low;
 
-  const tagSet = new Set([low, ...words]);
-  for (const suffix of ['explained', 'habits', 'for beginners', 'mindset', 'rules', 'motivation', 'guide', 'secrets']) {
-    tagSet.add(`${low} ${suffix}`);
-  }
-  const tags = [...tagSet].slice(0, 12);
+  // live fix wave B2 (T4-07): a niche like "timeless wisdom, self-mastery"
+  // is split first, so suffixes go on a phrase, never on a comma list.
+  const parts = low.split(',').map((p) => p.trim()).filter(Boolean);
+  const head = parts[0] || low;
+  const suffixed = ['explained', 'habits', 'for beginners', 'mindset', 'rules', 'motivation', 'guide', 'secrets'].map((sfx) => `${head} ${sfx}`);
+  const tags = normalizeTags([...parts, ...words, ...suffixed], { maxCount: 12 });
 
   const taglines = [
     'Play the long game.',
@@ -136,7 +142,7 @@ export async function POST(req) {
     ...(llmDraft.eyebrow ? { eyebrow: llmDraft.eyebrow } : {}),
     ...(llmDraft.tagline ? { tagline: llmDraft.tagline } : {}),
     ...(llmDraft.description ? { description: llmDraft.description } : {}),
-    ...(llmDraft.tags.length ? { tags: llmDraft.tags } : {}),
+    ...(llmDraft.tags.length ? { tags: normalizeTags(llmDraft.tags, { maxCount: 12 }) } : {}),
     ...(llmDraft.subNiches.length ? { niches: llmDraft.subNiches } : {}),
   };
   const suggestion = {

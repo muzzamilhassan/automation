@@ -7,8 +7,9 @@
 //   const closeDrawer = useCallback(() => setDrawer(null), []);   // keep it stable
 //   <ChannelDrawers slug={drawer?.slug} label={…} open={drawer?.which} onClose={closeDrawer} />
 //
-// Each panel receives `frame(body, footer)` and hands its content back, so the
-// Drawer owns the layout (title, scroll area, sticky footer actions).
+// Each panel receives `frame(body, footer, opts)` and hands its content back,
+// so the Drawer owns the layout (title, scroll area, sticky footer actions).
+// opts = { dirty } — true while the panel holds unsaved edits.
 import { CalendarDays, Layers, Image as ImageIcon, KeyRound, Route } from 'lucide-react';
 import Drawer from '@/components/Drawer';
 import SchedulePanel from '@/components/SchedulePanel';
@@ -37,7 +38,9 @@ export default function ChannelDrawers({ slug, label, open, onClose }) {
   const cfg = open ? CHANNEL_DRAWERS[open] : null;
   if (!slug || !cfg) return null;
 
-  const frame = (body, footer) => (
+  // opts.dirty (live fix wave B4, T3-05): the panel has unsaved edits → the
+  // Drawer asks "Discard your changes?" before any close (incl. Back).
+  const frame = (body, footer, opts) => (
     <Drawer
       open
       onClose={onClose}
@@ -46,6 +49,7 @@ export default function ChannelDrawers({ slug, label, open, onClose }) {
       icon={cfg.icon}
       size={cfg.size}
       footer={footer || undefined}
+      dirty={Boolean(opts?.dirty)}
     >
       {body}
     </Drawer>

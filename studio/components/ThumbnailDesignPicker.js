@@ -14,6 +14,7 @@ import { PICKER_MAX, thumbDemoUrl } from '@/lib/channel-kit-ui.mjs';
 export default function ThumbnailDesignPicker({ value, onChange, accent, niche, readOnly, onLoaded }) {
   const [reg, setReg] = useState({ status: 'loading', designs: [] });
   const [broken, setBroken] = useState(() => new Set());
+  const [loadedIds, setLoadedIds] = useState(() => new Set()); // tiles whose image arrived
   const picked = Array.isArray(value) ? value : [];
 
   // state is only set when the request settles (never synchronously in the effect)
@@ -36,6 +37,7 @@ export default function ThumbnailDesignPicker({ value, onChange, accent, niche, 
   };
 
   const markBroken = (id) => setBroken((s) => new Set(s).add(id));
+  const markLoaded = (id) => setLoadedIds((s) => (s.has(id) ? s : new Set(s).add(id)));
   const fits = (d) => Array.isArray(d.niches) && d.niches.includes(niche);
   const ordered = [...reg.designs].sort((a, b) => Number(fits(b)) - Number(fits(a)));
   const known = new Set(reg.designs.map((d) => d.id));
@@ -112,15 +114,20 @@ export default function ThumbnailDesignPicker({ value, onChange, accent, niche, 
                       <span className="t-11">No preview yet</span>
                     </span>
                   ) : (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={thumbDemoUrl(d.id, accent)}
-                      alt={`${d.label || d.id} thumbnail sample`}
-                      loading="lazy"
-                      decoding="async"
-                      onError={() => markBroken(d.id)}
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
+                    <>
+                      {/* T3-12: each tile shimmers until its own sample arrives — never an empty box */}
+                      {!loadedIds.has(d.id) ? <span aria-hidden="true" className="absolute inset-0 animate-pulse" style={{ background: 'var(--surface-3, var(--surface-2))' }} /> : null}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={thumbDemoUrl(d.id, accent)}
+                        alt={`${d.label || d.id} thumbnail sample`}
+                        loading="lazy"
+                        decoding="async"
+                        onLoad={() => markLoaded(d.id)}
+                        onError={() => markBroken(d.id)}
+                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-200 ${loadedIds.has(d.id) ? 'opacity-100' : 'opacity-0'}`}
+                      />
+                    </>
                   )}
                   {on ? (
                     <span className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}>

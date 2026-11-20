@@ -41,11 +41,13 @@ function CreatePageContent() {
         setMeta(d);
         // ?template= may name a gallery template that isn't one of Create's
         // own styles — keep it only if valid, else fall back to the first
-        // real style and SAY so (the API rejects unknown styles).
+        // real style and SAY so in plain words, by name — never a raw id
+        // (T5-05; the API rejects unknown styles).
         const ids = (d?.styles || []).map((x) => x.id);
+        const fallback = (d?.styles || []).find((x) => x.id === ids[0])?.name || 'the first look';
         setForm((f) => {
           if (!ids.length || ids.includes(f.dna)) return f;
-          setStyleNote(`"${f.dna}" isn't a Create style yet — using ${ids[0]} instead. Pick another below.`);
+          setStyleNote(`That template is made by your channels' autopilot, not here. Create makes short vertical videos — showing ${fallback}. Pick a look below.`);
           return { ...f, dna: ids[0] };
         });
         setJobs(d.jobs || []);

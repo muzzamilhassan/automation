@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
@@ -24,6 +25,7 @@ import {
 import { NAV, ALL_NAV_ITEMS, MENU_ITEMS, navSectionFor } from './nav';
 import CommandPalette from './CommandPalette';
 import PocketBar from './PocketBar';
+import NavProgress from './NavProgress';
 import { ConfirmProvider } from '@/components/ConfirmDialog';
 import { useBrands } from '@/components/use-brands';
 import { useOpenWarnings } from '@/components/use-open-warnings';
@@ -34,6 +36,8 @@ import { useMe, initialsOf } from '@/components/use-me';
 import { cn } from '@/lib/utils';
 import { buildBreadcrumbs } from '@/lib/breadcrumbs.mjs';
 import { isBarePath, signedOutLoginUrl } from '@/lib/safe-next.mjs';
+import { placePopover } from '@/lib/popover-place.mjs';
+import { shortcutLabel } from '@/lib/palette-rank.mjs';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import { ButtonUtility } from '@/components/untitledui/base/buttons/button-utility';
 import { Badge, BadgeWithIcon } from '@/components/untitledui/base/badges/badges';
@@ -57,6 +61,81 @@ function ThemeToggle() {
   );
 }
 
+// Live fix wave B3 (T1-22): "Ctrl K" on Windows/Linux, "⌘K" on Mac. Starts
+// as Ctrl K on the server and the first client render, then reads the device.
+function ShortcutHint() {
+  const [label, setLabel] = useState('Ctrl K');
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setLabel(shortcutLabel(navigator.userAgentData?.platform || navigator.platform || navigator.userAgent)));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  return <span className="ml-auto font-mono t-10 text-fg-quaternary border border-border-tertiary rounded px-1 py-px">{label}</span>;
+}
+
+// Live fix wave B3 (T1-04/T1-05): the topbar's popovers render in a portal on
+// document.body. Inline, their `fixed inset-0` click-away layer was trapped
+// inside the header (backdrop-filter makes it the containing block for fixed
+// children), so it covered only the 57px bar: outside clicks and Escape did
+// nothing. Here the layer covers the whole screen, Escape closes and puts
+// focus back on the trigger, and the panel is placed from the trigger's
+// rect and clamped inside the viewport (lib/popover-place.mjs).
+function HeaderPopover({ open, anchorRef, onClose, width, label, children }) {
+  const [rect, setRect] = useState(null);
+  const panelRef = useRef(null);
+  // the latest onClose without re-running the open effect on every render
+  // (a re-run would re-focus the panel and steal focus from its buttons)
+  const closeRef = useRef(onClose);
+  useEffect(() => {
+    closeRef.current = onClose;
+  });
+  useEffect(() => {
+    if (!open) return undefined;
+    const measure = () => {
+      const r = anchorRef.current?.getBoundingClientRect();
+      if (r) setRect({ right: r.right, bottom: r.bottom, vw: window.innerWidth });
+    };
+    const id = requestAnimationFrame(() => {
+      measure();
+      panelRef.current?.focus({ preventScroll: true });
+    });
+    const trigger = () => {
+      const el = anchorRef.current;
+      return el?.matches?.('button') ? el : el?.querySelector?.('button');
+    };
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      closeRef.current();
+      trigger()?.focus();
+    };
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', measure);
+    return () => {
+      cancelAnimationFrame(id);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', measure);
+    };
+  }, [open, anchorRef]);
+  if (!open || typeof document === 'undefined') return null;
+  const place = rect ? placePopover({ anchor: rect, width, viewportWidth: rect.vw }) : null;
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-[90]" onClick={onClose} aria-hidden="true" />
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-label={label}
+        tabIndex={-1}
+        className="fixed z-[91] rounded-lg border border-border-secondary bg-bg-primary shadow-xl overflow-hidden pop-in outline-none"
+        style={place ? { top: place.top, left: place.left, width: place.width } : { visibility: 'hidden', top: 0, left: 0, width }}
+      >
+        {children}
+      </div>
+    </>,
+    document.body
+  );
+}
+
 function Notifications({ open, onClose, warnings }) {
   const SEV_ICON = { blocking: OctagonAlert, action_required: AlertTriangle, warning: AlertTriangle, advisory: Info, informational: Info };
   const SEV_COLOR = { blocking: 'text-error-primary', action_required: 'text-warning-primary', warning: 'text-warning-primary', advisory: 'text-fg-tertiary', informational: 'text-fg-tertiary' };
@@ -69,10 +148,9 @@ function Notifications({ open, onClose, warnings }) {
   // approval (needsYou), the same number as home, /tasks and /warnings.
   const need = needsYou({ rows, awaiting: warnings.awaiting || 0 });
   const shown = need.approvals ? rows.filter((g) => !['review_hold', 'review_timeout'].includes(g.code)) : rows;
+  // the frame (border, shadow, placement, click-away, Escape) is HeaderPopover's
   return (
     <>
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="absolute right-0 top-[calc(100%+10px)] w-[340px] rounded-lg border border-border-secondary bg-bg-primary shadow-xl z-50 overflow-hidden pop-in">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border-tertiary">
           <span className="text-sm font-semibold text-fg-primary">Alerts</span>
           {warnings.canSee ? <Badge color={need.count ? 'warning' : 'success'} size="sm">{need.count} need you</Badge> : null}
@@ -123,7 +201,6 @@ function Notifications({ open, onClose, warnings }) {
             open the warning triage →
           </Link>
         ) : null}
-      </div>
     </>
   );
 }
@@ -258,6 +335,11 @@ function ShellFrame({ children }) {
   const [loggingOut, setLoggingOut] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  // Live fix wave B3: triggers the popovers anchor to + where focus returns
+  const bellRef = useRef(null);
+  const avatarRef = useRef(null);
+  const menuBtnRef = useRef(null);
+  const drawerRef = useRef(null);
   // Live fix wave A4 (T2-02): scripts awaiting approval join the bell's count
   // (needsYou) so the badge, home, /tasks and /warnings show ONE number.
   const [awaiting, setAwaiting] = useState(0);
@@ -293,6 +375,26 @@ function ShellFrame({ children }) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
   useEffect(() => setMobileOpen(false), [pathname]);
+
+  // Live fix wave B3 (T1-21): Escape closes the phone menu and focus goes back
+  // to ☰ (or whatever opened it, e.g. the pocket bar's More).
+  useEffect(() => {
+    if (!mobileOpen) return undefined;
+    const opener = document.activeElement;
+    const id = requestAnimationFrame(() => drawerRef.current?.querySelector('button[aria-label="Close menu"]')?.focus({ preventScroll: true }));
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      setMobileOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      cancelAnimationFrame(id);
+      document.removeEventListener('keydown', onKey);
+      const back = opener instanceof HTMLElement && opener !== document.body && document.contains(opener) && opener.offsetParent !== null ? opener : menuBtnRef.current;
+      back?.focus({ preventScroll: true });
+    };
+  }, [mobileOpen]);
 
   // Live fix wave A1 (T1-10): the proxy checks only the cookie's signature, so
   // a REVOKED session still gets the frame — with every call failing 401.
@@ -347,6 +449,7 @@ function ShellFrame({ children }) {
 
   return (
     <ConfirmProvider>
+    <NavProgress />
     <div className="min-h-screen flex bg-bg-primary">
       {/* desktop sidebar */}
       <aside
@@ -358,9 +461,9 @@ function ShellFrame({ children }) {
 
       {/* mobile drawer */}
       {mobileOpen ? (
-        <div className="lg:hidden fixed inset-0 z-50">
+        <div className="lg:hidden fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Menu">
           <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onClick={() => setMobileOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 w-[250px] qs-side flex flex-col pop-in">
+          <aside ref={drawerRef} className="absolute inset-y-0 left-0 w-[250px] qs-side flex flex-col pop-in">
             <button className="absolute top-2 right-2 z-10 w-11 h-11 flex items-center justify-center rounded-lg text-[#98a2a7] hover:text-white transition-colors" onClick={() => setMobileOpen(false)} aria-label="Close menu">
               <X size={16} />
             </button>
@@ -373,7 +476,7 @@ function ShellFrame({ children }) {
       <div className="flex-1 min-w-0 flex flex-col">
         <header className="sticky top-0 z-40 h-[58px] border-b border-border-secondary backdrop-blur-xl bg-bg-primary/85">
           <div className="h-full px-4 md:px-6 flex items-center gap-2 md:gap-3">
-            <button className="lg:hidden icon-btn shrink-0" onClick={() => setMobileOpen(true)} aria-label="Open menu">
+            <button ref={menuBtnRef} className="lg:hidden icon-btn shrink-0" onClick={() => setMobileOpen(true)} aria-label="Open menu" aria-expanded={mobileOpen}>
               <Menu size={16} />
             </button>
 
@@ -406,14 +509,14 @@ function ShellFrame({ children }) {
             >
               <Search size={14} />
               <span className="t-12">Search or run…</span>
-              <span className="ml-auto font-mono t-10 text-fg-quaternary border border-border-tertiary rounded px-1 py-px">⌘K</span>
+              <ShortcutHint />
             </button>
             <button className="sm:hidden icon-btn shrink-0" onClick={() => setPaletteOpen(true)} aria-label="Search">
               <Search size={15.5} />
             </button>
 
             {/* The bell: one of the only two places real problems show (the other is /warnings). Never hidden, never squeezed. */}
-            <div className="relative shrink-0">
+            <div ref={bellRef} className="relative shrink-0">
               <ButtonUtility
                 size="sm"
                 color="tertiary"
@@ -429,7 +532,9 @@ function ShellFrame({ children }) {
                   {bellCount}
                 </span>
               ) : null}
-              <Notifications open={notifOpen} onClose={() => setNotifOpen(false)} warnings={{ rows: openWarningRows, canSee: warningsCanSee, status: warnStatus, retry: warnRetry, awaiting }} />
+              <HeaderPopover open={notifOpen} anchorRef={bellRef} onClose={() => setNotifOpen(false)} width={340} label="Alerts">
+                <Notifications open={notifOpen} onClose={() => setNotifOpen(false)} warnings={{ rows: openWarningRows, canSee: warningsCanSee, status: warnStatus, retry: warnRetry, awaiting }} />
+              </HeaderPopover>
             </div>
 
             <div className="shrink-0">
@@ -438,33 +543,30 @@ function ShellFrame({ children }) {
 
             <div className="relative shrink-0">
               <button
+                ref={avatarRef}
                 className="flex items-center justify-center w-8 h-8 rounded-full font-display font-bold t-12 shrink-0 cursor-pointer relative before:absolute before:-inset-1 before:content-[''] transition-transform duration-100 ease-out hover:scale-105 active:scale-[0.96]"
                 style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
                 onClick={() => setUserOpen((o) => !o)}
                 aria-label="Account menu"
+                aria-expanded={userOpen}
                 title={me ? `${me.name || me.email} — ${me.role}` : "Account menu"}
               >
                 {me ? initialsOf(me.name, me.email) : '··'}
               </button>
-              {userOpen ? (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setUserOpen(false)} />
-                  <div className="absolute right-0 top-[calc(100%+10px)] w-[220px] rounded-lg border border-border-secondary bg-bg-primary shadow-xl overflow-hidden z-50 pop-in">
-                    <div className="px-4 py-3 border-b border-border-tertiary">
-                      <p className="t-12 font-semibold text-fg-primary">{me?.name || me?.email || 'Signed in'}</p>
-                      <p className="t-11 text-fg-quaternary mt-0.5">{me?.email || ''}{me?.role ? ` · ${me.role}` : ''}</p>
-                    </div>
-                    <button
-                      onClick={logout}
-                      disabled={loggingOut}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 t-12 font-semibold transition-colors hover:bg-bg-secondary disabled:opacity-50 text-error-primary"
-                    >
-                      <LogOut size={14} />
-                      {loggingOut ? 'Signing out…' : 'Log out'}
-                    </button>
-                  </div>
-                </>
-              ) : null}
+              <HeaderPopover open={userOpen} anchorRef={avatarRef} onClose={() => setUserOpen(false)} width={220} label="Account">
+                <div className="px-4 py-3 border-b border-border-tertiary">
+                  <p className="t-12 font-semibold text-fg-primary break-words">{me?.name || me?.email || 'Signed in'}</p>
+                  <p className="t-11 text-fg-quaternary mt-0.5 break-words">{me?.email || ''}{me?.role ? ` · ${me.role}` : ''}</p>
+                </div>
+                <button
+                  onClick={logout}
+                  disabled={loggingOut}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 t-12 font-semibold transition-colors hover:bg-bg-secondary disabled:opacity-50 text-error-primary"
+                >
+                  <LogOut size={14} />
+                  {loggingOut ? 'Signing out…' : 'Log out'}
+                </button>
+              </HeaderPopover>
             </div>
           </div>
         </header>

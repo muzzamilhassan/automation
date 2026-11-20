@@ -238,8 +238,8 @@ export default function WarningsDashboardPage() {
               <div className="px-5 pb-4 space-y-2">
                 {quietGroups.map((g) => (
                   <div key={g.key} className="inset-tile px-3 py-2.5">
-                    <p className="t-12 font-semibold text-ink">{g.count}× {g.code.replace(/_/g, ' ')} · <span className="text-faint">{g.channel}</span></p>
-                    {g.sample.explanation ? <p className="t-11 text-faint mt-0.5">{g.sample.explanation}</p> : null}
+                    <p className="t-12 font-semibold text-ink break-words [overflow-wrap:anywhere]">{g.count}× {g.code.replace(/_/g, ' ')} · <span className="text-faint">{g.channel}</span></p>
+                    {g.sample.explanation ? <p className="t-11 text-faint mt-0.5 break-words">{g.sample.explanation}</p> : null}
                   </div>
                 ))}
               </div>
@@ -254,7 +254,7 @@ export default function WarningsDashboardPage() {
                   <div key={w.id} className="t-12 flex flex-wrap items-center gap-x-2 gap-y-1 text-muted">
                     <Chip tone={chipTone(w.severity)}>{w.severity}</Chip>
                     <span className="flex-1 min-w-0 break-words">{w.title}</span>
-                    <span className="text-faint">{w.channel_id}</span>
+                    <span className="text-faint min-w-0 break-words">{w.channel_id}</span>
                     <span className="text-faint tnum">{w.resolved_by} · {when(w.resolved_at)}</span>
                     {w.resolve_note ? <span className="text-faint break-words min-w-0">— &ldquo;{w.resolve_note}&rdquo;</span> : null}
                   </div>

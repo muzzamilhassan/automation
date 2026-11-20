@@ -92,8 +92,8 @@ test('takenHours: start or publish hours of OTHER channels, labelled, own slug e
   const ct = channelTimes(REGISTRY);
   const start = takenHours(ct, { exclude: 'money-rulebook', kind: 'start' });
   assert.deepEqual(start, [
-    { hour: 2, slug: 'quotequarry', label: 'Quote Quarry' },
-    { hour: 3, slug: 'debt-free-doctrine', label: 'Debt-Free Doctrine' },
+    { hour: 2, minute: 13, slug: 'quotequarry', label: 'Quote Quarry' },
+    { hour: 3, minute: 53, slug: 'debt-free-doctrine', label: 'Debt-Free Doctrine' },
   ]);
   const pub = takenHours(ct, { exclude: 'quotequarry', kind: 'publish' });
   assert.deepEqual(pub.map((t) => t.hour), [0, 21]);

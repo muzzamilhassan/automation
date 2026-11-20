@@ -1,6 +1,9 @@
 'use client';
 // Step 3c — brand accent colour: a few starting swatches, the system colour
-// picker, and a hex field. Only a valid #RRGGBB reaches the form.
+// picker, and a hex field.
+// Live fix wave B4 (T4-14): whatever is typed reaches the form, so a bad code
+// blocks Next with its message (stepIssues 'look') instead of silently
+// keeping the old colour. The profile route still only stores #RRGGBB.
 import { useState } from 'react';
 import { Check } from 'lucide-react';
 
@@ -47,14 +50,15 @@ export default function AccentPicker({ value, onChange }) {
           className="input font-mono t-12 w-28"
           value={draft}
           onChange={(e) => {
+            const v = e.target.value.trim();
             setDraft(e.target.value);
-            if (HEX_RE.test(e.target.value)) onChange(e.target.value.toUpperCase());
+            onChange(HEX_RE.test(v) ? v.toUpperCase() : v);
           }}
           aria-label="Accent colour hex code"
           aria-invalid={!valid}
         />
       </div>
-      {!valid ? <p className="t-11 mt-1.5" style={{ color: 'var(--bad-ink)' }}>Use a colour code like #38BDF8.</p> : null}
+      {!valid ? <p className="t-11 mt-1.5" style={{ color: 'var(--bad-ink)' }} role="alert">Use a colour code like #38BDF8.</p> : null}
     </section>
   );
 }

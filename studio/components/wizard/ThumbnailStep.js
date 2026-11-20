@@ -6,13 +6,24 @@
 // that go on every cover are edited here too, and a full-size sample with
 // the owner's own headline renders on demand through the same preview route
 // the Thumbnail Studio uses.
-import { useState } from 'react';
+//
+// Live fix wave B4: the loaded designs go up to the page (`onDesigns`) so
+// Review can list the picked designs by name (T4-17); the eyebrow example is
+// built from the CURRENT niche + name, whole words only (T4-16).
+import { useCallback, useState } from 'react';
 import { ImageIcon, Wand2 } from 'lucide-react';
 import ThumbnailDesignPicker from '@/components/ThumbnailDesignPicker';
+import { eyebrowFor } from '@/lib/wizard-steps.mjs';
 import { Field, Notice } from './fields';
 
-export default function ThumbnailStep({ form, setField, onEditAccent }) {
+export default function ThumbnailStep({ form, setField, onEditAccent, onDesigns }) {
   const [designs, setDesigns] = useState([]);
+  // the picker loads its list once per mount
+  const designsLoaded = useCallback((list) => {
+    setDesigns(list);
+    if (onDesigns) onDesigns(list);
+  }, [onDesigns]);
+  const eyebrowExample = form.niche.trim() && form.label.trim() ? eyebrowFor(`${form.niche.trim().toUpperCase()} // ${form.label}`, form.label) : 'OLD MONEY HABITS // OLD MONEY CODE';
   const [design, setDesign] = useState('');
   const [headline, setHeadline] = useState('');
   const [preview, setPreview] = useState({ status: 'idle' }); // idle | rendering | ready | error
@@ -45,7 +56,7 @@ export default function ThumbnailStep({ form, setField, onEditAccent }) {
     <div className="space-y-5">
       <div className="grid sm:grid-cols-2 gap-4">
         <Field label="Eyebrow label" optional hint="The small label on videos and thumbnails, e.g. OLD MONEY HABITS // OLD MONEY CODE">
-          {(id) => <input id={id} className="input w-full font-mono" value={form.eyebrow} onChange={(e) => setField('eyebrow', e.target.value)} maxLength={70} placeholder="OLD MONEY HABITS // OLD MONEY CODE" />}
+          {(id) => <input id={id} className="input w-full font-mono" value={form.eyebrow} onChange={(e) => setField('eyebrow', e.target.value)} maxLength={70} placeholder={eyebrowExample} />}
         </Field>
         <Field label="Tagline" optional hint="One short line that sums up the channel.">
           {(id) => <input id={id} className="input w-full" value={form.tagline} onChange={(e) => setField('tagline', e.target.value)} maxLength={90} placeholder="Wealth whispers." />}
@@ -65,7 +76,7 @@ export default function ThumbnailStep({ form, setField, onEditAccent }) {
           onChange={(ids) => setField('thumbTemplates', ids)}
           accent={form.accent}
           niche={form.niche}
-          onLoaded={setDesigns}
+          onLoaded={designsLoaded}
         />
       </section>
 

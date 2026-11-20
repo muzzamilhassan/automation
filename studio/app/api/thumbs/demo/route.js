@@ -90,7 +90,12 @@ export async function GET(req) {
       headers: {
         'Content-Type': 'image/jpeg',
         'Content-Length': String(jpeg.length),
-        'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800', // #121 R7: the CDN caches one render per URL variant
+        // #121 R7: the CDN caches one render per URL variant. Live-fix B1
+        // (T3-12): the JPEG is deterministic per id + accent, so the CDN keeps
+        // it a year (Vercel purges the CDN cache on each new deployment, so a
+        // renderer change still shows after the next deploy); browsers
+        // re-check daily.
+        'Cache-Control': 'public, max-age=86400, s-maxage=31536000, stale-while-revalidate=604800',
       },
     });
   } catch (e) {

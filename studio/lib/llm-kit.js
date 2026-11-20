@@ -9,8 +9,19 @@
 import { VOICES } from './voices.js';
 import { STYLE_CATALOG } from './styles-catalog.js';
 
+// live fix wave B2 (P9 / T4-04): every production draft failed with
+// "groq 400". The call asked the reasoning model gpt-oss-120b for JSON mode
+// with max_tokens 900 and the default reasoning effort; the hidden reasoning
+// ate the budget, the JSON came back cut off, and Groq's JSON-mode check
+// answered 400 (json_validate_failed). Same fix the engine already uses
+// (lib/ai-adapter.mjs): reasoning_effort 'low' + a real token budget, kept
+// under the free tier's 8K tokens-per-minute so one request always fits.
+// Models are data: GROQ_KIT_MODEL (or GROQ_MODEL) overrides the default,
+// GROQ_KIT_FALLBACK_MODEL the fallback tried once on a model/JSON error.
 export const LLM_MODEL_DEFAULT = 'openai/gpt-oss-120b';
-export const LLM_MAX_TOKENS = 900; // gpt-oss burns reasoning tokens inside the cap — headroom for the JSON
+export const LLM_MODEL_FALLBACK = 'openai/gpt-oss-20b';
+export const LLM_MAX_TOKENS = 4000;
+export const LLM_TEMPERATURE = 0.7;
 export const KIT_FIELD_CAPS = {
   eyebrow: 60,
   tagline: 80,
@@ -39,7 +50,8 @@ export function buildKitPrompt({ niche, label, slug }) {
     `voice = one id from this exact list: ${ALLOWED_VOICE_IDS.join(', ')};`,
     `style = one id from this exact list: ${ALLOWED_STYLE_IDS.join(', ')}.`,
   ].join(' ');
-  const user = `Niche: ${nick}. Channel label: ${lab}. Slug: ${slug || lab.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.`;
+  // the lowercase word "json" must appear in the messages for Groq JSON mode
+  const user = `Niche: ${nick}. Channel label: ${lab}. Slug: ${slug || lab.toLowerCase().replace(/[^a-z0-9]+/g, '-')}. Reply with the json object only.`;
   return { system, user };
 }
 
@@ -78,32 +90,94 @@ export function parseKitDraft(raw) {
   return out;
 }
 
-// One Groq chat call. fetchImpl is injectable so tests can stub the network;
-// throws on transport errors, non-OK status, or a malformed envelope.
-export async function groqChat({ system, user }, { model, maxTokens, fetchImpl } = {}) {
+// The kit's model list: primary first, then the fallback (never twice).
+export function kitModels() {
+  const primary = process.env.GROQ_KIT_MODEL || process.env.GROQ_MODEL || LLM_MODEL_DEFAULT;
+  const fallback = process.env.GROQ_KIT_FALLBACK_MODEL || LLM_MODEL_FALLBACK;
+  return fallback && fallback !== primary ? [primary, fallback] : [primary];
+}
+
+// Only the gpt-oss family takes reasoning_effort 'low'; other models reject it.
+const takesReasoningEffort = (model) => /gpt-oss/i.test(String(model));
+
+// Groq error text for logs and the audit note — never the key.
+const redact = (s) => {
+  let out = String(s ?? '');
+  const key = process.env.GROQ_API_KEY;
+  if (key) out = out.split(key).join('[redacted]');
+  return out.replace(/gsk_[A-Za-z0-9_-]+/g, '[redacted]');
+};
+
+async function groqError(r) {
+  let raw = '';
+  try { raw = await r.text(); } catch { raw = ''; }
+  let code = '';
+  let message = '';
+  try {
+    const j = JSON.parse(raw);
+    code = String(j?.error?.code || '');
+    message = String(j?.error?.message || '');
+  } catch {
+    message = raw;
+  }
+  message = redact(message).replace(/\s+/g, ' ').trim().slice(0, 240);
+  const err = new Error(`groq ${r.status}${code ? ` ${code}` : ''}${message ? `: ${message}` : ''}`);
+  err.status = r.status;
+  err.code = code;
+  return err;
+}
+
+// Worth one retry on the fallback model: the model is gone/unknown, or the
+// JSON came back invalid. Auth (401), rate limits (429) and the rest are not.
+const RETRY_CODES = new Set(['model_decommissioned', 'model_not_found', 'json_validate_failed']);
+const worthFallback = (e) =>
+  e?.status === 404 || (e?.status === 400 && (RETRY_CODES.has(e.code) || /decommission|does not exist/i.test(e.message)));
+
+async function groqOnce({ system, user }, { model, maxTokens, fetchImpl }) {
   const f = fetchImpl || fetch;
+  const body = {
+    model,
+    max_tokens: maxTokens || LLM_MAX_TOKENS,
+    temperature: LLM_TEMPERATURE,
+    response_format: { type: 'json_object' },
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ],
+  };
+  if (takesReasoningEffort(model)) body.reasoning_effort = 'low';
   const r = await f('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model: model || process.env.GROQ_MODEL || LLM_MODEL_DEFAULT,
-      max_tokens: maxTokens || LLM_MAX_TOKENS,
-      temperature: 0.7,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-    }),
+    body: JSON.stringify(body),
   });
-  if (!r.ok) throw new Error(`groq ${r.status}`);
+  if (!r.ok) throw await groqError(r);
   const j = await r.json();
   const content = j?.choices?.[0]?.message?.content;
   if (typeof content !== 'string' || !content.trim()) throw new Error('groq returned empty content');
   return content;
+}
+
+// One Groq chat call (plus one fallback-model retry on a model/JSON error).
+// fetchImpl is injectable so tests can stub the network; throws on transport
+// errors, non-OK status (with Groq's code + message), or an empty reply.
+export async function groqChat({ system, user }, { model, maxTokens, fetchImpl, fallback = true } = {}) {
+  const models = model ? [model] : kitModels();
+  const tries = fallback ? models : models.slice(0, 1);
+  let last = null;
+  for (const m of tries) {
+    try {
+      return await groqOnce({ system, user }, { model: m, maxTokens, fetchImpl });
+    } catch (e) {
+      last = e;
+      if (!worthFallback(e)) throw e;
+    }
+  }
+  if (tries.length > 1) last.message = `${last.message} (tried ${tries.join(', ')})`;
+  throw last;
 }
 
 export async function llmKitDraft(opts, callOpts = {}) {

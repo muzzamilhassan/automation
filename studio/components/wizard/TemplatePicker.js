@@ -15,6 +15,12 @@ import { recommendedStyleFor } from '@/lib/niches';
 import { previewSourceFor } from '@/lib/wizard-preview-helpers';
 import { Notice } from './fields';
 
+// P7 (live-fix B1): a template's OWN words — the family blurb only when the
+// template IS that family (36 storybooks used to show the documentary family's).
+const blurbOf = (t) => t?.registry?.story_structure?.format_description
+  || (t?.templateId === t?.family ? t?.catalog?.desc : '')
+  || '';
+
 function AssignButton({ state, assigned, disabled, onAssign, className = '' }) {
   const done = assigned || state?.state === 'done';
   return (
@@ -185,7 +191,7 @@ export default function TemplatePicker({ style, onStyle, niche, connectedSlug, t
                     <div className="p-3 flex flex-col gap-2 flex-1">
                       <div className="min-w-0">
                         <p className="t-13 font-semibold text-ink truncate">{t.name}</p>
-                        <p className="t-11 text-muted line-clamp-2 leading-snug mt-0.5">{t.catalog?.desc}</p>
+                        <p className="t-11 text-muted line-clamp-2 leading-snug mt-0.5">{blurbOf(t)}</p>
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {fits(t) ? <Chip tone="accent"><Star size={10} /> fits your niche</Chip> : null}
@@ -208,7 +214,7 @@ export default function TemplatePicker({ style, onStyle, niche, connectedSlug, t
         open={Boolean(detailT)}
         onClose={closeDetail}
         title={detailT?.name || 'Template'}
-        description={detailT?.catalog?.usedFor || 'Production template'}
+        description={(detailT?.templateId === detailT?.family ? detailT?.catalog?.usedFor : '') || 'Production template'}
         icon={Film}
         size="lg"
         footer={
@@ -230,7 +236,7 @@ export default function TemplatePicker({ style, onStyle, niche, connectedSlug, t
             ) : (
               <p className="t-12 text-faint">No demo render exists for this template yet.</p>
             )}
-            <p className="t-13 text-muted leading-relaxed">{detailT.catalog?.desc}</p>
+            <p className="t-13 text-muted leading-relaxed">{blurbOf(detailT)}</p>
             {(detailT.registry?.formats || []).length ? (
               <div>
                 <p className="t-11 text-faint mb-1">Formats</p>

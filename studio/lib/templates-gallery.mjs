@@ -65,8 +65,10 @@ export function previewFor(id, samples) {
   return pick(map[id]) || pick(map[`draft-${id}`]);
 }
 
-export function createHref(id) {
-  return `/create?template=${encodeURIComponent(str(id))}`;
+// Create (/create) makes short vertical videos in its OWN looks. A template
+// links there only through DATA (registry `create_style`) — never a guess.
+export function createHref(style) {
+  return `/create?template=${encodeURIComponent(str(style))}`;
 }
 
 export function registryDetailHref(id) {
@@ -76,6 +78,52 @@ export function registryDetailHref(id) {
 export function majorOf(version) {
   const n = parseInt(String(version || '').split('.')[0], 10);
   return Number.isInteger(n) ? n : null;
+}
+
+const SEMVER = /^\d+\.\d+\.\d+$/;
+const semverDesc = (a, b) => {
+  const [a1, a2, a3] = a.split('.').map(Number);
+  const [b1, b2, b3] = b.split('.').map(Number);
+  return b1 - a1 || b2 - a2 || b3 - a3;
+};
+// Every version a registry template has shipped (changelog + current).
+function knownVersions(t) {
+  const reg = t?.registry || {};
+  const all = [...arr(reg.changelog).map((e) => e?.version), reg.version];
+  return [...new Set(all.filter((v) => typeof v === 'string' && SEMVER.test(v)))].sort(semverDesc);
+}
+
+// The version a channel pinned to `major` really gets: the highest shipped
+// one in that major (minor/patch updates adopt automatically, AC-5).
+export function highestInMajor(t, major) {
+  return knownVersions(t).find((v) => majorOf(v) === major) || null;
+}
+
+// Distinct majors the owner can pin, newest first.
+export function availableMajors(t) {
+  const majors = [...new Set(knownVersions(t).map(majorOf).filter((m) => m !== null))];
+  return majors.length ? majors : [majorOf(t?.registry?.version) || 0];
+}
+
+// What the channel drawer's "Assigned template" box says (T3-13): the exact
+// template's name and the version the NEXT video uses — the same version the
+// card shows — plus the assign-time version only as history.
+export function assignmentSummary(a, t) {
+  const id = str(a?.family_id); // the DB column stores the registry key
+  const assignedAt = str(a?.pinned_version);
+  const pinned = Number(a?.pinned_major);
+  const pinnedMajor = Number.isInteger(pinned) ? pinned : majorOf(assignedAt);
+  const resolved = t && pinnedMajor !== null ? highestInMajor(t, pinnedMajor) : null;
+  const current = t ? majorOf(t.registry?.version) : null;
+  return {
+    name: (t && str(t.name)) || humanizeId(id),
+    version: resolved || assignedAt,
+    assignedAt,
+    pinnedMajor,
+    updated: Boolean(resolved && assignedAt && resolved !== assignedAt),
+    majorUpdate: current !== null && pinnedMajor !== null && current > pinnedMajor ? current : null,
+    missing: !t,
+  };
 }
 
 function categoryLabel(id, categories) {
@@ -102,7 +150,8 @@ function fromRegistry(t, catalogEntry, categories, samples) {
     || `${kindLabel} template${niches.length ? ` for ${niches[0]}${niches.length > 1 ? ` and ${niches.length - 1} more niche${niches.length > 2 ? 's' : ''}` : ''}` : ''}.`;
   return {
     id: t.templateId,
-    name: isFamilyItself ? (str(catalogEntry?.name) || str(t.name) || humanizeId(t.templateId)) : humanizeId(t.templateId),
+    // THE name (template-registry.js templateDisplayName, stamped by the loader)
+    name: str(t.name) || humanizeId(t.templateId),
     description,
     usedFor: isFamilyItself ? str(catalogEntry?.usedFor) : '',
     kind,
@@ -115,6 +164,7 @@ function fromRegistry(t, catalogEntry, categories, samples) {
     assignable: true,
     deprecated: reg.deprecated === true,
     version: str(reg.version),
+    createStyle: str(reg.create_style) || null,
     preview: previewFor(t.templateId, samples),
     structure: {
       formatLabel: str(ss.format_label),
@@ -159,6 +209,7 @@ function fromCatalog(c, categories, samples) {
     assignable: false,
     deprecated: false,
     version: '',
+    createStyle: str(c.create_style) || null,
     preview: previewFor(c.id, samples),
     structure: { formatLabel: '', sections: [], chapterMinWords: null, beats: [], hookClasses: [], titlePatterns: [], payoffRule: '' },
     look: { voice: '', musicMood: '', theme: str(c.previewTheme), style: '', layouts: [], variants: arr(c.variants) },

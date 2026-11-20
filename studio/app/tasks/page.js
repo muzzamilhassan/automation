@@ -59,8 +59,10 @@ export default function Tasks() {
     <div>
       <PageHeader icon={SquareKanban} title="Tasks" sub={!loaded || warnings === null || pending === null ? 'loading live queue…' : anyError ? "some sources can't be checked right now — counts may be incomplete" : `${need.count} things need you · ${need.alerts} problems · ${need.approvals} awaiting approval`} />
 
-      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-        <Card className="p-5">
+      {/* Live fix wave B3 (T1-03): min-w-0 grid items + wrapping titles — one
+          long alert title used to stretch the page to 980px on phones */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <Card className="p-5 min-w-0">
           <div className="flex items-center gap-3 mb-4">
             <span className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
               <OctagonAlert size={17} />
@@ -82,9 +84,9 @@ export default function Tasks() {
             <ul className="space-y-1">
               {open.slice(0, 8).map((w) => (
                 <li key={w.id}>
-                  <Link href="/warnings" className="inset-tile px-3 py-2 flex items-center gap-2.5 hover:bg-surface-2 transition-colors">
-                    <Chip tone={sevTone[w.severity] || 'plain'} dot>{w.severity}</Chip>
-                    <span className="min-w-0 flex-1 t-12 text-ink truncate">{w.title}</span>
+                  <Link href="/warnings" className="inset-tile px-3 py-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 min-w-0 hover:bg-surface-2 transition-colors">
+                    <span className="shrink-0"><Chip tone={sevTone[w.severity] || 'plain'} dot>{w.severity}</Chip></span>
+                    <span className="min-w-0 flex-1 basis-40 t-12 text-ink break-words [overflow-wrap:anywhere]">{w.title}</span>
                     {w.channel_id ? <span className="t-10 text-faint font-mono truncate max-w-[90px]">{w.channel_id}</span> : null}
                   </Link>
                 </li>
@@ -94,7 +96,7 @@ export default function Tasks() {
           {warnings !== 'denied' ? <Link href="/warnings" className="inline-block mt-3 t-11 text-accent hover:underline">full triage →</Link> : null}
         </Card>
 
-        <Card className="p-5">
+        <Card className="p-5 min-w-0">
           <div className="flex items-center gap-3 mb-4">
             <span className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
               <ScrollText size={17} />
@@ -117,8 +119,8 @@ export default function Tasks() {
               {scripts.slice(0, 8).map((s, i) => (
                 <li key={s.id || i}>
                   {/* each held script opens straight into its review */}
-                  <Link href={s.id ? `/review?id=${encodeURIComponent(s.id)}` : '/review'} className="inset-tile px-3 py-2 flex items-center gap-2.5 hover:bg-surface-2 transition-colors">
-                    <span className="min-w-0 flex-1 t-12 text-ink truncate">{s.title || s.topic || s.id}</span>
+                  <Link href={s.id ? `/review?id=${encodeURIComponent(s.id)}` : '/review'} className="inset-tile px-3 py-2 flex items-center gap-2.5 min-w-0 hover:bg-surface-2 transition-colors">
+                    <span className="min-w-0 flex-1 t-12 text-ink break-words [overflow-wrap:anywhere]">{s.title || s.topic || s.id}</span>
                     {s.channel_id || s.slug ? <span className="t-10 text-faint font-mono truncate max-w-[90px]">{s.channel_id || s.slug}</span> : null}
                   </Link>
                 </li>
@@ -128,7 +130,7 @@ export default function Tasks() {
           {pending !== 'denied' ? <Link href="/review" className="inline-block mt-3 t-11 text-accent hover:underline">review queue →</Link> : null}
         </Card>
 
-        <Card className="p-5">
+        <Card className="p-5 min-w-0">
           <div className="flex items-center gap-3 mb-4">
             <span className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
               <CircleCheck size={17} />
@@ -151,7 +153,7 @@ export default function Tasks() {
               {resolved.slice(0, 6).map((w) => (
                 <li key={w.id} className="inset-tile px-3 py-2 flex items-center gap-2.5">
                   <Circle size={12} className="text-faint shrink-0" />
-                  <span className="min-w-0 flex-1 t-12 text-faint truncate">{w.title}</span>
+                  <span className="min-w-0 flex-1 t-12 text-faint break-words [overflow-wrap:anywhere]">{w.title}</span>
                 </li>
               ))}
             </ul>

@@ -12,12 +12,17 @@
 // Props stay compatible with channels/add/page.js. `slug`/`niche` are
 // optional; without them the channel is read from the wizard URL
 // (?edit= / ?connected=) and its niche from the registry row.
+//
+// Live fix wave B4: no stars or picks until the registry arrives (T4-13);
+// "Add a short" lands on a free hour with the 1-hour gap (T4-09); zero shorts
+// warn and block Next (T4-10 — stepIssues); an existing channel's saved hours
+// stay pickable even when another channel shares them (T3-09, `editing`).
 import { useEffect, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { AUDIENCES, suggestionFor } from '@/lib/audiences';
 import { DOC_DAYS, MAX_SLOTS, parseSlots, slotsToString, utcToLocal, formatClock, removeSlot, addSlot, shiftHHMM, stepIssues } from '@/lib/wizard-steps.mjs';
 import SlotTimeline from '@/components/SlotTimeline';
-import { channelTimes, takenHours, suggestHours, parseHHMM, toHHMM } from '@/lib/slot-planner.mjs';
+import { channelTimes, takenHours, suggestHours, parseHHMM, toHHMM, freeSlotTime } from '@/lib/slot-planner.mjs';
 import { Notice } from './fields';
 
 // a new slot starts 4 hours after the last one (two shorts at the same
@@ -34,13 +39,14 @@ function wizardSlug(slug) {
   return q.get('edit') || q.get('connected') || '';
 }
 
-export default function SchedulePicker({ slots, docDay, onSlots, onDocDay, audience, onAudience, slug, niche }) {
+export default function SchedulePicker({ slots, docDay, onSlots, onDocDay, audience, onAudience, slug, niche, editing = false }) {
   const offsetMin = -new Date().getTimezoneOffset();
   const rows = parseSlots(slots);
   const issues = stepIssues('schedule', { form: { slots, docDay } });
   const [active, setActive] = useState(0);
   const [times, setTimes] = useState([]);
   const [ownSlug, setOwnSlug] = useState('');
+  const [loaded, setLoaded] = useState(false); // registry arrived (or failed) — until then no stars
 
   // every channel's times, live from the registry (state set only when the request settles)
   useEffect(() => {
@@ -52,8 +58,11 @@ export default function SchedulePicker({ slots, docDay, onSlots, onDocDay, audie
         if (!alive) return;
         setTimes(channelTimes(d.channels || []));
         setOwnSlug(own);
+        setLoaded(true);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (alive) setLoaded(true);
+      });
     return () => { alive = false; };
   }, [slug]);
 
@@ -63,6 +72,17 @@ export default function SchedulePicker({ slots, docDay, onSlots, onDocDay, audie
   const preset = suggestionFor(audience);
   const channelNiche = niche || times.find((t) => t.slug === ownSlug)?.niche || '';
   const suggestions = suggestHours({ niche: channelNiche, takenHours: taken, preset });
+  // the channel's saved publish hours (registry) — a new channel has none yet
+  const ownHours = editing ? (times.find((t) => t.slug === ownSlug)?.publish || []).map(parseHHMM).filter(Boolean).map((p) => p.hour) : [];
+
+  // T4-09: a new short goes to the nearest free hour (other channels + this
+  // channel's other shorts), keeping the 4-hours-later default when it is free
+  const addShort = () => {
+    const prefer = nextSlotDefault(rows);
+    const free = freeSlotTime({ prefer, taken, own: rows.map((r) => r.utc).filter(Boolean) });
+    onSlots(addSlot(slots, free || prefer));
+    setActive(rows.length);
+  };
 
   // the picked hour replaces the selected short's hour (its minute is kept)
   const pick = (hour) => {
@@ -122,19 +142,25 @@ export default function SchedulePicker({ slots, docDay, onSlots, onDocDay, audie
             <button
               type="button"
               className="btn btn-sm btn-outline"
-              onClick={() => { onSlots(addSlot(slots, nextSlotDefault(rows))); setActive(rows.length); }}
+              onClick={addShort}
             >
               <Plus size={13} /> Add a short
             </button>
           ) : null}
         </div>
-        {!rows.length ? <p className="t-12 text-faint">No short time yet. Pick an hour below.</p> : null}
+        {!rows.length ? (
+          <p className="t-12" style={{ color: 'var(--warn-ink)' }} role="status">
+            At least one daily short is needed. Pick an hour below. For long videos only, turn off Shorts days in the channel&apos;s Schedule after saving.
+          </p>
+        ) : null}
         <SlotTimeline
           label={rows.length > 1 ? `Short ${idx + 1} goes public at` : 'Short goes public at'}
           value={current}
           onPick={pick}
           taken={taken}
           suggestions={suggestions}
+          own={ownHours}
+          loading={!loaded}
         />
       </section>
 

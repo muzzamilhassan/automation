@@ -22,6 +22,12 @@ const CATS = [
 
 const fmtDay = (s) => (s ? String(s).slice(0, 10) : '');
 
+// live fix wave B2 (T5-16): ONE headline rule — the label and the checklist
+// both read this (the label said 4, the checklist 7).
+const HEADLINE_MAX_WORDS = 7;
+const DEFAULT_TEMPLATE = 'poster';
+const DEFAULT_SHADE = '#0A1128';
+
 function matchesCategory(tplCat, tab) {
   if (tab === 'all') return true;
   if (tplCat === tab) return true;
@@ -45,12 +51,14 @@ export default function ThumbsPage() {
   const [brand, setBrand] = useState('');
   const [videos, setVideos] = useState(null);
   const [video, setVideo] = useState({ videoId: '', title: '' }); // {videoId,title}
-  const [template, setTemplate] = useState('poster');
+  const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
   const [title, setTitle] = useState('');
-  const [accentWord, setAccentWord] = useState('Killing');
-  const [chip, setChip] = useState('RULES');
-  const [eyebrow, setEyebrow] = useState('MONEY HABITS');
-  const [shade, setShade] = useState('#0A1128');
+  // live fix wave B2 (P14): no brand text baked in — these start EMPTY and
+  // are filled from the selected channel's own saved branding / kit.
+  const [accentWord, setAccentWord] = useState('');
+  const [chip, setChip] = useState('');
+  const [eyebrow, setEyebrow] = useState('');
+  const [shade, setShade] = useState(DEFAULT_SHADE);
   const [photoUrl, setPhotoUrl] = useState('');
   const [photoDataUrl, setPhotoDataUrl] = useState('');
   const [photoQuery, setPhotoQuery] = useState('');
@@ -116,6 +124,31 @@ export default function ThumbsPage() {
     setBrand(c.label || '');
     setVideo(null);
     setVideos(null);
+    // live fix wave B2 (T5-14 / P14): every per-channel field starts fresh, so
+    // nothing from the previous channel (headline, chip, eyebrow, photo,
+    // variants) leaks into this one's preview, bulk redesign or attach.
+    setTitle('');
+    setAccentWord('');
+    setChip('');
+    setEyebrow('');
+    setShade(DEFAULT_SHADE);
+    setTemplate(DEFAULT_TEMPLATE);
+    setRotation([]);
+    setPhotoUrl('');
+    setPhotoDataUrl('');
+    setPhotoQuery('');
+    setPhotos(null);
+    setPreview(null);
+    setPreviewErr('');
+    setPreviewHint('');
+    setAttachMsg(null);
+    setMoreVariants([]);
+    setAbVariants([]);
+    setAbMsg(null);
+    setAiPrompt('');
+    setAiMsg(null);
+    setBranding(null);
+    setBrandMsg(null);
     fetch(`/api/thumbs/videos?slug=${encodeURIComponent(c.slug)}`)
       .then((r) => r.json())
       .then((d) => {
@@ -135,8 +168,10 @@ export default function ThumbsPage() {
         setBranding(b);
         if (b.accent) setAccent(b.accent);
         if (b.shade) setShade(b.shade);
-        if (b.chip) setChip(b.chip);
-        if (b.eyebrow) setEyebrow(b.eyebrow);
+        // this channel's saved chip; else empty (placeholder shows a hint)
+        setChip(b.chip || '');
+        // saved eyebrow, else the channel's own kit eyebrow, else empty
+        setEyebrow(b.eyebrow || d.kit?.eyebrow || '');
         if (b.template) setTemplate(b.template);
         if (b.templateRotation) setRotation(b.templateRotation);
       })
@@ -467,6 +502,7 @@ export default function ThumbsPage() {
   };
 
   const words = title.trim().split(/\s+/).filter(Boolean).length;
+  const wordsOk = words > 0 && words <= HEADLINE_MAX_WORDS;
   const ck = preview?.checklist;
 
   useEffect(() => {
@@ -527,9 +563,9 @@ export default function ThumbsPage() {
     <div>
       {header}
 
-      <div className="grid lg:grid-cols-[1fr_420px] gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px] gap-5">
         {/* Left column: video pick + controls */}
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           <div className="border border-line rounded-xl bg-surface p-4">
             <div className="t-11 uppercase tracking-wide text-muted mb-2 flex items-center gap-1.5"><Paperclip size={12} /> 1 · Pick a video</div>
             {!videos ? (
@@ -670,24 +706,24 @@ export default function ThumbsPage() {
               </details>
             ) : null}
             <label className="block">
-              <span className="t-11 text-muted">Headline (≤4 words clicks best)</span>
+              <span className="t-11 text-muted">Headline ({HEADLINE_MAX_WORDS} words or fewer)</span>
               <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. The Silent Wealth Trap"
                 className="mt-1 w-full t-13 px-3 py-2 rounded-lg border border-line bg-bg-soft" />
             </label>
             <div className="grid grid-cols-2 gap-2">
               <label className="block">
                 <span className="t-11 text-muted">Accent word (highlighted)</span>
-                <input value={accentWord} onChange={(e) => setAccentWord(e.target.value)} placeholder="auto-picked if empty"
+                <input value={accentWord} onChange={(e) => setAccentWord(e.target.value)} placeholder="Auto-picked if empty"
                   className="mt-1 w-full t-13 px-3 py-2 rounded-lg border border-line bg-bg-soft" />
               </label>
               <label className="block">
                 <span className="t-11 text-muted">Category chip</span>
-                <input value={chip} onChange={(e) => setChip(e.target.value)} placeholder="e.g. MARKETS"
+                <input value={chip} onChange={(e) => setChip(e.target.value)} placeholder="Optional · 1–2 words"
                   className="mt-1 w-full t-13 px-3 py-2 rounded-lg border border-line bg-bg-soft" />
               </label>
               <label className="block">
                 <span className="t-11 text-muted">Eyebrow (small top text)</span>
-                <input value={eyebrow} onChange={(e) => setEyebrow(e.target.value)} placeholder="optional"
+                <input value={eyebrow} onChange={(e) => setEyebrow(e.target.value)} placeholder="Optional · small line on top"
                   className="mt-1 w-full t-13 px-3 py-2 rounded-lg border border-line bg-bg-soft" />
               </label>
               <label className="block">
@@ -701,7 +737,7 @@ export default function ThumbsPage() {
               <div className="flex gap-2">
                 <input value={photoQuery} onChange={(e) => setPhotoQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchPhotos()}
                   placeholder="e.g. old money, wall street, marble statue"
-                  className="flex-1 t-13 px-3 py-2 rounded-lg border border-line bg-bg-soft" />
+                  className="flex-1 min-w-0 t-13 px-3 py-2 rounded-lg border border-line bg-bg-soft" />
                 <button onClick={searchPhotos} disabled={photoBusy} className="btn btn-outline">
                   {photoBusy ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />} Search
                 </button>
@@ -735,7 +771,7 @@ export default function ThumbsPage() {
                 <div className="flex gap-2">
                   <input value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)}
                     placeholder="describe the scene… e.g. marble statue in fog"
-                    className="flex-1 t-12 px-3 py-2 rounded-lg border border-line bg-bg-soft" />
+                    className="flex-1 min-w-0 t-12 px-3 py-2 rounded-lg border border-line bg-bg-soft" />
                   <button onClick={generateBg} disabled={aiBusy || !aiPrompt.trim()}
                     className="btn btn-outline">
                     {aiBusy ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />} Generate (~15s)
@@ -749,7 +785,7 @@ export default function ThumbsPage() {
         </div>
 
         {/* Right column: preview + checklist + attach */}
-        <div className="space-y-4 lg:sticky lg:top-[76px] self-start">
+        <div className="space-y-4 min-w-0 lg:sticky lg:top-[76px] self-start">
           <div className="border border-line rounded-xl bg-surface p-4">
             <div className="t-11 uppercase tracking-wide text-muted mb-2">4 · Preview {previewing ? '· rendering…' : ''}</div>
             {previewing && !preview ? (
@@ -765,7 +801,7 @@ export default function ThumbsPage() {
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={preview.image} alt="thumbnail preview" className="w-full rounded-lg border border-line" />
-                <div className="mt-3 flex items-end gap-4">
+                <div className="mt-3 flex flex-wrap items-end gap-4">
                   <button onClick={generateMore} disabled={moreBusy || !title.trim()}
                     className="btn btn-outline w-full mb-3">
                     {moreBusy ? <Loader2 size={13} className="animate-spin" /> : <Shuffle size={13} />} Give me 3 more
@@ -787,8 +823,8 @@ export default function ThumbsPage() {
                     <img src={preview.image} alt="mobile preview" className="w-[168px] rounded border border-line" />
                   </div>
                   <div className="t-11 space-y-1.5">
-                    <div className="flex items-center gap-1.5" style={{ color: ck?.wordsOk ? 'var(--ok-ink)' : 'var(--warn-ink)' }}>
-                      {ck?.wordsOk ? <CheckCircle2 size={12} /> : <XCircle size={12} />} {words} word{words === 1 ? '' : 's'} (≤7 recommended)
+                    <div className="flex items-center gap-1.5" style={{ color: wordsOk ? 'var(--ok-ink)' : 'var(--warn-ink)' }}>
+                      {wordsOk ? <CheckCircle2 size={12} /> : <XCircle size={12} />} {words} word{words === 1 ? '' : 's'} ({HEADLINE_MAX_WORDS} or fewer)
                     </div>
                     <div className="flex items-center gap-1.5" style={{ color: ck?.photoOk ? 'var(--ok-ink)' : 'var(--warn-ink)' }}>
                       {ck?.photoOk ? <CheckCircle2 size={12} /> : <XCircle size={12} />} {template === 'poster' ? 'panel layout' : 'photo set'}

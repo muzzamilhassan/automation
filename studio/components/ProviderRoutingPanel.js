@@ -146,7 +146,8 @@ export default function ProviderRoutingPanel({ slug, frame }) {
   };
 
   const wrap = (body) => {
-    if (frame) return frame(body, null);
+    // wave B4 (T3-05): Wave A's unsaved draft (`dirty`) guards the drawer close
+    if (frame) return frame(body, null, { dirty });
     return (
       <div className="inset-tile p-4 mt-1 space-y-3">
         <div className="flex flex-wrap items-center gap-2 overline"><Route size={12} /> Provider routing</div>

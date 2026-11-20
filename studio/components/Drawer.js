@@ -14,24 +14,79 @@
 // the containing block for position:fixed — the drawer was sized to the
 // whole PAGE, so its body never overflowed (no scroll) and the scroll lock
 // hid everything below the fold. From body, no ancestor can do that again.
-import { useEffect, useId, useRef, useSyncExternalStore } from 'react';
+//
+// Live fix wave B4 (T3-05 + T3-06):
+//   dirty  optional. While true, every close (Escape, ✕, backdrop, browser
+//          Back) asks "Discard your changes?" and closes only on Discard, and
+//          leaving the site asks first (beforeunload).
+//   Back   each open drawer owns one history entry, so the browser Back button
+//          closes the drawer instead of leaving the page. The entry logic is
+//          the pure state machine in lib/drawer-history.mjs; this file only
+//          runs its effects. No URL is ever passed, so the Next router keeps
+//          its own URL and state.
+import { useCallback, useEffect, useId, useRef, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useConfirm } from '@/components/ConfirmDialog';
+import { initialDrawerHistory, drawerHistoryStep, drawerIdOf, entryState, guardedClose } from '@/lib/drawer-history.mjs';
 
 const WIDTHS = { sm: 'sm:max-w-md', md: 'sm:max-w-lg', lg: 'sm:max-w-2xl', xl: 'sm:max-w-4xl' };
 const noopSubscribe = () => () => {};
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export default function Drawer({ open, onClose, title, description, icon: Icon, size = 'md', footer, children }) {
+// One history machine for the whole page (drawers can swap or nest).
+let hist = initialDrawerHistory();
+const closers = new Map(); // drawer id → close request from the Back button
+let listening = false;
+
+function runHistory(event) {
+  const out = drawerHistoryStep(hist, event);
+  hist = out.state;
+  for (const fx of out.effects) {
+    if (fx.type === 'push') window.history.pushState(entryState(window.history.state, fx.id), '');
+    else if (fx.type === 'replace') window.history.replaceState(entryState(window.history.state, fx.id), '');
+    else if (fx.type === 'flush-later') setTimeout(() => runHistory({ type: 'flush', top: drawerIdOf(window.history.state) }), 0);
+    else if (fx.type === 'back') window.history.go(-fx.steps);
+    else if (fx.type === 'close') closers.get(fx.id)?.();
+  }
+}
+
+function listenForBack() {
+  if (listening || typeof window === 'undefined') return;
+  listening = true;
+  window.addEventListener('popstate', (e) => runHistory({ type: 'pop', landed: drawerIdOf(e.state) }));
+}
+
+export default function Drawer({ open, onClose, title, description, icon: Icon, size = 'md', footer, dirty = false, children }) {
   const panelRef = useRef(null);
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+  const dirtyRef = useRef(dirty);
+  useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
+  const confirm = useConfirm();
+  const confirmRef = useRef(confirm);
+  useEffect(() => { confirmRef.current = confirm; }, [confirm]);
+  const asking = useRef(false); // one "Discard?" question at a time
   const titleId = useId();
   const descId = useId();
+  const histId = useId();
   // client-only mount guard (server snapshot = false → no portal during SSR)
   const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
+
+  // Every close goes through here. Resolves to whether the drawer closed.
+  const requestClose = useCallback(async () => {
+    if (asking.current) return false;
+    asking.current = true;
+    try {
+      return await guardedClose({ dirty: dirtyRef.current, ask: (q) => confirmRef.current(q), close: () => onCloseRef.current?.() });
+    } finally {
+      asking.current = false;
+    }
+  }, []);
+  const requestCloseRef = useRef(requestClose);
+  useEffect(() => { requestCloseRef.current = requestClose; }, [requestClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -49,7 +104,7 @@ export default function Drawer({ open, onClose, title, description, icon: Icon, 
       if (document.querySelector('[role="alertdialog"]')) return;
       if (e.key === 'Escape') {
         e.preventDefault();
-        onCloseRef.current?.();
+        requestCloseRef.current();
         return;
       }
       if (e.key !== 'Tab' || !panelRef.current) return;
@@ -74,11 +129,39 @@ export default function Drawer({ open, onClose, title, description, icon: Icon, 
     };
   }, [open]);
 
+  // T3-06: our own history entry while open. Back → (guarded) close; if the
+  // owner keeps editing, the entry is pushed again.
+  useEffect(() => {
+    if (!open) return;
+    listenForBack();
+    closers.set(histId, () => {
+      requestCloseRef.current().then((closed) => {
+        if (!closed) runHistory({ type: 'keep', id: histId });
+      });
+    });
+    runHistory({ type: 'open', id: histId });
+    return () => {
+      closers.delete(histId);
+      runHistory({ type: 'closed', id: histId });
+    };
+  }, [open, histId]);
+
+  // T3-05: leaving the site with unsaved edits asks first
+  useEffect(() => {
+    if (!open || !dirty) return;
+    const onBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [open, dirty]);
+
   if (!open || !mounted) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[60]" role="presentation">
-      <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px] fade-in" onClick={onClose} aria-hidden="true" />
+      <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px] fade-in" onClick={requestClose} aria-hidden="true" />
       <div
         ref={panelRef}
         role="dialog"
@@ -101,7 +184,7 @@ export default function Drawer({ open, onClose, title, description, icon: Icon, 
             <h2 id={titleId} className="font-display t-16 font-bold text-ink tracking-tight truncate">{title}</h2>
             {description ? <p id={descId} className="t-12 text-faint mt-0.5">{description}</p> : null}
           </div>
-          <button type="button" className="icon-btn shrink-0" onClick={onClose} aria-label="Close panel">
+          <button type="button" className="icon-btn shrink-0" onClick={requestClose} aria-label="Close panel">
             <X size={16} />
           </button>
         </header>

@@ -226,7 +226,7 @@ test('#121 R5: preview 30/10min; performance + videos share thumbs-read 20/h; de
     assert.match(read(p), /bucket: 'thumbs-read', limit: 20, windowSec: 3600/, p);
   }
   const demo = read('studio/app/api/thumbs/demo/route.js');
-  assert.match(demo, /s-maxage=86400/);
+  assert.match(demo, /public, max-age=86400, s-maxage=31536000/); // live-fix B1 T3-12: CDN keeps the deterministic JPEG a year
 });
 
 test('#121: db-setup creates the rate_limits table with the composite PK the upsert conflicts on', () => {

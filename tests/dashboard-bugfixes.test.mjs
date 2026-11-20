@@ -43,15 +43,15 @@ test('#119 BUG-1: page.js wires the fixed expression, old shape gone (source)', 
   assert.match(analytics, /slug === 'all' \? all : channels\[slug\] \|\| null/, "route answers the aggregate for slug='all' and null for unknown slugs — the bug's blast radius");
 });
 
-test('#119 BUG-4: template-previews constructs postgres inside a guarded try (source)', () => {
+test('#119 BUG-4: template-previews never builds its own postgres client — a bad URL is the 503 contract (source)', () => {
+  // live-fix wave B1 (P8): the per-request postgres(url) constructor is gone —
+  // the route uses the shared client (@/lib/db), so BUG-4's raw-500 shape
+  // (constructor outside a try) cannot come back.
   const src = fs.readFileSync('studio/app/api/template-previews/route.js', 'utf8');
-  assert.doesNotMatch(src, /const sql = postgres\(/, 'no top-level constructor — the old 500 shape is gone');
-  assert.match(src, /let sql;\s*\n\s*try \{\s*\n\s*sql = postgres\(url/, 'constructor runs inside its own try');
-  // construction failure = the SAME 503 contract as a missing URL
-  const fifties = src.match(/status: 503/g) || [];
-  assert.ok(fifties.length >= 2, `missing-URL and construction-failure both 503 (found ${fifties.length})`);
-  assert.match(src, /error: 'db unavailable'/, 'both 503s share the documented body');
-  // query failures keep their 502 path; success path untouched
+  assert.doesNotMatch(src, /postgres\(/, 'no per-request constructor at all');
+  assert.match(src, /import \{ db, dbReady \} from '@\/lib\/db'/);
+  // no usable DATABASE_URL = the documented 503 body
+  assert.match(src, /if \(!dbReady\) return Response\.json\(\{ samples: \{\}, error: 'db unavailable' \}, \{ status: 503 \}\)/);
+  // query failures keep their 502 path
   assert.match(src, /status: 502/);
-  assert.match(src, /sql\.end\(\)/, 'connection still closed on every path that built one');
 });

@@ -25,7 +25,7 @@ const registryTemplates = [
     registry: { version: '1.0.0', niches: ['History stories'], formats: ['long', 'short'], safety: { required_sources: true, review_required: [] } },
   },
   {
-    templateId: 'history-storybook', family: 'documentary-frames', name: 'Documentary Master Frames',
+    templateId: 'history-storybook', family: 'documentary-frames', name: 'History Storybook', // loader name (templateDisplayName)
     registry: {
       version: '1.2.0', niches: ['History stories'], formats: ['long'],
       doc_presentation: { voice: 'en-GB-RyanNeural', music_mood: 'epic', theme: 'history', doc_layouts: ['split', 'map'] },
@@ -34,7 +34,7 @@ const registryTemplates = [
     },
   },
   {
-    templateId: 'systems-diagram', family: 'documentary-frames', name: 'Documentary Master Frames',
+    templateId: 'systems-diagram', family: 'documentary-frames', name: 'Systems Diagram',
     registry: {
       version: '1.0.0', niches: ['AI & future tech', 'Science & how things work'], formats: ['short', 'long'],
       story_structure: { doc_render: 'diagram', format_description: 'Ten numbered parts.' },
@@ -163,8 +163,8 @@ test('page: cards show the real poster (lazy) and play the mp4 muted+looped on h
   assert.match(page, /<TemplatePreviewMedia item=\{item\} previewState=\{previewState\} onOpen=\{onOpen\} \/>/, 'the card renders the shared media component');
   assert.match(media, /<img\s+src=\{poster\}[\s\S]{0,120}loading="lazy"/);
   assert.match(media, /<video\s+src=\{mp4\}[\s\S]{0,200}muted\s+loop\s+playsInline/);
-  assert.match(media, /onPointerEnter=\{\(e\) => \{ if \(e\.pointerType === 'mouse' && mp4\) setPlaying\(true\)/, 'hover plays for mouse only');
-  assert.match(media, /pointer\.current !== 'mouse' && mp4\) \{\s*setPlaying\(\(p\) => !p\)/, 'tap toggles on touch');
+  assert.match(media, /onPointerEnter=\{\(e\) => \{ if \(e\.pointerType === 'mouse' && mp4\) play\(\)/, 'hover plays for mouse only');
+  assert.match(media, /pointer\.current !== 'mouse' && mp4\) \{\s*toggle\(\)/, 'tap toggles on touch');
   assert.doesNotMatch(media, /familySamples/, 'no borrowing a family sample for a sibling template');
   assert.doesNotMatch(page, /TemplateSimulator/, 'the simulated fake demo is gone from the gallery');
   assert.doesNotMatch(page, /familySamples/, 'no borrowing a family sample for a sibling template');
@@ -182,7 +182,7 @@ test('page: detail opens in the shared Drawer (xl) with player, usage and workin
   assert.match(page, /<Drawer\s+open[\s\S]{0,80}size="xl"/);
   assert.match(page, /<video\s+src=\{mp4\}[\s\S]{0,120}controls/);
   assert.match(page, /fetch\(`\/api\/templates\?template=\$\{encodeURIComponent\(item\.id\)\}`\)/, 'usage = the registry usage query');
-  assert.match(page, /href=\{createHref\(item\.id\)\}/, 'Create a video → /create?template=');
+  assert.match(page, /href=\{createHref\(item\.createStyle\)\}/, 'Create a video → /create?template=<its Create style> (data-mapped only, T5-05)');
   assert.match(page, /fetch\('\/api\/templates\/assign', \{\s*method: 'POST'/, 'Use on a channel → the real assign API');
   assert.match(page, /templateId: item\.id, pinnedMajor: majorOf\(item\.version\)/);
   assert.match(page, /friendlyReason\(rs\)/, '422 reasons render in plain English');

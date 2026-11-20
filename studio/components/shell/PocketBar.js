@@ -17,7 +17,11 @@ const TABS = [
   { key: 'alerts', href: '/warnings', label: 'Alerts', icon: Bell },
 ];
 
-const isActive = (href, pathname) => (href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`));
+// Live fix wave B3 (T1-13): the Inbox (/tasks) lists the open alerts, so the
+// Alerts tab lights up there too — before, no tab was highlighted on Inbox.
+const ALSO_ACTIVE = { '/warnings': ['/tasks'] };
+
+const isActive = (href, pathname) => [href, ...(ALSO_ACTIVE[href] || [])].some((h) => (h === '/' ? pathname === '/' : pathname === h || pathname.startsWith(`${h}/`)));
 
 // Renders nothing unless n is a real, positive count.
 function CountBadge({ n }) {

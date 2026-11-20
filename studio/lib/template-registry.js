@@ -50,6 +50,26 @@ function humanizeTemplateId(id) {
     .join(' ');
 }
 
+/**
+ * THE template naming rule (live-fix wave B1, P7/T5-15) — the loader stamps
+ * it on every row, so /api/templates, the gallery, the channel drawer and the
+ * wizard all show the SAME name:
+ *   1. the registry DATA's own `display_name` (a real human name);
+ *   2. else, for a template that IS its visual family, the family's catalog name;
+ *   3. else the id made readable — never another family's name.
+ * @param {string} templateId
+ * @param {{display_name?: string, family?: string}|null|undefined} meta
+ * @param {{name?: string}|null|undefined} catalogEntry the template's visual family
+ * @returns {string}
+ */
+export function templateDisplayName(templateId, meta, catalogEntry) {
+  const own = typeof meta?.display_name === 'string' ? meta.display_name.trim() : '';
+  if (own) return own;
+  const family = isNonEmptyString(meta?.family) ? meta.family : templateId;
+  if (templateId === family && isNonEmptyString(catalogEntry?.name)) return catalogEntry.name;
+  return humanizeTemplateId(templateId);
+}
+
 function isNonEmptyString(v) {
   return typeof v === 'string' && v.length > 0;
 }
@@ -314,12 +334,10 @@ export function loadRegistryTemplates(catalogFamilies, metaData) {
       continue;
     }
 
-    // A template that IS its family keeps the family's catalog name; a template
-    // built ON a family (e.g. lecture-notes-paper on documentary-frames) gets its
-    // OWN name from its id — otherwise every surface (wizard picker, channel
-    // drawer, registry) lists several different templates under one family name.
-    // Same rule as the gallery (templates-gallery.mjs humanizeId).
-    const name = templateId === family ? catalogEntry.name : humanizeTemplateId(templateId);
+    // Every template gets its OWN name (templateDisplayName: data display_name
+    // first) — never the family's, or every surface (wizard picker, channel
+    // drawer, registry) lists several different templates under one name.
+    const name = templateDisplayName(templateId, meta, catalogEntry);
     templates.push({ templateId, familyId: templateId, family, name, catalog: catalogEntry, registry: meta });
   }
 

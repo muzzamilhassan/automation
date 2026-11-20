@@ -1,20 +1,73 @@
 'use client';
 // Step 2 — what the channel is about: name, niche, content pillars, and the
 // public description/tags. The AI kit draft lives here as a suggestion.
-import { useState } from 'react';
+// live fix wave B2 (T4-06): the draft fills EMPTY fields only. Fields the
+// owner already wrote keep their text and get a "Use this" suggestion; pillar
+// suggestions merge, so a custom pillar is never dropped. The draft request
+// and its state live here (the page's old handler overwrote every field).
+import { useEffect, useRef, useState } from 'react';
 import { Sparkles, Plus, X } from 'lucide-react';
 import { NICHE_CATALOG, NICHE_MAP } from '@/lib/niches';
-import { subNicheList, togglePillar } from '@/lib/wizard-steps.mjs';
+import { subNicheList, togglePillar, NAME_MAX } from '@/lib/wizard-steps.mjs';
 import { findLabelClash } from '@/lib/brand-list.mjs';
+import { planKitDraft, applyDraftField } from '@/lib/kit-draft-merge.mjs';
+import { tagsToField, TAG_LIMITS } from '@/lib/tag-normalize.mjs';
 import { Field, Notice } from './fields';
 import AiDraftPanel from './AiDraftPanel';
 
-export default function IdentityStep({ form, setField, setForm, kit, names, channels = [], selfSlug = '' }) {
+export default function IdentityStep({ form, setField, setForm, names, channels = [], selfSlug = '' }) {
   const [customPillar, setCustomPillar] = useState('');
   // live fix wave A2 (T4-11): two channels with one name are easy to mix up
   const clash = findLabelClash(form.label, channels, selfSlug);
   const pillars = subNicheList(form.subNiches);
   const recommended = (NICHE_MAP[form.niche] || []).filter((p) => !pillars.includes(p.toLowerCase()));
+
+  // T4-06 — draft state: { kit, suggestion, source, status: { key: filled|pending|same|applied } }
+  const [draft, setDraft] = useState(null);
+  const [filling, setFilling] = useState(false);
+  const [draftError, setDraftError] = useState('');
+  const [draftNote, setDraftNote] = useState('');
+  // the latest form, read after the (slow) draft request returns
+  const formRef = useRef(form);
+  useEffect(() => { formRef.current = form; }, [form]);
+  // another channel → a stale draft must not linger
+  useEffect(() => { setDraft(null); setDraftNote(''); setDraftError(''); }, [selfSlug]);
+
+  const draftKit = async () => {
+    if (!form.niche.trim()) { setDraftError('Pick a niche first.'); return; }
+    setFilling(true);
+    setDraftError('');
+    setDraftNote('');
+    try {
+      const r = await fetch('/api/channels/kit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: selfSlug, niche: form.niche, label: form.label, useLLM: true }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.kit) throw new Error(d.error || `Kit draft failed (${r.status})`);
+      const next = { kit: d.kit, suggestion: d.suggestion || {}, source: d.source === 'llm' ? 'llm' : 'template' };
+      setForm((f) => planKitDraft(f, next).form);
+      setDraft({ ...next, status: planKitDraft(formRef.current, next).status });
+      if (next.source !== 'llm') setDraftNote(d.note ? `${d.note}. Used the built-in template instead.` : 'Drafted from the built-in template.');
+    } catch (e) {
+      setDraftError(e.message);
+    } finally {
+      setFilling(false);
+    }
+  };
+  const markApplied = (keys) => setDraft((d) => (d ? { ...d, status: { ...d.status, ...Object.fromEntries(keys.map((k) => [k, 'applied'])) } } : d));
+  const applyOne = (key) => {
+    if (!draft) return;
+    setForm((f) => applyDraftField(f, key, draft));
+    markApplied([key]);
+  };
+  const applyAll = () => {
+    if (!draft) return;
+    const pending = Object.keys(draft.status).filter((key) => draft.status[key] === 'pending');
+    setForm((f) => pending.reduce((acc, key) => applyDraftField(acc, key, draft), f));
+    markApplied(pending);
+  };
 
   const pickNiche = (n) => {
     const subs = NICHE_MAP[n] || [];
@@ -31,8 +84,8 @@ export default function IdentityStep({ form, setField, setForm, kit, names, chan
     <div className="space-y-5">
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="min-w-0">
-          <Field label="Channel name" hint="Shown across Studio and on the videos.">
-            {(id) => <input id={id} className="input w-full" value={form.label} onChange={(e) => setField('label', e.target.value)} placeholder="e.g. Quote Quarry" aria-describedby={clash ? 'name-clash' : undefined} />}
+          <Field label="Channel name" hint={`Shown across Studio and on the videos. ${String(form.label || '').length}/${NAME_MAX}`}>
+            {(id) => <input id={id} className="input w-full" value={form.label} maxLength={NAME_MAX} onChange={(e) => setField('label', e.target.value)} placeholder="e.g. Quote Quarry" aria-describedby={clash ? 'name-clash' : undefined} />}
           </Field>
           {clash ? (
             <p id="name-clash" className="t-11 mt-1.5" style={{ color: 'var(--warn-ink)' }} role="status">
@@ -116,23 +169,23 @@ export default function IdentityStep({ form, setField, setForm, kit, names, chan
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
             <p className="t-13 font-semibold text-ink">Brand kit draft</p>
-            <p className="t-11 text-faint">Drafts pillars, description, tags, style, voice, eyebrow and tagline from your niche.</p>
+            <p className="t-11 text-faint">Drafts pillars, description, tags, style, voice, eyebrow and tagline from your niche. Fills empty fields only.</p>
           </div>
-          <button type="button" className="btn btn-outline shrink-0" onClick={kit.onAutoFill} disabled={kit.filling || !form.niche.trim()} title={form.niche.trim() ? '' : 'Pick a niche first'}>
-            <Sparkles size={14} /> {kit.filling ? 'Drafting…' : 'Draft with AI'}
+          <button type="button" className="btn btn-outline shrink-0" onClick={draftKit} disabled={filling || !form.niche.trim()} title={form.niche.trim() ? '' : 'Pick a niche first'}>
+            <Sparkles size={14} /> {filling ? 'Drafting…' : 'Draft with AI'}
           </button>
         </div>
-        {kit.error ? <Notice tone="bad" title="Couldn't draft the kit">{kit.error}</Notice> : null}
-        {kit.note ? <Notice tone="warn">{kit.note}</Notice> : null}
-        {kit.mood ? <p className="t-11 text-faint">Music mood for this niche: <span className="text-muted">{kit.mood}</span></p> : null}
-        <AiDraftPanel draft={kit.draft} names={names} onApply={kit.onApply} onApplyAll={kit.onApplyAll} onDiscard={kit.onDiscard} />
+        {draftError ? <Notice tone="bad" title="Couldn't draft the kit">{draftError}</Notice> : null}
+        {draftNote ? <Notice tone="warn">{draftNote}</Notice> : null}
+        {draft?.kit?.mood ? <p className="t-11 text-faint">Music mood for this niche: <span className="text-muted">{draft.kit.mood}</span></p> : null}
+        <AiDraftPanel draft={draft} names={names} onApply={applyOne} onApplyAll={applyAll} onDiscard={() => setDraft(null)} />
       </div>
 
       <Field label="Channel description" optional hint="Used for the YouTube channel description and video descriptions.">
         {(id) => <textarea id={id} className="input w-full" rows={3} value={form.description} onChange={(e) => setField('description', e.target.value)} />}
       </Field>
-      <Field label="SEO tags" optional hint="Comma separated, e.g. old money, quiet luxury, wealth habits">
-        {(id) => <input id={id} className="input w-full" value={form.tags} onChange={(e) => setField('tags', e.target.value)} placeholder="old money, quiet luxury, wealth habits" />}
+      <Field label="SEO tags" optional hint={`Comma separated. Duplicates are removed. Up to ${TAG_LIMITS.maxCount} tags, ${TAG_LIMITS.maxChars} characters.`}>
+        {(id) => <input id={id} className="input w-full" value={form.tags} onChange={(e) => setField('tags', e.target.value)} onBlur={(e) => setField('tags', tagsToField(e.target.value))} placeholder="old money, quiet luxury, wealth habits" />}
       </Field>
     </div>
   );

@@ -123,7 +123,8 @@ test('R6: one line on phones — the list clips, earlier parts truncate, the cur
 });
 
 test('R11: the bell is in the topbar at every width and can never be squeezed out', () => {
-  const bell = shell.match(/<div className="([^"]*)">\s*<ButtonUtility[\s\S]{0,120}?icon=\{Bell\}/);
+  // live fix wave B3: the wrapper carries ref={bellRef} (the popover anchors to it)
+  const bell = shell.match(/<div (?:ref=\{bellRef\} )?className="([^"]*)">\s*<ButtonUtility[\s\S]{0,120}?icon=\{Bell\}/);
   assert.ok(bell, 'bell wrapper found');
   assert.doesNotMatch(bell[1], /\bhidden\b/);
   assert.match(bell[1], /\bshrink-0\b/);

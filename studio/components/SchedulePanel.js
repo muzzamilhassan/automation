@@ -14,13 +14,19 @@
 // the video goes public). The cron is computed under the hood and only shown
 // inside "Advanced". Taken hours come from this route's GET `channels`
 // (live registry, owner/staff only).
+//
+// Live fix wave B4: `saved` is the schedule as loaded / last saved. Save stays
+// disabled until something differs from it (T3-18), the drawer asks before
+// discarding the difference (T3-05, frame opts.dirty), and the saved start
+// hour stays pickable on the timeline even when another channel shares it
+// (T3-09).
 import { useCallback, useEffect, useState } from 'react';
 import { CalendarDays, AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import { Chip, Progress } from '@/components/ui';
 import { projection, DAY_NAMES } from '@/lib/schedule-projection';
 import SlotTimeline from '@/components/SlotTimeline';
-import { parseDailyCron, cronFromUtc, parseHHMM, takenHours, suggestStartHours, localClock } from '@/lib/slot-planner.mjs';
+import { parseDailyCron, cronFromUtc, parseHHMM, takenHours, suggestStartHours, localClock, scheduleDirty } from '@/lib/slot-planner.mjs';
 
 const TONE_INK = { error: 'var(--bad-ink)', warn: 'var(--warn-ink)', ok: 'var(--ok-ink)' };
 
@@ -87,6 +93,7 @@ export default function SchedulePanel({ slug, frame }) {
   // schedule, and Save then wiped the channel's real days. Remember the
   // failure, show it, and keep Save disabled until a successful (re)load.
   const [loadError, setLoadError] = useState(null);
+  const [saved, setSaved] = useState(null); // { docDays, shortDays, shortsSource, gateCron } as loaded/saved
 
   // state is only set when the request settles (never synchronously in the effect)
   const load = useCallback(() => {
@@ -97,8 +104,10 @@ export default function SchedulePanel({ slug, frame }) {
         return d;
       })
       .then((d) => {
+        const loaded = d.schedule || { docDays: [], shortDays: [], shortsSource: 'generated' };
         setLoadError(null);
-        setSchedule(d.schedule || { docDays: [], shortDays: [], shortsSource: 'generated' });
+        setSchedule(loaded);
+        setSaved({ ...loaded, gateCron: d.gateCron || '' });
         setServerProj(d.projection || null);
         setGateCron(d.gateCron || '');
         setModelWarnings(d.projection?.warnings || []);
@@ -121,6 +130,8 @@ export default function SchedulePanel({ slug, frame }) {
   const draft = schedule || { docDays: [], shortDays: [], shortsSource: 'generated' };
   const proj = projection({ ...draft, ...deriveModelParams(serverProj) });
   const cronState = parseGateCron(gateCron);
+  const dirty = scheduleDirty(saved, { ...draft, gateCron });
+  const savedAt = saved ? parseGateCron(saved.gateCron).at : null; // the channel's own saved start
   const offsetMin = -new Date().getTimezoneOffset();
   const taken = takenHours(channels, { exclude: slug, kind: 'start' });
   const publishAt = publish.map(parseHHMM).filter(Boolean);
@@ -150,6 +161,7 @@ export default function SchedulePanel({ slug, frame }) {
       else {
         if (j.projection) setServerProj(j.projection);
         if (j.gateCron) setGateCron(j.gateCron);
+        setSaved({ ...draft, gateCron: j.gateCron || gateCron });
         setMsg({ tone: 'ok', text: 'Saved — the next runs pick this up.' });
         const saveWarnings = [...new Set([...(j.projection?.warnings || []), ...(j.warnings || [])])];
         if (saveWarnings.length) setMsg({ tone: 'warn', text: saveWarnings.join(' ') });
@@ -221,6 +233,7 @@ export default function SchedulePanel({ slug, frame }) {
         value={cronState.at}
         onPick={pickHour}
         taken={taken}
+        own={savedAt ? [savedAt.hour] : []}
         suggestions={schedule ? suggestions : []}
         loading={loading}
         disabled={!schedule}
@@ -276,13 +289,13 @@ export default function SchedulePanel({ slug, frame }) {
           <span className="min-w-0">{msg.text}</span>
         </p>
       ) : null}
-      <Button color="primary" onClick={save} isDisabled={saving || Boolean(loadError) || !schedule || proj.blocked || !cronState.valid}>
+      <Button color="primary" onClick={save} isDisabled={saving || Boolean(loadError) || !schedule || proj.blocked || !cronState.valid || !dirty}>
         {saving ? 'Saving…' : 'Save schedule'}
       </Button>
     </>
   );
 
-  if (frame) return frame(body, footer);
+  if (frame) return frame(body, footer, { dirty });
   return (
     <div className="inset-tile p-4 mt-1 space-y-4">
       <div className="flex items-center gap-2 overline"><CalendarDays size={12} /> Production scheduling</div>

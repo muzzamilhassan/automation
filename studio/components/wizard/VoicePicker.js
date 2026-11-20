@@ -9,6 +9,10 @@ import { VOICES } from '@/lib/voices';
 export default function VoicePicker({ value, onChange }) {
   const audio = useRef(null);
   const [playing, setPlaying] = useState(null);
+  // live fix wave B2 (T4-12): every play gets a token. Starting voice 2 while
+  // voice 1 is still loading rejects voice 1's play() promise; only the
+  // CURRENT token may clear the state, so voice 2 keeps its Stop button.
+  const playToken = useRef(0);
   const isCustom = Boolean(value) && !VOICES.some((v) => v.id === value);
   const [showCustom, setShowCustom] = useState(isCustom);
 
@@ -19,14 +23,22 @@ export default function VoicePicker({ value, onChange }) {
     const el = audio.current;
     if (!el) return;
     if (playing === voice.id) {
+      playToken.current += 1;
       el.pause();
       el.currentTime = 0;
       setPlaying(null);
       return;
     }
+    const token = ++playToken.current;
+    el.pause();
     el.src = voice.demo;
-    el.play().catch(() => setPlaying(null));
     setPlaying(voice.id);
+    const p = el.play();
+    if (p && typeof p.catch === 'function') {
+      p.catch(() => {
+        if (playToken.current === token) setPlaying(null);
+      });
+    }
   };
 
   return (

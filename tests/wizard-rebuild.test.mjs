@@ -82,8 +82,9 @@ test('editing a slot in local time stores UTC; add/remove respect the 6-slot cap
 });
 
 test('describeSlots shows local time first with UTC underneath, and says when nothing is set', () => {
-  assert.equal(describeSlots('14:30', KARACHI), '7:30 pm your time · 14:30 UTC');
-  assert.match(describeSlots('22:35', KARACHI), /3:35 am \(next day\) your time · 22:35 UTC/);
+  // wave B4 (T4-17): a daily short has no "(next day)" — "3:35 am your time (22:35 UTC)"
+  assert.equal(describeSlots('14:30', KARACHI), '7:30 pm your time (14:30 UTC)');
+  assert.equal(describeSlots('22:35', KARACHI), '3:35 am your time (22:35 UTC)');
   assert.equal(describeSlots('', KARACHI), 'No daily short time set');
 });
 
@@ -127,7 +128,8 @@ test('step issues: connect, niche, look, schedule and destinations block; thumbn
   assert.deepEqual(stepIssues('identity', { form: READY }), []);
   assert.equal(stepIssues('look', { form: { ...READY, accent: 'blue', voice: '' } }).length, 2);
   assert.deepEqual(stepIssues('thumbnails', { form: { ...READY, eyebrow: '', tagline: '' } }), []);
-  assert.deepEqual(stepIssues('schedule', { form: { ...READY, slots: '' } }), [], 'no short time is allowed (legacy channels run on their gate)');
+  // wave B4 (T4-10): at least one daily short (long-only = Shorts days off in the Schedule drawer)
+  assert.deepEqual(stepIssues('schedule', { form: { ...READY, slots: '' } }), ['Add at least one daily short.']);
   assert.match(stepIssues('schedule', { form: { ...READY, slots: '25:00' } })[0], /Can't read the time "25:00"/);
   assert.equal(stepIssues('schedule', { form: { ...READY, docDay: 'Sun' } }).length, 1, 'the route only accepts Mon–Fri');
   assert.deepEqual(DOC_DAYS, ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
@@ -195,7 +197,7 @@ test('review summary: one section per editable step, each with an Edit target an
   assert.equal(flat.Key, 'key saved · YT_QQ');
   assert.equal(flat['Video style'], 'Market Documentary');
   assert.equal(flat.Voice, 'British male · mature storyteller');
-  assert.equal(flat['Daily shorts'], '7:30 pm your time · 14:30 UTC');
+  assert.equal(flat['Daily shorts'], '7:30 pm your time (14:30 UTC)');
   assert.equal(flat['Weekly long episode'], 'Every Wed');
   assert.equal(flat.Instagram, '@qq');
   assert.equal(flat.TikTok, 'Not posting');
