@@ -32,7 +32,7 @@ Status labels: 🆕 new · 🔍 looking into it · 💡 proposal ready (needs yo
 - **Your decision needed:** yes/no — …
 -->
 
-### I. Live website test — 115 problems found, 5 fix batches — 🛠️ approved, building (2026-11-20 "approve all batches")
+### I. Live website test — 115 problems found, 5 fix batches — ✅ done & live (2026-11-20)
 - **You said:** test the real website like a normal user, every small feature and edge case.
 - **What I found:** 5 testers, desktop + phone, on the live site. 115 problems: about 15 serious, ~45 medium and the rest small. Full list with evidence: `research/live-e2e-test-2026-11-20.md`. The worst:
   - **Today is wrong about every channel.** It says "not run today" for channels that DID run, and Debt-Free Doctrine's failed run this morning shows nowhere and raised no alert.
@@ -51,6 +51,13 @@ Status labels: 🆕 new · 🔍 looking into it · 💡 proposal ready (needs yo
   4. Phone & everyday comfort.
   5. Small/cosmetic.
 - **Your decision needed:** yes — "approve all batches", or name the batches you want (e.g. "approve 1 and 2").
+
+### J. Found while fixing — 4 small decisions for you — 💡 proposal ready
+- **Daily Excel report has failed since Nov 17.** YT-BOT's YouTube key is stored in a format the report job can't read. Also, reports are only emailed/pushed, never saved where the panel looks (so the Reports card shows Sep 19). **Recommend:** fix the job's key reading and save each report to the repo.
+- **Older Shorts lose their YouTube link in the Library.** The automation only remembers the newest video's link. **Recommend:** save each video's link when it uploads (small engine change).
+- **5 leftover preview entries** from templates you already approved (nothing uses them). **Recommend:** delete them.
+- **One real alert is still open:** an approved Money Rulebook video ("The Secret Fold…") was never published. **Recommend:** open it in Review and press Redispatch, or reject it.
+- **Your decision needed:** yes — say which of these to do (e.g. "do J1-J3").
 
 _2026-11-20 — A–H are all built and live (checked in a real browser on desktop + phone). Three small things for you to decide whenever you like:_
 - **Thumbnail designs take turns only on channels whose video template asks for more than one thumbnail.** Want me to make that true for every channel?
@@ -109,4 +116,5 @@ _2026-11-19 — answers to your first 9 items. Reply "approve all" in chat (or t
 | 9 | F. AI best times + free slots timeline | ✅ done & live | 24-hour grid in your time; hours used by other channels greyed "taken"; 3 starred times with the reason; schedule code hidden under Advanced (95b880a + 750c2ab, live 2026-11-20) |
 | 10 | G. Template drawer with real demos + Story/Chapters | ✅ done & live | real poster + video previews; Story shape switch (Template default / Full story / Chapters) at the top (95b880a + 750c2ab, live 2026-11-20) |
 | 11 | H. Open channel in a drawer | ✅ done & live | opens a large drawer on the Channels list; "Full page ↗" link kept (95b880a + 750c2ab, live 2026-11-20) |
-| 12 | I. Live website test fixes (5 batches) | 🛠️ approved, building | ✅ wave A (batches 1+2: safety & trust, truthful Today) LIVE 2026-11-20 (ae4495b) — one "needs you" number (6 everywhere), real made-today per channel, DFD times fixed, failed runs alert, 7 stale alerts auto-closed · ✅ wave B (batches 3+4: templates & media, phone & comfort) LIVE 2026-11-20 (badffc1) — AI draft works (2s, real AI), every template has its own name, preview videos play + cached, drawers warn before losing changes, Back closes drawers, no sideways scroll on phones · wave C (5: small/cosmetic) building |
+| 12 | I. Live website test fixes (5 batches) | ✅ done & live | all 5 batches live 2026-11-20 (ae4495b, badffc1, 45a4d5e, 1a22f9e), each re-checked on the live site; final crawl: 27 pages × desktop+phone, 0 page errors, 0 sideways scroll, 0 broken text |
+| 13 | J. Report job, Library links, leftover previews, one open alert | 💡 proposal ready | needs your OK |
