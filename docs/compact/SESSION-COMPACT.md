@@ -3,7 +3,7 @@
 *Living handoff file. Updated before every context compaction (owner rule, 2026-11-20).
 Read this first after a compaction; it replaces re-reading the whole conversation.*
 
-**Last updated:** 2026-11-20 · **main at:** `5718182`
+**Last updated:** 2026-11-20 (evening) · **main at:** `e0b1705`
 
 ---
 
@@ -11,6 +11,8 @@ Read this first after a compaction; it replaces re-reading the whole conversatio
 
 | Commit | What | Where |
 |---|---|---|
+| `e0b1705` | Templates show under their **own names** everywhere (wizard/drawer listed 3 new ones as "Documentary Master Frames"); honest Money Flow / Systems descriptions; paper planner repairs a silent beat (CI failed 4/4 on a short outro); dry-run `pipefail`; **assignment plan** `docs/plans/2026-11-20-template-assignment-plan.md` (B1-B5 await owner) | `studio/lib/template-registry.js`, `studio/lib/template-registry.data.js`, `lib/paper-plan.mjs` |
+| `3b34444` | **Doc lane rejected every Lecture Notes (paper) brain reply** (`isValidJson` wanted nodes/lines) → shared `isDiagramPlanReply`; dry run takes registry ids + `--label`; tech test script | `lib/diagram-episode.mjs`, `yt-deepdive.mjs`, `longvideo/diagram-episode-dryrun.mjs`, `.github/workflows/diagram-dryrun.yml` |
 | `5718182` | **"Lecture Notes" paper template** refined to the reference lesson grammar and added to the template section (registry + Neon + gallery preview) | `explainer/remotion/diagram/Widgets.tsx`, `LivingDiagram.tsx`, `lib/paper-plan.mjs`, `lib/course-plan.mjs`, `scripts/store-template-preview.mjs`, `docs/qa/course-template-c1b-refine-qa.md` |
 | `f85c954` | Course planner C2: outline → render-ready plan (one brain call per lecture) | `lib/course-plan.mjs`, `longvideo/generate-course-plan.mjs` |
 | `d2a8115` | Course template C1: paper look + 6 teaching widgets | `explainer/remotion/diagram/Widgets.tsx` |
@@ -23,6 +25,8 @@ Research: `research/motion-storytelling-templates-2026-11-16.md`,
 
 ## 2. Current state
 
+- **Assignment (see plan doc):** one active template per channel; assigning SWAPS. Only MR has one (Red Flags Explained). Money Flow fits MR/IC/DFD; Systems + Lecture Notes fit no channel yet (need niche "AI & future tech" — yt-bot will be the AI channel, owner: "not ready yet", do NOT set its niche). No UI edits an existing channel's niche (plan B1).
+- **Prod Studio deployed from a CLEAN worktree of origin/main** (another session has uncommitted auth edits in studio/) — keep doing that while their WIP exists.
 - **Templates live in Studio (41):** all 20 inbox drafts approved; `money-flow-diagram` (tile), `systems-diagram`
   (glow), `lecture-notes-paper` (paper, gallery preview stored). Each takes name/colours/voice from the channel kit.
 - **Lecture Notes look:** white page; headline changes every 9-23 s (one idea per beat, one *accent* word, underline
@@ -56,7 +60,7 @@ node scripts/store-template-preview.mjs <template_id> <sample.mp4> [poster.jpg] 
 node sync-template-registry.mjs                                                                  # registry -> Neon
 cd studio && vercel --prod                                                                       # deploy panel
 ```
-Cloud dry run (no upload): Actions → "🧪 Diagram dry run".
+Cloud dry run (no upload): `bash scripts/gh-personal workflow run diagram-dryrun.yml --ref main -f slug=money-rulebook -f template=<registry id> -f script=<script.json> [-f label="Brand"]` → artifact `diagram-dryrun-<slug>-<run id>`. Runs 2026-11-20: money-flow 44776619003, systems 44776634466, lecture 44781012713 (first lecture run 44776647947 failed → fixed e0b1705).
 
 ## 5. Gotchas learned (do not relearn)
 
