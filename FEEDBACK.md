@@ -32,6 +32,26 @@ Status labels: 🆕 new · 🔍 looking into it · 💡 proposal ready (needs yo
 - **Your decision needed:** yes/no — …
 -->
 
+### I. Live website test — 115 problems found, 5 fix batches — 💡 proposal ready
+- **You said:** test the real website like a normal user, every small feature and edge case.
+- **What I found:** 5 testers, desktop + phone, on the live site. 115 problems: about 15 serious, ~45 medium and the rest small. Full list with evidence: `research/live-e2e-test-2026-11-20.md`. The worst:
+  - **Today is wrong about every channel.** It says "not run today" for channels that DID run, and Debt-Free Doctrine's failed run this morning shows nowhere and raised no alert.
+  - **"Things need you" is a different number on every page** (5 / 6 / 11), and several old alerts never close.
+  - **Debt-Free Doctrine shows the wrong upload times** in the panel. The real times are fine.
+  - **Sometimes the panel briefly shows all channels as "inactive".** Your automation was NOT affected; I checked.
+  - **"Edit setup" on a real channel shows its times and tags empty** — pressing Save there would wipe them.
+  - **Login link safety hole:** a crafted link could send you to a fake site right after you log in.
+  - **36 templates share one name,** and preview videos are very slow and often never start.
+  - **"Draft with AI" never works** (the AI service refuses).
+  - **Phone layout:** the Inbox and Thumbnails pages are too wide on phones.
+- **My recommendation:** fix in 5 batches, each tested live before the next:
+  1. Safety & trust.
+  2. A truthful Today page.
+  3. Templates & media.
+  4. Phone & everyday comfort.
+  5. Small/cosmetic.
+- **Your decision needed:** yes — "approve all batches", or name the batches you want (e.g. "approve 1 and 2").
+
 _2026-11-20 — A–H are all built and live (checked in a real browser on desktop + phone). Three small things for you to decide whenever you like:_
 - **Thumbnail designs take turns only on channels whose video template asks for more than one thumbnail.** Want me to make that true for every channel?
 - **The Inbox menu opens the Tasks page; the bell opens the Alerts page.** Want them merged into one Inbox page?
@@ -89,3 +109,4 @@ _2026-11-19 — answers to your first 9 items. Reply "approve all" in chat (or t
 | 9 | F. AI best times + free slots timeline | ✅ done & live | 24-hour grid in your time; hours used by other channels greyed "taken"; 3 starred times with the reason; schedule code hidden under Advanced (95b880a + 750c2ab, live 2026-11-20) |
 | 10 | G. Template drawer with real demos + Story/Chapters | ✅ done & live | real poster + video previews; Story shape switch (Template default / Full story / Chapters) at the top (95b880a + 750c2ab, live 2026-11-20) |
 | 11 | H. Open channel in a drawer | ✅ done & live | opens a large drawer on the Channels list; "Full page ↗" link kept (95b880a + 750c2ab, live 2026-11-20) |
+| 12 | I. Live website test fixes (5 batches) | 💡 proposal ready | needs your OK — see research/live-e2e-test-2026-11-20.md |
