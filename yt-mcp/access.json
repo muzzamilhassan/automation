@@ -4,6 +4,11 @@
       "email": "muzzamilhassan302@gmail.com",
       "role": "owner",
       "name": "Muzzamil Hassan"
+    },
+    {
+      "email": "qa-test-1120@example.com",
+      "role": "client",
+      "name": ""
     }
   ]
 }
