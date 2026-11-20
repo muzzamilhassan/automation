@@ -1,0 +1,23 @@
+{
+ "title": "Why Your App Needs a Bouncer: Rate Limiting Explained",
+ "intro": "One million requests in sixty seconds can take any app down. Here is the small idea that stops it.",
+ "chapters": [
+  {
+   "title": "The 3 a.m. flood",
+   "text": "Every app you use is a quiet conversation. Users ask. The server answers. The database remembers. Then, at three in the morning... someone sends one million requests. In sixty seconds. The server chokes. And the database goes down with it. Yeah. Somebody got a very rude phone call that night."
+  },
+  {
+   "title": "The bouncer",
+   "text": "The fix is surprisingly simple. Put a bouncer at the door. A rate limiter counts every request, from every user. Ten requests a minute? Come on in. Request number eleven? Sorry. Not this minute. The bot gets a polite no. And your real users never notice a thing."
+  },
+  {
+   "title": "The token bucket",
+   "text": "But how does it actually count? Most limiters use a token bucket. Every request takes one token. A sudden burst of traffic? The tokens drain, fast. Empty bucket means you wait. No exceptions. But every second, a fresh token drips back in. Slow, and steady. That's the whole trick. Bursts are allowed. Floods are not."
+  },
+  {
+   "title": "Where it lives",
+   "text": "One more catch. Real apps run many servers, not just one. If each server counts alone, a clever bot just spreads out... and slips right through. So they share one counter, in a fast store like Redis. Now every server sees the same number. And the bot runs out of tricks. Fair for real users. Brutal for bots."
+  }
+ ],
+ "outro": "Count every request, share the counter, and let bursts through while floods wait. That is rate limiting."
+}

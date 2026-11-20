@@ -59,7 +59,7 @@ import { getUploadIntentStore, uploadWithIntent, recoverOpenIntents, makeFindByT
 import { flagOn, appendDisclaimers, declaredDisclaimers } from './lib/review-seams.mjs';
 import { loadEnv } from './lib/env.mjs';
 import { voiceProfileFor } from './lib/voice-profile.mjs';
-import { renderDiagramEpisode } from './lib/diagram-episode.mjs';
+import { renderDiagramEpisode, isDiagramPlanReply } from './lib/diagram-episode.mjs';
 loadEnv();
 const FF = resolveBinary('ffmpeg');
 const FP = resolveBinary('ffprobe');
@@ -310,7 +310,7 @@ async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null
         call: async (prompt) => {
           const res = await callScriptBrain({
             slug, jobId: `diagram:${slug}:${today()}`, prompt,
-            isValidJson: (p) => !!p && typeof p === 'object' && Array.isArray(p.nodes) && Array.isArray(p.lines),
+            isValidJson: isDiagramPlanReply,
             maxAttempts: 2, suffix: '\nReply with the raw JSON object ONLY.',
           });
           return res.ok ? res.parsed : null;

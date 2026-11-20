@@ -13,13 +13,17 @@ on:
         required: true
         default: "money-rulebook"
       template:
-        description: "template file (a draft or an exported registry entry)"
+        description: "registry template id (money-flow-diagram | systems-diagram | lecture-notes-paper) or a template JSON file"
         required: true
-        default: "studio/lib/template-bot-drafts/money-flow-diagram.json"
+        default: "money-flow-diagram"
       script:
         description: "approved script JSON { title, intro, chapters[{title,text}], outro }"
         required: true
         default: "longvideo/diagram-demo/mr-silent-money-leaks.script.json"
+      label:
+        description: "optional test-only brand name on screen (e.g. for a tech script on a money channel)"
+        required: false
+        default: ""
       plan_only:
         description: "1 = planning check only (no voice, no render)"
         required: false
@@ -34,6 +38,9 @@ jobs:
     timeout-minutes: 150
     env:
       SLUG: ${{ inputs.slug }}
+      TEMPLATE: ${{ inputs.template }}
+      SCRIPT: ${{ inputs.script }}
+      LABEL: ${{ inputs.label }}
     steps:
       - uses: actions/checkout@v4
 
@@ -67,14 +74,14 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           START=$(date +%s)
-          node longvideo/diagram-episode-dryrun.mjs "$SLUG" "${{ inputs.script }}" "${{ inputs.template }}" ${{ inputs.plan_only == '1' && '--plan-only' || '' }} 2>&1 | grep -v -E "Rendered [0-9]+/|Encoded [0-9]+/"
+          node longvideo/diagram-episode-dryrun.mjs "$SLUG" "$SCRIPT" "$TEMPLATE" ${{ inputs.plan_only == '1' && '--plan-only' || '' }} ${LABEL:+--label "$LABEL"} 2>&1 | grep -v -E "Rendered [0-9]+/|Encoded [0-9]+/"
           echo "::notice::diagram dry run wall time: $(( ($(date +%s) - START) / 60 )) min (runner: $(nproc) vCPU)"
 
       - name: ⬆️ Attach the rendered episode
         if: ${{ inputs.plan_only != '1' }}
         uses: actions/upload-artifact@v4
         with:
-          name: diagram-dryrun-${{ inputs.slug }}
+          name: diagram-dryrun-${{ inputs.slug }}-${{ github.run_id }}
           path: |
             longvideo/out/diagram-demo/${{ inputs.slug }}-dryrun/episode.mp4
             longvideo/out/diagram-demo/${{ inputs.slug }}-dryrun/episode.srt
