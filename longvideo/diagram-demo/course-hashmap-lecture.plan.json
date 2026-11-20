@@ -15,119 +15,179 @@
   },
   "scenes": [
     {
-      "title": "Find one order *fast*",
+      "title": "From arrays to *hash maps*",
       "badge": "07",
       "module": 1,
       "widgets": [
-        { "id": "b", "type": "boxes", "slot": "top", "label": "order list", "cells": ["", "", "", ""], "labels": ["4187", "2934", "5521", "6648"] },
-        { "id": "s", "type": "stepper", "slot": "left", "label": "orders checked", "value": 0 },
-        { "id": "c", "type": "code", "slot": "right", "title": "find_order.py", "lines": ["def find_order(key):", "    for o in orders:", "        if o.id == key:", "            return o", "// too slow for dinner rush"] }
+        { "id": "r", "type": "roadmap", "stops": ["Arrays", "Hash maps", "Trees", "Graphs", "Running code"], "current": 0 }
+      ],
+      "lines": [
+        { "say": "So far, every lookup meant walking a list.", "mood": "calm", "cues": [
+          { "on": "lookup", "do": "show", "widget": "r" }
+        ] },
+        { "say": "This lecture moves us to the next stop: hash maps.", "mood": "warm", "pauseMs": 500, "cues": [
+          { "on": "next", "do": "advance", "widget": "r", "to": 1 }
+        ] }
+      ]
+    },
+    {
+      "title": "Find *one* order",
+      "module": 1,
+      "widgets": [
+        { "id": "b", "type": "boxes", "label": "dashbite orders", "cells": ["", "", "", "", "", ""], "labels": ["0", "1", "2", "3", "4", "5"] }
       ],
       "lines": [
         { "say": "DashBite takes about four thousand orders every hour.", "mood": "warm", "cues": [
           { "on": "DashBite", "do": "show", "widget": "b" },
-          { "on": "four", "do": "show", "widget": "s" },
-          { "on": "hour", "do": "show", "widget": "c" }
+          { "on": "takes", "do": "fill", "widget": "b", "index": 0, "value": "1021" },
+          { "on": "about", "do": "fill", "widget": "b", "index": 1, "value": "3390" },
+          { "on": "four", "do": "fill", "widget": "b", "index": 2, "value": "2934" },
+          { "on": "thousand", "do": "fill", "widget": "b", "index": 3, "value": "4187" },
+          { "on": "orders", "do": "fill", "widget": "b", "index": 4, "value": "5521" },
+          { "on": "hour", "do": "fill", "widget": "b", "index": 5, "value": "6648" }
         ] },
-        { "say": "Support needs one thing: order number 4187.", "mood": "calm", "cues": [
-          { "on": "needs", "do": "mark", "widget": "b", "index": 0 },
-          { "on": "4187", "do": "fill", "widget": "b", "index": 0, "value": "#4187", "tone": "good" }
+        { "say": "Support needs just one of them: order number 4187.", "mood": "calm", "pauseMs": 400, "cues": [
+          { "on": "number", "do": "mark", "widget": "b", "index": 3 }
+        ] }
+      ]
+    },
+    {
+      "title": "Check them *one by one*",
+      "module": 1,
+      "widgets": [
+        { "id": "b", "type": "boxes", "cells": ["1021", "3390", "2934", "4187", "5521", "6648"], "labels": ["0", "1", "2", "3", "4", "5"] },
+        { "id": "s", "type": "stepper", "label": "checked", "value": 0 }
+      ],
+      "lines": [
+        { "say": "The first code everyone writes walks the list from the start.", "mood": "calm", "cues": [
+          { "on": "walks", "do": "mark", "widget": "b", "index": 0 },
+          { "on": "start", "do": "step", "widget": "s", "step": 1, "text": "1021 = 4187 ?", "ok": false }
         ] },
-        { "say": "Here's the code everyone writes first.", "mood": "calm", "cues": [
-          { "on": "code", "do": "line", "widget": "c", "line": 2 }
+        { "say": "Is this the one? No. Is this one? Also no.", "mood": "playful", "cues": [
+          { "on": "this", "do": "mark", "widget": "b", "index": 1 },
+          { "on": "No", "do": "step", "widget": "s", "step": 2, "text": "3390 = 4187 ?", "ok": false },
+          { "on": "this", "nth": 2, "do": "mark", "widget": "b", "index": 2 },
+          { "on": "Also", "do": "step", "widget": "s", "step": 3, "text": "2934 = 4187 ?", "ok": false }
         ] },
-        { "say": "It walks the whole list, one order at a time.", "mood": "calm", "cues": [
-          { "on": "walks", "do": "line", "widget": "c", "line": 3 },
-          { "on": "list", "afterMs": 250, "do": "fill", "widget": "b", "index": 1, "value": "#2934" }
+        { "say": "Four checks later, there it is.", "mood": "warm", "pauseMs": 400, "cues": [
+          { "on": "later", "do": "mark", "widget": "b", "index": 3 },
+          { "on": "there", "do": "fill", "widget": "b", "index": 3, "value": "4187", "tone": "good" },
+          { "on": "there", "do": "step", "widget": "s", "step": 4, "text": "4187 = 4187", "ok": true }
+        ] }
+      ]
+    },
+    {
+      "title": "Four thousand *checks*",
+      "module": 1,
+      "widgets": [
+        { "id": "s", "type": "stepper", "label": "checks", "value": 0 }
+      ],
+      "lines": [
+        { "say": "With forty orders, that's forty checks. Nothing.", "mood": "calm", "cues": [
+          { "on": "forty", "nth": 2, "do": "step", "widget": "s", "step": 40, "text": "40 orders", "ok": true }
         ] },
-        { "say": "Forty orders? That's nothing.", "mood": "warm", "cues": [
-          { "on": "Forty", "do": "step", "widget": "s", "step": 40, "text": "40 checks", "ok": true }
+        { "say": "With four thousand orders, it's four thousand checks, for one lookup.", "mood": "tense", "cues": [
+          { "on": "lookup", "do": "step", "widget": "s", "step": 4000, "text": "4000 orders", "ok": false }
         ] },
-        { "say": "But four thousand orders means four thousand checks, for one lookup.", "mood": "tense", "cues": [
-          { "on": "means", "do": "step", "widget": "s", "step": 4000, "text": "4,000 checks", "ok": false },
-          { "on": "lookup", "afterMs": 250, "do": "fill", "widget": "b", "index": 2, "value": "#5521" }
-        ] },
-        { "say": "And during the dinner rush, that happens hundreds of times a second.", "mood": "tense", "cues": [
-          { "on": "rush", "do": "mark", "widget": "b", "index": 3 },
-          { "on": "rush", "afterMs": 400, "do": "fill", "widget": "b", "index": 3, "value": "#6648", "tone": "bad" }
-        ] },
-        { "say": "The list is the problem. So stop searching a list.", "mood": "serious", "pauseMs": 500, "cues": [
-          { "on": "problem", "do": "stamp", "text": "SEARCHING *EVERY* ORDER" }
-        ] },
+        { "say": "And at the dinner rush, that happens hundreds of times a second.", "mood": "tense", "pauseMs": 600, "cues": [
+          { "on": "rush", "do": "stamp", "text": "SEARCHING *EVERY* ORDER" }
+        ] }
+      ]
+    },
+    {
+      "title": "Jump *straight* to it",
+      "module": 1,
+      "widgets": [
+        { "id": "c", "type": "code", "title": "orders.py", "lines": ["orders = {}", "orders[4187] = order", "", "orders[4187]      # one step"] }
+      ],
+      "lines": [
         { "say": "A hash map finds things a different way.", "mood": "warm", "cues": [
-          { "on": "different", "do": "line", "widget": "c", "line": 5 }
+          { "on": "hash", "do": "show", "widget": "c" }
         ] },
-        { "say": "It doesn't look at every order. It jumps straight to the shelf.", "mood": "excited", "cues": [
-          { "on": "jumps", "do": "step", "widget": "s", "step": 1, "text": "1 check", "ok": true }
+        { "say": "You store each order under its own number.", "mood": "calm", "cues": [
+          { "on": "store", "do": "line", "widget": "c", "line": 2 }
         ] },
-        { "say": "Here's the same lookup, rewritten.", "mood": "calm", "cues": [
-          { "on": "rewritten", "do": "line", "widget": "c", "line": 4 }
+        { "say": "Then you ask for 4187 directly.", "mood": "calm", "cues": [
+          { "on": "ask", "do": "line", "widget": "c", "line": 4 }
         ] },
-        { "say": "One line. One step. Any size.", "mood": "excited", "pauseMs": 600, "cues": [
+        { "say": "One step, whether you have forty orders or four million.", "mood": "excited", "pauseMs": 600, "cues": [
           { "on": "step", "do": "stamp", "text": "ONE *STEP.* ANY SIZE." }
         ] }
       ]
     },
     {
       "title": "Inside the *shelf*",
-      "badge": "07",
       "module": 1,
       "widgets": [
-        { "id": "b", "type": "boxes", "slot": "top", "label": "the shelves", "cells": ["", "", "", "", "", "", "", ""], "labels": ["0", "1", "2", "3", "4", "5", "6", "7"] },
-        { "id": "c", "type": "code", "slot": "right", "title": "shelf.py", "lines": ["def shelf(key):", "    return key % 8", "# same in, same out"] },
-        { "id": "r", "type": "roadmap", "slot": "bottom", "stops": ["Arrays", "Hash maps", "Trees", "Graphs", "Running code"], "current": 1 }
+        { "id": "b", "type": "boxes", "label": "the shelves", "cells": ["", "", "", "", "", "", "", ""], "labels": ["0", "1", "2", "3", "4", "5", "6", "7"] },
+        { "id": "c", "type": "code", "title": "shelf.py", "lines": ["def shelf(key):", "    return key % 8"] }
       ],
       "lines": [
-        { "say": "A hash map is just a row of shelves.", "mood": "calm", "cues": [
-          { "on": "hash", "do": "show", "widget": "r" },
+        { "say": "Inside, a hash map is just a row of shelves.", "mood": "calm", "cues": [
           { "on": "shelves", "do": "show", "widget": "b" }
         ] },
-        { "say": "Every order number gets turned into a shelf number.", "mood": "calm", "cues": [
-          { "on": "turned", "do": "show", "widget": "c" }
+        { "say": "A tiny function turns each order number into a shelf number.", "mood": "calm", "cues": [
+          { "on": "function", "do": "show", "widget": "c" },
+          { "on": "shelf", "do": "line", "widget": "c", "line": 1 }
         ] },
-        { "say": "The trick is a small math function called a hash.", "mood": "warm", "cues": [
-          { "on": "trick", "do": "line", "widget": "c", "line": 2 }
+        { "say": "4187 divided by eight leaves a remainder of three.", "mood": "calm", "cues": [
+          { "on": "remainder", "do": "line", "widget": "c", "line": 2 },
+          { "on": "three", "do": "mark", "widget": "b", "index": 3 }
         ] },
-        { "say": "Same number in, same shelf out, every single time.", "mood": "calm", "cues": [
-          { "on": "same", "do": "line", "widget": "c", "line": 3 },
-          { "on": "shelf", "afterMs": 300, "do": "mark", "widget": "b", "index": 3 }
+        { "say": "So order 4187 lives on shelf three.", "mood": "warm", "pauseMs": 400, "cues": [
+          { "on": "lives", "do": "fill", "widget": "b", "index": 3, "value": "4187", "tone": "good" }
         ] },
-        { "say": "4187 divided by eight leaves a remainder of three, so it lives on shelf three.", "mood": "calm", "pauseMs": 400, "cues": [
-          { "on": "lives", "do": "fill", "widget": "b", "index": 3, "value": "#4187", "tone": "good" }
-        ] },
-        { "say": "You never search. You just compute where it lives.", "mood": "warm", "cues": [
-          { "on": "compute", "do": "advance", "widget": "r", "to": 2 }
-        ] },
-        { "say": "That's why it's one step, whether you store ten orders or ten million.", "mood": "excited", "pauseMs": 400, "cues": [
-          { "on": "million", "do": "stamp", "text": "ONE STEP. *TEN MILLION.*" }
-        ] },
-        { "say": "Same input, same shelf. Always.", "mood": "calm", "cues": [
-          { "on": "Always", "do": "line", "widget": "c", "line": 3 }
+        { "say": "You never search. You just compute where it lives.", "mood": "warm", "pauseMs": 500, "cues": [
+          { "on": "compute", "do": "stamp", "text": "*COMPUTE,* DON'T SEARCH" }
         ] }
       ]
     },
     {
-      "title": "One *catch* to know",
-      "badge": "07",
+      "title": "When two orders *collide*",
       "module": 1,
       "widgets": [
-        { "id": "t", "type": "takeaway", "slot": "left", "label": "What to take away", "items": ["A hash map jumps straight to the data", "The hash picks the shelf, the same way every time", "Collisions become tiny lists, so lookups stay fast"] },
-        { "id": "g", "type": "chart", "slot": "right", "label": "Lookups as data grows", "series": [{ "label": "list · O(n)", "shape": "linear" }, { "label": "hash map · O(1)", "shape": "flat" }] }
+        { "id": "b", "type": "boxes", "cells": ["", "", "", "4187", "", "", "", ""], "labels": ["0", "1", "2", "3", "4", "5", "6", "7"] }
       ],
       "lines": [
-        { "say": "Two orders can land on the same shelf. That's called a collision.", "mood": "calm", "cues": [
-          { "on": "collision", "do": "card", "card": "col", "side": "left", "title": "COLLISION", "lines": ["#2934 + #4187", "both land on shelf 3"], "tone": "bad" }
+        { "say": "Sometimes two orders land on the same shelf.", "mood": "calm", "cues": [
+          { "on": "same", "do": "mark", "widget": "b", "index": 3 },
+          { "on": "shelf", "do": "fill", "widget": "b", "index": 3, "value": "×2", "tone": "bad" }
         ] },
-        { "say": "On one hot Friday, DashBite had nine hundred orders sharing a single shelf.", "mood": "tense", "cues": [] },
-        { "say": "The fix is simple. Each shelf keeps a tiny list instead of one order.", "mood": "calm", "cues": [
-          { "on": "simple", "do": "hide", "card": "col" }
+        { "say": "That's called a collision.", "mood": "serious", "pauseMs": 400, "cues": [
+          { "on": "collision", "do": "stamp", "text": "A *COLLISION*" }
         ] },
-        { "say": "Done well, lookups stay fast even with ten million orders.", "mood": "warm", "cues": [
-          { "on": "fast", "do": "plot", "widget": "g", "series": 0 }
+        { "say": "The fix is simple: each shelf keeps a tiny list.", "mood": "warm", "cues": [
+          { "on": "list", "do": "fill", "widget": "b", "index": 3, "value": "list", "tone": "good" }
+        ] }
+      ]
+    },
+    {
+      "title": "How work *grows*",
+      "module": 1,
+      "widgets": [
+        { "id": "g", "type": "chart", "label": "lookups as orders pile up", "series": [{ "label": "list  O(n)", "shape": "linear" }, { "label": "hash map  O(1)", "shape": "flat" }] }
+      ],
+      "lines": [
+        { "say": "Here is how both grow as the orders pile up.", "mood": "calm", "cues": [
+          { "on": "grow", "do": "show", "widget": "g" }
         ] },
-        { "say": "Here's what to take away from this lecture.", "mood": "calm", "cues": [
-          { "on": "take", "do": "show", "widget": "t" },
-          { "on": "lecture", "do": "plot", "widget": "g", "series": 1 }
+        { "say": "The list climbs with every new order.", "mood": "calm", "cues": [
+          { "on": "climbs", "do": "plot", "widget": "g", "series": 0 }
+        ] },
+        { "say": "The hash map stays flat.", "mood": "excited", "pauseMs": 500, "cues": [
+          { "on": "flat", "do": "plot", "widget": "g", "series": 1 }
+        ] }
+      ]
+    },
+    {
+      "title": "What to take *away*",
+      "module": 1,
+      "widgets": [
+        { "id": "t", "type": "takeaway", "items": ["A hash map jumps straight to the data", "The hash picks the shelf, the same way every time", "Collisions become tiny lists, so lookups stay fast"] }
+      ],
+      "lines": [
+        { "say": "Here's what to take away.", "mood": "calm", "cues": [
+          { "on": "take", "do": "show", "widget": "t" }
         ] },
         { "say": "First, a hash map jumps straight to the data.", "mood": "warm", "cues": [
           { "on": "First", "do": "tick", "widget": "t", "index": 0 }
@@ -135,11 +195,8 @@
         { "say": "Second, the hash picks the shelf, the same way every time.", "mood": "warm", "cues": [
           { "on": "Second", "do": "tick", "widget": "t", "index": 1 }
         ] },
-        { "say": "Third, collisions become tiny lists, so lookups stay fast.", "mood": "warm", "cues": [
+        { "say": "Third, collisions become tiny lists, so lookups stay fast.", "mood": "warm", "pauseMs": 800, "cues": [
           { "on": "Third", "do": "tick", "widget": "t", "index": 2 }
-        ] },
-        { "say": "One step. Any size. That's the power of a hash map.", "mood": "excited", "pauseMs": 800, "cues": [
-          { "on": "power", "do": "stamp", "text": "ONE *STEP.* ANY SIZE." }
         ] }
       ]
     }

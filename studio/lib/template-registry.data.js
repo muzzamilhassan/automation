@@ -2520,6 +2520,89 @@ export const REGISTRY_META = {
     ]
   },
 
+  'lecture-notes-paper': {
+    "version": "1.0.0",
+    "template_id": "lecture-notes-paper",
+    "family": "documentary-frames",
+    "niches": [
+      "AI & future tech",
+      "Science & how things work",
+      "Focus & productivity systems",
+      "Human psychology & social dynamics",
+      "Entrepreneurship & lean business",
+      "Leadership & management wisdom",
+      "Travel & geography explained"
+    ],
+    "formats": [
+      "long",
+      "short"
+    ],
+    "renderer": "remotion",
+    "required_capabilities": [
+      "script-gen",
+      "tts",
+      "captions"
+    ],
+    "thumb_design": {
+      "layout": "left-stack",
+      "accent_word": "last",
+      "scrim_tint": "#14112B"
+    },
+    "doc_presentation": {
+      "style": "paper",
+      "music_mood": "calming"
+    },
+    "story_structure": {
+      "doc_render": "diagram",
+      "sections": [
+        "cold_open",
+        "chapters:6",
+        "outro"
+      ],
+      "chapter_min_words": 110,
+      "beats": [
+        "slot 1 is the problem as a concrete moment — a real app, a real person, a real number that breaks — never an abstract definition",
+        "slot 2 gives an everyday analogy for the idea (\"think of it as ...\"), one sentence, then names the real term",
+        "slot 3 is the worked example step by step — one short sentence per step, each step something the viewer could draw (a box filling, a counter, a line of code)",
+        "slot 4 is the takeaway — \"here's what to take away\" plus two or three plain sentences, one idea each"
+      ],
+      "hook_classes": [
+        "it-works-on-my-laptop-then-breaks cold open",
+        "one shocking number",
+        "you-use-this-every-day question"
+      ],
+      "title_patterns": [
+        "lesson explainer (\"How a Hash Map Finds Anything in One Step\")",
+        "full-course promise (\"Computer Science Basics in 1 Hour - Full Course\")",
+        "concept clarity (\"Big O Finally Makes Sense After This Video\")"
+      ],
+      "payoff_rule": "every chapter ends on its takeaway sentences; the episode closes on one idea in a single sentence plus one small homework step — never a summary list",
+      "has_chapters": true,
+      "narrative_format": "chapters",
+      "format_label": "Lecture Notes (paper lesson look)",
+      "format_description": "A course-style lesson on a clean white page: every chapter is a numbered lecture split into short beats, each with its own headline and one large teaching visual — boxes that fill, a counter with a check card, code with the current line lit, growth curves, takeaway cards — all moving on the spoken word. Name, colours and voice come from each channel's own kit."
+    },
+    "variation_rules": [
+      "distinct concept per video — the idea taught differs from every one in the channel's last 5 videos (enforced: the variation gate similarity + seed rotation)",
+      "no recycled worked example against the last 5 videos (enforced: the variation gate similarity)",
+      "no repeated hook across the channel's last 5 videos (enforced: the variation gate similarity)",
+      "every number in the narration is concrete and checkable (a count, a size, a time) — prose for the author and the review desk"
+    ],
+    "review_thumb_pick": true,
+    "safety": {
+      "required_sources": true,
+      "review_required": []
+    },
+    "deprecated": false,
+    "changelog": [
+      {
+        "version": "1.0.0",
+        "date": "2026-11-20",
+        "note": "Course template C1b (owner: 'refine it and add it to the template section'): the paper lesson look — white page, beat headlines with an accent word, lecture badge, naked centred teaching widgets (boxes, stepper + check card, code, growth chart, takeaway cards, roadmap) moving on the spoken word; the doc lane plans each approved chapter into lesson beats with the words verbatim; falls back to the storybook look on any failure (docs/qa/course-template-c1b-refine-qa.md)"
+      }
+    ]
+  },
+
   // ---- REMOVED 2026-11-04 (owner-approved catalog cleanup): 'quote-cards-premium'
   // retired WITH its family — the entry WAS the QQ shorts recipe bound to its own
   // family (owner call: retire the recipe with the family). QQ reverts to its

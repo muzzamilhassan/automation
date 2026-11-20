@@ -5,7 +5,7 @@ import {
 } from "remotion";
 import { getLength, getPointAtLength, getTangentAtLength } from "@remotion/paths";
 import { Icon } from "./icons";
-import { WidgetView, applyWidgetCues } from "./Widgets";
+import { WidgetLayer } from "./Widgets";
 
 // LIVING DIAGRAM — one persistent canvas that the narration mutates word by
 // word (research/motion-storytelling-templates-2026-11-16.md §2; spec
@@ -40,7 +40,7 @@ const BAD = "#FF5D5D";
 const GOOD = "#2EE5A0";
 // paper look (Course template C1): light textbook canvas, ink text, one accent
 // colour per module. Our own palette — not the reference channel's.
-const PAPER_BG = "#F6F4EE";
+const PAPER_BG = "#FFFFFF"; // C1b: pure white page (the reference lesson grammar)
 const PAPER_INK = "#1A2028";
 const MODULE_COLORS = ["#5B4FDB", "#D96A2B", "#1FA463", "#2B6CB0", "#B3375B", "#8A6A2F"];
 // category colours for the glow look — generic, not per channel ("cyan" = brand accent)
@@ -421,10 +421,9 @@ export const LivingDiagram: React.FC<{ doc: DiagramDoc }> = ({ doc }) => {
         </svg>
         {outgoingNodes.map((n) => nodeView(n, prev as Scene, outFade))}
         {sc.nodes.map((n) => nodeView(n, sc, 1))}
-        {(sc.widgets || []).map((w) => {
-          const { appear, applied } = applyWidgetCues(cues.filter((c) => c.scene === si), w.id, ms);
-          return <WidgetView key={w.id} spec={w} ap={applied} accent={modColor} pop={spr} appear={appear} hidden={titleOn > 0.05} />;
-        })}
+        {sc.widgets && sc.widgets.length ? (
+          <WidgetLayer widgets={sc.widgets} cues={cues.filter((c) => c.scene === si)} ms={ms} accent={modColor} pop={spr} hidden={titleOn > 0.05} />
+        ) : null}
       </AbsoluteFill>
 
       {cards}
@@ -442,16 +441,16 @@ export const LivingDiagram: React.FC<{ doc: DiagramDoc }> = ({ doc }) => {
 
       {/* chapter chip — paper: the lecture badge + big headline + underline bar */}
       {paper ? (
-        <div style={{ position: "absolute", left: 64, top: 44, opacity: chipIn, transform: `translateX(${(1 - chipIn) * -40}px)` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+        <div style={{ position: "absolute", left: 64, top: 40, opacity: chipIn, transform: `translateX(${(1 - chipIn) * -24}px)` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             {sc.badge && (
-              <div style={{ background: modColor, color: "#FFFFFF", fontFamily: MONO, fontWeight: 700, fontSize: 30, width: 64, height: 64, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>{sc.badge}</div>
+              <div style={{ background: modColor, color: "#FFFFFF", fontFamily: MONO, fontWeight: 700, fontSize: 32, width: 68, height: 68, borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>{sc.badge}</div>
             )}
-            <div style={{ fontFamily: SANS, fontWeight: 900, fontSize: 44, letterSpacing: -0.5, color: ink, display: "flex", flexWrap: "wrap", gap: "0 12px" }}>
-              {twoTone(sc.title, modColor, { fontFamily: SANS, fontWeight: 900, fontSize: 44, letterSpacing: -0.5 }, (i) => spr(sc.startMs + 120 + i * 90, 13), ink)}
+            <div style={{ fontFamily: SANS, fontWeight: 800, fontSize: 64, letterSpacing: -1.2, color: ink, display: "flex", flexWrap: "wrap", gap: "0 17px" }}>
+              {twoTone(sc.title, modColor, { fontFamily: SANS, fontWeight: 800, fontSize: 64, letterSpacing: -1.2 }, (i) => spr(sc.startMs + 120 + i * 70, 14), ink)}
             </div>
           </div>
-          <div style={{ width: 96, height: 6, borderRadius: 3, background: modColor, marginTop: 10, marginLeft: sc.badge ? 82 : 0 }} />
+          <div style={{ width: 104, height: 8, borderRadius: 4, background: modColor, marginTop: 14 }} />
         </div>
       ) : (
         <div style={{ position: "absolute", left: 64, top: 52, display: "flex", alignItems: "center", gap: 16, opacity: chipIn, transform: `translateX(${(1 - chipIn) * -40}px)` }}>
@@ -459,24 +458,33 @@ export const LivingDiagram: React.FC<{ doc: DiagramDoc }> = ({ doc }) => {
           <div style={{ fontFamily: glow ? MONO : SANS, fontWeight: glow ? 700 : 800, fontSize: 24, letterSpacing: glow ? 1 : 4, color: FG, textTransform: glow ? "none" : "uppercase" }}>{glow ? sc.title.toLowerCase() : sc.title}</div>
         </div>
       )}
-      {/* course progress pills (paper) */}
-      {paper && doc.course?.modules?.length ? (
-        <div style={{ position: "absolute", right: 64, top: 48, display: "flex", gap: 10 }}>
-          {doc.course.modules.map((m) => {
-            const here = m.n === sc.module;
-            return <div key={m.n} title={m.title} style={{ width: here ? 34 : 16, height: 16, borderRadius: 8, background: here ? modColors[(m.n - 1) % modColors.length] : rgba(ink, 0.18) }} />;
-          })}
+      {/* paper: course progress pills + the channel mark (a small dark square with
+          the channel's initials — our own mark, from the kit label DATA) */}
+      {paper ? (
+        <div style={{ position: "absolute", right: 64, top: 46, display: "flex", alignItems: "center", gap: 22 }}>
+          {doc.course?.modules?.length ? (
+            <div style={{ display: "flex", gap: 8 }}>
+              {doc.course.modules.map((m) => {
+                const here = m.n === sc.module;
+                return <div key={m.n} style={{ width: here ? 28 : 12, height: 12, borderRadius: 6, background: here ? modColors[(m.n - 1) % modColors.length] : rgba(ink, 0.16) }} />;
+              })}
+            </div>
+          ) : null}
+          <div style={{ width: 72, height: 72, borderRadius: 17, background: ink, color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: SANS, fontWeight: 900, fontSize: 25, letterSpacing: 0.5 }}>
+            {(theme.label || "").replace(/^THE\s+/i, "").split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
+          </div>
         </div>
-      ) : null}
-      <div style={{ position: "absolute", right: 64, top: paper && doc.course?.modules?.length ? 84 : 60, fontFamily: SANS, fontWeight: 800, fontSize: 18, letterSpacing: 5, color: rgba(ink, 0.45) }}>{theme.label}</div>
+      ) : (
+        <div style={{ position: "absolute", right: 64, top: 60, fontFamily: SANS, fontWeight: 800, fontSize: 18, letterSpacing: 5, color: rgba(ink, 0.45) }}>{theme.label}</div>
+      )}
 
       {stamp && (
-        <div style={{ position: "absolute", top: paper ? 320 : 128, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 18, opacity: stampOut }}>
-          {twoTone(stamp.text || "", paper ? modColor : A, { fontFamily: SANS, fontWeight: 900, fontSize: 64, letterSpacing: 1, textShadow: paper ? "none" : `0 6px 30px rgba(0,0,0,0.6)` }, (i) => spr(stamp.t + i * 70, 12), ink)}
+        <div style={{ position: "absolute", top: paper ? 984 : 128, left: 0, right: 0, display: "flex", justifyContent: "center", gap: paper ? 14 : 18, opacity: stampOut }}>
+          {twoTone(stamp.text || "", paper ? modColor : A, { fontFamily: SANS, fontWeight: paper ? 800 : 900, fontSize: paper ? 46 : 64, letterSpacing: paper ? 0 : 1, textShadow: paper ? "none" : `0 6px 30px rgba(0,0,0,0.6)` }, (i) => spr(stamp.t + i * 70, 12), ink)}
         </div>
       )}
 
-      <div style={{ position: "absolute", left: 0, bottom: 0, height: 5, width: `${pct * 100}%`, background: rgba(A, 0.7) }} />
+      <div style={{ position: "absolute", left: 0, bottom: 0, height: 5, width: `${pct * 100}%`, background: rgba(paper ? modColor : A, 0.7) }} />
 
       {doc.music ? (
         <Audio
