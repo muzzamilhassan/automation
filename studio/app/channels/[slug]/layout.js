@@ -7,6 +7,9 @@
 // its own honest error state. Spec + QA: docs/qa/live-fix-wave-c1-qa.md.
 import { notFound } from 'next/navigation';
 import { isKnownChannelSlug } from '@/lib/channel-display.mjs';
+// Bundled at build time — a runtime fs read of brands.json is not traced into
+// this route's function on Vercel (ENOENT → the fail-open path → HTTP 200).
+import legacyBrands from '@/lib/brands.json';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,9 +25,8 @@ export default async function ChannelSlugLayout({ children, params }) {
   const { slug } = await params;
   let known;
   try {
-    const { brands } = await import('@/lib/data.mjs');
     const { readRegistry } = await import('@/lib/channels-registry');
-    const legacy = brands() || {};
+    const legacy = legacyBrands || {};
     const reg = await readRegistry();
     const registry = Array.isArray(reg?.channels) ? reg.channels : [];
     // an empty registry is a degraded read, never "no channels" — don't 404 on it

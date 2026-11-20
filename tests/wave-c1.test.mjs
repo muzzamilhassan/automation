@@ -213,7 +213,10 @@ test('T1-25 EARS: every page gets its own tab title from its breadcrumb', () => 
 
 test('T1-25: the shell sets document.title from the crumbs; login names itself; the default is plain', () => {
   assert.match(frame(), /const tabLabel = tabTitle\(crumbs\);/);
-  assert.match(frame(), /useEffect\(\(\) => \{\s*document\.title = tabLabel;\s*\}, \[tabLabel\]\);/);
+  assert.match(frame(), /useEffect\(\(\) => \{\s*document\.title = tabLabel;/);
+  // live check fix: Next streams the metadata <title> after the effect — a
+  // head MutationObserver re-applies ours whenever it is overwritten
+  assert.match(frame(), /new MutationObserver\(\(\) => \{\s*if \(document\.title !== tabLabel\) document\.title = tabLabel;/);
   assert.match(LOGIN, /document\.title = 'Sign in · Quarry Studio';/);
   assert.match(LAYOUT, /title: "Quarry Studio",/);
   assert.doesNotMatch(LAYOUT, /Command Center/);

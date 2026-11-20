@@ -428,6 +428,16 @@ function ShellFrame({ children }) {
   const tabLabel = tabTitle(crumbs);
   useEffect(() => {
     document.title = tabLabel;
+    // Next streams the root metadata <title> AFTER this effect on dynamic
+    // pages and overwrites it (live check 2026-11-20: 25/27 tabs read the
+    // default). Re-apply whenever the head title changes away from ours.
+    const head = document.head;
+    if (!head || typeof MutationObserver === 'undefined') return undefined;
+    const obs = new MutationObserver(() => {
+      if (document.title !== tabLabel) document.title = tabLabel;
+    });
+    obs.observe(head, { subtree: true, childList: true, characterData: true });
+    return () => obs.disconnect();
   }, [tabLabel]);
 
   const sidebarInner = (collapsedState, isMobile = false) => (
