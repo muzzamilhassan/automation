@@ -154,7 +154,8 @@
       "autopilot": false,
       "kit": {
         "label": "YT-BOT",
-        "handle": ""
+        "handle": "",
+        "hasChapters": false
       },
       "destinations": null,
       "ytDescription": "",
