@@ -864,7 +864,12 @@ async function shipEpisode(script, { yt, auth, intents, longSeed = null, reviewS
   // day has no script rows (silent no-op), and the kind guard keeps a doc
   // upload from ever stamping a shorts script row. The resumed doc retires BY
   // ID in resumeApprovedDoc (the resumed job id is not the row's job id).
-  try {
+  // 2026-11-21 fix: on that resumed path the generic write-back must NOT run —
+  // PIPELINE_JOB_ID is the new run's job (no script row), so it fell to the
+  // same-slot fallback and retired TODAY's approved script with the OLD
+  // script's video (Secret Fold redispatch consumed "Debt Decoded", which never
+  // rendered; same root as Nov 15+16 → oXAT8NGLV4Q).
+  if (!reviewScript?.id) try {
     const seams = await import('./lib/review-seams.mjs');
     const { getScriptStore } = await import('./lib/script-store.mjs');
     await seams.writeBackVideoId({
