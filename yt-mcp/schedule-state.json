@@ -212,9 +212,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "G1ZAMQsj96s",
-        "publishAt": "2026-11-21T00:05:00Z",
-        "title": "How a Low‑Tax Home Base Saves $45K a Year"
+        "videoId": "QTW2IPWv70A",
+        "publishAt": "2026-11-22T00:05:00Z",
+        "title": "How a $200 Weekly Card Cut Impulse Purchases 86%"
       }
     ],
     "imageDate": "2026-10-18",
@@ -333,6 +333,11 @@
       {
         "t": "How a Low‑Tax Home Base Saves $45K a Year",
         "at": "2026-11-21T00:05:00Z"
+      },
+      {
+        "t": "How a $200 Weekly Card Cut Impulse Purchases 86%",
+        "at": "2026-11-22T00:05:00Z",
+        "v": "QTW2IPWv70A"
       }
     ],
     "cooldownSeeds": [
@@ -366,7 +371,8 @@
           "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/772264250",
           "startSec": 66,
           "durSec": 23.8,
-          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-01.mp4"
+          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-01.mp4",
+          "postedAt": "2026-11-21T03:37:52.708Z"
         },
         {
           "part": 2,
@@ -397,15 +403,15 @@
         }
       ]
     },
-    "clipLastPostDate": "2026-11-20",
+    "clipLastPostDate": "2026-11-21",
     "uploadsToday": {
       "date": "2026-11-20",
-      "count": 1
+      "count": 2
     },
     "reviewGate": {
       "assigned": true,
       "gated": true,
-      "checkedAt": "2026-11-20T14:16:43.027Z"
+      "checkedAt": "2026-11-21T03:37:43.341Z"
     },
     "usedLongSeeds": [
       "Stop Wasting Vegetables! 8 Freezer Tricks That Save You Money | Annie Tips",
@@ -424,7 +430,8 @@
       "Congress is BLUE! What does that mean for YOUR wallet?? #money #finance #politics #government",
       "7 Money Rules to Build Wealth in 2027 | Ankur Warikoo",
       "மில்லியனர்கள் ரகசியமாக பின்பற்றும் புதிய Minimalist money rules | silent wealth",
-      "The New Rules of Off Grid Living"
+      "The New Rules of Off Grid Living",
+      "Snowball or Avalanche? 2 Ways to Crush Debt ⛰️"
     ],
     "deepdiveVideo": {
       "videoId": "FR-_KfwjhVU",
