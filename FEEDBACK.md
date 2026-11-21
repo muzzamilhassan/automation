@@ -59,7 +59,7 @@ Status labels: 🆕 new · 🔍 looking into it · 💡 proposal ready (needs yo
 - **One real alert is still open:** an approved Money Rulebook video ("The Secret Fold…") was never published. **Recommend:** open it in Review and press Redispatch, or reject it.
 - **Your decision needed:** yes — say which of these to do (e.g. "do J1-J3").
 
-### K. Nothing automatic — channels publish only when 100% set up in the panel — 🛠️ approved, building (2026-11-21)
+### K. Nothing automatic — channels publish only when 100% set up in the panel — ✅ done & live (2026-11-21, 249f60e)
 - **You said:** no automatic uploads; everything via the panel; nothing publishes until the channel + template are 100% configured.
 - **Done now:** Quote Quarry, Investor's Compass, Debt-Free Doctrine PAUSED (no template); their 3 already-scheduled videos made private (nothing goes public); daily compilation job off; "Debt Decoded" back to approved (it was never made); Money Rulebook keeps running (your choice).
 - **Building:** a 7-item "Ready to publish" checklist per channel (YouTube · template · story shape · niche/description/tags · voice · thumbnail designs · full schedule). The automation refuses any channel below 7/7; Resume stays locked until 7/7; long-video + Shorts go-public times become editable in the Schedule drawer.
@@ -123,4 +123,4 @@ _2026-11-19 — answers to your first 9 items. Reply "approve all" in chat (or t
 | 11 | H. Open channel in a drawer | ✅ done & live | opens a large drawer on the Channels list; "Full page ↗" link kept (95b880a + 750c2ab, live 2026-11-20) |
 | 12 | I. Live website test fixes (5 batches) | ✅ done & live | all 5 batches live 2026-11-20 (ae4495b, badffc1, 45a4d5e, 1a22f9e), each re-checked on the live site; final crawl: 27 pages × desktop+phone, 0 page errors, 0 sideways scroll, 0 broken text |
 | 13 | J. Report job, Library links, leftover previews, one open alert | ✅ J1–J3 done & live (c092e6f) | J1: report job green again for all 5 channels (proof run 44797937419); Analytics › Reports lists every daily report with Download · J2: new Shorts keep their YouTube link in Library · J3: 5 leftover previews deleted · J4 (Secret Fold) still yours in Review |
-| 14 | K. Nothing automatic — 7/7 ready gate | 🛠️ building | QQ/IC/DFD paused + 3 scheduled videos made private (2026-11-21); MR keeps running |
+| 14 | K. Nothing automatic — 7/7 ready gate | ✅ done & live (249f60e) | engine publishes ONLY 7/7 channels (today: Money Rulebook); QQ 4/7 · IC 5/7 · DFD 5/7 · YT-BOT 2/7 — finish them in the panel; Resume locked until 7/7; QuoteQuarry TikTok auto-post (quarry-render repo) switched off; 3 scheduled videos made private |
