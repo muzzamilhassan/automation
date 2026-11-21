@@ -27,7 +27,8 @@
         "thumbTemplates": [
           "gold-standard",
           "pillar"
-        ]
+        ],
+        "gateCron": "53 3 * * *"
       },
       "destinations": {
         "fbPageId": "106473735839651"
@@ -62,7 +63,8 @@
           "gold-standard",
           "coinflip",
           "price-fight"
-        ]
+        ],
+        "gateCron": "47 2 * * *"
       },
       "destinations": {
         "fbPageId": "116157974886564"
@@ -97,7 +99,8 @@
           "price-fight",
           "ledger",
           "coinflip"
-        ]
+        ],
+        "gateCron": "21 3 * * *"
       },
       "destinations": {
         "fbPageId": "1077306835630491"
@@ -132,7 +135,8 @@
           "slab-quote",
           "serif-frame",
           "plinth"
-        ]
+        ],
+        "gateCron": "13 2 * * *"
       },
       "destinations": {
         "fbPageId": "114550268199751",
@@ -155,7 +159,8 @@
       "kit": {
         "label": "YT-BOT",
         "handle": "",
-        "hasChapters": false
+        "hasChapters": false,
+        "gateCron": "0 15 * * *"
       },
       "destinations": null,
       "ytDescription": "",
@@ -169,7 +174,8 @@
       "autopilotStartedAt": null,
       "status": "connected · automation wiring pending",
       "active": true,
-      "fromRegistry": true
+      "fromRegistry": true,
+      "cron": "0 15 * * *"
     }
   ]
 }
