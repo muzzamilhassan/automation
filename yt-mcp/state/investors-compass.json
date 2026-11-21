@@ -7,9 +7,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "5CZqSUQIpW8",
-      "publishAt": "2026-11-20T23:35:00Z",
-      "title": "Portfolio Rebounds 80% in 12 Months After GTA‑6 Crash"
+      "videoId": "Aqhi1SiX_nk",
+      "publishAt": "2026-11-21T23:35:00Z",
+      "title": "$3,200 Slippage Loss Shows Why Liquidity Matters"
     }
   ],
   "imageDate": "2026-10-17",
@@ -117,6 +117,11 @@
     {
       "t": "Portfolio Rebounds 80% in 12 Months After GTA‑6 Crash",
       "at": "2026-11-20T23:35:00Z"
+    },
+    {
+      "t": "$3,200 Slippage Loss Shows Why Liquidity Matters",
+      "at": "2026-11-21T23:35:00Z",
+      "v": "Aqhi1SiX_nk"
     }
   ],
   "cooldownSeeds": [
@@ -124,7 +129,7 @@
     "Still Waiting For the Market Crash? Watch This Right Now | Weekend Investing | Alok Jain"
   ],
   "uploadsToday": {
-    "date": "2026-11-19",
+    "date": "2026-11-20",
     "count": 1
   },
   "usedLongSeeds": [
@@ -176,7 +181,8 @@
         "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/761614394",
         "startSec": 56.6,
         "durSec": 21.7,
-        "file": "tt-lf/clipfeed-investors-compass/clips/clip-03.mp4"
+        "file": "tt-lf/clipfeed-investors-compass/clips/clip-03.mp4",
+        "postedAt": "2026-11-21T01:33:27.163Z"
       },
       {
         "part": 4,
@@ -189,10 +195,10 @@
       }
     ]
   },
-  "clipLastPostDate": "2026-11-20",
+  "clipLastPostDate": "2026-11-21",
   "reviewGate": {
     "assigned": false,
     "gated": false,
-    "checkedAt": "2026-11-20T03:13:41.208Z"
+    "checkedAt": "2026-11-21T01:33:20.603Z"
   }
 }
