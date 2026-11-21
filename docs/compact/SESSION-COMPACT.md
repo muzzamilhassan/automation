@@ -76,3 +76,28 @@ Cloud dry run (no upload): `bash scripts/gh-personal workflow run diagram-dryrun
 - **The DocV2 preview renderer cannot render diagram/paper templates** → use `scripts/store-template-preview.mjs`.
 - **Free LLMs** (Groq gpt-oss / Gemini) slip on details → few-shot example in prompts + safe repair + bounded re-asks;
   429/503 bursts → scene gap + backoff.
+
+---
+
+## Parallel lane — panel live-test fixes + "nothing auto" (2026-11-20/21, other session)
+
+| Commit | What |
+|---|---|
+| `ae4495b` `badffc1` `45a4d5e` `1a22f9e` | Live-test fixes waves A/B/C (115 findings, research/live-e2e-test-2026-11-20.md), each verified live |
+| `c092e6f` | J1 multi-line token secrets → GITHUB_ENV heredoc (report job green again); Reports card lists Actions artifacts + Download; J2 titleHistory keeps videoId (v) |
+| `676223a` | Redispatched OLD approved doc no longer consumes TODAY's approved script (same-slot write-back skipped on resumed path) |
+
+**State (2026-11-21 08:40 UTC):**
+- **Owner directive:** NOTHING automatic. A channel publishes only when it is 7/7 ready, configured in the panel: YouTube, template, story shape, niche/desc/tags, voice, thumbs 2–5, schedule.
+- **Paused via panel API:** QQ, IC and DFD (registry autopilot=false). MR keeps running; yt-bot is off. weekly-compilation.yml is disabled.
+- **Made private, publishAt cleared:** QQ `ngSmqaEVV38` and `5ZUrGZzWy1s`, IC `Aqhi1SiX_nk`.
+- **"Debt Decoded":** MR script `6776ad78…` restored to approved (it never rendered), audited.
+- **Building (implementer):** readiness gate in `studio/lib/channel-readiness.mjs`.
+  - Engine: discover + pipeline refuse not-ready channels.
+  - Panel: N/7 checklist; Resume blocked; flow API returns 409.
+  - Editable long-video and Shorts go-public times.
+  - `scripts/prefill-kit-from-brands.mjs`, to be run by the lead after review so MR stays 7/7.
+- **Gotchas:**
+  - The local gh CLI is logged in as `muzzamil-rx`; use `bash scripts/gh-personal`.
+  - The yt-* MCP tools return 401; use local `yt-mcp/channels/<slug>/token.json` + googleapis.
+  - Clearing a schedule needs `status.publishAt: null`.
