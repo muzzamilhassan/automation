@@ -227,5 +227,6 @@
     "assigned": false,
     "gated": false,
     "checkedAt": "2026-11-21T07:37:34.467Z"
-  }
+  },
+  "pausedUntil": "2099-12-31"
 }
