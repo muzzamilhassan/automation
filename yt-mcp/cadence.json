@@ -70,5 +70,19 @@
     "shortsSource": "clips",
     "updated": "2026-10-24T10:30:00.000Z",
     "updatedBy": "owner go — #101 flip completion (all 4 channels, 2 doc-days/week)"
+  },
+  "yt-bot": {
+    "docDays": [
+      "Sat"
+    ],
+    "shortDays": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu"
+    ],
+    "shortsSource": "clips",
+    "updated": "2026-11-21T08:07:28.375Z",
+    "updatedBy": "muzzamilhassan302@gmail.com"
   }
 }
