@@ -105,4 +105,9 @@ Cloud dry run (no upload): `bash scripts/gh-personal workflow run diagram-dryrun
   - MR 7/7, QQ 4/7, IC 5/7, DFD 5/7, yt-bot 2/7; discover picks only MR.
   - The prefill was applied to Neon + the registry.
   - quarry-render TikTok Post (QuoteQuarry) workflows are disabled.
+- **`9a09aab` human voice is a panel setting:**
+  - `kit.voiceProfile` {human, mood, speed}; the panel kit wins over lib/brands.json.
+  - Manage → Voice drawer; 49 preview mp3s in studio/public/voices/human.
+  - The MR migration is applied, with an identical resolved profile.
+  - Option 2 (Chatterbox/Kaggle) waits on the owner's Kaggle account.
 - **`2a98920` template dedupe:** 41 → 19 registry entries (14 unique + 5 base). The 22 colour-only copies were removed, along with their Neon index + preview rows.
