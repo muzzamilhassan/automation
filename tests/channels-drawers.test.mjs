@@ -216,7 +216,7 @@ test('house design kit: no one-off pixel text sizes or hardcoded hex colours in 
 
 test('E1: every manage drawer description is at most 5 words', () => {
   const descs = [...DRAWERS.matchAll(/description: '([^']*)'/g)].map((m) => m[1]);
-  assert.equal(descs.length, 5, 'schedule, templates, thumbnails, keys, routing');
+  assert.equal(descs.length, 6, 'schedule, templates, thumbnails, voice, keys, routing');
   for (const d of descs) assert.ok(d.trim().split(/\s+/).filter(Boolean).length <= 5, `"${d}" is too long`);
 });
 
@@ -224,7 +224,8 @@ test('T1: Thumbnails drawer is registered between Templates and API keys and rou
   assert.match(DRAWERS, /import ThumbnailAssignPanel from '@\/components\/ThumbnailAssignPanel'/);
   assert.match(DRAWERS, /thumbnails: \{ label: 'Thumbnails', title: 'Thumbnail designs', description: '[^']+', icon: ImageIcon, size: 'lg', staffOnly: true \}/);
   const order = [...DRAWERS.matchAll(/^\s+(\w+): \{ label: /gm)].map((m) => m[1]);
-  assert.deepEqual(order, ['schedule', 'templates', 'thumbnails', 'keys', 'routing']);
+  // human voice panel (docs/qa/human-voice-panel-qa.md): Voice sits right after Thumbnails
+  assert.deepEqual(order, ['schedule', 'templates', 'thumbnails', 'voice', 'keys', 'routing']);
   assert.match(DRAWERS, /if \(open === 'thumbnails'\) return <ThumbnailAssignPanel key=\{k\} slug=\{slug\} frame=\{frame\} \/>;/);
   // every Manage list is built from CHANNEL_DRAWERS, so Thumbnails shows up in all three
   assert.match(LIST, /Object\.entries\(CHANNEL_DRAWERS\)\.map/);

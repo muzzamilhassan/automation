@@ -2,12 +2,12 @@
 // voice, slots). Supports both wizard-added channels and existing living channels.
 import { requireRole, getUser } from '@/lib/route-auth';
 import { appendAudit } from '@/lib/audit';
-import { readRegistry, readRepoJSON, upsertChannel, stripTokenMaterial } from '@/lib/channels-registry';
+import { readRegistry, readRepoJSON, upsertChannel, setChannelKitFields, stripTokenMaterial } from '@/lib/channels-registry';
 import { channelReadiness, missingLabels } from '@/lib/channel-readiness.mjs';
 import { canAccessChannelSlug } from '@/lib/access';
 import { STYLE_BY_ID } from '@/lib/styles-catalog';
 import { brands } from '@/lib/data.mjs';
-import { kitFieldPatch } from '@/lib/channel-kit-fields.mjs';
+import { kitFieldPatch, kitOnlySave } from '@/lib/channel-kit-fields.mjs';
 import { protectFilledFields } from '@/lib/edit-prefill.mjs';
 
 export const dynamic = 'force-dynamic';
@@ -74,6 +74,24 @@ export async function POST(req) {
   let body = await req.json().catch(() => ({}));
   const { slug } = body;
   if (!slug) return Response.json({ error: 'missing slug' }, { status: 400 });
+
+  // Human voice as a panel setting (docs/qa/human-voice-panel-qa.md): the
+  // Voice drawer sends ONLY { slug, kit: { voiceProfile } }. That one kit key
+  // goes through setChannelKitFields (patch the Neon kit + change only this
+  // entry in the engine file) — never the full-entry upsert below.
+  if (kitOnlySave(body)) {
+    const one = kitFieldPatch(body.kit);
+    if (one.error) return Response.json({ error: one.error }, { status: 400 });
+    try {
+      const res = await setChannelKitFields(slug, one.patch, { message: `studio: ${Object.keys(one.patch).join(', ')} for ${slug}` });
+      if (!res.ok) return Response.json({ error: 'This channel is not in the engine list yet — save its profile in Edit profile first.' }, { status: 404 });
+      const actor = (await getUser(req).catch(() => null))?.email || 'owner';
+      await appendAudit(actor, 'profile-save', `${slug}: kit.${Object.keys(one.patch).join(',kit.')}`);
+      return Response.json({ ok: true, kit: one.patch, ...(res.warnings?.length ? { warnings: res.warnings } : {}) });
+    } catch (e) {
+      return Response.json({ error: e.message }, { status: 502 });
+    }
+  }
 
   let reg;
   try {

@@ -148,20 +148,70 @@ async def _edge(text, mp3_path):
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def voice_profile(slug=None, brands_path=None):
-    """The channel's human-voice profile from its brand kit DATA (no-static-maps):
-    lib/brands.json[slug].voiceProfile = {engine:'kokoro', voice, speed?, mood?}.
+# Human voice as a panel setting (docs/qa/human-voice-panel-qa.md). The panel
+# saves yt-mcp/studio-channels.json entry kit.voiceProfile = {human, mood, speed};
+# it WINS over the static lib/brands.json voiceProfile. Mirror of
+# studio/lib/human-voice.mjs resolveVoiceProfile — both are pinned to
+# tests/fixtures/voice-profile-cases.json.
+HUMAN_MOODS = ("calm", "warm", "excited", "serious", "tense", "sad", "playful")
+HUMAN_SPEED_MIN, HUMAN_SPEED_MAX = 0.8, 1.2
+KOKORO_ID_RE = re.compile(r"^[ab][fm]_[a-z]+$")
+
+
+def _read_json(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def _kit_settings(own):
+    """{human, mood, speed} from a kit.voiceProfile value, or None when unreadable."""
+    if not isinstance(own, dict) or not isinstance(own.get("human"), bool):
+        return None
+    mood = own.get("mood", "warm")
+    if mood not in HUMAN_MOODS:
+        return None
+    speed = own.get("speed", 1)
+    if isinstance(speed, bool) or not isinstance(speed, (int, float)) or speed != speed or speed in (float("inf"), float("-inf")):
+        return None
+    speed = round(min(HUMAN_SPEED_MAX, max(HUMAN_SPEED_MIN, speed)), 2)
+    if speed == int(speed):
+        speed = int(speed)
+    return {"human": own["human"], "mood": mood, "speed": speed}
+
+
+def voice_profile(slug=None, brands_path=None, registry_path=None):
+    """The channel's human-voice profile from DATA (no-static-maps):
+    1. the registry kit.voiceProfile (the panel) wins — human false = None (the
+       normal voice chain); human true = {engine:'kokoro', voice: the channel
+       voice, speed, mood} (None when that voice is not a Kokoro voice);
+    2. otherwise lib/brands.json[slug].voiceProfile = {engine:'kokoro', voice, speed?, mood?}.
     None = today's engine chain, byte-identical (step 1 V4)."""
     slug = slug or os.environ.get("YT_VOICE_CHANNEL") or os.environ.get("SLUG") or ""
     if not slug:
         return None
-    try:
-        with open(brands_path or os.path.join(ROOT, "lib", "brands.json"), encoding="utf-8") as f:
-            kits = json.load(f)
-    except Exception:
-        return None
+    kits = _read_json(brands_path or os.path.join(ROOT, "lib", "brands.json"))
     kits = kits.get("brands", kits) if isinstance(kits, dict) else {}
-    prof = (kits.get(slug) or {}).get("voiceProfile") if isinstance(kits.get(slug), dict) else None
+    static_kit = kits.get(slug) if isinstance(kits.get(slug), dict) else {}
+    reg = _read_json(registry_path or os.path.join(ROOT, "yt-mcp", "studio-channels.json"))
+    channels = reg.get("channels") if isinstance(reg, dict) and isinstance(reg.get("channels"), list) else []
+    entry = next((c for c in channels if isinstance(c, dict) and c.get("slug") == slug), None) or {}
+    kit = entry.get("kit") if isinstance(entry.get("kit"), dict) else {}
+    own = kit.get("voiceProfile")
+    if isinstance(own, dict):
+        if own.get("human") is False:
+            return None
+        settings = _kit_settings(own)
+        if settings and settings["human"]:
+            sp = static_kit.get("voiceProfile") if isinstance(static_kit.get("voiceProfile"), dict) else {}
+            voice = next((str(v).strip() for v in (entry.get("voice"), kit.get("voice"), sp.get("voice"), static_kit.get("voice"))
+                          if isinstance(v, str) and v.strip()), "")
+            if not KOKORO_ID_RE.match(voice):
+                return None
+            return {"engine": "kokoro", "voice": voice, "speed": settings["speed"], "mood": settings["mood"]}
+    prof = static_kit.get("voiceProfile")
     if isinstance(prof, dict) and prof.get("engine") == "kokoro" and str(prof.get("voice") or "").strip():
         return prof
     return None

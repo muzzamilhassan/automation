@@ -35,6 +35,8 @@ import ConnectStep from '@/components/wizard/ConnectStep';
 import IdentityStep from '@/components/wizard/IdentityStep';
 import TemplatePicker from '@/components/wizard/TemplatePicker';
 import VoicePicker from '@/components/wizard/VoicePicker';
+import HumanVoiceSection from '@/components/HumanVoiceSection';
+import { voiceSettingsOf } from '@/lib/human-voice.mjs';
 import AccentPicker from '@/components/wizard/AccentPicker';
 import ThumbnailStep from '@/components/wizard/ThumbnailStep';
 import SchedulePicker from '@/components/wizard/SchedulePicker';
@@ -149,6 +151,9 @@ export default function AddChannel() {
       // feedback r1 A: the saved thumbnail designs (only when the kit has a
       // list — an untouched save then never sends, and never wipes, the field)
       thumbTemplates: Array.isArray(entry.kit?.thumbTemplates) ? entry.kit.thumbTemplates : undefined,
+      // human voice settings (docs/qa/human-voice-panel-qa.md): only when the
+      // kit has them — an untouched save then never sends the field
+      voiceProfile: entry.kit?.voiceProfile ? voiceSettingsOf(entry.kit.voiceProfile) : undefined,
     };
     setForm((f) => {
       const next = { ...f, ...values };
@@ -395,6 +400,7 @@ export default function AddChannel() {
         niches: subNichesList.length ? subNichesList : (form.niche ? [form.niche.toLowerCase()] : []),
         description: form.description,
         ...(Array.isArray(form.thumbTemplates) ? { thumbTemplates: form.thumbTemplates } : {}),
+        ...(form.voiceProfile ? { voiceProfile: form.voiceProfile } : {}),
       },
       destinations: {
         fbPageId: form.fbPageId,
@@ -635,6 +641,9 @@ export default function AddChannel() {
                   />
                   <div className="border-t border-line pt-6">
                     <VoicePicker value={form.voice} onChange={(v) => setField('voice', v)} />
+                  </div>
+                  <div className="border-t border-line pt-6">
+                    <HumanVoiceSection voice={form.voice} value={voiceSettingsOf(form.voiceProfile)} onChange={(v) => setField('voiceProfile', v)} />
                   </div>
                   <div className="border-t border-line pt-6">
                     <AccentPicker value={form.accent} onChange={(c) => setField('accent', c)} />

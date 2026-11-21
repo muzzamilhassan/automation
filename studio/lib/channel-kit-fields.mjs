@@ -12,8 +12,12 @@
 //     lib/doc-storybook.mjs docPresentation (boolean only).
 //   storyShape     — 'template' | 'full' | 'chapters' (2026-11-21 readiness):
 //     the owner's explicit choice; hasChapters is derived from it.
+//   voiceProfile   — { human, mood, speed } human voice as a panel setting
+//     (docs/qa/human-voice-panel-qa.md); rules in human-voice.mjs. Read by the
+//     engine through lib/voice-profile.mjs + narrate.py voice_profile().
 import { loadThumbRegistry } from './thumb-registry.mjs';
 import { parseStoryShape, hasChaptersForShape } from './channel-readiness.mjs';
+import { parseVoiceProfile } from './human-voice.mjs';
 
 export const MAX_THUMB_TEMPLATES = 8; // API cap
 // UI helpers live in a dependency-free module so client components don't
@@ -68,6 +72,26 @@ export function kitFieldPatch(k) {
     patch.storyShape = r.value;
     patch.hasChapters = want;
   }
+  if (Object.prototype.hasOwnProperty.call(k, 'voiceProfile')) {
+    const r = parseVoiceProfile(k.voiceProfile);
+    if (!r.ok) return { patch: {}, error: r.error };
+    patch.voiceProfile = r.value;
+  }
   return { patch };
+}
+
+// Kit keys a panel saves ON THEIR OWN through setChannelKitFields (patch the
+// Neon kit + only that key in the engine file) instead of the full-entry
+// upsert. Only the Voice drawer today; other panels keep their save path.
+export const KIT_ONLY_KEYS = Object.freeze(['voiceProfile']);
+
+// true = the body is { slug, kit: { <only KIT_ONLY_KEYS> } } and nothing else
+export function kitOnlySave(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return false;
+  if (Object.keys(body).some((k) => k !== 'slug' && k !== 'kit')) return false;
+  const kit = body.kit;
+  if (!kit || typeof kit !== 'object' || Array.isArray(kit)) return false;
+  const keys = Object.keys(kit);
+  return keys.length > 0 && keys.every((k) => KIT_ONLY_KEYS.includes(k));
 }
 

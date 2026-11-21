@@ -163,3 +163,62 @@ def test_try_human_returns_meta(tmp_path):
             return [{"w": "Hi.", "s": 0.12, "d": 0.3}], 420, 1, 1
     meta = narrate.try_human("Hi.", str(tmp_path / "x.mp3"), {"voice": "bm_daniel", "speed": 0.95}, lane=Ok)
     assert meta["engine"] == "kokoro-human" and meta["words"][0]["w"] == "Hi." and meta["duration"] == 0.42
+
+
+# ---------------------------------------------------------------------------
+# Human voice as a panel setting (docs/qa/human-voice-panel-qa.md HV-E*).
+# The SAME case table as tests/human-voice-panel.test.mjs (lib/voice-profile.mjs),
+# so the Python lanes (Shorts + legacy doc narration via narrate.py) and the Node
+# lanes (storybook + diagram via voiceProfileFor) can never disagree.
+# ---------------------------------------------------------------------------
+CASES = json.load(open(os.path.join(ROOT, "tests", "fixtures", "voice-profile-cases.json"), encoding="utf-8"))
+
+
+@pytest.mark.parametrize("case", CASES["cases"], ids=[c["name"] for c in CASES["cases"]])
+def test_voice_profile_registry_kit_precedence(case, tmp_path):
+    brands = tmp_path / "brands.json"
+    brands.write_text(json.dumps(CASES["brands"]), encoding="utf-8")
+    reg = tmp_path / "registry.json"
+    reg.write_text(json.dumps(case["registry"]), encoding="utf-8")
+    assert narrate.voice_profile(case["slug"], str(brands), str(reg)) == case["expect"]
+
+
+def test_voice_profile_without_registry_file_is_todays_behaviour(tmp_path):
+    brands = tmp_path / "brands.json"
+    brands.write_text(json.dumps(CASES["brands"]), encoding="utf-8")
+    missing = str(tmp_path / "nope.json")
+    assert narrate.voice_profile("money-rulebook", str(brands), missing) == CASES["brands"]["money-rulebook"]["voiceProfile"]
+    assert narrate.voice_profile("quotequarry", str(brands), missing) is None
+
+
+def test_narrate_moods_are_the_voice_lane_moods():
+    assert list(narrate.HUMAN_MOODS) == list(vl.MOOD)
+
+
+gen = _load("gen_previews", "scripts/generate-human-voice-previews.py")
+
+
+def test_preview_generator_offers_exactly_the_picker_voices():
+    assert gen.picker_voices() == ["am_michael", "bm_george", "bm_daniel", "am_fenrir", "am_adam", "af_heart", "am_onyx"]
+    assert gen.MOODS == list(vl.MOOD)
+
+
+def test_preview_text_has_a_pause_a_question_and_an_end():
+    assert vl.split_sentences(gen.PREVIEW_TEXT) == [
+        "Here's the thing...", "Why does it matter?", "Small habits compound."]
+
+
+def test_preview_render_is_human_tts_without_alignment():
+    speeds = []
+
+    def synth(sentence, speed):
+        speeds.append(speed)
+        return _fake_synth(sentence, speed)
+    samples, sr = gen.render_preview(gen.PREVIEW_TEXT, "sad", synth)
+    # per-sentence speed = mood x punctuation (the real human_tts path)
+    assert speeds == [vl.sentence_speed(s, 1.0, "sad") for s in vl.split_sentences(gen.PREVIEW_TEXT)]
+    # lead + 3 sentences + the "..." and "?" pauses
+    words = [len(s.split()) for s in vl.split_sentences(gen.PREVIEW_TEXT)]
+    assert samples.size == int(sr * 0.12) + sum(int(sr * 0.1 * n) for n in words) + int(sr * 0.65) + int(sr * 0.43)
+    # no aligner: the no-op one reports every word heard, so no fallback pass runs
+    assert gen.no_align(samples, sr, "a b c") == ([], 3)

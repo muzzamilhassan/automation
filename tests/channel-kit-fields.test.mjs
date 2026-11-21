@@ -120,7 +120,8 @@ describe('kitFieldPatch — only the keys the caller sent', () => {
 describe('A4/G4 — the profile route wires the helper (source pin)', () => {
   const route = read('studio/app/api/channels/profile/route.js');
   test('POST validates through kitFieldPatch and answers 400 on a bad field', () => {
-    assert.match(route, /import \{ kitFieldPatch \} from '@\/lib\/channel-kit-fields\.mjs'/);
+    // human voice panel (docs/qa/human-voice-panel-qa.md): kitOnlySave is imported too
+    assert.match(route, /import \{ kitFieldPatch, kitOnlySave \} from '@\/lib\/channel-kit-fields\.mjs'/);
     assert.match(route, /const extra = kitFieldPatch\(k\);/);
     assert.match(route, /if \(extra\.error\) return Response\.json\(\{ error: extra\.error \}, \{ status: 400 \}\);/);
     assert.match(route, /\.\.\.extra\.patch,/);

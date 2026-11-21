@@ -4,6 +4,7 @@
 // The wizard stores exactly what the profile API already accepts: short slots
 // are UTC "HH:MM" strings (comma list), docDay is one of Mon–Fri. The owner
 // SEES local time; these helpers do the conversion both ways.
+import { parseVoiceProfile, MOOD_LABEL } from './human-voice.mjs';
 
 export const STEPS = [
   { id: 'connect', label: 'Connect', hint: 'Google login' },
@@ -360,7 +361,7 @@ export function withField(form, key, value) {
 // The wizard keeps its in-progress form in sessionStorage, per mode + slug.
 // Only the plain form fields are stored — never tokens, keys or secrets.
 export const DRAFT_PREFIX = 'qs-wizard-draft';
-const DRAFT_FIELDS = [...Object.keys(EMPTY_FORM), 'thumbTemplates'];
+const DRAFT_FIELDS = [...Object.keys(EMPTY_FORM), 'thumbTemplates', 'voiceProfile'];
 const SECRETISH = /token|secret|password|passwd|api_?key|credential|auth/i;
 
 export function draftKey(mode, slug) {
@@ -376,6 +377,10 @@ function draftFields(src) {
     const v = src[k];
     if (k === 'thumbTemplates') {
       if (Array.isArray(v)) out[k] = v.filter((x) => typeof x === 'string').slice(0, 24);
+    } else if (k === 'voiceProfile') {
+      // human voice settings (docs/qa/human-voice-panel-qa.md): only a valid { human, mood, speed }
+      const r = parseVoiceProfile(v);
+      if (r.ok) out[k] = r.value;
     } else if (typeof v === 'string') {
       out[k] = v.slice(0, 2000);
     }
@@ -403,7 +408,14 @@ export function parseDraft(raw) {
 // Same values in every saved field? (undefined, '' and [] designs are equal)
 export function sameForm(a, b) {
   if (!a || !b) return false;
-  const norm = (f, k) => (k === 'thumbTemplates' ? (Array.isArray(f[k]) ? f[k].join('\u0001') : '') : String(f[k] ?? ''));
+  const norm = (f, k) => {
+    if (k === 'thumbTemplates') return Array.isArray(f[k]) ? f[k].join('\u0001') : '';
+    if (k === 'voiceProfile') {
+      const r = parseVoiceProfile(f[k]);
+      return r.ok ? `${r.value.human}|${r.value.mood}|${r.value.speed}` : '';
+    }
+    return String(f[k] ?? '');
+  };
   return DRAFT_FIELDS.every((k) => norm(a, k) === norm(b, k));
 }
 
@@ -411,6 +423,13 @@ export function sameForm(a, b) {
 // names = { style(id) → name, voice(id) → label, thumb(id) → design name }
 // (lookups passed in so this file stays dependency-free); audience = the
 // picked audience's label (wizard-local, shown so Review lists every choice).
+// Review row for the human voice settings — only once they are set.
+function humanPacingRow(v) {
+  const r = parseVoiceProfile(v);
+  if (!r.ok) return [];
+  return [['Human pacing', r.value.human ? `On · ${MOOD_LABEL[r.value.mood]} · ${r.value.speed}×` : 'Off']];
+}
+
 export function reviewSummary(form, { channel = null, offsetMin = 0, names = {}, audience = '' } = {}) {
   const f = { ...EMPTY_FORM, ...(form || {}) };
   const styleName = (names.style && names.style(f.style)) || f.style || 'Not set';
@@ -447,6 +466,7 @@ export function reviewSummary(form, { channel = null, offsetMin = 0, names = {},
       rows: [
         ['Video style', styleName],
         ['Voice', voiceName],
+        ...humanPacingRow(f.voiceProfile),
         ['Accent colour', f.accent],
       ],
     },

@@ -1,0 +1,95 @@
+{
+  "_comment": "Human voice as a panel setting (docs/qa/human-voice-panel-qa.md). ONE case table read by BOTH engine readers: tests/human-voice-panel.test.mjs (lib/voice-profile.mjs voiceProfileFor) and services/ai/tests/test_voice_human.py (youtube-flow/narrate.py voice_profile), so the Node and Python lanes can never disagree. brands = lib/brands.json shape, registry = yt-mcp/studio-channels.json shape, expect = the profile the lane narrates with (null = the channel's normal voice chain).",
+  "brands": {
+    "money-rulebook": { "voice": "bm_daniel", "voiceProfile": { "engine": "kokoro", "voice": "bm_daniel", "speed": 0.95, "mood": "calm" } },
+    "quotequarry": { "voice": "am_michael" },
+    "broken": { "voiceProfile": { "engine": "kokoro" } },
+    "edge-channel": { "voice": "en-US-AndrewNeural" }
+  },
+  "cases": [
+    {
+      "name": "HV-E1 kit on + mood: the panel profile is used (wins over the static one)",
+      "slug": "money-rulebook",
+      "registry": { "channels": [{ "slug": "money-rulebook", "kit": { "voice": "bm_daniel", "voiceProfile": { "human": true, "mood": "excited", "speed": 1.1 } } }] },
+      "expect": { "engine": "kokoro", "voice": "bm_daniel", "speed": 1.1, "mood": "excited" }
+    },
+    {
+      "name": "HV-E1 kit on for a channel with no static profile",
+      "slug": "quotequarry",
+      "registry": { "channels": [{ "slug": "quotequarry", "kit": { "voice": "am_michael", "voiceProfile": { "human": true, "mood": "warm", "speed": 1 } } }] },
+      "expect": { "engine": "kokoro", "voice": "am_michael", "speed": 1, "mood": "warm" }
+    },
+    {
+      "name": "HV-E2 kit off: no human profile even though lib/brands.json has one",
+      "slug": "money-rulebook",
+      "registry": { "channels": [{ "slug": "money-rulebook", "kit": { "voice": "bm_daniel", "voiceProfile": { "human": false, "mood": "calm", "speed": 0.95 } } }] },
+      "expect": null
+    },
+    {
+      "name": "HV-E2 kit off wins even when the rest of the kit value is junk",
+      "slug": "money-rulebook",
+      "registry": { "channels": [{ "slug": "money-rulebook", "kit": { "voiceProfile": { "human": false, "mood": "furious" } } }] },
+      "expect": null
+    },
+    {
+      "name": "HV-E3 no kit field: today's static profile, unchanged",
+      "slug": "money-rulebook",
+      "registry": { "channels": [{ "slug": "money-rulebook", "kit": { "voice": "bm_daniel" } }] },
+      "expect": { "engine": "kokoro", "voice": "bm_daniel", "speed": 0.95, "mood": "calm" }
+    },
+    {
+      "name": "HV-E3 no registry entry: today's static profile, unchanged",
+      "slug": "money-rulebook",
+      "registry": { "channels": [] },
+      "expect": { "engine": "kokoro", "voice": "bm_daniel", "speed": 0.95, "mood": "calm" }
+    },
+    {
+      "name": "HV-E3 no kit field and no static profile: normal voice chain",
+      "slug": "quotequarry",
+      "registry": { "channels": [{ "slug": "quotequarry", "kit": { "voice": "am_michael" } }] },
+      "expect": null
+    },
+    {
+      "name": "HV-E3 a broken static profile stays ignored",
+      "slug": "broken",
+      "registry": { "channels": [] },
+      "expect": null
+    },
+    {
+      "name": "HV-E4 the voice is the channel voice: the top-level entry voice first",
+      "slug": "quotequarry",
+      "registry": { "channels": [{ "slug": "quotequarry", "voice": "am_adam", "kit": { "voice": "am_michael", "voiceProfile": { "human": true, "mood": "serious", "speed": 0.9 } } }] },
+      "expect": { "engine": "kokoro", "voice": "am_adam", "speed": 0.9, "mood": "serious" }
+    },
+    {
+      "name": "HV-E4 no registry voice: the static kit voice",
+      "slug": "money-rulebook",
+      "registry": { "channels": [{ "slug": "money-rulebook", "kit": { "voiceProfile": { "human": true, "mood": "sad", "speed": 0.9 } } }] },
+      "expect": { "engine": "kokoro", "voice": "bm_daniel", "speed": 0.9, "mood": "sad" }
+    },
+    {
+      "name": "HV-E5 kit on but the voice is not a Kokoro voice: normal voice chain",
+      "slug": "edge-channel",
+      "registry": { "channels": [{ "slug": "edge-channel", "kit": { "voice": "en-US-AndrewNeural", "voiceProfile": { "human": true, "mood": "calm", "speed": 1 } } }] },
+      "expect": null
+    },
+    {
+      "name": "HV-E6 a hand-edited speed outside 0.8-1.2 is clamped",
+      "slug": "quotequarry",
+      "registry": { "channels": [{ "slug": "quotequarry", "kit": { "voice": "am_michael", "voiceProfile": { "human": true, "mood": "playful", "speed": 2 } } }] },
+      "expect": { "engine": "kokoro", "voice": "am_michael", "speed": 1.2, "mood": "playful" }
+    },
+    {
+      "name": "HV-E6 kit on with no mood or speed: the neutral defaults",
+      "slug": "quotequarry",
+      "registry": { "channels": [{ "slug": "quotequarry", "kit": { "voice": "am_michael", "voiceProfile": { "human": true } } }] },
+      "expect": { "engine": "kokoro", "voice": "am_michael", "speed": 1, "mood": "warm" }
+    },
+    {
+      "name": "HV-E6 an unreadable kit value (unknown mood, switch on) is ignored: today's static profile",
+      "slug": "money-rulebook",
+      "registry": { "channels": [{ "slug": "money-rulebook", "kit": { "voiceProfile": { "human": true, "mood": "furious" } } }] },
+      "expect": { "engine": "kokoro", "voice": "bm_daniel", "speed": 0.95, "mood": "calm" }
+    }
+  ]
+}

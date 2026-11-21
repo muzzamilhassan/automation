@@ -152,7 +152,12 @@
         "storyShape": "template",
         "templateId": "red-flags-explained",
         "templateVersion": "1.0.0",
-        "templateMajor": 1
+        "templateMajor": 1,
+        "voiceProfile": {
+          "human": true,
+          "mood": "calm",
+          "speed": 0.95
+        }
       },
       "destinations": {
         "fbPageId": "1077306835630491"

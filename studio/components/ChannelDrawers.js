@@ -10,11 +10,12 @@
 // Each panel receives `frame(body, footer, opts)` and hands its content back,
 // so the Drawer owns the layout (title, scroll area, sticky footer actions).
 // opts = { dirty } — true while the panel holds unsaved edits.
-import { CalendarDays, Layers, Image as ImageIcon, KeyRound, Route } from 'lucide-react';
+import { CalendarDays, Layers, Image as ImageIcon, Mic, KeyRound, Route } from 'lucide-react';
 import Drawer from '@/components/Drawer';
 import SchedulePanel from '@/components/SchedulePanel';
 import TemplateAssignPanel from '@/components/TemplateAssignPanel';
 import ThumbnailAssignPanel from '@/components/ThumbnailAssignPanel';
+import VoicePanel from '@/components/VoicePanel';
 import ChannelKeysPanel from '@/components/ChannelKeysPanel';
 import ProviderRoutingPanel from '@/components/ProviderRoutingPanel';
 
@@ -25,6 +26,7 @@ export const CHANNEL_DRAWERS = {
   schedule: { label: 'Schedule', title: 'Production schedule', description: 'Days, times and quota', icon: CalendarDays, size: 'md', staffOnly: true },
   templates: { label: 'Templates', title: 'Video template', description: 'Template and pinned version', icon: Layers, size: 'md', staffOnly: true },
   thumbnails: { label: 'Thumbnails', title: 'Thumbnail designs', description: 'Designs this channel uses', icon: ImageIcon, size: 'lg', staffOnly: true },
+  voice: { label: 'Voice', title: 'Voice', description: 'Human pacing, mood, speed', icon: Mic, size: 'md', staffOnly: true },
   keys: { label: 'API keys', title: 'API keys', description: 'This channel’s own keys', icon: KeyRound, size: 'lg', staffOnly: false },
   routing: { label: 'AI routing', title: 'AI routing', description: 'Which AI runs first', icon: Route, size: 'lg', staffOnly: true },
 };
@@ -61,6 +63,7 @@ export default function ChannelDrawers({ slug, label, open, onClose }) {
   if (open === 'schedule') return <SchedulePanel key={k} slug={slug} frame={frame} />;
   if (open === 'templates') return <TemplateAssignPanel key={k} slug={slug} frame={frame} />;
   if (open === 'thumbnails') return <ThumbnailAssignPanel key={k} slug={slug} frame={frame} />;
+  if (open === 'voice') return <VoicePanel key={k} slug={slug} frame={frame} />;
   if (open === 'keys') return <ChannelKeysPanel key={k} slug={slug} frame={frame} />;
   if (open === 'routing') return <ProviderRoutingPanel key={k} slug={slug} frame={frame} />;
   return null;

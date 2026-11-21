@@ -21,14 +21,16 @@ runs:
         python3 -c "import kokoro_onnx; print('kokoro ready.')" || echo "kokoro unavailable — edge fallback."
 
     # Step 1 human voice lane (docs/qa/step1-mr-voice-moneyflow-qa.md): ONLY for a
-    # channel whose lib/brands.json kit carries voiceProfile — every other channel
-    # skips this step entirely (default-inert). Installs the aligner and makes sure the
+    # channel the shared reader (lib/voice-profile.mjs voiceProfileFor — the panel's
+    # registry kit.voiceProfile first, then lib/brands.json; docs/qa/human-voice-panel-qa.md)
+    # says narrates with the human voice — every other channel skips this step
+    # entirely (default-inert). Installs the aligner and makes sure the
     # fp32 Kokoro model is on disk (the shared pixabay-pool cache may predate it).
     # Never fails the job: narrate.py falls back to the legacy chain if anything is missing.
     - name: 🗣️ Human voice lane (channels with a voiceProfile)
       shell: bash
       run: |
-        if node -e "const b=require('./lib/brands.json');const k=(b.brands||b)[process.env.SLUG||''];process.exit(k&&k.voiceProfile?0:1)" 2>/dev/null; then
+        if node -e "import('./lib/voice-profile.mjs').then((m)=>process.exit(m.voiceProfileFor(process.env.SLUG||'')?0:1),()=>process.exit(1))" 2>/dev/null; then
           python3 -m pip install --quiet faster-whisper || echo "faster-whisper unavailable — legacy voice fallback"
           mkdir -p pixabay-pool
           for f in kokoro-v1.0.onnx voices-v1.0.bin; do
