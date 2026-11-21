@@ -64,12 +64,12 @@ test('#124 R3: every draft file still on disk is NOT yet in the registry (an app
 
 test('#124 R3b: the 20 cleaned-up drafts were ALL in the registry before removal — nothing live was deleted', () => {
   const cleanedUp = [
-    'cashflow-challenge-storybook', 'deep-reset-storybook', 'evidence-room-storybook',
-    'fine-print-storybook', 'full-current-storybook', 'grit-code-storybook',
-    'heirloom-storybook', 'iron-five-storybook', 'marble-quill-storybook',
+    // 2026-11-21 owner-approved dedupe: 9 colour-only copies were removed from
+    // the catalog; the 11 unique ones must still be live.
+    'cashflow-challenge-storybook', 'iron-five-storybook',
     'money-flow-diagram', 'mr-case-files-storybook', 'night-signal-storybook',
-    'no-spend-30day-storybook', 'old-banners-storybook', 'old-verses-storybook',
-    'paper-trail-storybook', 'salt-and-iron-storybook', 'silicon-pulse-storybook',
+    'old-banners-storybook', 'old-verses-storybook',
+    'paper-trail-storybook', 'silicon-pulse-storybook',
     'switchboard-storybook', 'systems-diagram',
   ];
   const missing = cleanedUp.filter((id) => !REG.includes(`'${id}':`));

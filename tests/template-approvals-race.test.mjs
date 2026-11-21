@@ -78,7 +78,8 @@ test('entries are KEYED by template id (a bare {...} broke the registry on 2026-
 test('GUARD: the real registry file loads and every entry key equals its template_id', async () => {
   const { REGISTRY_META } = await import('../studio/lib/template-registry.data.js');
   const ids = Object.keys(REGISTRY_META);
-  assert.ok(ids.length >= 30, `registry has ${ids.length} templates`);
+  // 2026-11-21 owner-approved dedupe: 41 → 19 (14 unique + 5 base families)
+  assert.ok(ids.length >= 19, `registry has ${ids.length} templates`);
   for (const id of ids) {
     const tid = REGISTRY_META[id] && REGISTRY_META[id].template_id;
     if (tid !== undefined) assert.equal(tid, id, `key ${id} vs template_id ${tid}`);

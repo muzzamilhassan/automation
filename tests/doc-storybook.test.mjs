@@ -373,11 +373,19 @@ describe('doc_presentation.theme — palette selection is DATA, default-inert', 
     assert.equal(buildStorybookDoc({ title: 'T', presentation: {}, beats: [], totalMs: 1 }).theme, 'vox', 'empty presentation too');
   });
 
-  test('SOURCE PIN: the three factory variants name their palettes; red-flags stays vox', () => {
-    for (const [id, theme] of [['history-storybook', 'history'], ['wisdom-storybook', 'wisdom'], ['science-storybook', 'science']]) {
+  test('SOURCE PIN: kept templates name their palettes as DATA; red-flags stays vox', () => {
+    // 2026-11-21 owner-approved dedupe removed the colour-only factory
+    // variants (history/wisdom/science…); the unique layouts keep their themes
+    for (const [id, theme] of [['cashflow-challenge-storybook', 'brief'], ['night-signal-storybook', 'midnight'], ['old-verses-storybook', 'letterpress']]) {
       assert.equal(REGISTRY_META[id]?.doc_presentation?.theme, theme, `${id} names ${theme}`);
     }
     assert.equal(REGISTRY_META['red-flags-explained']?.doc_presentation?.theme, undefined, 'the MR pilot keeps vox by absence');
+  });
+
+  test('2026-11-21 dedupe: the 22 colour-only copies are gone and stay gone', () => {
+    const gone = ['history-storybook', 'wisdom-storybook', 'science-storybook', 'investing-psychology-storybook', 'oldmoney-storybook', 'realestate-storybook', 'insurance-storybook', 'tax-storybook', 'business-storybook', 'sales-storybook', 'travel-storybook', 'ai-storybook', 'focus-storybook', 'deep-reset-storybook', 'evidence-room-storybook', 'fine-print-storybook', 'grit-code-storybook', 'heirloom-storybook', 'no-spend-30day-storybook', 'salt-and-iron-storybook', 'full-current-storybook', 'marble-quill-storybook'];
+    assert.deepEqual(gone.filter((id) => id in REGISTRY_META), []);
+    assert.equal(Object.keys(REGISTRY_META).length, 19, '14 unique pickable templates + 5 base families');
   });
 
   test('the engine THEMES registry carries every named palette', () => {
@@ -555,16 +563,16 @@ describe('Full Story Templates & 95-100% Content-Matched Starting Hook Media', (
   test('Template drafts default to has_chapters: false (Full Story) and convert dynamically', () => {
     // #124: the 20 drafts were APPROVED — they live in REGISTRY_META now and
     // the draft files left the repo by design. Same assertions, approved home.
+    // 2026-11-21 owner-approved dedupe: the 9 colour-only copies were removed;
+    // the 11 unique approved drafts remain (9 storybook layouts + 2 diagrams).
     const APPROVED_IDS = [
-      'cashflow-challenge-storybook', 'deep-reset-storybook', 'evidence-room-storybook',
-      'fine-print-storybook', 'full-current-storybook', 'grit-code-storybook',
-      'heirloom-storybook', 'iron-five-storybook', 'marble-quill-storybook',
+      'cashflow-challenge-storybook', 'iron-five-storybook',
       'money-flow-diagram', 'mr-case-files-storybook', 'night-signal-storybook',
-      'no-spend-30day-storybook', 'old-banners-storybook', 'old-verses-storybook',
-      'paper-trail-storybook', 'salt-and-iron-storybook', 'silicon-pulse-storybook',
+      'old-banners-storybook', 'old-verses-storybook',
+      'paper-trail-storybook', 'silicon-pulse-storybook',
       'switchboard-storybook', 'systems-diagram',
     ];
-    assert.equal(APPROVED_IDS.length, 20, 'the 18 storybook drafts + the 2 Living Diagram drafts (money-flow-diagram, systems-diagram)');
+    assert.equal(APPROVED_IDS.length, 11, 'the 9 unique storybook layouts + the 2 Living Diagram drafts (money-flow-diagram, systems-diagram)');
     for (const id of APPROVED_IDS) {
       const data = REGISTRY_META[id];
       assert.ok(data, `${id} must be in the registry (approved 2026-11-17/18)`);

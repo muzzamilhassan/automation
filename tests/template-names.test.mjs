@@ -29,7 +29,8 @@ test('N2: no two assignable templates share a display name (case-insensitive)', 
   const names = view.templates.map((t) => t.name.trim().toLowerCase());
   const dupes = names.filter((n, i) => names.indexOf(n) !== i);
   assert.deepEqual(dupes, [], `shared names: ${dupes.join(', ')}`);
-  assert.ok(view.templates.length >= 40, `expected the real 40+ templates, got ${view.templates.length}`);
+  // 2026-11-21 owner-approved dedupe: 22 colour-only copies removed → 19 rows
+  assert.ok(view.templates.length >= 19, `expected the real 19 templates, got ${view.templates.length}`);
 });
 
 test('N2b: no gallery card (registry + base families) shares a name either', () => {
@@ -40,9 +41,9 @@ test('N2b: no gallery card (registry + base families) shares a name either', () 
 
 test('N3: the auto-generated names are gone (T5-15)', () => {
   const name = (id) => view.templates.find((t) => t.templateId === id)?.name;
-  assert.equal(name('oldmoney-storybook'), 'Old Money Storybook');
-  assert.equal(name('realestate-storybook'), 'Real Estate Storybook');
-  assert.equal(name('no-spend-30day-storybook'), '30-Day No-Spend Storybook');
+  assert.equal(name('cashflow-challenge-storybook'), 'Cashflow Challenge Storybook');
+  assert.equal(name('mr-case-files-storybook'), 'Case Files Storybook');
+  assert.equal(name('lecture-notes-paper'), 'Lecture Notes Paper');
   assert.equal(name('myth-vs-money'), 'Myth vs Money');
   assert.equal(name('red-flags-explained'), 'Red Flags Explained');
   assert.equal(name('documentary-frames'), 'Documentary Master Frames');
