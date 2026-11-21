@@ -127,15 +127,17 @@ describe('G1/G2 — TemplateAssignPanel shows real demos', () => {
 });
 
 describe('G3/G4 — Full story / Chapters switch', () => {
-  test('three plain choices, unset shown as Template default', () => {
+  // 2026-11-21 readiness: an untouched channel shows NOTHING picked (Template
+  // default became a real, saved choice — kit.storyShape 'template').
+  test('three plain choices; an untouched channel shows none picked', () => {
     assert.match(TPL, /\{ value: 'default', label: 'Template default' \}/);
     assert.match(TPL, /\{ value: 'story', label: 'Full story' \}/);
     assert.match(TPL, /\{ value: 'chapters', label: 'Chapters' \}/);
-    assert.match(TPL, /chapterModeOf\(/);
+    assert.match(TPL, /storyModeOf\(/);
   });
 
-  test('saves kit.hasChapters through the profile route (owner only)', () => {
-    assert.match(TPL, /body: JSON\.stringify\(\{ slug, kit: \{ hasChapters: chapterValueFor\(mode\) \} \}\)/);
+  test('saves kit.hasChapters + kit.storyShape through the profile route (owner only)', () => {
+    assert.match(TPL, /body: JSON\.stringify\(\{ slug, kit: \{ hasChapters: chapterValueFor\(mode\), storyShape: storyShapeFor\(mode\) \} \}\)/);
     assert.match(TPL, /if \(!isOwner\b/);
   });
 });

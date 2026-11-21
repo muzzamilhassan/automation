@@ -32,6 +32,7 @@ import {
   selectChannelsDueOrMissed,
 } from '../lib/schedule-slot.mjs';
 import { parseHHMM, cronFromSlots } from '../studio/lib/schedule-projection.js';
+import { readyEntry, readyCadence, discoverFixtureRoot } from './fixtures/ready-channels.mjs';
 
 const at = (h, m) => new Date(Date.UTC(2026, 10, 1, h, m));
 const FIRE_MINUTES = [5, 35]; // the heartbeat's minute offsets — 30-min spacing is what exactly-once needs
@@ -96,33 +97,39 @@ test('cronMatchesSlot: missing or non-daily cron defaults to the legacy 33 2 slo
 
 // ---------- discovery selection ----------
 
+// 2026-11-21 ("100% ready before anything publishes"): discovery keeps only
+// 7/7-ready channels — fixtures come from tests/fixtures/ready-channels.mjs.
+const quiet = { log: () => {} };
+
 test('toDiscoverChannels: engine mapping — filters, envSlug, effective cron', () => {
+  const slugs = ['quote-quarry', 'paused', 'inactive', 'no-token', 'wizard-channel'];
   const chans = toDiscoverChannels([
-    { slug: 'quote-quarry', autopilot: true, active: true, tokenSecretSaved: true, cron: '13 2 * * *' },
-    { slug: 'paused', autopilot: false },
-    { slug: 'inactive', active: false },
-    { slug: 'no-token', tokenSecretSaved: false },
-    { slug: 'wizard-channel' },
-  ]);
+    readyEntry('quote-quarry', { cron: '13 2 * * *' }),
+    readyEntry('paused', { autopilot: false }),
+    readyEntry('inactive', { active: false }),
+    readyEntry('no-token', { tokenSecretSaved: false }),
+    readyEntry('wizard-channel', { cron: null }), // no start time = not ready (was: 02:33 catch-all)
+  ], { cadence: readyCadence(slugs), ...quiet });
   assert.deepEqual(chans, [
     { slug: 'quote-quarry', envSlug: 'QUOTE_QUARRY', cron: '13 2 * * *' },
-    { slug: 'wizard-channel', envSlug: 'WIZARD_CHANNEL', cron: LEGACY_FALLBACK_CRON },
   ]);
-  assert.deepEqual(toDiscoverChannels(null), [], 'null registry yields no channels');
+  assert.deepEqual(toDiscoverChannels(null, quiet), [], 'null registry yields no channels');
 });
 
 test('toDiscoverChannels: kit.gateCron is the durable fallback when the projection drops cron', () => {
   // the exact wipe scenario: every connect/profile-save/importer runs
   // upsertChannel -> syncRegistryRepo, rewriting the repo feed from rowToEntry
   // DB projections that carry kit but NOT cron — the gate time must survive.
-  const dbProjected = { slug: 'money-rulebook', label: 'Money Rulebook', kit: { gateCron: '21 3 * * *' }, autopilot: true, active: true };
-  const [ch] = toDiscoverChannels([dbProjected]);
+  const dbProjected = readyEntry('money-rulebook', { cron: null, kit: { gateCron: '21 3 * * *' } });
+  const [ch] = toDiscoverChannels([dbProjected], { cadence: readyCadence(['money-rulebook']), ...quiet });
   assert.equal(ch.cron, '21 3 * * *', 'discover reads c.cron || c.kit?.gateCron || legacy fallback');
-  // a junk gateCron maps through, but the gate math still validates: it can
-  // only select inside the legacy fallback window, never an invented time.
-  const junk = toDiscoverChannels([{ slug: 'x', kit: { gateCron: 'junk' } }])[0];
-  assert.equal(cronMatchesSlot(junk.cron, at(14, 20)), false, 'junk gateCron never opens an arbitrary window');
-  assert.equal(cronMatchesSlot(junk.cron, at(2, 45)), true, 'junk gateCron gates on the legacy 02:33 window');
+  // a junk gateCron is no start time at all: the channel is not ready and
+  // never runs (it used to fall back to the 02:33 window)
+  const junk = toDiscoverChannels([readyEntry('x', { cron: null, kit: { gateCron: 'junk' } })], { cadence: readyCadence(['x']), ...quiet });
+  assert.deepEqual(junk, [], 'junk gateCron = not ready');
+  // the gate math itself still never opens an invented window
+  assert.equal(cronMatchesSlot('junk', at(14, 20)), false, 'junk cron never opens an arbitrary window');
+  assert.equal(cronMatchesSlot('junk', at(2, 45)), true, 'junk cron gates on the legacy 02:33 window');
 });
 
 test('MIGRATION (unit): the 4 legacy hand-tuned crons each land on exactly one fire instant', () => {
@@ -159,9 +166,12 @@ test('SWEEP: all 1440 daily crons x 48 heartbeats — exactly-once holds (the ha
 });
 
 test('MIGRATION (registry): every live channel is selected by exactly one fire instant per day', () => {
+  // the live channels' crons, as READY fixtures (2026-11-21: the live entries
+  // are ready only after scripts/prefill-kit-from-brands.mjs runs)
   const reg = JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8'));
-  const chans = toDiscoverChannels(reg.channels);
-  assert.ok(chans.length >= 1, 'the active channel(s) must still be discovered (MR-only mode: the paused three are filtered by design)');
+  const live = reg.channels.filter((c) => c.cron || c.kit?.gateCron).map((c) => readyEntry(c.slug, { cron: c.cron || c.kit.gateCron }));
+  const chans = toDiscoverChannels(live, { cadence: readyCadence(live.map((c) => c.slug)), ...quiet });
+  assert.ok(chans.length >= 1, 'every live channel time is discoverable once ready');
   const picks = Object.fromEntries(chans.map((c) => [c.slug, []]));
   for (let h = 0; h < 24; h++) {
     for (const m of FIRE_MINUTES) {
@@ -306,11 +316,15 @@ function readGithubOutput(file) {
   return JSON.parse(line.slice('channels='.length));
 }
 
+// a fixture repo root with ready channels (2026-11-21 readiness rule)
+const DISC_CHANNELS = [readyEntry('money-rulebook', { cron: '21 3 * * *' }), readyEntry('quotequarry', { cron: '13 2 * * *' })];
+const DISC_ROOT = discoverFixtureRoot({ channels: DISC_CHANNELS, cadence: readyCadence(DISC_CHANNELS.map((c) => c.slug)) });
+
 test('discover script (extracted from the workflow): single-slug dispatch input selects one channel', (t) => {
   const out = path.join(os.tmpdir(), `disc-slug-${process.pid}-${Date.now()}.txt`);
   t.after(() => fs.rmSync(out, { force: true }));
   const r = spawnSync(process.execPath, ['--input-type=module', '-e', discoverScript()], {
-    cwd: process.cwd(),
+    cwd: DISC_ROOT,
     env: { ...process.env, INPUT_CHANNEL: 'money-rulebook', EVENT_SCHEDULE: '', GITHUB_OUTPUT: out },
     encoding: 'utf8',
     timeout: 60000,
@@ -326,7 +340,7 @@ test('discover script (extracted from the workflow): schedule event slot-gates v
   const out = path.join(os.tmpdir(), `disc-slot-${process.pid}-${Date.now()}.txt`);
   t.after(() => fs.rmSync(out, { force: true }));
   const r = spawnSync(process.execPath, ['--input-type=module', '-e', discoverScript()], {
-    cwd: process.cwd(),
+    cwd: DISC_ROOT,
     env: { ...process.env, INPUT_CHANNEL: '', EVENT_SCHEDULE: SCHEDULER_CRON, GITHUB_OUTPUT: out },
     encoding: 'utf8',
     timeout: 60000,

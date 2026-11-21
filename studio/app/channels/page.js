@@ -6,6 +6,10 @@
 // Feedback round 1 (2026-11-19): cards carry NO warning text — a REAL open
 // problem (bell/Inbox) shows as one small red dot. "Open channel" opens the
 // large ChannelOverviewDrawer on top of this list instead of a new page.
+// 2026-11-21 ("100% ready before anything publishes"): every card carries a
+// "Ready N/7" chip; Resume on a channel that isn't 7/7 opens its checklist
+// (in the overview drawer) instead of calling the flow route, and the route's
+// 409 answer is shown in plain words if it is reached anyway.
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
@@ -18,6 +22,8 @@ import ChannelOverviewDrawer, { ProblemDot } from '@/components/ChannelOverviewD
 import { useConfirm } from '@/components/ConfirmDialog';
 import { useOpenWarnings } from '@/components/use-open-warnings';
 import { useBrands } from '@/components/use-brands'; // #125: live brand marks
+import { ReadyChip } from '@/components/ReadinessChecklist';
+import { useReadiness } from '@/components/use-readiness';
 import { validSlots, editHref } from '@/lib/channel-health.mjs';
 import {
   channelHasRealProblem, todayStatus, moodText, channelCounts, countsText, needsSetup, SETUP_TEXT, slotLocalText,
@@ -150,9 +156,13 @@ export default function Channels() {
 
   const [data, setData] = useState(null);
   const { rows: openWarningRows } = useOpenWarnings(); // REAL problems only (grouped) → the red dot
+  // the 7-item publish checklist per channel (same answer the engine uses)
+  const { bySlug: readiness, status: readinessStatus, reload: reloadReadiness } = useReadiness();
   // one drawer at a time: { slug, label, which } — which ∈ 'overview' | CHANNEL_DRAWERS keys
   const [drawer, setDrawer] = useState(null);
-  const closeDrawer = useCallback(() => setDrawer(null), []); // stable: Drawer re-focuses when onClose changes
+  // stable (Drawer re-focuses when onClose changes); a closed drawer may have
+  // changed a checklist item, so the readiness is read again
+  const closeDrawer = useCallback(() => { setDrawer(null); reloadReadiness(); }, [reloadReadiness]);
   // a quick action in the overview REPLACES it with that manage drawer (same state → never two open)
   const manageFromOverview = useCallback((which) => setDrawer((d) => (d ? { ...d, which } : d)), []);
   const [highlight] = useState(() =>
@@ -193,7 +203,9 @@ export default function Channels() {
         body: JSON.stringify({ slug, on }),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) {
+      if (r.status === 409) {
+        setFlowMsg({ tone: 'bad', text: `${label} can't resume yet. ${d.error || 'It is not ready to publish.'} Open the channel to finish it.` });
+      } else if (!r.ok) {
         setFlowMsg({ tone: 'bad', text: `${label}: ${on ? 'resume' : 'pause'} failed — ${d.error || `HTTP ${r.status}`}` });
       } else {
         setFlowMsg({ tone: 'ok', text: `${label}: autopilot ${on ? 'resumed' : 'paused'}` });
@@ -202,6 +214,7 @@ export default function Channels() {
       setFlowMsg({ tone: 'bad', text: `${label}: ${String(e.message || e)}` });
     }
     load(true);
+    reloadReadiness();
   };
   useEffect(() => {
     load();
@@ -272,12 +285,20 @@ export default function Channels() {
             ].filter(Boolean);
             const today = todayStatus(c, now); // wave A3: made today / run state (UTC day), never the frozen lastRun
             const openDrawer = (which) => () => setDrawer({ slug: c.slug, label, which });
+            const ready = readiness[c.slug]; // undefined while unknown — the server still decides
+            const notReady = Boolean(ready && !ready.ready);
+            const blockedResume = () => {
+              setFlowMsg({ tone: 'bad', text: `${label} isn't ready to publish (${ready.done}/${ready.total}). Finish the checklist first.` });
+              setDrawer({ slug: c.slug, label, which: 'overview' });
+            };
             const items = [
               ...Object.entries(CHANNEL_DRAWERS).map(([which, d]) => ({ key: which, label: d.label, icon: d.icon, onSelect: openDrawer(which) })),
               { key: 'edit', label: 'Edit profile', icon: PenLine, href: editHref(c.slug) },
               { key: 'div', divider: true },
               c.flowPaused
-                ? { key: 'flow', label: 'Resume autopilot', icon: Play, onSelect: () => toggleFlow(c.slug, label, true) }
+                ? (notReady
+                  ? { key: 'flow', label: 'Resume autopilot — not ready', icon: Play, onSelect: blockedResume }
+                  : { key: 'flow', label: 'Resume autopilot', icon: Play, onSelect: () => toggleFlow(c.slug, label, true) })
                 : { key: 'flow', label: 'Pause autopilot', icon: Pause, onSelect: () => toggleFlow(c.slug, label, false) },
             ];
             return (
@@ -306,6 +327,7 @@ export default function Channels() {
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     {hasProblem ? <ProblemDot /> : null}
+                    <ReadyChip r={readiness[c.slug]} className="shrink-0" />
                     {c.flowPaused ? <Chip tone="plain" className="shrink-0">Paused</Chip> : <Chip tone="ok" dot className="shrink-0">Active</Chip>}
                   </div>
                 </div>
@@ -394,6 +416,8 @@ export default function Channels() {
         channel={overviewRow}
         logs={data.logs}
         hasProblem={overviewRow ? channelHasRealProblem(openWarningRows, overviewRow.slug) : false}
+        readiness={overviewRow ? readiness[overviewRow.slug] : null}
+        readinessStatus={readinessStatus}
         open={drawer?.which === 'overview'}
         onClose={closeDrawer}
         onManage={manageFromOverview}

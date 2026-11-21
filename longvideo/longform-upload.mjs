@@ -10,6 +10,7 @@ import { Readable } from "node:stream";
 import { google } from "googleapis";
 import { loadEnv } from "../lib/env.mjs";
 import { LEGACY_SLUGS as CHANNELS } from "../lib/registry.mjs";
+import { engineReadiness } from "../lib/readiness-gate.mjs";
 
 loadEnv();
 
@@ -168,6 +169,9 @@ async function buildThumbnail(slug, meta) {
 
 async function processChannel(slug) {
   if (ONLY_SLUG && slug !== ONLY_SLUG) return;
+  // owner 2026-11-21: nothing uploads for a channel that is not 7/7 ready in the panel
+  const readiness = engineReadiness(slug, { root: ROOT });
+  if (!readiness.ready) { console.log(readiness.line); return; }
   console.log(`\n=== ${slug} ===`);
   const runs = ghJson(["run", "list", "-R", RENDER_REPO, "--workflow=longform-render.yml", "--status=success", "--limit", "8", "--json", "databaseId,createdAt"]) || [];
   if (!runs.length) { console.log("[skip] no successful renders"); return; }

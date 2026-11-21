@@ -22,7 +22,7 @@ import ProviderRoutingPanel from '@/components/ProviderRoutingPanel';
 // clients never see the entry (no control that can't work). Descriptions stay
 // at five words or fewer (owner: less text in drawer headers).
 export const CHANNEL_DRAWERS = {
-  schedule: { label: 'Schedule', title: 'Production schedule', description: 'Upload days and daily quota', icon: CalendarDays, size: 'md', staffOnly: true },
+  schedule: { label: 'Schedule', title: 'Production schedule', description: 'Days, times and quota', icon: CalendarDays, size: 'md', staffOnly: true },
   templates: { label: 'Templates', title: 'Video template', description: 'Template and pinned version', icon: Layers, size: 'md', staffOnly: true },
   thumbnails: { label: 'Thumbnails', title: 'Thumbnail designs', description: 'Designs this channel uses', icon: ImageIcon, size: 'lg', staffOnly: true },
   keys: { label: 'API keys', title: 'API keys', description: 'This channel’s own keys', icon: KeyRound, size: 'lg', staffOnly: false },

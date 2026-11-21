@@ -24,13 +24,20 @@
 // Live fix wave C3: warnings pass through plainScheduleWarnings — the
 // developer "Quota advisory" is dropped, a real limit reads in plain words
 // (T3-16); "goes public" names the long-form time and day(s) too (T3-17).
+//
+// 2026-11-21 (owner-approved, readiness checklist item 7): the Shorts and
+// long-video go-public times are edited here (PublishTimeInput, your clock,
+// UTC shown). Only changed times are sent (POST /api/channels/schedule →
+// kit.slots + top-level slots, kit.longSlot); a blank is refused, never saved.
 import { useCallback, useEffect, useState } from 'react';
-import { CalendarDays, AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-react';
+import { CalendarDays, AlertTriangle, CheckCircle2, RefreshCw, Plus } from 'lucide-react';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import { Chip, Progress } from '@/components/ui';
 import { projection, DAY_NAMES } from '@/lib/schedule-projection';
 import SlotTimeline from '@/components/SlotTimeline';
-import { parseDailyCron, cronFromUtc, parseHHMM, takenHours, suggestStartHours, scheduleDirty } from '@/lib/slot-planner.mjs';
+import PublishTimeInput from '@/components/PublishTimeInput';
+import { parseDailyCron, cronFromUtc, parseHHMM, takenHours, suggestStartHours, scheduleDirty, parsePublishTimes, MAX_SHORT_TIMES } from '@/lib/slot-planner.mjs';
+import { shiftHHMM } from '@/lib/wizard-steps.mjs';
 import { plainScheduleWarnings, longPublicText, shortsPublicText } from '@/lib/channel-overview.mjs';
 
 const TONE_INK = { error: 'var(--bad-ink)', warn: 'var(--warn-ink)', ok: 'var(--ok-ink)' };
@@ -99,7 +106,7 @@ export default function SchedulePanel({ slug, frame }) {
   // schedule, and Save then wiped the channel's real days. Remember the
   // failure, show it, and keep Save disabled until a successful (re)load.
   const [loadError, setLoadError] = useState(null);
-  const [saved, setSaved] = useState(null); // { docDays, shortDays, shortsSource, gateCron } as loaded/saved
+  const [saved, setSaved] = useState(null); // { docDays, shortDays, shortsSource, gateCron, slots, longSlot } as loaded/saved
 
   // state is only set when the request settles (never synchronously in the effect)
   const load = useCallback(() => {
@@ -113,7 +120,7 @@ export default function SchedulePanel({ slug, frame }) {
         const loaded = d.schedule || { docDays: [], shortDays: [], shortsSource: 'generated' };
         setLoadError(null);
         setSchedule(loaded);
-        setSaved({ ...loaded, gateCron: d.gateCron || '' });
+        setSaved({ ...loaded, gateCron: d.gateCron || '', slots: Array.isArray(d.publish?.slots) ? d.publish.slots : [], longSlot: d.publish?.long || '' });
         setServerProj(d.projection || null);
         setGateCron(d.gateCron || '');
         setModelWarnings(plainScheduleWarnings(d.projection?.warnings));
@@ -137,7 +144,17 @@ export default function SchedulePanel({ slug, frame }) {
   const draft = schedule || { docDays: [], shortDays: [], shortsSource: 'generated' };
   const proj = projection({ ...draft, ...deriveModelParams(serverProj) });
   const cronState = parseGateCron(gateCron);
-  const dirty = scheduleDirty(saved, { ...draft, gateCron });
+  const dirty = scheduleDirty(saved, { ...draft, gateCron, slots: publish, longSlot: publishLong || '' });
+  // go-public times: only the ones that differ from the saved baseline are sent
+  const timesChanged = {
+    slots: Boolean(saved) && publish.join(',') !== (saved.slots || []).join(','),
+    longSlot: Boolean(saved) && (publishLong || '') !== (saved.longSlot || ''),
+  };
+  const timesSent = {
+    ...(timesChanged.slots ? { slots: publish } : {}),
+    ...(timesChanged.longSlot ? { longSlot: publishLong || '' } : {}),
+  };
+  const timesCheck = parsePublishTimes(timesSent);
   const savedAt = saved ? parseGateCron(saved.gateCron).at : null; // the channel's own saved start
   const offsetMin = -new Date().getTimezoneOffset();
   const taken = takenHours(channels, { exclude: slug, kind: 'start' });
@@ -159,7 +176,7 @@ export default function SchedulePanel({ slug, frame }) {
     setSaving(true);
     setMsg(null);
     try {
-      const payload = { slug, ...draft, ...(gateCron.trim() ? { gateCron: gateCron.trim() } : {}) };
+      const payload = { slug, ...draft, ...timesSent, ...(gateCron.trim() ? { gateCron: gateCron.trim() } : {}) };
       const r = await fetch('/api/channels/schedule', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -170,7 +187,10 @@ export default function SchedulePanel({ slug, frame }) {
       else {
         if (j.projection) setServerProj(j.projection);
         if (j.gateCron) setGateCron(j.gateCron);
-        setSaved({ ...draft, gateCron: j.gateCron || gateCron });
+        setSaved({ ...draft, gateCron: j.gateCron || gateCron, slots: j.publishSaved?.slots || saved.slots, longSlot: j.publishSaved?.longSlot || saved.longSlot });
+        // the server's normalised times become the drafts too (never left "dirty")
+        if (j.publishSaved?.slots) setPublish(j.publishSaved.slots);
+        if (j.publishSaved?.longSlot) setPublishLong(j.publishSaved.longSlot);
         setMsg({ tone: 'ok', text: 'Saved — the next runs pick this up.' });
         const saveWarnings = plainScheduleWarnings([...(j.projection?.warnings || []), ...(j.warnings || [])]);
         if (saveWarnings.length) setMsg({ tone: 'warn', text: saveWarnings.join(' ') });
@@ -237,6 +257,49 @@ export default function SchedulePanel({ slug, frame }) {
         </div>
       </fieldset>
 
+      {/* 2026-11-21: when videos go public — every schedule setting in one place */}
+      <section aria-label="When videos go public" className="space-y-4 min-w-0">
+        <div className="min-w-0">
+          <h3 className="t-13 font-semibold text-ink mb-2">Shorts go public at</h3>
+          <div className="space-y-2">
+            {publish.map((t, i) => (
+              <PublishTimeInput
+                key={i}
+                id={`short-time-${slug}-${i}`}
+                label={`Shorts time ${i + 1}`}
+                value={t}
+                disabled={!schedule}
+                onChange={(v) => setPublish((list) => list.map((x, j) => (j === i ? v : x)))}
+                onRemove={publish.length > 1 ? () => setPublish((list) => list.filter((_, j) => j !== i)) : null}
+              />
+            ))}
+            {publish.length < MAX_SHORT_TIMES ? (
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                disabled={!schedule}
+                onClick={() => setPublish((list) => [...list, list.length ? shiftHHMM(list[list.length - 1], 240)?.time || '22:35' : '22:35'])}
+              >
+                <Plus size={13} aria-hidden /> Add a time
+              </button>
+            ) : null}
+          </div>
+        </div>
+        <div className="min-w-0">
+          <h3 className="t-13 font-semibold text-ink mb-2">Long videos go public at</h3>
+          <PublishTimeInput
+            id={`long-time-${slug}`}
+            label="Long-video time"
+            value={publishLong || ''}
+            disabled={!schedule}
+            onChange={(v) => setPublishLong(v || null)}
+          />
+        </div>
+        {!timesCheck.ok ? (
+          <p className="t-12" style={{ color: 'var(--bad-ink)' }}>{timesCheck.error}</p>
+        ) : null}
+      </section>
+
       <SlotTimeline
         label="Autopilot start time"
         value={cronState.at}
@@ -298,7 +361,7 @@ export default function SchedulePanel({ slug, frame }) {
           <span className="min-w-0">{msg.text}</span>
         </p>
       ) : null}
-      <Button color="primary" onClick={save} isDisabled={saving || Boolean(loadError) || !schedule || proj.blocked || !cronState.valid || !dirty}>
+      <Button color="primary" onClick={save} isDisabled={saving || Boolean(loadError) || !schedule || proj.blocked || !cronState.valid || !dirty || !timesCheck.ok}>
         {saving ? 'Saving…' : 'Save schedule'}
       </Button>
     </>

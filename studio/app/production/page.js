@@ -101,6 +101,9 @@ export default function Production() {
     setNetBusy(true);
     setNetError('');
     let fails = 0;
+    // 2026-11-21: the flow route refuses Resume (409) for a channel that isn't
+    // 7/7 ready to publish — that is the rule working, not a failure
+    let notReady = 0;
     for (const c of chans) {
       try {
         const r = await fetch('/api/channels/flow', {
@@ -108,12 +111,16 @@ export default function Production() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ slug: c.slug, on }),
         });
+        if (r.status === 409) { notReady += 1; continue; }
         if (!r.ok) fails += 1;
       } catch { fails += 1; }
     }
-    if (fails) setNetError(`${fails} channel(s) failed — try again or check the logs.`);
+    const notes = [];
+    if (notReady) notes.push(`${notReady} channel(s) stayed paused — not ready to publish yet (see each channel's checklist on the Channels page).`);
+    if (fails) notes.push(`${fails} channel(s) failed — try again or check the logs.`);
+    setNetError(notes.join(' '));
     // the reload below is the truth; never flip the switch on a total failure
-    if (fails < chans.length) setNetPaused(!on);
+    if (fails + notReady < chans.length) setNetPaused(!on);
     await loadOverview();
     setNetBusy(false);
   };

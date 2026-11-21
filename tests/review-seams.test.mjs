@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { bySlug } from '../yt-brands/brands.mjs';
+import { readyFilesFor, withReadyDays } from './fixtures/ready-channels.mjs';
 
 // ---------------------------------------------------------------------------
 // #106 Phase 4 T5b (S4) — the LANE-side review seams: generate-only save,
@@ -451,7 +452,11 @@ function runPipeline({ state = {}, env = {}, args = [], deepdive = false, cadenc
     fs.writeFileSync(path.join(sandbox, 'yt-daily.mjs'), FAKE_YT_DAILY);
     if (deepdive) fs.writeFileSync(path.join(sandbox, 'yt-deepdive.mjs'), FAKE_YT_DEEPDIVE);
     fs.mkdirSync(path.join(sandbox, 'yt-mcp', 'state'), { recursive: true });
-    if (cadence) fs.writeFileSync(path.join(sandbox, 'yt-mcp', 'cadence.json'), JSON.stringify(cadence));
+    // 2026-11-21: the pipeline refuses a not-ready channel — seed the ready
+    // registry entry + cadence row (tests/fixtures/ready-channels.mjs)
+    const ready = readyFilesFor(SLUG, bySlug[SLUG]);
+    fs.writeFileSync(path.join(sandbox, 'yt-mcp', 'studio-channels.json'), ready['yt-mcp/studio-channels.json']);
+    fs.writeFileSync(path.join(sandbox, 'yt-mcp', 'cadence.json'), cadence ? withReadyDays(SLUG, cadence) : ready['yt-mcp/cadence.json']);
     fs.writeFileSync(path.join(sandbox, 'yt-mcp', 'state', SLUG + '.json'), JSON.stringify(state));
     for (const [name, src] of [['spy-gate.mjs', SPY_GATE], ['spy-scriptstore.mjs', SPY_SCRIPTSTORE], ['spy-jobstore.mjs', SPY_JOBSTORE], ['spy-warnings.mjs', SPY_WARNINGS], ['spy-probe.mjs', SPY_PROBE], ['spy-artifacts.mjs', SPY_ARTIFACTS]]) {
       fs.writeFileSync(path.join(sandbox, name), src);

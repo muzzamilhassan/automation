@@ -23,6 +23,10 @@
 // "Story shape" setting saves the channel's kit.hasChapters (true = Chapters,
 // false = Full story, null = template default) through /api/channels/profile;
 // lib/doc-storybook.mjs docPresentation hands it to the documentary lane.
+// 2026-11-21 readiness: it also saves kit.storyShape ('template' | 'full' |
+// 'chapters') so "Template default" is a real choice; an untouched channel
+// shows nothing picked. Assign/unassign answers may carry a plain warning
+// (the engine copy of the template could not be updated) — shown as-is.
 //
 // Live-fix wave B1:
 //  - T3-04: the cards, the assignment, the demos and the story shape load
@@ -41,7 +45,7 @@ import { useConfirm } from '@/components/ConfirmDialog';
 import TemplatePreviewMedia from '@/components/TemplatePreviewMedia';
 import { previewFor, ratiosForFormats, majorOf, availableMajors, assignmentSummary } from '@/lib/templates-gallery.mjs';
 import { fetchJsonWithTimeout } from '@/lib/template-media.mjs';
-import { chapterModeOf, chapterValueFor } from '@/lib/channel-kit-ui.mjs';
+import { chapterValueFor, storyModeOf, storyShapeFor } from '@/lib/channel-kit-ui.mjs';
 
 // a request slower than this ends in "Couldn't load — Retry" (T3-04)
 const LOAD_TIMEOUT_MS = 15000;
@@ -57,6 +61,7 @@ const CHAPTER_HINT = {
   chapters: 'Parts with title cards',
 };
 const CHAPTER_NOTE = {
+  unset: 'Not picked yet — pick one so this channel can publish.',
   default: 'Long documentaries follow the template.',
   story: 'Long documentaries play as one continuous story, with no chapter title cards.',
   chapters: 'Long documentaries are split into chapters, each with a title card.',
@@ -104,7 +109,7 @@ export default function TemplateAssignPanel({ slug, frame }) {
   // CI-rendered demos (poster + MP4) — a failure keeps honest placeholders
   const [samples, setSamples] = useState({ status: 'loading', samples: {} });
   // the channel's Full story / Chapters choice (kit.hasChapters)
-  const [chapters, setChapters] = useState({ status: 'loading', mode: 'default', label: '' });
+  const [chapters, setChapters] = useState({ status: 'loading', mode: 'unset', label: '' });
   const [chapterMsg, setChapterMsg] = useState(null); // { ok, text }
 
   // state is only set when a request settles (never synchronously in an effect)
@@ -130,9 +135,9 @@ export default function TemplateAssignPanel({ slug, frame }) {
     fetchJsonWithTimeout(`/api/channels/profile?slug=${encodeURIComponent(slug)}`, { timeoutMs: LOAD_TIMEOUT_MS })
       .then((d) => {
         if (!d.channel) throw new Error('no channel');
-        setChapters({ status: 'ready', mode: chapterModeOf(d.channel.kit), label: d.channel.label || '' });
+        setChapters({ status: 'ready', mode: storyModeOf(d.channel.kit), label: d.channel.label || '' });
       })
-      .catch(() => setChapters({ status: 'error', mode: 'default', label: '' }));
+      .catch(() => setChapters({ status: 'error', mode: 'unset', label: '' }));
   };
   // the loaders only set state when a request settles; they run once per channel
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -181,7 +186,7 @@ export default function TemplateAssignPanel({ slug, frame }) {
       } else if (!r.ok) {
         setMsg({ ok: false, text: d.error || `assignment failed (${r.status})` });
       } else {
-        setMsg({ ok: true, text: `Assigned ${nameOf(templateId)}. The next long video uses v${d.resolvedVersion}.` });
+        setMsg({ ok: true, text: `Assigned ${nameOf(templateId)}. The next long video uses v${d.resolvedVersion}.${d.warning ? ` ${d.warning}` : ''}` });
         setTemplateId('');
         setPinnedMajor('');
         loadAssignments();
@@ -195,7 +200,7 @@ export default function TemplateAssignPanel({ slug, frame }) {
 
   const unassign = async (tid) => {
     // admin-panel review #8: confirm before changing what the channel produces
-    if (!(await confirm({ title: `Unassign ${nameOf(tid)}?`, body: `${channelLabel} goes back to its normal look. You can assign a template again any time.`, confirmLabel: 'Unassign', tone: 'danger' }))) return;
+    if (!(await confirm({ title: `Unassign ${nameOf(tid)}?`, body: `${channelLabel} stops publishing until you pick a template again.`, confirmLabel: 'Unassign', tone: 'danger' }))) return;
     setBusy(tid);
     setMsg(null);
     try {
@@ -206,7 +211,7 @@ export default function TemplateAssignPanel({ slug, frame }) {
       });
       const d = await r.json();
       if (!r.ok) setMsg({ ok: false, text: d.error === 'no_active_assignment' ? 'No active assignment for that template.' : (d.error || `unassign failed (${r.status})`) });
-      else { setMsg({ ok: true, text: 'Unassigned — the channel falls back to its normal engine path.' }); loadAssignments(); }
+      else { setMsg({ ok: true, text: `Unassigned. This channel can't publish until a template is picked again.${d.warning ? ` ${d.warning}` : ''}` }); loadAssignments(); }
     } catch (e) {
       setMsg({ ok: false, text: String(e.message || e) });
     } finally {
@@ -251,7 +256,7 @@ export default function TemplateAssignPanel({ slug, frame }) {
       const r = await fetch('/api/channels/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug, kit: { hasChapters: chapterValueFor(mode) } }),
+        body: JSON.stringify({ slug, kit: { hasChapters: chapterValueFor(mode), storyShape: storyShapeFor(mode) } }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || `save failed (${r.status})`);
@@ -295,7 +300,7 @@ export default function TemplateAssignPanel({ slug, frame }) {
         ) : chapters.status === 'error' ? (
           <div role="alert" className="flex flex-wrap items-center gap-2 t-12" style={{ color: 'var(--warn-ink)' }}>
             <span className="min-w-0 flex-1">The story setting can&apos;t load right now.</span>
-            <button type="button" className="btn btn-outline btn-sm" onClick={() => { setChapters({ status: 'loading', mode: 'default', label: '' }); loadChapters(); }}><RefreshCw size={13} /> Retry</button>
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => { setChapters({ status: 'loading', mode: 'unset', label: '' }); loadChapters(); }}><RefreshCw size={13} /> Retry</button>
           </div>
         ) : (
           <>
@@ -327,7 +332,7 @@ export default function TemplateAssignPanel({ slug, frame }) {
                 })}
               </div>
             ) : (
-              <p className="t-12 text-ink">{CHAPTER_OPTIONS.find((o) => o.value === chapters.mode)?.label}</p>
+              <p className="t-12 text-ink">{CHAPTER_OPTIONS.find((o) => o.value === chapters.mode)?.label || 'Not picked yet'}</p>
             )}
             <p className="t-12 text-muted">
               {chapters.status === 'saving' ? <><Loader2 size={12} className="inline animate-spin mr-1" />Saving… </> : null}

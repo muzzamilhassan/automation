@@ -2,7 +2,8 @@
 // voice, slots). Supports both wizard-added channels and existing living channels.
 import { requireRole, getUser } from '@/lib/route-auth';
 import { appendAudit } from '@/lib/audit';
-import { readRegistry, upsertChannel, stripTokenMaterial } from '@/lib/channels-registry';
+import { readRegistry, readRepoJSON, upsertChannel, stripTokenMaterial } from '@/lib/channels-registry';
+import { channelReadiness, missingLabels } from '@/lib/channel-readiness.mjs';
 import { canAccessChannelSlug } from '@/lib/access';
 import { STYLE_BY_ID } from '@/lib/styles-catalog';
 import { brands } from '@/lib/data.mjs';
@@ -122,18 +123,13 @@ export async function POST(req) {
   if (body.voice != null) entry.voice = String(body.voice).slice(0, 40);
   if (body.accent != null) entry.accent = /^#[0-9a-fA-F]{6}$/.test(body.accent) ? body.accent : entry.accent;
 
-  // 10-09 ACTIVATION CONSENT: autopilot starts ONLY on explicit consent
+  // 10-09 ACTIVATION CONSENT: autopilot starts ONLY on explicit consent.
+  // 2026-11-21 ("100% ready before anything publishes"): the start itself is
+  // decided after every edit below is applied — only a 7/7-ready channel
+  // starts; otherwise the flag is left as it was and the answer says why.
+  let wantsStart = false;
   if (body.startAutopilot === true) {
-    entry.autopilot = true;
-    entry.autopilotStartedAt = new Date().toISOString();
-    entry.consentedAt = entry.autopilotStartedAt;
-    entry.consent = {
-      at: entry.autopilotStartedAt,
-      niche: String(body.niche || entry.niche || '').slice(0, 120),
-      style: entry.style || '',
-      slots: entry.slots || [],
-      docDay: entry.docDay || '',
-    };
+    wantsStart = true;
   } else if (body.startAutopilot === false) {
     entry.autopilot = false;
   }
@@ -239,13 +235,34 @@ export async function POST(req) {
 
   entry.profileSavedAt = new Date().toISOString();
 
+  let autopilotBlocked = null;
+  if (wantsStart) {
+    let cadence = null;
+    try { cadence = await readRepoJSON('yt-mcp/cadence.json'); } catch { cadence = null; } // unreadable = no upload days = not ready (fail closed)
+    const startCheck = channelReadiness({ entry, schedule: cadence?.[slug] || null });
+    if (startCheck.ready) {
+      entry.autopilot = true;
+      entry.autopilotStartedAt = new Date().toISOString();
+      entry.consentedAt = entry.autopilotStartedAt;
+      entry.consent = {
+        at: entry.autopilotStartedAt,
+        niche: String(body.niche || entry.niche || '').slice(0, 120),
+        style: entry.style || '',
+        slots: entry.slots || [],
+        docDay: entry.docDay || '',
+      };
+    } else {
+      autopilotBlocked = { done: startCheck.done, total: startCheck.total, missing: missingLabels(startCheck) };
+    }
+  }
+
   try {
     await upsertChannel(entry, `studio: profile for ${slug}`);
     // admin-panel review #8: every mutating route leaves an audit row
     const actor = (await getUser(req).catch(() => null))?.email || 'owner';
     await appendAudit(actor, 'profile-save', `${slug}: ${Object.keys(body).filter((k) => k !== 'slug').join(',')}`);
     // #122 (SEC-9): the saved entry is echoed WITHOUT token material
-    return Response.json({ ok: true, entry: stripTokenMaterial(entry), ...(guard.kept.length ? { kept: guard.kept } : {}) });
+    return Response.json({ ok: true, entry: stripTokenMaterial(entry), ...(guard.kept.length ? { kept: guard.kept } : {}), ...(autopilotBlocked ? { autopilotBlocked } : {}) });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 502 });
   }

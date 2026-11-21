@@ -10,7 +10,10 @@
 //   hasChapters    — documentaries as one full story (false) or with chapter
 //     dividers (true); null = unset = the template default. Read by
 //     lib/doc-storybook.mjs docPresentation (boolean only).
+//   storyShape     — 'template' | 'full' | 'chapters' (2026-11-21 readiness):
+//     the owner's explicit choice; hasChapters is derived from it.
 import { loadThumbRegistry } from './thumb-registry.mjs';
+import { parseStoryShape, hasChaptersForShape } from './channel-readiness.mjs';
 
 export const MAX_THUMB_TEMPLATES = 8; // API cap
 // UI helpers live in a dependency-free module so client components don't
@@ -51,6 +54,19 @@ export function kitFieldPatch(k) {
     const r = parseHasChapters(k.hasChapters);
     if (!r.ok) return { patch: {}, error: r.error };
     patch.hasChapters = r.value;
+  }
+  // 2026-11-21 readiness: storyShape ('template' | 'full' | 'chapters') makes
+  // "Template default" a real choice. hasChapters (what the engine reads)
+  // always follows it, so the two can never disagree in the kit.
+  if (Object.prototype.hasOwnProperty.call(k, 'storyShape')) {
+    const r = parseStoryShape(k.storyShape);
+    if (!r.ok) return { patch: {}, error: r.error };
+    const want = hasChaptersForShape(r.value);
+    if (Object.prototype.hasOwnProperty.call(patch, 'hasChapters') && patch.hasChapters !== want) {
+      return { patch: {}, error: 'storyShape and hasChapters disagree — send matching values' };
+    }
+    patch.storyShape = r.value;
+    patch.hasChapters = want;
   }
   return { patch };
 }

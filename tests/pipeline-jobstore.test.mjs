@@ -22,6 +22,8 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { ptDate } from '../lib/quota-ledger.mjs';
+import { bySlug } from '../yt-brands/brands.mjs';
+import { readyFilesFor, withReadyDays } from './fixtures/ready-channels.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PIPELINE = path.join(ROOT, 'channel-pipeline.mjs');
@@ -182,7 +184,12 @@ function runPipeline({ state = {}, files = {}, args = [], env = {}, loader = tru
       fs.mkdirSync(path.join(sandbox, 'yt-mcp', 'state'), { recursive: true });
       fs.writeFileSync(path.join(sandbox, 'yt-mcp', 'state', SLUG + '.json'), JSON.stringify(state));
     }
-    for (const [rel, content] of Object.entries(files)) {
+    // 2026-11-21: the pipeline refuses a channel that is not 7/7 ready, so the
+    // sandbox carries the ready registry entry + cadence row (built from the
+    // channel's own static kit — tests/fixtures/ready-channels.mjs)
+    const seeded = { ...readyFilesFor(SLUG, bySlug[SLUG]), ...files };
+    if (files['yt-mcp/cadence.json']) seeded['yt-mcp/cadence.json'] = withReadyDays(SLUG, files['yt-mcp/cadence.json']);
+    for (const [rel, content] of Object.entries(seeded)) {
       const p = path.join(sandbox, rel);
       fs.mkdirSync(path.dirname(p), { recursive: true });
       fs.writeFileSync(p, content);

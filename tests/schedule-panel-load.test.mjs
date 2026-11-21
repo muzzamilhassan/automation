@@ -17,7 +17,7 @@ test('the load checks r.ok and records a load error instead of faking an empty s
 
 test('save refuses while the schedule failed to load; the button is disabled', () => {
   assert.match(src, /if \(loadError \|\| !schedule\) return;/);
-  assert.match(src, /isDisabled=\{saving \|\| Boolean\(loadError\) \|\| !schedule \|\| proj\.blocked \|\| !cronState\.valid \|\| !dirty\}/);
+  assert.match(src, /isDisabled=\{saving \|\| Boolean\(loadError\) \|\| !schedule \|\| proj\.blocked \|\| !cronState\.valid \|\| !dirty \|\| !timesCheck\.ok\}/);
 });
 
 test('the error is shown with a retry', () => {

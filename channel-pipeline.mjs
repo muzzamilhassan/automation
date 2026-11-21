@@ -25,6 +25,13 @@ const TOPUP_N = topupArg ? Math.max(0, Number(topupArg.split('=')[1]) || 0) : 0;
 const { resolveBrand } = await import('./lib/brand-resolve.mjs');
 let b = await resolveBrand(slug);
 if (!b) { console.error(`[pipeline] unknown slug: ${slug}`); process.exit(1); }
+// Owner 2026-11-21 ("100% ready before anything publishes"): a channel that is
+// not 7/7 set up in the panel never produces — even when dispatched directly
+// (the discover step already drops it). Checked before any key, job, quota or
+// network work. exit 0: a refusal is the rule working, not a failed run.
+const { engineReadiness } = await import('./lib/readiness-gate.mjs');
+const readiness = engineReadiness(slug);
+if (!readiness.ready) { console.log(readiness.line); process.exit(0); }
 
 const today = new Date().toISOString().slice(0, 10);
 // 09-20: per-channel state files are the source of truth (lib/state.mjs)

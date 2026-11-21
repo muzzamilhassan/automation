@@ -121,6 +121,9 @@ export default function AddChannel() {
   const [saveError, setSaveError] = useState('');
   const [saved, setSaved] = useState(false);
   const [started, setStarted] = useState(false);
+  // 2026-11-21: "Save & start" on a channel that isn't 7/7 ready saves but
+  // keeps the autopilot off; the server lists what is missing
+  const [startBlocked, setStartBlocked] = useState(null);
 
   const setField = useCallback((key, value) => setForm((f) => withField(f, key, value)), []);
   // T4-16: an eyebrow drafted in IdentityStep (AI / template) gets the
@@ -440,7 +443,8 @@ export default function AddChannel() {
       cleanForm.current = form;
       forgetDraft();
       setSaved(true);
-      setStarted(start === true);
+      setStarted(start === true && !d.autopilotBlocked);
+      setStartBlocked(start === true && d.autopilotBlocked ? d.autopilotBlocked : null);
       loadReg();
     } catch (e) {
       setSaveError(e.message);
@@ -461,6 +465,7 @@ export default function AddChannel() {
   const resetWizard = () => {
     setSaved(false);
     setStarted(false);
+    setStartBlocked(null);
     setConnectedSlug('');
     setEditing(false);
     savedForm.current = null;
@@ -538,6 +543,11 @@ export default function AddChannel() {
                   ? `One short per day at your times, a long episode every ${form.docDay}, Sunday off. Your consent to automated publishing was recorded on ${new Date().toLocaleDateString()} (YouTube API policy). Pause any time from the Channels page.`
                   : 'Nothing publishes until you start it — come back here and press “Save & start autopilot”, or use Resume on the Channels page.'}
               </p>
+              {startBlocked ? (
+                <p className="t-13 mt-2" style={{ color: 'var(--warn-ink)' }}>
+                  Not ready to publish yet ({startBlocked.done}/{startBlocked.total}), so the autopilot stayed off. Still to do: {(startBlocked.missing || []).join(', ')}.
+                </p>
+              ) : null}
               <div className="flex flex-wrap gap-2 mt-4">
                 <Link className="btn btn-primary" href={`/channels/${encodeURIComponent(connectedSlug)}`}>
                   <ExternalLink size={14} /> Open channel page

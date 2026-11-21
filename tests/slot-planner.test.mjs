@@ -266,7 +266,7 @@ test('F5: the drawer computes the cron under the hood; raw cron only inside Adva
 });
 
 test('F6: schedule GET adds live channel times (owner/staff only) via the shared planner', () => {
-  assert.match(ROUTE, /import \{ channelTimes \} from '@\/lib\/slot-planner\.mjs';/);
+  assert.match(ROUTE, /import \{ channelTimes, parsePublishTimes \} from '@\/lib\/slot-planner\.mjs';/);
   assert.match(ROUTE, /\['owner', 'staff'\]\.includes\(user\.role\) \? channelTimes\(reg\.channels \|\| \[\]\) : \[\]/);
   assert.match(PICKER, /fetch\('\/api\/channels\/registry'\)/);
   assert.match(PICKER, /channelTimes\(/);

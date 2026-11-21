@@ -218,14 +218,55 @@ const daySet = (d) => [...new Set((Array.isArray(d) ? d : []).map(String))].sort
 
 // Has the Schedule drawer changed anything since it was loaded/saved?
 // (wave B4, T3-18: Save stays disabled until it has.) Day order is ignored.
+// 2026-11-21: the go-public times (slots, longSlot) count too; a caller that
+// never sends them compares '' with '' (unchanged).
 export function scheduleDirty(saved, draft) {
   if (!saved || !draft) return false;
+  const times = (v) => (Array.isArray(v) ? v.map((s) => String(s).trim()).join(',') : '');
   return (
     daySet(saved.docDays) !== daySet(draft.docDays) ||
     daySet(saved.shortDays) !== daySet(draft.shortDays) ||
     String(saved.shortsSource || '') !== String(draft.shortsSource || '') ||
-    String(saved.gateCron || '').trim() !== String(draft.gateCron || '').trim()
+    String(saved.gateCron || '').trim() !== String(draft.gateCron || '').trim() ||
+    times(saved.slots) !== times(draft.slots) ||
+    String(saved.longSlot || '').trim() !== String(draft.longSlot || '').trim()
   );
+}
+
+export const MAX_SHORT_TIMES = 6; // same cap as the profile route
+
+/**
+ * The Schedule drawer's go-public times (2026-11-21, owner-approved), checked
+ * the same way in the drawer and the schedule route. Only fields that were
+ * SENT change; a blank is refused, never saved (live fix wave A2: a filled
+ * time is never wiped).
+ *   slots    — Shorts go-public times, UTC 'HH:MM' (1–6). Written to kit.slots
+ *              AND the top-level slots (the engine reads a non-empty top-level
+ *              list first — lib/brand-resolve.mjs registryToKit).
+ *   longSlot — long-video go-public time, UTC 'HH:MM' → kit.longSlot.
+ * → { ok: true, kitPatch, top } | { ok: false, error }
+ */
+export function parsePublishTimes(body) {
+  const b = body && typeof body === 'object' ? body : {};
+  const kitPatch = {};
+  const top = {};
+  if (b.slots !== undefined) {
+    if (!Array.isArray(b.slots)) return { ok: false, error: 'Shorts times must be a list of UTC times' };
+    const parsed = b.slots.map(parseHHMM);
+    if (parsed.some((p) => !p)) return { ok: false, error: 'Shorts times must look like HH:MM (UTC)' };
+    const list = [...new Set(parsed.map((p) => toHHMM(p.hour, p.minute)))];
+    if (!list.length) return { ok: false, error: 'Pick at least one Shorts time' };
+    if (list.length > MAX_SHORT_TIMES) return { ok: false, error: `Pick at most ${MAX_SHORT_TIMES} Shorts times` };
+    kitPatch.slots = list;
+    top.slots = list;
+  }
+  if (b.longSlot !== undefined) {
+    if (String(b.longSlot ?? '').trim() === '') return { ok: false, error: 'Pick a long-video time' };
+    const p = parseHHMM(b.longSlot);
+    if (!p) return { ok: false, error: 'The long-video time must look like HH:MM (UTC)' };
+    kitPatch.longSlot = toHHMM(p.hour, p.minute);
+  }
+  return { ok: true, kitPatch, top };
 }
 
 function normaliseAudience(audienceHours) {

@@ -4,10 +4,13 @@
 // skip) AND state pausedUntil=2099-12-31 (yt-daily/yt-deepdive hard-stop even
 // if invoked directly). ON clears both. Already-scheduled videos still publish
 // (they live on YouTube) — pause never recalls anything.
+// 2026-11-21: ON answers 409 (with the missing items) until the channel is
+// 7/7 ready to publish — studio/lib/channel-readiness.mjs.
 import { getUser } from '@/lib/route-auth';
 import { slugsForUser } from '@/lib/access';
 import { readRepoJSON, writeRepoJSON, setChannelAutopilot } from '@/lib/channels-registry';
 import { appendAudit } from '@/lib/audit';
+import { readinessFor, missingLabels } from '@/lib/channel-readiness.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +33,30 @@ export async function PATCH(req) {
     if (!owned || !owned.includes(slug)) return Response.json({ error: 'not your channel' }, { status: 403 });
   } else if (!['owner', 'staff'].includes(user.role)) {
     return Response.json({ error: 'not signed in' }, { status: 401 });
+  }
+
+  // 0. Owner 2026-11-21 ("100% ready before anything publishes"): Resume is
+  // refused until all 7 panel items are set. Checked from the SAME engine
+  // files the autopilot reads (registry + cadence), before any write. Pausing
+  // is never checked. Fail closed: no readable answer = no Resume.
+  if (on) {
+    let readiness;
+    try {
+      const [registry, cadence] = await Promise.all([
+        readRepoJSON('yt-mcp/studio-channels.json'),
+        readRepoJSON('yt-mcp/cadence.json'),
+      ]);
+      readiness = readinessFor({ registry, cadence, slug });
+    } catch (e) {
+      return Response.json({ error: `Couldn't check if this channel is ready to publish — try again (${String(e?.message || e).slice(0, 80)})` }, { status: 503 });
+    }
+    if (!readiness.ready) {
+      return Response.json({
+        error: `Not ready to publish (${readiness.done}/${readiness.total}). Missing: ${missingLabels(readiness).join(', ')}.`,
+        missing: missingLabels(readiness),
+        readiness,
+      }, { status: 409 });
+    }
   }
 
   // 1. registry flag (wizard channels; legacy 4 simply have no entry) —

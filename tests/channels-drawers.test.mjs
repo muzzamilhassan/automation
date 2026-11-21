@@ -51,8 +51,11 @@ test('every panel hands its content to the frame (drawer) when one is given', ()
 });
 
 test('drawer onClose is stable (Drawer re-runs its focus effect when onClose changes)', () => {
-  assert.match(LIST, /const closeDrawer = useCallback\(\(\) => setDrawer\(null\), \[\]\)/);
-  assert.match(SLUG, /const closeDrawer = useCallback\(\(\) => setDrawer\(null\), \[\]\)/);
+  // 2026-11-21: closing also re-reads the readiness checklist; still stable
+  // (reloadReadiness is a useCallback, so the deps never change per render)
+  assert.match(LIST, /const closeDrawer = useCallback\(\(\) => \{ setDrawer\(null\); reloadReadiness\(\); \}, \[reloadReadiness\]\)/);
+  assert.match(SLUG, /const closeDrawer = useCallback\(\(\) => \{ setDrawer\(null\); reloadReadiness\(\); \}, \[reloadReadiness\]\)/);
+  assert.match(read('studio/components/use-readiness.js'), /const reload = useCallback\(/);
 });
 
 test('no window.confirm in any of these files; destructive actions use useConfirm', () => {

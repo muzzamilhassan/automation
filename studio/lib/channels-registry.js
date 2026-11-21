@@ -593,6 +593,58 @@ export async function setChannelCron(slug, cron, message) {
   return { ok: true };
 }
 
+// Owner 2026-11-21 ("100% ready before anything publishes"): the readiness
+// gate reads only the engine file, so panel facts that live elsewhere (the
+// Neon template assignment) or that a schedule save sets (Shorts / long-video
+// go-public times) are written into the entry's kit here. Same shape as
+// setChannelCron: the Neon kit JSONB is read, patched and written back, then
+// the engine file is re-read FRESH and ONLY the target entry changes (no
+// DB→repo rewrite of the entry, so the A2 guards and every other channel stay
+// exactly as they are). A null/undefined patch value deletes that kit key.
+export function patchKit(kit, patch) {
+  const out = { ...(kit && typeof kit === 'object' && !Array.isArray(kit) ? kit : {}) };
+  for (const [k, v] of Object.entries(patch || {})) {
+    if (v === null || v === undefined) delete out[k];
+    else out[k] = v;
+  }
+  return out;
+}
+
+export function applyKitPatchToChannels(channels, slug, kitPatch = {}, top = {}) {
+  let found = false;
+  const next = (Array.isArray(channels) ? channels : []).map((c) => {
+    if (!c || c.slug !== slug) return c;
+    found = true;
+    return { ...c, ...top, kit: patchKit(c.kit, kitPatch) };
+  });
+  return { channels: next, found };
+}
+
+// top = top-level entry fields to set with the kit (only `slots` today: the
+// engine reads a non-empty top-level slots list before kit.slots).
+export async function setChannelKitFields(slug, kitPatch, { top = {}, message } = {}) {
+  const warnings = [];
+  if (dbReady) {
+    try {
+      const rows = await db`SELECT kit FROM channels WHERE slug = ${slug}`;
+      if (rows?.length) {
+        const kit = patchKit(rows[0].kit, kitPatch);
+        await db`UPDATE channels SET kit = ${db.json(kit)} WHERE slug = ${slug}`;
+        if (Array.isArray(top.slots)) await db`UPDATE channels SET slots = ${top.slots} WHERE slug = ${slug}`;
+      }
+    } catch (e) {
+      warnings.push(`db kit update failed: ${String(e.message).slice(0, 100)}`);
+      console.error('[registry] db kit update failed:', String(e.message).slice(0, 100));
+    }
+  }
+  const reg = await readRegistryRepo();
+  const { channels, found } = applyKitPatchToChannels(reg.channels, slug, kitPatch, top);
+  if (!found) return { ok: false, reason: 'not-in-repo-registry', warnings };
+  await writeRepoJSON(REG_PATH, { channels }, message || `kit: ${Object.keys(kitPatch || {}).join(', ')} for ${slug}`);
+  await mirrorFeedBestEffort(channels);
+  return { ok: true, warnings };
+}
+
 export async function writeRegistry(registry, message) {
   // #120 R4 (belt and suspenders): whatever the caller sends, tokenEnc never
   // lands in git — stripped here unconditionally, on every entry.

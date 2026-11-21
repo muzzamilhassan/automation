@@ -16,13 +16,13 @@
 //         (a broken DB must not block schedule saves).
 import { getUser } from '@/lib/route-auth';
 import { canAccessChannelSlug } from '@/lib/access';
-import { readRepoJSON, writeRepoJSON, readRegistry, setChannelCron } from '@/lib/channels-registry';
+import { readRepoJSON, writeRepoJSON, readRegistry, setChannelCron, setChannelKitFields } from '@/lib/channels-registry';
 import { appendAudit } from '@/lib/audit';
 import { validateSchedule, projection, projectWithQuotaModel, cronFromSlots } from '@/lib/schedule-projection';
 import { ensureQuotaModelSchema, loadQuotaModel } from '@/lib/quota-ledger';
 import { adaptPostgres } from '@/lib/provider-routing';
 import { db, dbReady } from '@/lib/db';
-import { channelTimes } from '@/lib/slot-planner.mjs';
+import { channelTimes, parsePublishTimes } from '@/lib/slot-planner.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -162,13 +162,22 @@ export async function POST(req) {
     return Response.json({ error: 'only owner and staff can change scheduling' }, { status: 403 });
   }
   const body = await req.json().catch(() => ({}));
-  const { slug, gateCron: rawGateCron, ...schedule } = body || {};
+  const { slug, gateCron: rawGateCron, slots: rawSlots, longSlot: rawLongSlot, ...schedule } = body || {};
   if (!(await canAccessChannelSlug(user, slug))) return Response.json({ error: 'this channel is not linked to your account' }, { status: 403 });
 
   const explicitCron = validGateCron(rawGateCron);
   if (explicitCron === false) {
     return Response.json({ error: 'gateCron must be daily UTC cron "M H * * *" (e.g. "13 2 * * *")' }, { status: 400 });
   }
+  // 2026-11-21 (owner-approved): the Shorts and long-video go-public times are
+  // edited here too, so every schedule setting lives in one drawer. Only sent
+  // fields change; a blank is refused (never wipes a filled time). Checked
+  // before ANY write, so a bad time never half-saves the schedule.
+  const times = parsePublishTimes({
+    ...(rawSlots !== undefined ? { slots: rawSlots } : {}),
+    ...(rawLongSlot !== undefined ? { longSlot: rawLongSlot } : {}),
+  });
+  if (!times.ok) return Response.json({ error: times.error }, { status: 400 });
 
   const v = validateSchedule(schedule);
   if (!v.ok) return Response.json({ error: v.errors.join('; ') }, { status: 400 });
@@ -196,6 +205,21 @@ export async function POST(req) {
       await mirrorCadenceToNeon((t, p) => db.unsafe(t, p), file);
     } catch (e) {
       console.error('[schedule] neon cadence mirror failed:', String(e.message).slice(0, 100));
+    }
+  }
+
+  // 2026-11-21: the go-public times → kit.slots (+ top-level slots) and
+  // kit.longSlot in Neon and the engine file (kit-only write; other channels
+  // untouched). Written BEFORE the gate-cron step, which reads entry.slots.
+  let timesNote = '';
+  let publishSaved = null;
+  if (Object.keys(times.kitPatch).length) {
+    try {
+      const res = await setChannelKitFields(slug, times.kitPatch, { top: times.top, message: `schedule: go-public times for ${slug}` });
+      if (res.ok) publishSaved = times.kitPatch;
+      else timesNote = 'Go-public times not saved: the channel is not in the engine list yet.';
+    } catch (e) {
+      timesNote = `Go-public times not saved (${String(e?.message || e).slice(0, 120)}) — try again.`;
     }
   }
 
@@ -228,5 +252,5 @@ export async function POST(req) {
   }
 
   try { await appendAudit(user.email, 'channel schedule set', slug); } catch { }
-  return Response.json({ ok: true, slug, schedule: v.clean, gateCron: resolvedCron, projection: proj, warnings: [...(v.warnings || []), ...advisories, ...(gateNote ? [gateNote] : [])] });
+  return Response.json({ ok: true, slug, schedule: v.clean, gateCron: resolvedCron, ...(publishSaved ? { publishSaved } : {}), projection: proj, warnings: [...(v.warnings || []), ...advisories, ...(gateNote ? [gateNote] : []), ...(timesNote ? [timesNote] : [])] });
 }

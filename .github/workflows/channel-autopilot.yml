@@ -91,9 +91,16 @@ jobs:
               console.log('::error::slot-gate module unreadable: ' + (e.message || e));
             }
             let chans = [];
+            // Owner 2026-11-21: only channels 7/7 ready in the panel run. The
+            // upload days live in the cadence file; unreadable = nothing is
+            // ready (fail closed). Each dropped channel is logged with what is missing.
+            let cadence = null;
+            try {
+              cadence = JSON.parse(fs.readFileSync('yt-mcp/cadence.json', 'utf8'));
+            } catch (e) { console.log('::warning::cadence file unreadable — no channel counts as ready: ' + (e.message || e)); }
             try {
               const reg = JSON.parse(fs.readFileSync('yt-mcp/studio-channels.json', 'utf8'));
-              const all = toDiscoverChannels(reg.channels);
+              const all = toDiscoverChannels(reg.channels, { cadence, log: (m) => console.log(m) });
               const target = (process.env.INPUT_CHANNEL || '').trim();
               const sched = (process.env.EVENT_SCHEDULE || '').trim();
               const heartbeat = (process.env.INPUT_HEARTBEAT || '').trim() === '1';

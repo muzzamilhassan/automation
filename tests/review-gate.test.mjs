@@ -15,6 +15,8 @@ import {
   defaultCandidateIndex,
 } from '../studio/lib/review-actions.mjs';
 import { ptDate } from '../lib/quota-ledger.mjs';
+import { bySlug } from '../yt-brands/brands.mjs';
+import { readyFilesFor } from './fixtures/ready-channels.mjs';
 
 // ---------------------------------------------------------------------------
 // #106 Phase 4 T5 (S4) — review gate (D15/C2/M2/M3/M4), approval dispatch
@@ -553,6 +555,9 @@ function runPipeline({ state = {}, args = [], env = {} } = {}) {
   try {
     fs.mkdirSync(path.join(sandbox, 'yt-mcp', 'state'), { recursive: true });
     fs.writeFileSync(path.join(sandbox, 'yt-mcp', 'state', SLUG + '.json'), JSON.stringify(state));
+    // 2026-11-21: the pipeline refuses a not-ready channel — seed the ready
+    // registry entry + cadence row (tests/fixtures/ready-channels.mjs)
+    for (const [rel, content] of Object.entries(readyFilesFor(SLUG, bySlug[SLUG]))) fs.writeFileSync(path.join(sandbox, rel), content);
     const redirects = {
       'job-store.mjs': pathToFileURL(path.join(sandbox, 'spy-jobstore.mjs')).href,
       'script-store.mjs': pathToFileURL(path.join(sandbox, 'spy-scriptstore.mjs')).href,

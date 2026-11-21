@@ -28,7 +28,23 @@
           "gold-standard",
           "pillar"
         ],
-        "gateCron": "53 3 * * *"
+        "gateCron": "53 3 * * *",
+        "voice": "am_fenrir",
+        "description": "Old money habits, quiet luxury, and the rules of understated wealth — in 60 seconds. How generational wealth thinks, spends, and stays silent. New Shorts daily. Subscribe and learn why wealth whispers.",
+        "tags": [
+          "old money",
+          "old money habits",
+          "quiet luxury",
+          "old money aesthetic",
+          "generational wealth",
+          "elegance",
+          "classy lifestyle",
+          "wealth habits",
+          "success habits",
+          "old money rules",
+          "style",
+          "self improvement"
+        ]
       },
       "destinations": {
         "fbPageId": "106473735839651"
@@ -64,7 +80,23 @@
           "coinflip",
           "price-fight"
         ],
-        "gateCron": "47 2 * * *"
+        "gateCron": "47 2 * * *",
+        "voice": "bm_george",
+        "description": "Investing wisdom and stock market psychology in 60 seconds. Timeless principles from Buffett, Munger and Bogle — patience, compounding, and buying fear instead of selling it. New Shorts daily. Build conviction, not panic. Subscribe for daily investing wisdom.",
+        "tags": [
+          "investing",
+          "stock market",
+          "warren buffett",
+          "financial education",
+          "money mindset",
+          "compounding",
+          "value investing",
+          "market psychology",
+          "wealth building",
+          "finance",
+          "investment strategy",
+          "stock market for beginners"
+        ]
       },
       "destinations": {
         "fbPageId": "116157974886564"
@@ -100,7 +132,27 @@
           "ledger",
           "coinflip"
         ],
-        "gateCron": "21 3 * * *"
+        "gateCron": "21 3 * * *",
+        "voice": "bm_daniel",
+        "description": "Money rules that quietly build wealth — one principle per Short. Pay yourself first, automate savings, kill lifestyle creep. Personal finance in 60 seconds, new rule every day. Subscribe and let the rules compound.",
+        "tags": [
+          "personal finance",
+          "money tips",
+          "saving money",
+          "financial freedom",
+          "budgeting",
+          "wealth habits",
+          "money management",
+          "financial literacy",
+          "pay yourself first",
+          "money mindset",
+          "financial planning",
+          "build wealth"
+        ],
+        "storyShape": "template",
+        "templateId": "red-flags-explained",
+        "templateVersion": "1.0.0",
+        "templateMajor": 1
       },
       "destinations": {
         "fbPageId": "1077306835630491"
@@ -136,7 +188,20 @@
           "serif-frame",
           "plinth"
         ],
-        "gateCron": "13 2 * * *"
+        "gateCron": "13 2 * * *",
+        "voice": "am_michael",
+        "tags": [
+          "timeless wisdom",
+          "human psychology",
+          "self respect",
+          "power of silence",
+          "mental strength",
+          "stoicism",
+          "philosophy",
+          "mindset",
+          "self mastery",
+          "boundaries"
+        ]
       },
       "destinations": {
         "fbPageId": "114550268199751",

@@ -273,7 +273,8 @@ test('T2f: the assign route takes templateId — the body param IS the registry 
   assert.match(assignRouteSrc, /db\.assignTemplate\(channelId, templateId/, 'the DB assign call carries templateId');
   assert.match(assignRouteSrc, /db\.unassignTemplate\(channelId, templateId/, 'the DB unassign call carries templateId');
   assert.match(assignRouteSrc, /q\.get\('templateId'\)/, 'the DELETE query fallback reads ?templateId=');
-  assert.match(assignRouteSrc, /\{ ok: true, channelId, templateId \}/, 'the unassign response names templateId');
+  // 2026-11-21: the unassign answer may also carry the readiness-mirror warning
+  assert.match(assignRouteSrc, /\{ ok: true, channelId, templateId(?:, \.\.\.\(warning \? \{ warning \} : \{\}\))? \}/, 'the unassign response names templateId');
   onlyLoaderInvalidLookup(assignRouteSrc, 'assign route');
 });
 

@@ -5,6 +5,9 @@
 // Feedback round 1 (2026-11-19, D5): no warning-reason list — status tiles are
 // shared with the Channels drawer (ChannelStatus) and a REAL open problem shows
 // as ONE red line linking to the Inbox.
+// 2026-11-21 ("100% ready before anything publishes"): a "Ready to publish
+// N/7" checklist card (fixes open the drawers or Edit profile), and Resume
+// stays locked until the channel is 7/7 — the flow route refuses it too (409).
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -16,6 +19,8 @@ import { Card, CardHead, Chip, EmptyState, PageSkeleton, BrandMark } from '@/com
 import { useBrands } from '@/components/use-brands';
 import ChannelDrawers, { CHANNEL_DRAWERS, drawersFor } from '@/components/ChannelDrawers';
 import { ChannelStatus } from '@/components/ChannelOverviewDrawer';
+import ReadinessChecklist from '@/components/ReadinessChecklist';
+import { useReadiness } from '@/components/use-readiness';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { useOpenWarnings } from '@/components/use-open-warnings';
 import { PageMissingMark } from '@/components/shell/page-missing';
@@ -174,9 +179,13 @@ export default function ChannelPage() {
   const [meDone, setMeDone] = useState(false); // wait for the role so a client never flashes "not found"
   const confirm = useConfirm();
   const { rows: openWarningRows } = useOpenWarnings(); // REAL problems only → one red line
+  // the 7-item publish checklist (same answer the engine uses)
+  const { bySlug: readinessBySlug, status: readinessStatus, reload: reloadReadiness } = useReadiness(slug);
   // which shared channel drawer is open (schedule | templates | thumbnails | keys | routing)
   const [drawer, setDrawer] = useState(null);
-  const closeDrawer = useCallback(() => setDrawer(null), []); // stable: Drawer re-focuses when onClose changes
+  // stable (Drawer re-focuses when onClose changes); a closed drawer may have
+  // changed a checklist item, so the readiness is read again
+  const closeDrawer = useCallback(() => { setDrawer(null); reloadReadiness(); }, [reloadReadiness]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
 
@@ -212,11 +221,14 @@ export default function ChannelPage() {
       const d = await r.json().catch(() => ({}));
       setMsg(r.ok
         ? { tone: 'ok', text: on ? 'Autopilot resumed — the next daily run will produce again.' : 'Autopilot paused — already-scheduled videos still publish.' }
-        : { tone: 'bad', text: `${on ? 'Resume' : 'Pause'} failed — ${d.error || `HTTP ${r.status}`}` });
+        : r.status === 409
+          ? { tone: 'bad', text: `Can't resume yet. ${d.error || 'This channel is not ready to publish.'}` }
+          : { tone: 'bad', text: `${on ? 'Resume' : 'Pause'} failed — ${d.error || `HTTP ${r.status}`}` });
     } catch (e) {
       setMsg({ tone: 'bad', text: `${on ? 'Resume' : 'Pause'} failed — ${String(e?.message || e)}` });
     }
     setBusy(false);
+    reloadReadiness();
     // the overview is cached; only the owner may force a fresh pull
     load(role === 'owner');
   };
@@ -291,6 +303,8 @@ export default function ChannelPage() {
   const handle = c.yt && !c.yt.error ? (c.yt.handle || c.yt.title) : c.handle;
   const isClient = role === 'client';
   const drawerKeys = drawersFor(role);
+  const readiness = readinessBySlug[slug] || null; // null = still checking / unknown (the server still decides)
+  const resumeLocked = Boolean(readiness && !readiness.ready);
   const askPause = async () => {
     const ok = await confirm({
       title: `Pause ${label}?`,
@@ -341,8 +355,14 @@ export default function ChannelPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {c.flowPaused ? (
-            <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={askResume}>
-              <Play size={14} /> Resume autopilot
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={busy || resumeLocked}
+              title={resumeLocked ? `Not ready to publish (${readiness.done}/${readiness.total}) — finish the checklist below` : undefined}
+              onClick={askResume}
+            >
+              <Play size={14} /> {resumeLocked ? `Resume — not ready (${readiness.done}/${readiness.total})` : 'Resume autopilot'}
             </button>
           ) : (
             <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={askPause}>
@@ -364,6 +384,11 @@ export default function ChannelPage() {
       {/* status — facts only; a real problem is one red line to the Inbox */}
       <Card className="p-4 mb-4">
         <ChannelStatus c={c} logs={data.logs} now={now} hasProblem={hasProblem} />
+      </Card>
+
+      {/* the 7 things a channel needs before anything publishes */}
+      <Card className="p-4 mb-4">
+        <ReadinessChecklist slug={slug} r={readiness} status={readinessStatus} onOpen={setDrawer} canOpen={(place) => drawerKeys.includes(place)} />
       </Card>
 
       <div className="grid lg:grid-cols-2 gap-4 mb-4">

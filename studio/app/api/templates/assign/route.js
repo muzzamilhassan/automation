@@ -3,7 +3,7 @@
 // DELETE = unassign. Owner-only writes (AC-9); audit rows are written by the
 // DB layer itself — this route only parses, gates, and calls the libs.
 import { getUser } from '@/lib/route-auth';
-import { readRegistry, readRepoJSON } from '@/lib/channels-registry';
+import { readRegistry, readRepoJSON, setChannelKitFields } from '@/lib/channels-registry';
 import { decryptKeys } from '@/lib/keys-vault';
 import { loadRegistryTemplates, validateAssignment, channelConfigFromRegistryEntry } from '@/lib/template-registry';
 import { capabilityProviders, CAPABILITY_BASELINE } from '@/lib/provider-catalog';
@@ -59,6 +59,24 @@ const denyOwner = async (req) => {
   return user?.role === 'owner' ? user : null;
 };
 
+// Owner 2026-11-21 ("100% ready before anything publishes"): the engine's
+// readiness gate reads only the registry file, so every assign/unassign also
+// mirrors the assignment into the entry's kit (templateId + the version the
+// next video uses + the pinned major; nulls clear it). The Neon assignment is
+// already saved when this runs, so a mirror failure never undoes it — it comes
+// back as a plain warning (the channel then reads "template not picked" and
+// stays off: fail closed). Returns the warning text or null.
+async function mirrorTemplate(slug, patch, message) {
+  try {
+    const res = await setChannelKitFields(slug, patch, { message });
+    if (!res.ok) return 'Saved, but this channel is not in the engine list yet, so it still shows as missing a template.';
+    return null;
+  } catch (e) {
+    console.error('[templates/assign] kit mirror failed:', String(e?.message || e).slice(0, 120));
+    return 'Saved, but the engine copy could not be updated — assign it again to retry.';
+  }
+}
+
 async function findChannelEntry(channelId) {
   // readRegistry is DB-first — the canonical channel store (Neon, with the
   // repo file as the CI feed), same accessor the other /api/channels routes use.
@@ -113,7 +131,8 @@ export async function POST(req) {
     const result = await db.assignTemplate(channelId, templateId, pinnedMajor, user.email);
     if (!result.ok) return Response.json({ error: 'assign failed', errors: result.errors || [result.error] }, { status: 422 });
     await appendAudit(user.email, 'template-assign', `${channelId}: ${templateId}${pinnedMajor != null ? ` (major ${pinnedMajor})` : ''}`);
-    return Response.json(result);
+    const warning = await mirrorTemplate(entry.slug, { templateId, templateVersion: result.resolvedVersion || null, templateMajor: pinnedMajor }, `templates: ${entry.slug} uses ${templateId} (readiness mirror)`);
+    return Response.json({ ...result, ...(warning ? { warning } : {}) });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 502 });
   }
@@ -139,7 +158,9 @@ export async function DELETE(req) {
       return Response.json({ error: result.error }, { status });
     }
     await appendAudit(user.email, 'template-unassign', `${channelId}: ${templateId}`);
-    return Response.json({ ok: true, channelId, templateId });
+    const entry = await findChannelEntry(channelId);
+    const warning = await mirrorTemplate(entry?.slug || channelId, { templateId: null, templateVersion: null, templateMajor: null }, `templates: ${entry?.slug || channelId} template removed (readiness mirror)`);
+    return Response.json({ ok: true, channelId, templateId, ...(warning ? { warning } : {}) });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 502 });
   }

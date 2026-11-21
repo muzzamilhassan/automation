@@ -13,6 +13,7 @@ import { LEGACY_SLUGS } from './lib/registry.mjs';
 import { healRouteFor, shouldDispatchHealToday } from './lib/registry-slugs.mjs';
 import { resolveBrand } from './lib/brand-resolve.mjs';
 import { loadEnv, envOf } from './lib/env.mjs';
+import { engineReadiness } from './lib/readiness-gate.mjs';
 
 loadEnv();
 
@@ -127,6 +128,10 @@ for (const slug of CHANNEL_SLUGS) {
       continue;
     }
   } catch { }
+  // Owner 2026-11-21: a channel that is not 7/7 ready in the panel is never
+  // healed — neither by dispatch nor by the in-process yt-daily top-up below.
+  const readiness = engineReadiness(slug);
+  if (!readiness.ready) { log(`⛔ ${readiness.line} — not healing`); continue; }
   // Heal routing: legacy + token-bearing channels heal here in-process; a
   // non-legacy registry channel with no mapped token dispatches to
   // channel-autopilot.yml instead (its matrix resolves the channel's own

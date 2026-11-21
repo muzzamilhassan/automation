@@ -11,7 +11,9 @@ const OWNER_STAFF = ['owner', 'staff'];
 const ALL = ['owner', 'staff', 'client'];
 
 const STAFF_CHANNEL_ROUTES = new Set(['/api/channels/schedule', '/api/channels/clip-queue']);
-const CLIENT_CHANNEL_ROUTES = new Set(['/api/channels/flow', '/api/channels/keys']);
+// /api/channels/readiness (2026-11-21): every role reads the publish checklist;
+// the route itself limits a client to their own channels.
+const CLIENT_CHANNEL_ROUTES = new Set(['/api/channels/flow', '/api/channels/keys', '/api/channels/readiness']);
 
 const RULES = [
   // owner + staff channel controls (checked before the owner-only channel rule)

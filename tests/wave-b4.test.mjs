@@ -219,9 +219,11 @@ const ACCENT = read('studio/components/wizard/AccentPicker.js');
 const THUMB = read('studio/components/wizard/ThumbnailStep.js');
 
 test('X1 (T3-18) Save schedule is disabled until dirty; the baseline resets after a save', () => {
-  assert.match(SCHED, /const dirty = scheduleDirty\(saved, \{ \.\.\.draft, gateCron \}\);/);
-  assert.match(SCHED, /isDisabled=\{saving \|\| Boolean\(loadError\) \|\| !schedule \|\| proj\.blocked \|\| !cronState\.valid \|\| !dirty\}/);
-  assert.match(SCHED, /setSaved\(\{ \.\.\.draft, gateCron: j\.gateCron \|\| gateCron \}\)/);
+  // 2026-11-21: the go-public times joined the dirty check and the baseline
+  // (tests/readiness-panel.test.mjs P6)
+  assert.match(SCHED, /const dirty = scheduleDirty\(saved, \{ \.\.\.draft, gateCron, slots: publish, longSlot: publishLong \|\| '' \}\);/);
+  assert.match(SCHED, /isDisabled=\{saving \|\| Boolean\(loadError\) \|\| !schedule \|\| proj\.blocked \|\| !cronState\.valid \|\| !dirty \|\| !timesCheck\.ok\}/);
+  assert.match(SCHED, /setSaved\(\{ \.\.\.draft, gateCron: j\.gateCron \|\| gateCron, /);
   // declared before use (a use-before-declare broke the build last wave)
   assert.ok(SCHED.indexOf('const [saved, setSaved] = useState(null);') < SCHED.indexOf('const dirty = scheduleDirty('));
 });

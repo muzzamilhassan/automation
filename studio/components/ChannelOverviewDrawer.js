@@ -11,9 +11,14 @@
 // Item D: no warning sentences anywhere. A REAL open problem (bell/Inbox) shows
 // as one small red dot / one red line linking to the Inbox — nothing more.
 // `ChannelStatus` is shared with /channels/[slug] so both read the same.
+//
+// 2026-11-21 ("100% ready before anything publishes"): the 7-item "Ready to
+// publish" checklist sits at the top; its fixes open the matching manage
+// drawer through onManage (same single-drawer state) or link to Edit profile.
 import Link from 'next/link';
 import { Tv, CalendarDays } from 'lucide-react';
 import Drawer from '@/components/Drawer';
+import ReadinessChecklist from '@/components/ReadinessChecklist';
 import { Chip } from '@/components/ui';
 import { CHANNEL_DRAWERS, drawersFor } from '@/components/ChannelDrawers';
 import { timeAgo } from '@/lib/utils';
@@ -94,7 +99,7 @@ export function ChannelStatus({ c, logs, now, hasProblem }) {
   );
 }
 
-export default function ChannelOverviewDrawer({ channel, logs, open, onClose, onManage, role, hasProblem }) {
+export default function ChannelOverviewDrawer({ channel, logs, open, onClose, onManage, role, hasProblem, readiness = null, readinessStatus = 'loading' }) {
   if (!open || !channel) return null;
   const now = new Date();
   const schedule = scheduleSummary(channel);
@@ -107,6 +112,8 @@ export default function ChannelOverviewDrawer({ channel, logs, open, onClose, on
             Full page ↗
           </Link>
         </div>
+
+        <ReadinessChecklist slug={channel.slug} r={readiness} status={readinessStatus} onOpen={onManage} canOpen={(place) => drawersFor(role).includes(place)} />
 
         <ChannelStatus c={channel} logs={logs} now={now} hasProblem={hasProblem} />
 

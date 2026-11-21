@@ -21,7 +21,7 @@ test('other channel management stays owner-only', () => {
 
 test('unchanged rules: engine room owner+staff, thumbs/topics/flow/keys include clients', () => {
   for (const p of ['/production', '/api/action', '/review', '/api/review', '/warnings', '/api/warnings/x', '/create', '/api/create-video']) assert.deepEqual(allowedRoles(p), ['owner', 'staff'], p);
-  for (const p of ['/thumbs', '/api/thumbs/preview', '/topics', '/api/topics', '/api/channels/flow', '/api/channels/keys']) assert.deepEqual(allowedRoles(p), ['owner', 'staff', 'client'], p);
+  for (const p of ['/thumbs', '/api/thumbs/preview', '/topics', '/api/topics', '/api/channels/flow', '/api/channels/keys', '/api/channels/readiness']) assert.deepEqual(allowedRoles(p), ['owner', 'staff', 'client'], p);
 });
 
 test('unlisted paths are open to any signed-in role (null)', () => {
