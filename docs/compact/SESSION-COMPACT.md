@@ -105,6 +105,10 @@ Cloud dry run (no upload): `bash scripts/gh-personal workflow run diagram-dryrun
   - MR 7/7, QQ 4/7, IC 5/7, DFD 5/7, yt-bot 2/7; discover picks only MR.
   - The prefill was applied to Neon + the registry.
   - quarry-render TikTok Post (QuoteQuarry) workflows are disabled.
+- **Kaggle connected (2026-11-22):**
+  - Token is in ~/.kaggle/access_token (outside the repo); GitHub secrets KAGGLE_API_TOKEN + KAGGLE_USERNAME.
+  - Private kernel muzzamilhassan/quarry-voice-demo: Chatterbox-Turbo on a T4 at 2.28× realtime, ~5 min setup (it pins torch 2.6, so torchvision must be uninstalled).
+  - A/B mp3s are on the owner's Desktop › Voice demo; waiting for the owner's listen.
 - **`9a09aab` human voice is a panel setting:**
   - `kit.voiceProfile` {human, mood, speed}; the panel kit wins over lib/brands.json.
   - Manage → Voice drawer; 49 preview mp3s in studio/public/voices/human.
