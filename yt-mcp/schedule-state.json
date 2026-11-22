@@ -212,9 +212,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "QTW2IPWv70A",
-        "publishAt": "2026-11-22T00:05:00Z",
-        "title": "How a $200 Weekly Card Cut Impulse Purchases 86%"
+        "videoId": "lCyEbjjTqak",
+        "publishAt": "2026-11-23T00:05:00Z",
+        "title": "Cut 42 hidden fees and reclaim $3,800 a year"
       }
     ],
     "imageDate": "2026-10-18",
@@ -338,6 +338,11 @@
         "t": "How a $200 Weekly Card Cut Impulse Purchases 86%",
         "at": "2026-11-22T00:05:00Z",
         "v": "QTW2IPWv70A"
+      },
+      {
+        "t": "Cut 42 hidden fees and reclaim $3,800 a year",
+        "at": "2026-11-23T00:05:00Z",
+        "v": "lCyEbjjTqak"
       }
     ],
     "cooldownSeeds": [
@@ -381,7 +386,8 @@
           "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/772264299",
           "startSec": 145.6,
           "durSec": 24,
-          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-02.mp4"
+          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-02.mp4",
+          "postedAt": "2026-11-22T17:41:11.724Z"
         },
         {
           "part": 3,
@@ -403,15 +409,15 @@
         }
       ]
     },
-    "clipLastPostDate": "2026-11-21",
+    "clipLastPostDate": "2026-11-22",
     "uploadsToday": {
-      "date": "2026-11-20",
-      "count": 3
+      "date": "2026-11-22",
+      "count": 1
     },
     "reviewGate": {
       "assigned": true,
       "gated": true,
-      "checkedAt": "2026-11-21T04:01:32.070Z"
+      "checkedAt": "2026-11-22T17:41:05.333Z"
     },
     "usedLongSeeds": [
       "Stop Wasting Vegetables! 8 Freezer Tricks That Save You Money | Annie Tips",
@@ -431,7 +437,8 @@
       "7 Money Rules to Build Wealth in 2027 | Ankur Warikoo",
       "மில்லியனர்கள் ரகசியமாக பின்பற்றும் புதிய Minimalist money rules | silent wealth",
       "The New Rules of Off Grid Living",
-      "Snowball or Avalanche? 2 Ways to Crush Debt ⛰️"
+      "Snowball or Avalanche? 2 Ways to Crush Debt ⛰️",
+      "The 50/30/20 Rule That Can Change Your Finances 💰 #shorts"
     ],
     "deepdiveVideo": {
       "videoId": "frpRhLmamgk",
