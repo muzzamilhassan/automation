@@ -212,9 +212,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "lCyEbjjTqak",
-        "publishAt": "2026-11-23T00:05:00Z",
-        "title": "Cut 42 hidden fees and reclaim $3,800 a year"
+        "videoId": "mAUKrujERSE",
+        "publishAt": "2026-11-24T00:05:00Z",
+        "title": "DIY car AC fix saves $1,280—no mechanic needed"
       }
     ],
     "imageDate": "2026-10-18",
@@ -343,6 +343,11 @@
         "t": "Cut 42 hidden fees and reclaim $3,800 a year",
         "at": "2026-11-23T00:05:00Z",
         "v": "lCyEbjjTqak"
+      },
+      {
+        "t": "DIY car AC fix saves $1,280—no mechanic needed",
+        "at": "2026-11-24T00:05:00Z",
+        "v": "mAUKrujERSE"
       }
     ],
     "cooldownSeeds": [
@@ -396,7 +401,8 @@
           "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/772264335",
           "startSec": 370,
           "durSec": 22.1,
-          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-03.mp4"
+          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-03.mp4",
+          "postedAt": "2026-11-23T03:37:48.181Z"
         },
         {
           "part": 4,
@@ -409,15 +415,15 @@
         }
       ]
     },
-    "clipLastPostDate": "2026-11-22",
+    "clipLastPostDate": "2026-11-23",
     "uploadsToday": {
       "date": "2026-11-22",
-      "count": 1
+      "count": 2
     },
     "reviewGate": {
       "assigned": true,
       "gated": true,
-      "checkedAt": "2026-11-22T17:41:05.333Z"
+      "checkedAt": "2026-11-23T03:37:43.373Z"
     },
     "usedLongSeeds": [
       "Stop Wasting Vegetables! 8 Freezer Tricks That Save You Money | Annie Tips",
@@ -438,7 +444,8 @@
       "மில்லியனர்கள் ரகசியமாக பின்பற்றும் புதிய Minimalist money rules | silent wealth",
       "The New Rules of Off Grid Living",
       "Snowball or Avalanche? 2 Ways to Crush Debt ⛰️",
-      "The 50/30/20 Rule That Can Change Your Finances 💰 #shorts"
+      "The 50/30/20 Rule That Can Change Your Finances 💰 #shorts",
+      "How I saved $100k on an average salary"
     ],
     "deepdiveVideo": {
       "videoId": "frpRhLmamgk",
