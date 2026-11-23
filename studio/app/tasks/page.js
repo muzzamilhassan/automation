@@ -4,6 +4,10 @@
 //   Open warnings          ← /api/warnings  (the durable alert triage source)
 //   Awaiting your approval ← /api/review    (held scripts before any render)
 //   Recently resolved      ← /api/warnings resolved tail (proof of motion)
+//   Questions (on top)     ← /api/asks (Creator City item 6: typed asks with
+//                            buttons; an ask made from a warning stands in
+//                            for that warning's row — the bell/count stay
+//                            warning-based, so nothing is counted twice)
 // Owner/staff only — both APIs gate on role; clients get an honest state.
 import { useEffect, useState } from 'react';
 import { SquareKanban, OctagonAlert, ScrollText, CircleCheck, Circle } from 'lucide-react';
@@ -11,6 +15,7 @@ import { Card, CardHead, Chip, PageHeader } from '@/components/ui';
 import Link from 'next/link';
 import { groupRealWarnings, needsYou } from '@/lib/notify-policy.mjs';
 import { withoutDrills } from '@/lib/drill-rows.mjs'; // wave C2 (T1-17): drills never reach the owner's lists
+import InboxAsks from '@/components/InboxAsks';
 
 const sevTone = { blocking: 'bad', action_required: 'warn', warning: 'warn', advisory: 'info', informational: 'plain' }; // P0-9 real keys
 
@@ -18,6 +23,8 @@ export default function Tasks() {
   const [warnings, setWarnings] = useState(null); // {open, resolved} | 'denied'
   const [pending, setPending] = useState(null);   // scripts[] | 'denied'
   const [loaded, setLoaded] = useState(false);
+  const [asks, setAsks] = useState(null);         // {list, canAnswer} | 'denied' | 'error'
+  const [tick, setTick] = useState(0);            // bump = reload every source (after an answer)
 
   useEffect(() => {
     let alive = true;
@@ -29,9 +36,13 @@ export default function Tasks() {
       .then((r) => (r.status === 401 || r.status === 403 ? 'denied' : r.ok ? r.json() : 'error'))
       .then((d) => { if (alive) setPending(d === 'denied' ? 'denied' : d === 'error' ? 'error' : (d.scripts || [])); })
       .catch(() => { if (alive) setPending('error'); });
+    fetch('/api/asks')
+      .then((r) => (r.status === 401 || r.status === 403 ? 'denied' : r.ok ? r.json() : 'error'))
+      .then((d) => { if (alive) setAsks(d === 'denied' || d === 'error' ? d : { list: d.asks || [], canAnswer: d.canAnswer === true }); })
+      .catch(() => { if (alive) setAsks('error'); });
     const t = setTimeout(() => { if (alive) setLoaded(true); }, 400);
     return () => { alive = false; clearTimeout(t); };
-  }, []);
+  }, [tick]);
 
   const denied = warnings === 'denied' && pending === 'denied';
   const anyError = warnings === 'error' || pending === 'error';
@@ -40,6 +51,11 @@ export default function Tasks() {
   // Open rows stay as they are so this count matches the bell and Today (one
   // number everywhere); an OPEN drill is a live exercise the owner is running.
   const open = Array.isArray(warnings?.open) ? groupRealWarnings(warnings.open) : [];
+  // Creator City item 6: a warning that a question covers shows as the
+  // question only (one item); the count above stays the bell's number.
+  const askList = asks && typeof asks === 'object' ? asks.list : [];
+  const covered = new Set(askList.flatMap((a) => a.covers || []));
+  const openShown = Array.isArray(warnings?.open) ? groupRealWarnings(warnings.open.filter((w) => !covered.has(String(w.id)))) : [];
   // wave C2 (T1-17): finished drills/tests ("DRILL 2: simulated revoked token")
   // are not the owner's history
   const resolved = Array.isArray(warnings?.resolved) ? withoutDrills(warnings.resolved) : [];
@@ -64,6 +80,9 @@ export default function Tasks() {
     <div>
       <PageHeader icon={SquareKanban} title="Inbox" sub={!loaded || warnings === null || pending === null ? 'loading live queue…' : anyError ? "some sources can't be checked right now — counts may be incomplete" : `${need.count} things need you · ${need.alerts} problems · ${need.approvals} awaiting approval`} />
 
+      <InboxAsks asks={askList} canAnswer={asks?.canAnswer === true} onAnswered={() => setTick((n) => n + 1)} />
+      {asks === 'error' ? <p className="t-11 mb-3" style={{ color: 'var(--bad-ink)' }}>Questions can&apos;t be checked right now.</p> : null}
+
       {/* Live fix wave B3 (T1-03): min-w-0 grid items + wrapping titles — one
           long alert title used to stretch the page to 980px on phones */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -74,7 +93,7 @@ export default function Tasks() {
             </span>
             <div className="min-w-0 flex-1">
               <h2 className="section-title truncate">Open warnings</h2>
-              <p className="t-11 text-faint">{warnings === 'denied' || warnings === 'error' ? '—' : warnings === null ? 'checking…' : `${open.length} unresolved`}</p>
+              <p className="t-11 text-faint">{warnings === 'denied' || warnings === 'error' ? '—' : warnings === null ? 'checking…' : `${openShown.length} unresolved`}</p>
             </div>
           </div>
           {warnings === 'denied' ? (
@@ -85,9 +104,11 @@ export default function Tasks() {
             <div className="space-y-1.5">{[0, 1, 2].map((i) => <div key={i} className="skeleton h-8" />)}</div>
           ) : open.length === 0 ? (
             <p className="t-12 text-faint px-1">Nothing unresolved — all probes quiet.</p>
+          ) : openShown.length === 0 ? (
+            <p className="t-12 text-faint px-1">Every open problem is a question above.</p>
           ) : (
             <ul className="space-y-1">
-              {open.slice(0, 8).map((w) => (
+              {openShown.slice(0, 8).map((w) => (
                 <li key={w.id}>
                   <Link href="/warnings" className="inset-tile px-3 py-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 min-w-0 hover:bg-surface-2 transition-colors">
                     <span className="shrink-0"><Chip tone={sevTone[w.severity] || 'plain'} dot>{w.severity}</Chip></span>

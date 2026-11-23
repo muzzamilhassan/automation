@@ -151,6 +151,11 @@ function scriptToApproval(script) {
     case 'consumed':
       return { state: 'done', at: toIso(script.approval_at) ?? toIso(script.updated_at), detail: 'Approved' };
     case 'rejected':
+      // Inbox "Skip it" (skipApproved) lands as rejected with a "skipped" note:
+      // the owner's choice, not a failure — show it as skipped, not red.
+      if (/^skipped/i.test(String(script.rejected_note || ''))) {
+        return { state: 'skipped', at: toIso(script.rejected_at) ?? toIso(script.updated_at), detail: 'You skipped it' };
+      }
       return { state: 'failed', at: toIso(script.rejected_at) ?? toIso(script.updated_at), detail: 'You rejected it' };
     default:
       return null; // draft: nothing to say yet

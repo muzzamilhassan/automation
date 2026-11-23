@@ -60,7 +60,8 @@ test('isDocDue: never-produced channel is due on/after a doc day; no doc days ->
 test('wiring: yt-deepdive guards on isDocDue with the channel\'s last doc date', async () => {
   const fs = await import('node:fs');
   const src = fs.readFileSync('yt-deepdive.mjs', 'utf8');
-  assert.match(src, /if \(!isDocDue\(b, state\[slug\]\?\.deepdiveDate\) && !FORCE && !GENERATE_ONLY\)/);
+  // "Ask the factory" (2026-11-23): an owner-given doc topic bypasses the cadence too (never via --force)
+  assert.match(src, /if \(!isDocDue\(b, state\[slug\]\?\.deepdiveDate\) && !FORCE && !GENERATE_ONLY && !FACTORY_DOC_TOPIC\)/);
   assert.doesNotMatch(src, /if \(!isDocDay\(b\) && !FORCE/, 'the strict today-only guard is gone');
 });
 

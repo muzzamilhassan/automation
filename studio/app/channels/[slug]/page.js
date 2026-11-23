@@ -8,6 +8,9 @@
 // 2026-11-21 ("100% ready before anything publishes"): a "Ready to publish
 // N/7" checklist card (fixes open the drawers or Edit profile), and Resume
 // stays locked until the channel is 7/7 — the flow route refuses it too (409).
+// Creator City station drawer (research §5 item 7, 2026-11-23): a "Stations"
+// row (owner + staff) — one button per production station opens StationDrawer
+// (that station's settings in one place + its last 5 results).
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -18,6 +21,7 @@ import {
 import { Card, CardHead, Chip, EmptyState, PageSkeleton, BrandMark } from '@/components/ui';
 import { useBrands } from '@/components/use-brands';
 import ChannelDrawers, { CHANNEL_DRAWERS, drawersFor } from '@/components/ChannelDrawers';
+import StationDrawer from '@/components/StationDrawer';
 import { ChannelStatus } from '@/components/ChannelOverviewDrawer';
 import ReadinessChecklist from '@/components/ReadinessChecklist';
 import { useReadiness } from '@/components/use-readiness';
@@ -33,6 +37,7 @@ import {
 } from '@/lib/channel-overview.mjs';
 import { channelDisplayName, channelInitials } from '@/lib/channel-display.mjs';
 import { KIND_LABEL } from '@/lib/library-view.mjs';
+import { STATIONS } from '@/lib/stations.mjs';
 
 const YT_ID = /^[A-Za-z0-9_-]{11}$/;
 
@@ -188,6 +193,9 @@ export default function ChannelPage() {
   const closeDrawer = useCallback(() => { setDrawer(null); reloadReadiness(); }, [reloadReadiness]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
+  // which station drawer is open (a lib/stations.mjs key) — owner + staff only
+  const [station, setStation] = useState(null);
+  const closeStation = useCallback(() => { setStation(null); reloadReadiness(); }, [reloadReadiness]);
 
   const load = useCallback((fresh = false) => {
     return fetch(fresh ? '/api/overview?fresh=1' : '/api/overview')
@@ -391,6 +399,20 @@ export default function ChannelPage() {
         <ReadinessChecklist slug={slug} r={readiness} status={readinessStatus} onOpen={setDrawer} canOpen={(place) => drawerKeys.includes(place)} />
       </Card>
 
+      {/* the 7 production stations: settings in one place + last 5 results */}
+      {role === 'owner' || role === 'staff' ? (
+        <Card className="p-4 mb-4">
+          <h2 className="overline mb-2">Stations</h2>
+          <div className="flex flex-wrap gap-2">
+            {STATIONS.map((s) => (
+              <button key={s.key} type="button" className="btn btn-outline btn-sm" onClick={() => setStation(s.key)}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </Card>
+      ) : null}
+
       <div className="grid lg:grid-cols-2 gap-4 mb-4">
         {/* today & schedule */}
         <Card>
@@ -502,6 +524,7 @@ export default function ChannelPage() {
       </Card>
 
       <ChannelDrawers slug={slug} label={label} open={drawer} onClose={closeDrawer} />
+      <StationDrawer open={Boolean(station)} onClose={closeStation} slug={slug} label={label} station={station} />
     </div>
   );
 }

@@ -312,6 +312,34 @@ export function makeScriptStore(deps) {
   }
 
   /**
+   * Owner skip of an APPROVED script that never became a video (Inbox
+   * question, Creator City item 6): approved + video_id NULL -> rejected —
+   * the existing terminal (no new status; the reason lands in rejected_note).
+   * ONE guarded UPDATE, so a video that lands in between is never skipped.
+   * Afterwards approvedNotPublished / the nightly sweep stop flagging it and
+   * staleReviewReason closes its alert as "skipped". Not approved-and-
+   * unpublished any more -> { ok:false, reason:'already_changed', status }.
+   */
+  async function skipApproved(id, { by, reason = 'skipped by owner' } = {}) {
+    try {
+      if (!isNonEmptyString(by)) return { ok: false, error: 'skipped_by_required' };
+      const ensured = await ensureSchema();
+      if (!ensured.ok) return { ok: false, error: ensured.error };
+      const rows = await dbClient(
+        `UPDATE scripts SET status = 'rejected', rejected_by = $2, rejected_at = $3, rejected_note = $4, updated_at = $3
+         WHERE id = $1 AND status = 'approved' AND video_id IS NULL RETURNING id`,
+        [id, by, now(), reason],
+      );
+      if (rows?.length) return { ok: true, id };
+      const cur = await statusOf(id);
+      if (!cur) return { ok: false, reason: 'not_found' };
+      return { ok: false, reason: 'already_changed', status: cur };
+    } catch (e) {
+      return degrade(e);
+    }
+  }
+
+  /**
    * The /review list (D16): awaiting_review scripts — channel, template,
    * title, the Phase 3 dedupe verdict joined, created_at for the age column.
    * channelId null enumerates every channel's queue.
@@ -524,6 +552,7 @@ export function makeScriptStore(deps) {
     saveScript,
     approve,
     reject,
+    skipApproved,
     pendingFor,
     approvedNotPublished,
     getScript,

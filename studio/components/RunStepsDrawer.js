@@ -8,17 +8,23 @@
 // run id: the API then returns one job per channel and a Segmented control
 // switches between them. Data: GET /api/runs/steps; view logic in
 // lib/station-dots-view.mjs. Footer: the raw GitHub log when its URL is known.
-import { useEffect, useState } from 'react';
+// Station drawer (research §5 item 7): each big dot is a button that opens
+// StationDrawer (that station's settings + last 5 results) for the job's
+// channel, nested on top; this drawer ignores closes while it is open.
+import { useCallback, useEffect, useState } from 'react';
 import { ListChecks, AlertTriangle, History, RotateCw } from 'lucide-react';
 import Drawer from '@/components/Drawer';
 import StationDots from '@/components/StationDots';
+import StationDrawer, { useGuardedClose } from '@/components/StationDrawer';
+import { useBrands } from '@/components/use-brands';
 import { Chip, EmptyState, Segmented, Skeleton } from '@/components/ui';
 import apiFetch from '@/components/shell/api-fetch';
 import { STATE_WORD, STATE_TONE } from '@/lib/stations.mjs';
-import { stepsUrl, stepsView, browserTimeZone } from '@/lib/station-dots-view.mjs';
+import { stepsUrl, stepsView, browserTimeZone, normalizeStrip, dotTitle } from '@/lib/station-dots-view.mjs';
 import { stamp } from '@/lib/runs-view.mjs';
+import { channelDisplayName } from '@/lib/channel-display.mjs';
 
-function StepsBody({ url, startedAt, labels }) {
+function StepsBody({ url, startedAt, labels, onStation }) {
   const [attempt, setAttempt] = useState(0);
   const key = `${url}#${attempt}`;
   const [res, setRes] = useState({ key: null, view: null });
@@ -58,12 +64,12 @@ function StepsBody({ url, startedAt, labels }) {
     );
   }
 
-  if (view.kind === 'multi') return <FleetRun items={view.items} startedAt={startedAt} labels={labels} />;
-  return <OneRun view={view} startedAt={startedAt} />;
+  if (view.kind === 'multi') return <FleetRun items={view.items} startedAt={startedAt} labels={labels} onStation={onStation} />;
+  return <OneRun view={view} startedAt={startedAt} onStation={onStation} />;
 }
 
 // One GitHub run, several channels: pick a channel, see its run.
-function FleetRun({ items, startedAt, labels }) {
+function FleetRun({ items, startedAt, labels, onStation }) {
   const [pick, setPick] = useState(items[0].channel);
   const current = items.find((i) => i.channel === pick) || items[0];
   const options = items.map((i) => ({ value: i.channel, label: labels?.[i.channel]?.label || i.channel || 'Channel' }));
@@ -72,12 +78,36 @@ function FleetRun({ items, startedAt, labels }) {
       <div className="overflow-x-auto max-w-full -mx-1 px-1">
         <Segmented options={options} value={current.channel} onChange={setPick} />
       </div>
-      <OneRun view={current.view} startedAt={startedAt} />
+      <OneRun view={current.view} startedAt={startedAt} onStation={onStation} />
     </div>
   );
 }
 
-function OneRun({ view, startedAt }) {
+// The big labelled dots; when the job's channel is known each one is also a
+// button (same 7-column grid laid over the dots) that opens its station.
+function ClickableDots({ strip, channel, onStation }) {
+  if (!channel || !onStation) return <StationDots stations={strip} size="lg" />;
+  return (
+    <div className="relative">
+      <StationDots stations={strip} size="lg" />
+      <div className="absolute inset-0 grid grid-cols-7 gap-1">
+        {normalizeStrip(strip).map((d) => (
+          <button
+            key={d.key}
+            type="button"
+            data-kit="tile"
+            onClick={() => onStation({ station: d.key, channel })}
+            title={`${dotTitle(d)} — settings and last 5`}
+            aria-label={`${d.label}: settings and last 5`}
+            className="rounded-lg cursor-pointer hover:ring-1 hover:ring-[var(--line)]"
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function OneRun({ view, startedAt, onStation }) {
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
   const when = view.job.startedAt || startedAt;
   return (
@@ -88,7 +118,7 @@ function OneRun({ view, startedAt }) {
         {view.jobError ? <p className="t-12 break-words" style={{ color: 'var(--bad-ink)' }}>{view.jobError}</p> : null}
       </div>
 
-      <StationDots stations={view.strip} size="lg" />
+      <ClickableDots strip={view.strip} channel={view.job?.channel || null} onStation={onStation} />
 
       <section>
         <h3 className="overline mb-2">Steps</h3>
@@ -118,19 +148,36 @@ function OneRun({ view, startedAt }) {
  */
 export default function RunStepsDrawer({ open, onClose, target }) {
   if (!open || !target) return null;
+  return <RunSteps onClose={onClose} target={target} />;
+}
+
+function RunSteps({ onClose, target }) {
+  const [station, setStation] = useState(null); // { station, channel } open on top, or null
+  const { bySlug } = useBrands(); // the station drawer names the CHANNEL (never the run name)
+  const closeStation = useCallback(() => setStation(null), []);
+  const guardedClose = useGuardedClose(onClose, Boolean(station));
   const url = stepsUrl(target, browserTimeZone());
   return (
-    <Drawer
-      open
-      onClose={onClose}
-      title={target.name || 'Run steps'}
-      icon={ListChecks}
-      size="lg"
-      footer={target.logUrl ? (
-        <a href={target.logUrl} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">Raw log ↗</a>
-      ) : null}
-    >
-      <StepsBody key={url || 'none'} url={url} startedAt={target.startedAt} labels={target.labels} />
-    </Drawer>
+    <>
+      <Drawer
+        open
+        onClose={guardedClose}
+        title={target.name || 'Run steps'}
+        icon={ListChecks}
+        size="lg"
+        footer={target.logUrl ? (
+          <a href={target.logUrl} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">Raw log ↗</a>
+        ) : null}
+      >
+        <StepsBody key={url || 'none'} url={url} startedAt={target.startedAt} labels={target.labels} onStation={setStation} />
+      </Drawer>
+      <StationDrawer
+        open={Boolean(station)}
+        onClose={closeStation}
+        slug={station?.channel}
+        label={station ? channelDisplayName(bySlug[station.channel]?.label, station.channel) : ''}
+        station={station?.station}
+      />
+    </>
   );
 }

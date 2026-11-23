@@ -69,6 +69,13 @@ const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z
 
 const slug = process.argv[2];
 const FORCE = process.argv.includes('--force');
+// "Ask the factory" (2026-11-23): the owner's topic for ONE documentary
+// (workflow FACTORY_TOPIC, manual single-channel dispatch, lane doc), sanitised
+// by the shared planner module. Unset = null: no import, the theme is
+// researched exactly as before.
+const FACTORY_DOC_TOPIC = process.env.FACTORY_TOPIC
+  ? (await import('./studio/lib/factory-plan.mjs')).factoryTopicFor('doc', process.env)
+  : null;
 const b = (await resolveBrand(slug)) || bySlug[slug];
 if (!b) { console.error('unknown slug (no legacy kit and no registry entry):', slug); process.exit(1); }
 // T5c round 1 (IMPORTANT 2): the page-like object getTopicClip expects — the
@@ -1127,12 +1134,15 @@ const DOC_DAY_NAME = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(
 // doc run never reaches this guard (the branch above exits first).
 // audit 2026-11-13 #10 (catch-up): due when the latest doc day has no doc yet —
 // a doc day missed by a dropped cron tick is made up on the next run (once).
-if (!isDocDue(b, state[slug]?.deepdiveDate) && !FORCE && !GENERATE_ONLY) {
+// "Ask the factory": an owner-given documentary topic is a deliberate order —
+// it bypasses the doc-day cadence too (never via --force), while the
+// already-produced-today and pause guards still apply.
+if (!isDocDue(b, state[slug]?.deepdiveDate) && !FORCE && !GENERATE_ONLY && !FACTORY_DOC_TOPIC) {
   const days = docDaysOf(b);
   console.log(`[${slug}] doc day${days.length === 1 ? '' : 's'} ${days.join('/') || '(none configured)'} (today is ${DOC_DAY_NAME}; last doc ${state[slug]?.deepdiveDate || 'never'}) — episode skipped`);
   process.exit(0);
 }
-const catchingUp = !FORCE && !GENERATE_ONLY && !isDocDay(b);
+const catchingUp = !FORCE && !GENERATE_ONLY && !FACTORY_DOC_TOPIC && !isDocDay(b);
 if (catchingUp) console.log(`[${slug}] catching up a missed doc day (${mostRecentDocDay(b)}; last doc ${state[slug]?.deepdiveDate || 'never'})`);
 if (state[slug]?.deepdiveDate === today() && !FORCE) {
   console.log(`[${slug}] deep-dive already produced today — skipping (--force to override)`);
@@ -1214,7 +1224,12 @@ let theme = null;
 let longSeed = null;
 await resetStations(); // the doc lane starts from a clean strip
 await station('topic', 'running');
-try {
+if (FACTORY_DOC_TOPIC) {
+  // the owner chose the topic: no trend pick, no seed (nothing rotates); the
+  // script, review gate, render and upload below run exactly as normal
+  console.log(`[factory] documentary topic given by the owner: ${FACTORY_DOC_TOPIC}`);
+  theme = `Build today's documentary about this exact topic the channel owner chose: ${FACTORY_DOC_TOPIC}. Make it a deep, original ${b.label} episode with a fresh angle — stay on this topic.`;
+} else try {
   const { researchTrend } = await import('./trend-research.mjs');
   const tokLong = JSON.parse(process.env[`YT_TOKEN_${slug.toUpperCase().replace(/-/g, '_')}`] || fs.readFileSync(path.resolve(HERE, `yt-mcp/channels/${slug}/token.json`), 'utf8'));
   const oauthLong = new google.auth.OAuth2(process.env.YOUTUBE_CLIENT_ID, process.env.YOUTUBE_CLIENT_SECRET);

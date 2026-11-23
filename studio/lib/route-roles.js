@@ -10,7 +10,9 @@ const OWNER = ['owner'];
 const OWNER_STAFF = ['owner', 'staff'];
 const ALL = ['owner', 'staff', 'client'];
 
-const STAFF_CHANNEL_ROUTES = new Set(['/api/channels/schedule', '/api/channels/clip-queue']);
+// /api/channels/profile (2026-11-23, station drawer): staff READ the profile; its
+// POST re-checks owner in the route (requireRole owner), so writes stay owner-only.
+const STAFF_CHANNEL_ROUTES = new Set(['/api/channels/schedule', '/api/channels/clip-queue', '/api/channels/profile']);
 // /api/channels/readiness (2026-11-21): every role reads the publish checklist;
 // the route itself limits a client to their own channels.
 const CLIENT_CHANNEL_ROUTES = new Set(['/api/channels/flow', '/api/channels/keys', '/api/channels/readiness']);
@@ -21,12 +23,12 @@ const RULES = [
   // owner only — settings, wizard/channel management, connect-link minting, team,
   // sessions admin (#106: the page only — /api/sessions stays self-service and
   // re-checks owner mode server-side)
-  { match: (p) => p === '/settings' || p === '/users' || p === '/sessions' || p.startsWith('/api/users') || p.startsWith('/api/team') || p === '/api/oauth/start' || p.startsWith('/api/accounts') || (p.startsWith('/api/channels/') && !CLIENT_CHANNEL_ROUTES.has(p)), roles: OWNER },
+  { match: (p) => p === '/settings' || p === '/users' || p === '/sessions' || p.startsWith('/api/users') || p.startsWith('/api/team') || p === '/api/oauth/start' || p.startsWith('/api/accounts') || p.startsWith('/api/factory') || (p.startsWith('/api/channels/') && !CLIENT_CHANNEL_ROUTES.has(p)), roles: OWNER },
   // owner + staff — the engine room (clients live on Topics/Analytics/Channels).
   // #106 T5: /review (the approval desk) and /warnings (the durable alert
   // record) join it — fail-closed approvals stay owner-only at the ROUTE
   // (staff read + prepare here; the routes re-check every mutation).
-  { match: (p) => p === '/production' || p === '/api/action' || p === '/runs' || p.startsWith('/api/runs') || p === '/calendar' || p.startsWith('/api/calendar') || p.startsWith('/api/stations') || p === '/music' || p === '/social' || p.startsWith('/api/audit') || p === '/review' || p === '/warnings' || p.startsWith('/api/review') || p.startsWith('/api/warnings'), roles: OWNER_STAFF },
+  { match: (p) => p === '/production' || p === '/api/action' || p === '/runs' || p.startsWith('/api/runs') || p === '/calendar' || p.startsWith('/api/calendar') || p.startsWith('/api/stations') || p.startsWith('/api/asks') || p === '/music' || p === '/social' || p.startsWith('/api/audit') || p === '/review' || p === '/warnings' || p.startsWith('/api/review') || p.startsWith('/api/warnings'), roles: OWNER_STAFF },
   { match: (p) => p === '/create' || p.startsWith('/api/create-video'), roles: OWNER_STAFF },
   { match: (p) => p === '/thumbs' || p.startsWith('/api/thumbs/'), roles: ALL },
   // clients join the Topic Desk for their own channels (server checks ownership)

@@ -3,14 +3,21 @@
 // not the 40-row activity slice. Channel names come live from useBrands()
 // (never slugs); a failed source is shown as "may be missing videos", never
 // as a complete list.
+// Creator City Phase 2 item 5 (2026-11-23): "everything made" — tabs Videos ·
+// Scripts · Voice · Thumbnails · Research (?tab=, a history push). Videos is
+// the list below, unchanged; the other tabs are components/library/*, fed by
+// /api/library/artifacts. Tab counts are real (a counts-only call).
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Film, Search, ArrowUpRight, AlertTriangle, RotateCw, Copy } from 'lucide-react';
+import { Film, Search, ArrowUpRight, AlertTriangle, RotateCw, Copy, FileText, Mic, Image as ImageIcon, Lightbulb } from 'lucide-react';
 import { Card, Chip, PageHeader, PageSkeleton, EmptyState, BrandMark, Segmented } from '@/components/ui';
 import { useBrands } from '@/components/use-brands'; // #125: live channel names + marks
 import { when, timeAgo } from '@/lib/utils';
 import { filterLibrary, KIND_LABEL, LINK_NOTE, countLine, libraryFilters, libraryHref } from '@/lib/library-view.mjs';
+import { libraryTab, ARTIFACT_TABS } from '@/lib/library-artifacts.mjs';
 import DataTable from '@/components/DataTable';
+import TabNav from '@/components/TabNav';
+import ArtifactGrid from '@/components/library/ArtifactGrid';
 
 const FETCH_LIMIT = 200; // the route's max page
 const STEP = 24; // grid / phone list reveal step
@@ -20,8 +27,63 @@ export default function VideosPage() {
   // useSearchParams needs a Suspense boundary (brief rule 7)
   return (
     <Suspense fallback={<PageSkeleton />}>
-      <Library />
+      <LibraryTabs />
     </Suspense>
+  );
+}
+
+const TABS = [
+  { id: 'videos', label: 'Videos', icon: Film },
+  { id: 'scripts', label: 'Scripts', icon: FileText },
+  { id: 'voice', label: 'Voice', icon: Mic },
+  { id: 'thumbnails', label: 'Thumbnails', icon: ImageIcon },
+  { id: 'research', label: 'Research', icon: Lightbulb },
+];
+
+// the shell: header, tabs with real counts, and the active tab's panel
+function LibraryTabs() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const tab = libraryTab(searchParams);
+  const channel = searchParams.get('channel') || 'all';
+  const [artCounts, setArtCounts] = useState(null);
+  // the Videos badge reuses the Videos list's own total (reported up by
+  // <Library>) — no extra /api/library call; unknown until that list loads
+  const [videoCount, setVideoCount] = useState({ key: null, n: null });
+
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/library/artifacts')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => alive && setArtCounts(d?.ok ? d.counts : null))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const badgeFor = (id) => {
+    if (id === 'videos') return videoCount.key === channel ? videoCount.n : null;
+    const c = artCounts?.[ARTIFACT_TABS[id]];
+    if (!c) return null;
+    return channel === 'all' ? c.total : c.byChannel?.[channel] || 0;
+  };
+  const tabs = TABS.map((t) => ({ ...t, badge: badgeFor(t.id) }));
+  const go = (patch) => router.push(libraryHref(pathname, searchParams.toString(), patch), { scroll: false });
+
+  return (
+    <div className="min-w-0">
+      <PageHeader icon={Film} title="Library" />
+      <TabNav tabs={tabs} activeTab={tab} paramName={null} onChange={(id) => go({ tab: id === 'videos' ? null : id })} className="mb-4" />
+      <div role="tabpanel" id={`tabpanel-${tab}`} aria-labelledby={`tab-${tab}`} className="min-w-0">
+        {tab === 'videos' ? (
+          <Library onTotal={setVideoCount} />
+        ) : (
+          <ArtifactGrid kind={ARTIFACT_TABS[tab]} channel={channel} counts={artCounts} onChannel={(v) => go({ channel: v })} />
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -183,7 +245,8 @@ function ShowMore({ shown, total, onMore }) {
 
 // ---- the page ------------------------------------------------------------------
 
-function Library() {
+// onTotal (optional): reports { key: channel, n: total } up to the tab badge
+function Library({ onTotal }) {
   // hook values are used ONLY in this component (hook-scope rule)
   const { bySlug: BRAND, channels, loaded: brandsLoaded } = useBrands();
   const router = useRouter();
@@ -211,12 +274,16 @@ function Library() {
         if (!r.ok) throw new Error('http');
         return r.json();
       })
-      .then((data) => alive && setRes({ key: fetchKey, data, error: null }))
+      .then((data) => {
+        if (!alive) return;
+        setRes({ key: fetchKey, data, error: null });
+        if (onTotal && Number.isFinite(data?.total)) onTotal({ key: channel, n: data.total });
+      })
       .catch((e) => alive && setRes({ key: fetchKey, data: null, error: e.message === 'signed-out' ? 'signed-out' : 'failed' }));
     return () => {
       alive = false;
     };
-  }, [channel, fetchKey]);
+  }, [channel, fetchKey, onTotal]);
 
   const loading = res.key !== fetchKey;
   const data = loading ? null : res.data;
@@ -316,7 +383,8 @@ function Library() {
 
   return (
     <div className="min-w-0">
-      <PageHeader icon={Film} title="Library" sub="Every upload the panel has a record of — newest first">
+      {/* filters — wrap on phones, never overflow */}
+      <div className="flex items-center gap-2 mb-3 flex-wrap min-w-0">
         <div className="relative w-full sm:w-64">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint" aria-hidden />
           <input
@@ -328,10 +396,6 @@ function Library() {
             className="h-9 w-full pl-9 pr-3 rounded-xl border border-line bg-surface t-13 text-ink placeholder:text-faint outline-none focus:border-line-strong"
           />
         </div>
-      </PageHeader>
-
-      {/* filters — wrap on phones, never overflow */}
-      <div className="flex items-center gap-2 mb-3 flex-wrap min-w-0">
         <label className="sr-only" htmlFor="library-channel">Channel</label>
         <select
           id="library-channel"

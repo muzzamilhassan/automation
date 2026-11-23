@@ -52,6 +52,19 @@ on:
         description: "1 = external scheduler tick (slot-gated like the cron); blank = manual run"
         required: false
         default: ""
+      # "Ask the factory" (2026-11-23): the owner's topic for ONE video. Used
+      # only on a manual single-channel fresh dispatch (see FACTORY_TOPIC on
+      # the pipeline step); travels as env, never into a shell line; the
+      # engine sanitises it (studio/lib/factory-plan.mjs). Blank = the lanes
+      # pick their own topic exactly as before.
+      topic:
+        description: "owner topic for one video (≤160 chars; single channel only; blank = researched topic)"
+        required: false
+        default: ""
+      lane:
+        description: "short | doc for the topic (doc = only the documentary, Shorts phase skipped; needs topic; blank = short)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -239,6 +252,14 @@ jobs:
           # Phase 4 (#106): job save-points + resume, review-queue gate.
           JOB_STORE_ENABLED: '1'
           REVIEW_QUEUE_ENABLED: '1'
+          # "Ask the factory": the owner's topic + lane — ONLY a manual
+          # dispatch for ONE channel with a topic that is not a heartbeat,
+          # resume or topup (anything else = blank = byte-identical legacy
+          # run). Env only: never put inputs.topic in a run: line (shell
+          # injection). The factory NEVER adds --force: lane=doc makes only
+          # the documentary (channel-pipeline skips the Shorts phase).
+          FACTORY_TOPIC: ${{ (github.event_name == 'workflow_dispatch' && inputs.channel != '' && inputs.heartbeat != '1' && inputs.resume == '' && inputs.topup == '' && inputs.topic != '') && inputs.topic || '' }}
+          FACTORY_LANE: ${{ (github.event_name == 'workflow_dispatch' && inputs.channel != '' && inputs.heartbeat != '1' && inputs.resume == '' && inputs.topup == '' && inputs.topic != '') && inputs.lane || '' }}
         # --resume is SPACE-form on purpose: channel-pipeline.mjs parses
         # `--resume <job_id>` (argv.includes('--resume') + next arg) — a
         # `--resume=<id>` token would be silently ignored (no resume trigger).

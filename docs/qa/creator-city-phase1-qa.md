@@ -65,3 +65,40 @@ Accounts (`Settings › Accounts`, `/api/accounts`, `accounts-health.mjs`)
 | 9 | After the next real Money Rulebook run, its dots show real station states | prod, next autopilot run (or a dispatch) | manual |
 
 Regression: nav order test, breadcrumbs, drawer history, fail-closed routes, Runs filters, Settings' other tabs.
+
+---
+
+# Phase 2 + 3 (owner: "complete all phases", 2026-11-23)
+
+The factory "Floor" drawing stays out: the owner rejected it on 2026-11-23.
+
+Library: everything made (`/videos` tabs, `/api/library/artifacts`)
+- L1: Library SHALL have tabs Videos · Scripts · Voice · Thumbnails · Research, each with a count and a channel filter.
+- L2: Items SHALL come only from stored data: Neon `job_artifacts` (script_payload, tts_audio, thumb_candidate on Vercel Blob) and `scripts`.
+- L3: IF a blob has expired (kept 30 days), the item SHALL say so (410). There is never a broken player.
+- L4: A client SHALL see only their own channels. Blob tokens SHALL never be sent.
+
+Station drawer (`StationDrawer`, `/api/stations/history`)
+- D1: Clicking a station SHALL open its settings for that channel, using the existing panels (voice, template, thumbnails, schedule, providers, approval), plus its last 5 results.
+- D2: The drawer SHALL be reachable from the run step drawer and from the channel page.
+
+Inbox questions (`asks` table, `/api/asks`, Inbox)
+- Q1: WHEN a station fails today, an approved script never became a video, or an upload fails, THE Inbox SHALL show one question with buttons (Retry / Skip / Open run).
+- Q2: Buttons SHALL only use existing safe actions: workflow dispatch or resume, and existing script/warning transitions. Answers are recorded with who answered.
+- Q3: A question SHALL expire when it no longer applies or after 24 h. It never adds a second bell count, and it replaces its source warning row in the Inbox.
+- Q4: Answering SHALL be owner-only and rate-limited.
+
+Ask the factory (Create page, `/api/factory/plan|start`, workflow input `topic`)
+- F1: The owner types a sentence, and the panel SHALL show a plan over the fixed 7 stations. Nothing runs until Start.
+- F2: The AI only fills in the plan. The server re-checks the channel (real, and 7/7 ready) before dispatching.
+- F3: The workflow input `topic` (and `lane`) SHALL be sanitised. When unset, the pipeline behaves exactly as before. When set, only the topic choice changes; the approval hold still applies.
+- F4: Plan and Start SHALL be owner-only and rate-limited.
+
+QA additions
+| # | Check | Type |
+|---|---|---|
+| 10 | Library tabs show real scripts, voice and thumbnails; an expired item says so; a client sees only their own channel | manual |
+| 11 | A station opens its settings and its last 5 results | manual |
+| 12 | A failed station today appears as an Inbox question; Skip records the answer; the question expires after a successful re-run | manual |
+| 13 | Ask the factory: plan shown → Cancel does nothing → Start dispatches with the topic; the run shows the topic at the Topic station | manual |
+| 14 | Pipeline with no `topic` input: suites unchanged, and the next scheduled run behaves the same | automated + live |

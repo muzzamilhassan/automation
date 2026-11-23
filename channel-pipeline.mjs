@@ -54,6 +54,33 @@ const log = (msg) => console.log(`[${slug}] ${msg}`);
 const results = { shorts: false, nothingDue: false, episode: false, fbReels: false, igReels: false, poster: false };
 const errors = [];
 
+// "Ask the factory" (2026-11-23): an owner-given topic for ONE video, from the
+// workflow's FACTORY_TOPIC / FACTORY_LANE env (manual single-channel dispatch
+// only). Sanitised HERE, before any child is spawned — the children inherit
+// the cleaned value (and re-sanitise it themselves). Unset = this block never
+// runs: no import, no log line, legacy behaviour unchanged.
+if (process.env.FACTORY_TOPIC || process.env.FACTORY_LANE) {
+  const { factoryTopicFor, normalizeLane } = await import('./studio/lib/factory-plan.mjs');
+  const lane = normalizeLane(process.env.FACTORY_LANE) || 'short';
+  const topic = factoryTopicFor(lane, { FACTORY_TOPIC: process.env.FACTORY_TOPIC, FACTORY_LANE: lane });
+  if (topic) {
+    process.env.FACTORY_TOPIC = topic;
+    process.env.FACTORY_LANE = lane;
+    log(`[factory] owner topic for the ${lane === 'doc' ? 'documentary' : 'Shorts'} lane: ${topic}`);
+  } else {
+    if (process.env.FACTORY_TOPIC) log('[factory] topic empty after cleaning — ignored, topics are picked as usual');
+    delete process.env.FACTORY_TOPIC;
+    delete process.env.FACTORY_LANE;
+  }
+}
+// A factory DOCUMENTARY run makes only the documentary: the Shorts phase is
+// skipped (no re-made / re-uploaded Shorts) and the general --force is never
+// used — yt-deepdive takes the topic off the doc-day cadence itself and keeps
+// its already-shipped-today guard. Also set below when the review gate hands
+// an APPROVED doc script to a generated-Shorts channel (its resume renders
+// through yt-deepdive, never as a Short). Unset env = false = legacy run.
+let DOC_ONLY_RUN = process.env.FACTORY_LANE === 'doc' && Boolean(process.env.FACTORY_TOPIC);
+
 // ---- #106 T2 — JOB RECORDING / PARK-CHECK / RESUME (Phase 4 S1+S3) --------
 // FLAG CONTRACT: JOB_STORE_ENABLED unset = byte-identical legacy behavior —
 // no store imports, no DB, no Blob, no new log lines (pinned by
@@ -547,6 +574,9 @@ if (TEMPLATE_PREFLIGHT_ENABLED) {
 // Flipping a channel = one kit field; rolling back = flip it back.
 const shortsSource = b.shortsSource || 'generated';
 const SHORTS_STEP = shortsSource === 'clips' ? 'clips' : 'post'; // #106 T2 step vocabulary
+if (process.env.FACTORY_LANE === 'short' && process.env.FACTORY_TOPIC && shortsSource === 'clips') {
+  log('[factory] WARN this channel\'s Shorts are clips of its documentary — a Shorts-lane topic is not used (ask for a documentary)');
+}
 
 // ---- Phase 0.7: #106 T2 PARK-CHECK (D11 / AC-P4-13) — after preflight,
 // BEFORE any spend. WHILE a Blocking warning is open for this channel the run
@@ -705,6 +735,14 @@ if (REVIEW_QUEUE_ENABLED) {
     if (gate.script?.job_id && !process.env.PIPELINE_RESUME_JOB_ID) {
       process.env.PIPELINE_RESUME_JOB_ID = String(gate.script.job_id);
       log(`[review] approved script on the slot — the child renders the STORED input (job ${String(gate.script.job_id).slice(0, 12)}…), no fresh generation`);
+      if (process.env.FACTORY_TOPIC) log('[factory] WARN an approved script already holds this slot — it renders; the owner topic is NOT used this run');
+    }
+    // an approved DOC script on a generated-Shorts channel (a factory doc that
+    // was saved for review): it renders through yt-deepdive in Phase 5 —
+    // yt-daily must not pick it up and render it as a Short.
+    if (gate.script?.kind === 'doc' && shortsSource !== 'clips') {
+      DOC_ONLY_RUN = true;
+      log('[review] the approved script is a documentary — Shorts phase skipped this run, the doc lane renders it');
     }
     // #106 T5b SEAM 2 (D18/OQ-4): WHERE the assigned template's DATA enables
     // picking (review_thumb_pick — the same config surface the gate reads),
@@ -726,7 +764,7 @@ if (REVIEW_QUEUE_ENABLED) {
     // applies only to the NEXT documentary and must not block posting today's
     // queued Short. Fail-closed conditions (unreadable_*, drift,
     // script_store_unavailable) still hold everything.
-    if (shortsSource === 'clips' && ['no_approved_script', 'awaiting_review', 'rejected'].includes(gate.reason)) {
+    if (!DOC_ONLY_RUN && shortsSource === 'clips' && ['no_approved_script', 'awaiting_review', 'rejected'].includes(gate.reason)) {
       await runClipsPhase1();
     }
     // #106 T5b/T5c SEAM 1 (generate-only): the gate held because NO script
@@ -740,7 +778,9 @@ if (REVIEW_QUEUE_ENABLED) {
     // to approve for them; the docDay cadence is bypassed by the child's
     // GENERATE_ONLY flag, the pause/already-produced guards still apply).
     const generateOnly = gate.reason === 'no_approved_script';
-    if (generateOnly && shortsSource !== 'clips') {
+    // A factory DOCUMENTARY on a generated-Shorts channel takes the DOC lane
+    // below (its script is saved for review), never the Shorts script lane.
+    if (generateOnly && shortsSource !== 'clips' && !DOC_ONLY_RUN) {
       log(`[review] no approved script for slot ${today} — generate-only run (REVIEW_GENERATE_ONLY): scripts are saved awaiting_review, nothing renders or uploads`);
       process.env.REVIEW_GENERATE_ONLY = '1';
       process.env.REVIEW_SCRIPT_SLOT_DATE = today;
@@ -764,6 +804,7 @@ if (REVIEW_QUEUE_ENABLED) {
       await jobCtl?.finishStep('episode', okGen ? 'succeeded' : 'failed', okGen ? null : 'generate-only doc generation failed');
     } else {
       log(`[review] held — slot skipped today (${gate.reason}); approve at Studio > Review to resume at render (D17)`);
+      if (process.env.FACTORY_TOPIC) log(`[factory] WARN held (${gate.reason}) — no new script was written, so the owner topic is NOT used this run`);
     }
     // T5c round 1 (minor 4): the note is deliberately SOFT — the pipeline
     // cannot see whether the child saved a survivor (store down / dup-block /
@@ -791,7 +832,11 @@ if (REVIEW_QUEUE_ENABLED) {
   await jobCtl?.markStation('approval', 'skipped', 'auto: no approval needed');
 }
 
-if (shortsSource === 'clips') {
+if (DOC_ONLY_RUN) {
+  log('[factory] documentary-only run — Shorts phase skipped (today\'s Shorts run on their normal schedule)');
+  await jobCtl?.finishStep(SHORTS_STEP, 'skipped', 'documentary-only run');
+  results.nothingDue = true; // by design, not a missed Short (job terminal + summary stay honest)
+} else if (shortsSource === 'clips') {
   await runClipsPhase1();
 } else if (jobCtl?.isSkipped(SHORTS_STEP)) {
   log(`resume: skip ${SHORTS_STEP} (artifact verified)`);
@@ -986,6 +1031,7 @@ if (jobCtl?.isSkipped('episode')) {
   // quota gate said no — already logged + alerted inside quotaGate
   await jobCtl?.finishStep('episode', 'skipped', 'daily quota budget');
 } else {
+  if (process.env.FACTORY_TOPIC && DOC_ONLY_RUN) log('[factory] WARN today\'s documentary already shipped — the owner topic is NOT used this run');
   await jobCtl?.finishStep('episode', 'skipped', 'already produced today');
 }
 

@@ -51,6 +51,12 @@ const EPISODE_ONLY = process.argv.includes('--episode-only');
 // the healed reels. Never touches the episode step.
 const topupArg = process.argv.find(a => a.startsWith('--topup'));
 const TOPUP_N = topupArg ? Math.max(0, Number(topupArg.split('=')[1]) || 0) : 0;
+// "Ask the factory" (2026-11-23): the owner's topic for ONE Short (workflow
+// FACTORY_TOPIC, manual single-channel dispatch, lane short), sanitised by the
+// shared planner module. Unset = null: no import, topics picked as before.
+const FACTORY_SHORT_TOPIC = process.env.FACTORY_TOPIC
+  ? (await import('./studio/lib/factory-plan.mjs')).factoryTopicFor('short', process.env)
+  : null;
 // #106 T5b (S4) — the review seams, threaded by channel-pipeline.mjs's T5 gate
 // (env travels ONLY on gated/approval runs; unset = byte-identical legacy path):
 //   REVIEW_GENERATE_ONLY    the gate held with no approved script — generate +
@@ -414,6 +420,14 @@ if (RUN_SHORTS) {
   const dayIdx = Math.floor(Date.now() / 86400000);
   const waves = page.trend?.videos || [];
   const themesToday = [];
+  // "Ask the factory": the owner-given topic takes the FIRST slot (like a
+  // Topic Desk entry); the desk queue and research fill the remaining slots
+  // from where it left off. Unset = themesToday stays empty here, so both
+  // loops below start at 0 exactly as before.
+  if (FACTORY_SHORT_TOPIC) {
+    console.log(`[factory] slot 1 topic given by the owner: ${FACTORY_SHORT_TOPIC}`);
+    themesToday.push({ seed: `factory:${FACTORY_SHORT_TOPIC.slice(0, 40)}`, topic: `Make today's video about this exact topic the channel owner chose: ${FACTORY_SHORT_TOPIC}. Tell it natively for ${b.label} with a fresh, original angle — stay on this topic.` });
+  }
   // 10-05 PHASE B — TOPIC DESK: user-approved topics (Studio → Topic Desk,
   // stored in yt-mcp/topics-<slug>.json) are consumed FIRST — one per slot.
   // When the queue empties, auto-research fills the remaining slots.
@@ -421,7 +435,7 @@ if (RUN_SHORTS) {
   let deskQueue = [];
   try { deskQueue = JSON.parse(fs.readFileSync(deskPath, 'utf8')).queue || []; } catch { }
   let deskUsed = 0;
-  for (let k = 0; k < b.slots.length && deskQueue.length; k++) {
+  for (let k = themesToday.length; k < b.slots.length && deskQueue.length; k++) {
     const t = deskQueue.shift();
     deskUsed++;
     const topic = t.kind === 'search'
@@ -784,7 +798,7 @@ if (RUN_SHORTS) {
     const generated = results.filter((r) => r.awaitingReview).length;
     state[slug] = {
       ...(state[slug] || {}),
-      usedTrendSeeds: [...usedSeeds, ...themesToday.map(t => t.seed)].slice(-40),
+      usedTrendSeeds: [...usedSeeds, ...themesToday.map(t => t.seed).filter((sd) => !String(sd).startsWith('factory:'))].slice(-40),
       cooldownSeeds: [...(state[slug]?.cooldownSeeds || []), ...rejectedSeeds].slice(-12),
     };
     saveState();
@@ -803,7 +817,7 @@ if (RUN_SHORTS) {
       ...(state[slug] || {}),
       lastRunDate: suppressNext ? new Date(Date.now() + 86400000).toISOString().slice(0, 10) : today,
       ...(TOPUP_N > 0 ? { healedDate: today, healedCount: results.length } : {}),
-      usedTrendSeeds: [...usedSeeds, ...themesToday.map(t => t.seed)].slice(-40),
+      usedTrendSeeds: [...usedSeeds, ...themesToday.map(t => t.seed).filter((sd) => !String(sd).startsWith('factory:'))].slice(-40),
       cooldownSeeds: [...(state[slug]?.cooldownSeeds || []), ...rejectedSeeds].slice(-12),
       todayTopics: themesToday.map(t => ({ at: today, topic: t.seed })),
       // 10-05: durable title history — lastVideos alone only ever held the last

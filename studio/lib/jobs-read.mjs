@@ -19,9 +19,11 @@
 // "nothing ran" that would read as fake calm. The one exception is a table
 // that does not exist yet (42P01): no table really means no rows.
 
+import { stepNameFor } from './stations.mjs';
+
 const JOB_COLS = `id, channel, kind, status, "trigger", resumed_from_job_id, started_at, finished_at, error, meta`;
 const STEP_COLS = `job_id, idx, name, status, started_at, finished_at, error`;
-const SCRIPT_COLS = `id, channel_id, status, slot_date, job_id, approval_at, rejected_at, video_id, created_at, updated_at`;
+const SCRIPT_COLS = `id, channel_id, status, slot_date, job_id, approval_at, rejected_at, rejected_note, video_id, created_at, updated_at`;
 const INTENT_COLS = `id, channel_id, slot_date, kind, slot_idx, status, video_id, job_id, fail_reason, created_at, updated_at`;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -157,5 +159,26 @@ export function makeJobsRead(dbClient) {
     });
   }
 
-  return { loadToday, loadRuns };
+  /**
+   * Station drawer (research §5 item 7): the newest `station:<key>` job_steps
+   * rows of ONE channel's jobs, newest first — one row per job (each job has
+   * one row per station). `pending` rows (never reached) are not results.
+   * Unknown station key → throws before any query. Shaped by
+   * station-settings.mjs historyRows.
+   */
+  async function loadStationHistory({ channel, station, limit = 5 } = {}) {
+    const name = stepNameFor(station);
+    const n = Math.min(20, Math.max(1, Math.trunc(Number(limit)) || 1));
+    return q(
+      `SELECT s.job_id, s.idx, s.name, s.status, s.started_at, s.finished_at, s.error, j.started_at AS job_started_at
+         FROM job_steps s
+         JOIN jobs j ON j.id = s.job_id
+        WHERE j.channel = $1 AND s.name = $2 AND s.status <> 'pending'
+        ORDER BY COALESCE(s.started_at, s.finished_at, j.started_at) DESC
+        LIMIT $3`,
+      [String(channel), name, n],
+    );
+  }
+
+  return { loadToday, loadRuns, loadStationHistory };
 }

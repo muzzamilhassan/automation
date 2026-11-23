@@ -11,6 +11,7 @@ import DataTable from '@/components/DataTable';
 import apiFetch from '@/components/shell/api-fetch';
 import { useBrands } from '@/components/use-brands';
 import RunStepsDrawer from '@/components/RunStepsDrawer'; // Creator City P1 (item O): a run, step by step
+import { runTargetFromSearch } from '@/lib/run-link.mjs'; // /runs?run=<id>&channel= (or ?job=) opens that run's drawer
 import {
   todaySummary, filterRuns, runLabel, stateTone, STATE_WORD, stamp, durationText,
   runScope, runOrigin, SCOPE_LABEL, parseSavedRuns,
@@ -106,6 +107,7 @@ export default function RunsPage() {
   const [channel, setChannel] = useState('all');
   const [status, setStatus] = useState('all');
   const [steps, setSteps] = useState(null); // the run whose step drawer is open
+  const deepLinked = useRef(false); // the ?run= / ?job= link is honoured once per page load
   // the viewer's own zone: "today" means the owner's today, not UTC's
   const [timeZone] = useState(() => (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC') || 'UTC');
 
@@ -157,6 +159,22 @@ export default function RunsPage() {
       .finally(() => {
         setLoading(false);
         setNow(Date.now());
+        // Deep link (Inbox "Open run"): after the first load, open the same
+        // drawer a row click opens — the run list (if it loaded) adds the
+        // start time + raw log link; the drawer itself only needs the id.
+        if (!deepLinked.current) {
+          deepLinked.current = true;
+          const link = runTargetFromSearch(window.location.search);
+          if (link) {
+            const run = link.runId ? (dataRef.current?.runs || []).find((r) => String(r.id) === link.runId) : null;
+            setSteps({
+              ...link,
+              channel: link.channel || run?.channel || null,
+              startedAt: run ? run.startedAt || run.createdAt || null : null,
+              logUrl: run?.url || null,
+            });
+          }
+        }
       });
   }, [timeZone]);
 
@@ -222,6 +240,12 @@ export default function RunsPage() {
     { key: 'durationSec', label: 'Duration', render: (r) => <span className="t-12 text-muted tnum font-mono">{durationText(r, now)}</span> },
     { key: 'url', label: 'Log', render: (r) => <LogLink url={r.url} /> },
   ];
+
+  // a deep-linked target carries no labels/name yet — the live brand list fills them
+  const drawerTarget = useMemo(
+    () => (steps ? { ...steps, labels: steps.labels || bySlug, name: steps.name || (steps.channel ? bySlug[steps.channel]?.label || steps.channel : null) } : null),
+    [steps, bySlug],
+  );
 
   const failedToday = summary ? summary.channels.filter((s) => s.status === 'failed').length + (summary.scheduler.status === 'failed' ? 1 : 0) : 0;
 
@@ -319,7 +343,7 @@ export default function RunsPage() {
           </Card>
         </>
       )}
-      <RunStepsDrawer open={Boolean(steps)} target={steps} onClose={() => setSteps(null)} />
+      <RunStepsDrawer open={Boolean(steps)} target={drawerTarget} onClose={() => setSteps(null)} />
     </div>
   );
 }

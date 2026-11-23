@@ -452,3 +452,10 @@ test('safeTimeZone accepts a real IANA zone and falls back to UTC; toIso/runIdOf
   assert.equal(runIdOf({ meta: {} }), null);
   assert.equal(runIdOf(null), null);
 });
+
+test('WHEN the owner skipped the script from the Inbox (rejected + "skipped…" note) THEN approval is skipped "You skipped it", never red', () => {
+  const r = deriveStrip({ job: job({ status: 'held', finished_at: at(2) }), steps: [st('approval', 'skipped', { error: 'held: x' })], scripts: [{ status: 'rejected', rejected_note: 'skipped by owner from Inbox', job_id: 'j-1', rejected_at: at(5) }] });
+  assert.equal(byKey(r.stations).approval.state, 'skipped');
+  assert.equal(byKey(r.stations).approval.detail, 'You skipped it');
+  assert.doesNotMatch(r.summary, /Failed/);
+});
