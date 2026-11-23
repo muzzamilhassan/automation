@@ -7,7 +7,7 @@
       "cron": "53 3 * * *",
       "docDay": "Fri",
       "active": true,
-      "autopilot": false,
+      "autopilot": true,
       "tokenSecretSaved": true,
       "niche": "Old money habits & quiet wealth",
       "accent": "#D9C7A7",
