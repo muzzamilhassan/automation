@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Run the GitHub CLI as the PERSONAL account (muzzamilhassan) without touching
+# the global active account (which must stay muzzamil-rx / work).
+# Usage: bash scripts/gh-personal <any gh arguments>
+set -euo pipefail
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TOKEN="$(grep -E 'GITHUB_PAT=' "$DIR/.env" | head -n1 | sed 's/^.*GITHUB_PAT=//' | tr -d '"' | tr -d '\r')"
+if [ -z "$TOKEN" ]; then
+  echo "ERROR: GITHUB_PAT not found in $DIR/.env" >&2
+  exit 1
+fi
+GH_TOKEN="$TOKEN" exec gh "$@"
