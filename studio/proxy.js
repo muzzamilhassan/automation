@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server';
-import { authToken } from '@/lib/auth-token';
 import { parseSessionCookie } from '@/lib/session';
 import { isPublicPath } from '@/lib/public-paths';
 import { allowedRoles } from '@/lib/route-roles';
 
 // 10-08 ROLE-BASED ACCESS — the site's front door.
-// Identity: qs_session (signed per-person, Google or password login) OR the
-// legacy qs_key cookie (counts as owner). Then the route→role matrix below.
+// Identity: qs_session only (signed per-person, Google or password login;
+// carries the revocable opaque session token). #117: the legacy qs_key
+// cookie is no longer accepted anywhere — it was a password-equivalent
+// owner credential with no revocation path. Then the route→role matrix.
 // Best practice: this is the FIRST gate — mutating API routes re-check the
 // role server-side in lib/route-auth.js (never trust the UI alone).
-
-const COOKIE = 'qs_key';
 
 // Dev convenience: no STUDIO_PASSWORD set outside Vercel → studio stays open.
 // On Vercel the gate is always on (fail closed).
@@ -21,17 +20,12 @@ export default async function proxy(req) {
   const { pathname } = req.nextUrl;
   if (isPublicPath(pathname)) return NextResponse.next();
 
-  // resolve the role
+  // resolve the role — the A1 cookie's signed claims only. #117: no qs_key
+  // fallback; an expired/absent session is simply unauthenticated.
   let role = null;
   const sessCookie = req.cookies.get('qs_session')?.value;
   const claims = await parseSessionCookie(sessCookie);
   if (claims && Number(claims.x) > Date.now()) role = claims.r;
-  else {
-    // #58: fail closed — with no configured password the legacy qs_key check
-    // compared against the hash of a fixed string (== owner for anyone)
-    const legacy = password ? req.cookies.get(COOKIE)?.value : null;
-    if (legacy && legacy === (await authToken(password))) role = 'owner';
-  }
   if (!role) {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'locked — sign in at /login first' }, { status: 401 });

@@ -1,6 +1,5 @@
-import { authToken } from './auth-token';
-import { parseSessionCookie, parseSession } from './session';
-import { userByToken } from './session-db';
+import { parseSessionCookie, parseSession } from './session.js';
+import { userByToken } from './session-db.js';
 import { dbReady } from './db.mjs';
 
 // resolves the signed-in user: { email, role, name, session_id } — or null.
@@ -30,10 +29,9 @@ export async function getUser(req) {
     const legacy = await parseSession(raw);
     if (legacy) return { email: legacy.email, role: legacy.role, name: legacy.name || legacy.email, session_id: 0 };
   }
-  if (process.env.STUDIO_PASSWORD) {
-    const legacy = await authToken(process.env.STUDIO_PASSWORD);
-    if (cookies.includes(`qs_key=${legacy}`)) return { email: 'owner', role: 'owner', name: 'Owner', session_id: 0 };
-  }
+  // #117: the legacy qs_key cookie (SHA-256 of the login password) is no
+  // longer accepted — it was an unrevocable owner credential and an offline
+  // password-cracking oracle. Only the revocable A1 session authenticates.
   return null;
 }
 
