@@ -175,26 +175,6 @@
       "niche": "Timeless wisdom, self-mastery & human psychology",
       "accent": "#F5E31C",
       "kit": {
-        "niches": [
-          "human psychology & respect",
-          "power of silence & solitude",
-          "dark psychology defense",
-          "samurai mindset & musashi",
-          "emotional detachment",
-          "stoic rules for modern life"
-        ],
-        "longSlot": "14:30",
-        "slots": [
-          "22:35"
-        ],
-        "docDay": "Tue",
-        "thumbTemplates": [
-          "slab-quote",
-          "serif-frame",
-          "plinth"
-        ],
-        "gateCron": "13 2 * * *",
-        "voice": "am_michael",
         "tags": [
           "timeless wisdom",
           "human psychology",
@@ -206,12 +186,47 @@
           "mindset",
           "self mastery",
           "boundaries"
+        ],
+        "label": "Quote Quarry",
+        "slots": [
+          "22:35"
+        ],
+        "voice": "am_michael",
+        "docDay": "Tue",
+        "handle": "@quotequarry302",
+        "niches": [
+          "human psychology & respect",
+          "power of silence & solitude",
+          "dark psychology defense",
+          "samurai mindset & musashi",
+          "emotional detachment",
+          "stoic rules for modern life"
+        ],
+        "longSlot": "14:30",
+        "storyShape": "full",
+        "hasChapters": false,
+        "thumbTemplates": [
+          "slab-quote",
+          "serif-frame",
+          "plinth"
         ]
       },
-      "destinations": {
-        "fbPageId": "114550268199751",
-        "threadsHandle": "quotequarry8"
-      }
+      "destinations": null,
+      "ownerEmail": "",
+      "channelId": "",
+      "style": "",
+      "voice": "",
+      "slots": [],
+      "ytDescription": "",
+      "ytKeywords": "",
+      "tokenSecret": "",
+      "subs": 0,
+      "connectedAt": "2026-10-27T03:02:49.371Z",
+      "consentedAt": null,
+      "consent": null,
+      "autopilotStartedAt": null,
+      "status": "",
+      "fromRegistry": true
     },
     {
       "slug": "yt-bot",
