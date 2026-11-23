@@ -176,16 +176,16 @@
       "accent": "#F5E31C",
       "kit": {
         "tags": [
+          "personal growth quotes",
+          "psychology insights",
+          "self mastery tips",
           "timeless wisdom",
-          "human psychology",
-          "self respect",
-          "power of silence",
-          "mental strength",
-          "stoicism",
-          "philosophy",
-          "mindset",
-          "self mastery",
-          "boundaries"
+          "motivational quotes daily",
+          "human behavior explained",
+          "mindset transformation",
+          "life lessons quotes",
+          "psychology facts",
+          "self improvement quotes"
         ],
         "label": "Quote Quarry",
         "slots": [
@@ -200,23 +200,35 @@
           "dark psychology defense",
           "samurai mindset & musashi",
           "emotional detachment",
-          "stoic rules for modern life"
+          "stoic rules for modern life",
+          "carl jung shadow work"
         ],
+        "eyebrow": "TIMELess WISDOM & SELF-MASTERY",
+        "tagline": "Unearth timeless quotes to master yourself and decode the mind",
         "longSlot": "14:30",
         "storyShape": "full",
+        "description": "Welcome to Quote Quarry, your digital mine for timeless wisdom, self‑mastery strategies, and the deep psychology behind human behavior. Each short delivers a powerful quote paired with concise, research‑backed commentary that helps you apply ancient insights to modern challenges. Whether you’re looking to boost motivation, understand emotional triggers, or build lasting habits, our bite‑size videos give you the tools to transform thought into action. Dive in, reflect, and let each nugget shape a better you. Subscribe for fresh wisdom every week!",
         "hasChapters": false,
+        "voiceProfile": {
+          "mood": "serious",
+          "human": false,
+          "speed": 1
+        },
         "thumbTemplates": [
           "slab-quote",
           "serif-frame",
-          "plinth"
+          "plinth",
+          "marquee"
         ]
       },
       "destinations": null,
       "ownerEmail": "",
       "channelId": "",
-      "style": "",
+      "style": "doc",
       "voice": "",
-      "slots": [],
+      "slots": [
+        "18:35"
+      ],
       "ytDescription": "",
       "ytKeywords": "",
       "tokenSecret": "",
