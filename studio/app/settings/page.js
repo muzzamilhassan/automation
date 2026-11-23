@@ -1,8 +1,9 @@
 'use client';
-// Settings — four tabs, each job in ONE place (round 2):
+// Settings — five tabs, each job in ONE place (round 2):
 //   General   → appearance, notifications, engine facts, safety rules
 //   Team      → add/remove members (owner) + the super-admin user list
 //   Security  → change password, this account's sign-ins, all sessions
+//   Accounts  → every connected account, checked live (/api/accounts)
 //   Tasks     → the live operations queue
 // Removed: the static "Integrations" list (it showed connected/failing chips
 // nothing checked — real key status lives on /providers) and the stale
@@ -20,11 +21,13 @@ import SessionsAdminPage from '@/app/sessions/page';
 import Tasks from '@/app/tasks/page';
 import { cn } from '@/lib/utils';
 import { localTime, capList } from '@/lib/session-view.mjs';
+import AccountsTab from '@/components/settings/AccountsTab';
 
 const SETTINGS_TABS = [
   { id: 'general', label: 'General & Appearance', icon: Settings },
   { id: 'team', label: 'Team & Access', icon: Users },
   { id: 'security', label: 'Security & Sessions', icon: MonitorSmartphone },
+  { id: 'accounts', label: 'Accounts', icon: Plug },
   // id kept as 'roadmap' so existing ?tab=roadmap links still land here
   { id: 'roadmap', label: 'Live tasks', icon: SquareKanban },
 ];
@@ -268,7 +271,7 @@ function SettingsContent() {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={Settings} title="Settings" sub="Appearance, team roles, device security and the live task queue." />
+      <PageHeader icon={Settings} title="Settings" sub="Appearance, team roles, device security, connected accounts and the live task queue." />
 
       <TabNav
         tabs={SETTINGS_TABS}
@@ -524,6 +527,8 @@ function SettingsContent() {
           <SessionsAdminPage />
         </div>
       )}
+
+      {activeTab === 'accounts' && <AccountsTab />}
 
       {activeTab === 'roadmap' && <Tasks />}
     </div>

@@ -85,6 +85,15 @@ function jobKind(shortsStep) {
   return 'pipeline';
 }
 
+// Creator City Phase 1: the GitHub run id for jobs.meta (merged into the
+// existing meta) — only the keys whose env is present.
+function githubRunMeta() {
+  const runId = process.env.GITHUB_RUN_ID;
+  if (!runId) return {};
+  const attempt = process.env.GITHUB_RUN_ATTEMPT;
+  return attempt ? { runId: String(runId), runAttempt: String(attempt) } : { runId: String(runId) };
+}
+
 function jobTrigger() {
   if (RESUME_ARG) return 'resume';
   const envTrg = process.env.PIPELINE_TRIGGER;
@@ -103,8 +112,11 @@ function plannedSteps(shortsStep) {
   return steps;
 }
 
-function makePipelineJobController({ slug, jobs, artifacts, brandKit }) {
+function makePipelineJobController({ slug, jobs, artifacts, brandKit, stations = null }) {
   const state = { id: null, planned: [], shortsStep: null, skip: new Set(), closed: new Set(), parent: null };
+  // Creator City Phase 1: station marks (lib/station-recorder.mjs) ride the
+  // SAME store; the recorder never throws and time-boxes every write.
+  const stationRec = stations ? stations.makeStationRecorder({ store: jobs, warn: log }) : null;
   let warned = false;
   const safe = async (fn) => {
     try {
@@ -159,7 +171,7 @@ function makePipelineJobController({ slug, jobs, artifacts, brandKit }) {
           channel: slug,
           kind,
           trigger,
-          meta: { resume_key: resumeKey(template), template_id: template?.id ?? null, template_version: template?.version ?? null },
+          meta: { resume_key: resumeKey(template), template_id: template?.id ?? null, template_version: template?.version ?? null, ...githubRunMeta() },
           resumedFromJobId: RESUME_ARG && state.parent?.job ? state.parent.job.id : undefined,
         });
         if (!started.ok) { log(`[job] WARN job row not written (${started.error}) — continuing log-only`); return; }
@@ -216,6 +228,18 @@ function makePipelineJobController({ slug, jobs, artifacts, brandKit }) {
       if (!p || state.id === null) return;
       state.closed.add(name);
       await safe(() => jobs.finishStep(state.id, p.idx, { status, error: error ?? null }));
+    },
+
+    // Creator City Phase 1: one production station (`station:<key>`, idx 50..56).
+    async markStation(key, status, error) {
+      if (state.id === null || !stationRec) return;
+      await safe(() => stationRec.mark(state.id, key, status, error ? { error } : {}));
+    },
+
+    // A crashed child cannot close its own 'running' station: close it here.
+    async failOpenStations(error) {
+      if (state.id === null || !stationRec) return;
+      await safe(() => stationRec.failRunning(state.id, error));
     },
 
     // D3: index the pipeline-reachable script payload — the run's state
@@ -277,6 +301,17 @@ function makePipelineJobController({ slug, jobs, artifacts, brandKit }) {
         for (const p of state.planned) {
           if (!state.closed.has(p.name)) await jobs.finishStep(state.id, p.idx, { status: 'skipped', error: 'not reached' });
         }
+        // Creator City Phase 1: a station still 'running' at the end of the
+        // run never reported back. A crashed child was already closed 'failed'
+        // right after it exited; here a clean run (no lane errors) closes the
+        // leftover 'skipped' — e.g. a timed-out write that landed late is not
+        // a failure on a run that uploaded fine.
+        if (stationRec) {
+          await stationRec.closeRunning(state.id, {
+            status: errors.length ? 'failed' : 'skipped',
+            error: 'run ended before this step reported',
+          });
+        }
         // audit #7: nothing due (off day) with no lane errors is a clean day.
         const terminal = results.shorts
           ? (errors.length ? 'partial' : 'succeeded')
@@ -299,7 +334,11 @@ if (JOB_STORE_ENABLED) {
     const { makeArtifactStore } = await import('./lib/artifact-store.mjs');
     const jobs = await getJobStore(); // throws without DATABASE_URL — the AC-P4-5 catch below
     const artifacts = makeArtifactStore();
-    jobCtl = makePipelineJobController({ slug, jobs, artifacts, brandKit: b });
+    // Creator City Phase 1: the station recorder is optional — a failed import
+    // only loses the station marks, never the job recording.
+    let stations = null;
+    try { stations = await import('./lib/station-recorder.mjs'); } catch { stations = null; }
+    jobCtl = makePipelineJobController({ slug, jobs, artifacts, brandKit: b, stations });
     await jobCtl.loadParent();
   } catch (e) {
     jobCtl = null;
@@ -649,6 +688,14 @@ if (REVIEW_QUEUE_ENABLED) {
   } catch (e) {
     log(`[review] WARN review gate unavailable — continuing (a gate crash never darkens production): ${String((e && e.message) || e).slice(0, 120)}`);
   }
+  // Creator City Phase 1: the approval station — an approved script on the
+  // slot = succeeded; an ungated channel = auto; an unreadable gate ran
+  // without one (AC-P4-5). A hold is marked at the hold below.
+  if (gate && gate.ok && gate.action === 'run') {
+    await jobCtl?.markStation('approval', gate.script ? 'succeeded' : 'skipped', gate.script ? null : 'auto: no approval needed');
+  } else if (!gate || !gate.ok) {
+    await jobCtl?.markStation('approval', 'skipped', 'auto: review gate unavailable — ran without approval');
+  }
   if (gate && gate.ok && gate.action === 'run') {
     // T5b round 1: the gate found an APPROVED script (slot lookup on a plain
     // scheduled run, or the resumed run's job lookup) — the CHILD must render
@@ -699,6 +746,7 @@ if (REVIEW_QUEUE_ENABLED) {
       process.env.REVIEW_SCRIPT_SLOT_DATE = today;
       await jobCtl?.startStep(SHORTS_STEP);
       const okGen = run('yt-daily.mjs', [slug, '--no-episode', ...(FORCE ? ['--force'] : [])]);
+      if (!okGen) await jobCtl?.failOpenStations('script generation failed');
       await jobCtl?.finishStep(SHORTS_STEP, okGen ? 'succeeded' : 'failed', okGen ? null : 'generate-only generation failed');
     } else if (generateOnly) {
       log(`[review] no approved doc script — generate-only run on the DOC lane (REVIEW_GENERATE_ONLY): the episode script is saved awaiting_review, nothing renders or uploads`);
@@ -712,6 +760,7 @@ if (REVIEW_QUEUE_ENABLED) {
       // 2026-11-03: the first red-flags-explained generate-only run no-op'd
       // on the day-guard set by that morning's pilot render).
       const okGen = run('yt-deepdive.mjs', [slug, ...(FORCE ? ['--force'] : [])]);
+      if (!okGen) await jobCtl?.failOpenStations('doc script generation failed');
       await jobCtl?.finishStep('episode', okGen ? 'succeeded' : 'failed', okGen ? null : 'generate-only doc generation failed');
     } else {
       log(`[review] held — slot skipped today (${gate.reason}); approve at Studio > Review to resume at render (D17)`);
@@ -721,6 +770,7 @@ if (REVIEW_QUEUE_ENABLED) {
     // pause guards all exit 0), so the terminal must not claim a generation
     // that may not exist.
     const holdNote = generateOnly ? 'review hold: generate-only run (scripts awaiting review where produced)' : `review hold: ${gate.reason}`;
+    await jobCtl?.markStation('approval', 'skipped', `held: ${generateOnly ? 'generate-only' : gate.reason}`);
     if (jobCtl?.id) {
       try {
         const { getJobStore } = await import('./lib/job-store.mjs');
@@ -737,6 +787,8 @@ if (REVIEW_QUEUE_ENABLED) {
   if (gate && !gate.ok) {
     log(`[review] WARN review state unavailable (${gate.error}) — continuing (AC-P4-5: a dead store never darkens production)`);
   }
+} else {
+  await jobCtl?.markStation('approval', 'skipped', 'auto: no approval needed');
 }
 
 if (shortsSource === 'clips') {
@@ -753,7 +805,7 @@ if (shortsSource === 'clips') {
   await jobCtl?.startStep(SHORTS_STEP);
   const ok = run('yt-daily.mjs', [slug, '--no-episode', ...(FORCE ? ['--force'] : []), ...(TOPUP_N > 0 ? [`--topup=${TOPUP_N}`] : [])]);
   if (ok) { results.shorts = true; log(`✓ Shorts queued`); await jobCtl?.finishStep(SHORTS_STEP, 'succeeded'); }
-  else { errors.push('Shorts production failed'); log(`✗ Shorts failed`); await jobCtl?.finishStep(SHORTS_STEP, 'failed', 'Shorts production failed'); }
+  else { errors.push('Shorts production failed'); log(`✗ Shorts failed`); await jobCtl?.failOpenStations('Shorts production failed'); await jobCtl?.finishStep(SHORTS_STEP, 'failed', 'Shorts production failed'); }
 } else if (!shortsDone && !FORCE && TOPUP_N === 0) {
   // quota gate said no — already logged + alerted inside quotaGate
   errors.push('Shorts skipped — daily quota budget');
@@ -884,6 +936,13 @@ if (jobCtl?.isSkipped('episode')) {
   // must stay above this (see channel-autopilot.yml).
   const DOC_TIMEOUT_MS = 4500000;
   const ep = runChild('yt-deepdive.mjs', [slug, ...(FORCE ? ['--force'] : [])], { timeoutMs: DOC_TIMEOUT_MS });
+  // Creator City Phase 1: yt-deepdive marks its own stations; a killed or
+  // crashed child cannot close the one it was on — close it failed here.
+  if (!ep.ok) {
+    await jobCtl?.failOpenStations(ep.timedOut
+      ? `documentary timed out after ${Math.round(ep.ms / 60000)} min`
+      : `documentary crashed (exit ${ep.status ?? 'none'}${ep.signal ? `, signal ${ep.signal}` : ''})`);
+  }
   if (ep.ok) { results.episode = true; log(`✓ Episode done`); await jobCtl?.finishStep('episode', 'succeeded'); }
   else {
     results.episodeFailed = true;

@@ -27,6 +27,7 @@ test('NAV is the job-named menu (decision #3): labels and hrefs in order', () =>
   assert.deepEqual(flat, [
     ['Today', '/'],
     ['Inbox', '/tasks'],
+    ['Calendar', '/calendar'],
     ['Channels', '/channels'],
     ['Runs', '/runs'],
     ['Library', '/videos'],

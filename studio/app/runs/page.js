@@ -10,6 +10,7 @@ import { Card, CardHead, Chip, PageHeader, EmptyState, Skeleton, Segmented, Bran
 import DataTable from '@/components/DataTable';
 import apiFetch from '@/components/shell/api-fetch';
 import { useBrands } from '@/components/use-brands';
+import RunStepsDrawer from '@/components/RunStepsDrawer'; // Creator City P1 (item O): a run, step by step
 import {
   todaySummary, filterRuns, runLabel, stateTone, STATE_WORD, stamp, durationText,
   runScope, runOrigin, SCOPE_LABEL, parseSavedRuns,
@@ -104,6 +105,7 @@ export default function RunsPage() {
   const [now, setNow] = useState(() => Date.now());
   const [channel, setChannel] = useState('all');
   const [status, setStatus] = useState('all');
+  const [steps, setSteps] = useState(null); // the run whose step drawer is open
   // the viewer's own zone: "today" means the owner's today, not UTC's
   const [timeZone] = useState(() => (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC') || 'UTC');
 
@@ -195,11 +197,24 @@ export default function RunsPage() {
       key: 'workflow',
       label: 'Workflow',
       rowHeader: true,
+      // Creator City P1: the run's name opens its step drawer; the Log column keeps the GitHub link
       render: (r) => (
-        <span className="flex flex-col min-w-0">
-          <span className="t-12 text-ink truncate">{r.name || r.workflow}</span>
-          <span className="t-10 text-faint truncate">{runOrigin(r)} · {r.workflow}</span>
-        </span>
+        <button
+          type="button"
+          onClick={() => setSteps({
+            runId: r.id,
+            channel: r.channel || null, // a fleet run (null) returns every channel's job
+            name: r.channel ? bySlug[r.channel]?.label || r.channel : SCOPE_LABEL[runScope(r)],
+            startedAt: r.startedAt || r.createdAt,
+            logUrl: r.url,
+            labels: bySlug,
+          })}
+          className="flex flex-col min-w-0 max-w-full text-left cursor-pointer group"
+          title="Show steps"
+        >
+          <span className="t-12 text-ink truncate max-w-full group-hover:underline underline-offset-2">{r.name || r.workflow}</span>
+          <span className="t-10 text-faint truncate max-w-full">{runOrigin(r)} · {r.workflow}</span>
+        </button>
       ),
     },
     { key: 'channel', label: 'Channel', render: (r) => <ChannelCell run={r} brand={bySlug[r.channel]} /> },
@@ -304,6 +319,7 @@ export default function RunsPage() {
           </Card>
         </>
       )}
+      <RunStepsDrawer open={Boolean(steps)} target={steps} onClose={() => setSteps(null)} />
     </div>
   );
 }

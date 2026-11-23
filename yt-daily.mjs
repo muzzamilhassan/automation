@@ -59,6 +59,16 @@ const TOPUP_N = topupArg ? Math.max(0, Number(topupArg.split('=')[1]) || 0) : 0;
 //                           from the STORED script input, never re-generate;
 //   REVIEW_THUMB_CANDIDATES the template DATA enables picking — N variants per
 //                           render (1 = today's single candidate).
+// Creator City Phase 1 (FEEDBACK item O): production-station marks
+// (lib/station-recorder.mjs) on the pipeline's job, threaded as
+// PIPELINE_JOB_ID. Best-effort by contract — never throws, time-boxed, and a
+// silent no-op without a job id (sweeper / local runs: nothing imported).
+const STATION_JOB = String(process.env.PIPELINE_JOB_ID || '').trim();
+let stations = null;
+if (STATION_JOB) { try { stations = (await import('./lib/station-recorder.mjs')).makeChildStations(STATION_JOB); } catch { stations = null; } }
+const station = async (key, status, error = null) => { if (stations) await stations.station(key, status, error); };
+const failOpenStations = async (e) => { if (stations) await stations.failOpen(e); }; // running stations → failed
+const resetStations = async (keys) => { if (stations) await stations.reset(keys); }; // a lane / slot starts clean
 const GENERATE_ONLY = flagOn(process.env.REVIEW_GENERATE_ONLY);
 const RESUME_SCRIPT_JOB = String(process.env.PIPELINE_RESUME_JOB_ID || '').trim();
 const THUMB_CANDIDATES = Math.max(1, Math.min(6, Number(process.env.REVIEW_THUMB_CANDIDATES) || 1));
@@ -197,6 +207,10 @@ async function resumeApprovedScript({ slug, jobId, b }) {
     return false;
   }
   const page = { id: 'yt-' + slug, ytSlug: slug, name: b.label, niche: b.niche, ytBrand: b };
+  // topic + script were done by the HELD run; this run reuses them
+  await resetStations();
+  await station('topic', 'skipped', 'reused: approved script');
+  await station('script', 'skipped', 'reused: approved script');
   log(`resume: rendering the APPROVED script from its STORED input (${found.via}) — zero generation calls`);
   const script = { hook: stored.hook, points: stored.points, closing: stored.closing || '', thumbHeadline: stored.thumbHeadline || '', source: 'review-stored' };
   // D8/AC-P4-19: publishAt recomputed from the kit's slot times BEFORE any
@@ -206,6 +220,7 @@ async function resumeApprovedScript({ slug, jobId, b }) {
   const publishAt = nextFutureSlotISO(b.slots, { now: new Date() }) || stored.publishAt || (b.slots?.length ? nextSlotISO(b.slots[0]) : null);
   if (publishAt && new Date(publishAt).getTime() <= Date.now()) {
     log(`resume: no future slot remains today (publishAt ${publishAt} already past) — slot skipped before any render spend (AC-P4-19; the script STAYS approved)`);
+    await station('render', 'skipped', 'no future slot left today — script stays approved');
     return false;
   }
   let music = null;
@@ -216,7 +231,13 @@ async function resumeApprovedScript({ slug, jobId, b }) {
       : (b.musicFeels?.length ? await pickMusicTrack(0, { feels: b.musicFeels }) : null);
     if (music) console.log(`  ♫ ${music.title} (${music.feel || 'mood'})`);
   } catch (e) { console.log(`  [music] skipped: ${String(e.message).slice(0, 60)}`); }
+  // voice (TTS) is interleaved per section INSIDE the render call — the two
+  // stations open and close together
+  await station('voice', 'running');
+  await station('render', 'running');
   const out = await renderYouTubeScriptShort(page, script, music, { thumbVariants: THUMB_CANDIDATES });
+  await station('voice', 'succeeded');
+  await station('render', 'succeeded');
   const meta = buildScriptMeta(page, script, music ? `${music.title} — ${music.credit}` : '');
   const slotIdx = Number.isInteger(found.script.slot_idx) ? found.script.slot_idx : 0;
   const slotDate = /^\d{4}-\d{2}-\d{2}$/.test(String(found.script.slot_date || '')) ? found.script.slot_date : today;
@@ -226,6 +247,7 @@ async function resumeApprovedScript({ slug, jobId, b }) {
   fs.writeFileSync(mp4Path, out.buffer);
   if (!validateUploadOrSkip(mp4Path, meta.title, (m) => console.log(m))) {
     log('resume: the render failed upload validation — the script STAYS approved (not consumed); fix and redispatch');
+    await station('upload', 'skipped', 'render failed the upload check (too short or bad title)');
     try { fs.unlinkSync(mp4Path); } catch { }
     return false;
   }
@@ -239,6 +261,7 @@ async function resumeApprovedScript({ slug, jobId, b }) {
   // disclaimers — the upload DESCRIPTION gains them machine-appended (code,
   // never the LLM). Null = nothing declared = byte-identical description.
   const resumeDisclaimers = await declaredDisclaimers(await resolveTemplateId(slug));
+  await station('upload', 'running');
   const up = await uploadWithIntent({
     store: intents, channelId: slug, slotDate, kind: 'short', slotIdx,
     title: meta.title, jobId: process.env.PIPELINE_JOB_ID || null,
@@ -252,6 +275,7 @@ async function resumeApprovedScript({ slug, jobId, b }) {
   });
   if (up.skipProduction && !up.videoId) {
     console.log('  ✗ resumed slot skipped (intent conflict or past publishAt — the safe direction, AC-P4-6/D8)');
+    await station('upload', 'skipped', 'slot already claimed or publish time passed');
     try { fs.unlinkSync(`fb-outbox/${slug}/${stamp}.json`); } catch { }
     try { fs.unlinkSync(mp4Path); } catch { }
     return false;
@@ -264,7 +288,9 @@ async function resumeApprovedScript({ slug, jobId, b }) {
     // original run may have pinned one), record the CLAIMED video, and
     // retire the script with it (the slot is produced either way).
     console.log(`  ✓ intent conflict resolved: ${videoId} is already on YouTube — claimed, NOT re-uploaded`);
-    if (out.thumb) { try { await yt.thumbnails.set({ videoId, media: { body: Readable.from(out.thumb) } }); console.log('  ✓ thumbnail set (claimed video)'); } catch { } }
+    await station('upload', 'succeeded');
+    if (out.thumb) { try { await yt.thumbnails.set({ videoId, media: { body: Readable.from(out.thumb) } }); console.log('  ✓ thumbnail set (claimed video)'); await station('thumbnail', 'succeeded'); } catch (e) { await station('thumbnail', 'failed', e); } }
+    else await station('thumbnail', 'skipped', 'no thumbnail rendered');
     try {
       const mc = await store.markConsumed(found.script.id, videoId);
       if (mc.ok) log(`script ${found.script.id} -> consumed (claimed ${videoId})`);
@@ -278,7 +304,9 @@ async function resumeApprovedScript({ slug, jobId, b }) {
     return true;
   }
   console.log(`  ✓ resumed ${videoId} → https://youtube.com/shorts/${videoId}`);
-  if (out.thumb) { try { await yt.thumbnails.set({ videoId, media: { body: Readable.from(out.thumb) } }); console.log('  ✓ thumbnail set (candidate 1)'); } catch { } }
+  await station('upload', 'succeeded');
+  if (out.thumb) { try { await yt.thumbnails.set({ videoId, media: { body: Readable.from(out.thumb) } }); console.log('  ✓ thumbnail set (candidate 1)'); await station('thumbnail', 'succeeded'); } catch (e) { await station('thumbnail', 'failed', e); } }
+  else await station('thumbnail', 'skipped', 'no thumbnail rendered');
   try {
     await yt.commentThreads.insert({ part: 'snippet', requestBody: { snippet: { videoId, topLevelComment: { snippet: { textOriginal: `Which one hit hardest? 👇 Subscribe for daily ${b.kwShort}.` } } } } });
   } catch { }
@@ -312,7 +340,13 @@ const today = new Date().toISOString().slice(0, 10);
 // comment. Exit 1 surfaces a refused resume to the pipeline (the job records
 // the failed step; the approval row stands for a later redispatch).
 if (RESUME_SCRIPT_JOB) {
-  const okResume = await resumeApprovedScript({ slug, jobId: RESUME_SCRIPT_JOB, b });
+  let okResume;
+  try {
+    okResume = await resumeApprovedScript({ slug, jobId: RESUME_SCRIPT_JOB, b });
+  } catch (e) {
+    await failOpenStations(e); // station record only — the throw continues unchanged
+    throw e;
+  }
   process.exit(okResume ? 0 : 1);
 }
 // 10-05 PAUSE GUARD — feed-collapse cooldown: state.pausedUntil (YYYY-MM-DD)
@@ -345,6 +379,8 @@ if (RUN_SHORTS) {
   // right now (top-viewed videos of the last 14 days, one viral wave per
   // slot, skipping seeds used recently). If research fails, slots skip
   // (fail-closed — same rule as the recycle removal).
+  await resetStations(); // the Shorts lane starts from a clean strip
+  await station('topic', 'running');
   try {
     page.trend = await researchTrend(slug, channelAuth(slug), [...b.niches, ...b.tags.slice(0, 2)]);
     console.log(`[trend] 🔥 hot: ${page.trend.hotKeywords.slice(0, 6).join(', ')}`);
@@ -428,6 +464,8 @@ if (RUN_SHORTS) {
     }
   }
   console.log(`[topics] ${themesToday.map(t => '← ' + (t.subNiche ? `[${t.subNiche}] ` : '') + t.seed.slice(0, 40)).join(' | ') || 'none — research unavailable'}`);
+  if (themesToday.length) await station('topic', 'succeeded');
+  else await station('topic', 'failed', 'trend research failed — no topic today');
   // off-niche drift guard prevents stoicism words leaking into pure finance channels
   const OFF_NICHE = (slug === 'quotequarry' || b.fromRegistry) ? null : /\bstoic\w*|manipulat\w*|toxic|calm your mind|dark psychology\b/i;
 
@@ -491,6 +529,9 @@ if (RUN_SHORTS) {
       console.log('  ✗ no researched topic (trend research failed) — slot skipped (fail-closed, no static fallback)');
       continue;
     }
+    // each slot shows its own script..upload (topic is chosen once for all slots)
+    await resetStations(['script', 'voice', 'render', 'thumbnail', 'upload']);
+    await station('script', 'running');
     let script = await generateYouTubeScript(page, themesToday[i].topic, { templateId: brainTemplateId });
     for (let t = 0; OFF_NICHE && t < 2 && OFF_NICHE.test(JSON.stringify(script.points)); t++) {
       console.log('  off-niche drift — regenerating');
@@ -506,6 +547,7 @@ if (RUN_SHORTS) {
     const preDup = findDup(preTitle, recentTitles, seenThisRun);
     if (preDup) {
       console.log(`  GATE: duplicate title "${preTitle}" ≈ "${preDup}" — slot skipped before render`);
+      await station('script', 'skipped', 'duplicate title — slot skipped before render');
       if (themesToday[i]?.seed) rejectedSeeds.push(themesToday[i].seed); // cool the source (#91)
       results.push({ videoId: null, publishAt, title: preTitle, gateRejected: true });
       continue;
@@ -515,6 +557,7 @@ if (RUN_SHORTS) {
       // same file reads as reused content to YouTube and suppresses the channel
       // (fail-closed rule: a missing video is free, a reuse strike costs weeks).
       console.log('  ✗ no AI script — slot skipped (recycle removed 09-18)');
+      await station('script', 'failed', 'no AI script (provider quota or error) — slot skipped');
       continue;
     }
     // #106 T5b SEAM 1 (generate-only): the pipeline's gate held this run with
@@ -529,6 +572,7 @@ if (RUN_SHORTS) {
       const store = await getScriptStore();
       if (!store) {
         console.log('  [review] script store unavailable — script NOT saved (fail-closed; the gate re-holds and this retries next run)');
+        await station('script', 'failed', 'script store unavailable — script not saved');
         results.push({ videoId: null, publishAt, title: preTitle, generateOnly: true });
         continue;
       }
@@ -549,12 +593,15 @@ if (RUN_SHORTS) {
       });
       if (saved.ok) {
         console.log(`  [review] script saved awaiting_review (${saved.id}) — nothing renders until an owner approves at Studio > Review`);
+        await station('script', 'succeeded');
       } else {
         console.log(`  [review] WARN script not saved (${saved.error}) — the slot retries on the next run`);
+        await station('script', 'failed', `script not saved (${saved.error})`);
       }
       results.push({ videoId: null, publishAt, title: preTitle, generateOnly: true, awaitingReview: saved.ok });
       continue;
     }
+    await station('script', 'succeeded');
     let music = null;
     // 10-03: ONLY the channel's own approved tracks (music-review folders) —
     // no catalog rotation, no other music anywhere. 10-05: registry channels
@@ -571,7 +618,13 @@ if (RUN_SHORTS) {
     // T5b round 1: the candidate count threads into EVERY gated-config render —
     // without it this path always produced a single thumb and the pipeline's
     // "3 candidates" log lied.
+    // Creator City: voice (TTS) is interleaved per section INSIDE the render
+    // call — the two stations open and close together.
+    await station('voice', 'running');
+    await station('render', 'running');
     const out = await renderYouTubeScriptShort(page, script, music, { thumbVariants: THUMB_CANDIDATES });
+    await station('voice', 'succeeded');
+    await station('render', 'succeeded');
     const meta = buildScriptMeta(page, script, music ? `${music.title} — ${music.credit}` : '');
     // #106 P5 T2d (AC-P5-13): the registry rotation mark rides THIS run's own
     // end-of-run state write — this in-memory copy wins here, so the mark the
@@ -592,6 +645,7 @@ if (RUN_SHORTS) {
     fs.writeFileSync(mp4Path, out.buffer);
 
     if (!validateUploadOrSkip(mp4Path, meta.title, (m) => console.log(m))) {
+      await station('upload', 'skipped', 'render failed the upload check (too short or bad title)');
       if (themesToday[i]?.seed) rejectedSeeds.push(themesToday[i].seed); // cool the source (#91)
       results.push({ videoId: null, publishAt, title: meta.title, gateRejected: true });
       try { fs.unlinkSync(mp4Path); } catch { }
@@ -601,6 +655,7 @@ if (RUN_SHORTS) {
     const metaDup = findDup(meta.title, recentTitles, seenThisRun);
     if (metaDup) {
       console.log(`  GATE: duplicate upload title "${meta.title}" ≈ "${metaDup}" — upload skipped`);
+      await station('upload', 'skipped', 'duplicate title — upload skipped');
       if (themesToday[i]?.seed) rejectedSeeds.push(themesToday[i].seed); // cool the source (#91)
       results.push({ videoId: null, publishAt, title: meta.title, gateRejected: true });
       try { fs.unlinkSync(mp4Path); } catch { }
@@ -614,6 +669,7 @@ if (RUN_SHORTS) {
     // #106 P5 T2c (D4/AC-P5-4): the description carries the template's fixed
     // disclaimers machine-appended — unconditional in code for declaring
     // templates (QA Row 10's boundary probe pins the unconditionality).
+    await station('upload', 'running');
     const up = await uploadWithIntent({
       store: intents, channelId: slug, slotDate: today, kind: 'short', slotIdx: i,
       title: meta.title, jobId: process.env.PIPELINE_JOB_ID || null,
@@ -627,6 +683,7 @@ if (RUN_SHORTS) {
     });
     if (up.skipProduction && !up.videoId) {
       console.log('  ✗ slot skipped (upload-intent conflict or past publishAt — the safe direction, AC-P4-6/D8)');
+      await station('upload', 'skipped', 'slot already claimed or publish time passed');
       // #53 fail-closed: nothing was uploaded here, so the FB/IG pickup marker
       // must not survive — an unuploaded render never crosses the gates.
       try { fs.unlinkSync(`fb-outbox/${slug}/${stamp}.json`); } catch { }
@@ -647,12 +704,16 @@ if (RUN_SHORTS) {
       // the thumbnail if we can, and SKIP the pinned comment (the original
       // run may have pinned one; two comments on one Short reads as spam).
       console.log(`  ✓ intent conflict resolved: ${videoId} is already on YouTube — claimed, NOT re-uploaded`);
+      await station('upload', 'succeeded');
       results.push({ videoId, publishAt, title: up.existing?.title_fingerprint || meta.title, recovered: true });
-      if (out.thumb) { try { await yt.thumbnails.set({ videoId, media: { body: Readable.from(out.thumb) } }); console.log('  ✓ thumbnail set (claimed video)'); } catch { } }
+      if (out.thumb) { try { await yt.thumbnails.set({ videoId, media: { body: Readable.from(out.thumb) } }); console.log('  ✓ thumbnail set (claimed video)'); await station('thumbnail', 'succeeded'); } catch (e) { await station('thumbnail', 'failed', e); } }
+      else await station('thumbnail', 'skipped', 'no thumbnail rendered');
       continue;
     }
     console.log(`  ✓ queued ${videoId} → https://youtube.com/shorts/${videoId}`);
-    if (out.thumb) { try { await yt.thumbnails.set({ videoId, media: { body: Readable.from(out.thumb) } }); console.log('  ✓ thumbnail set'); } catch { } }
+    await station('upload', 'succeeded');
+    if (out.thumb) { try { await yt.thumbnails.set({ videoId, media: { body: Readable.from(out.thumb) } }); console.log('  ✓ thumbnail set'); await station('thumbnail', 'succeeded'); } catch (e) { await station('thumbnail', 'failed', e); } }
+    else await station('thumbnail', 'skipped', 'no thumbnail rendered');
     // #106 T5b SEAM 2: where the gate's template config enabled picking, the
     // N rendered variants land in the artifact index (candidate 1 was just
     // auto-set; the owner swaps at Studio > Review). No script row exists on
@@ -709,6 +770,7 @@ if (RUN_SHORTS) {
       // #35: isolate the slot failure — record it, keep the remaining slots
       slotErrors++;
       console.log(`  ✗ slot ${i + 1} failed: ${String(e.message).slice(0, 140)} — continuing to next slot`);
+      await failOpenStations(e); // the station this slot was on closes failed
       results.push({ videoId: null, publishAt: publishAt || null, title: null, slotError: true });
     }
   }

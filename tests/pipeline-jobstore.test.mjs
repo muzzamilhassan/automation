@@ -51,6 +51,7 @@ const SPY_JOBSTORE = [
   "  async startStep(jobId, idx) { boom('startStep'); rec('startStep', { jobId, idx }, { ok: true }); return { ok: true }; },",
   "  async finishStep(jobId, idx, o = {}) { boom('finishStep'); rec('finishStep', { jobId, idx, status: o.status, error: o.error }, { ok: true }); return { ok: true }; },",
   "  async indexArtifact(jobId, o = {}) { boom('indexArtifact'); rec('indexArtifact', { jobId, step: o.step, kind: o.kind, contentHash: o.contentHash, blobUrl: o.blobUrl, size: o.size, meta: o.meta }, { ok: true, id: ++n }); return { ok: true, duplicate: false, id: n }; },",
+  "  async upsertStep(jobId, idx, name, o = {}) { boom('upsertStep'); rec('upsertStep', { jobId, idx, name, status: o.status, error: o.error }, { ok: true }); return { ok: true }; },",
   "  async finishJob(jobId, o = {}) { boom('finishJob'); rec('finishJob', { jobId, status: o.status, error: o.error }, { ok: true }); return { ok: true }; },",
   "  async getJob(jobId) { boom('getJob'); const hit = !!parent && !!parent.job && parent.job.id === jobId; rec('getJob', { jobId, hit, haveParent: !!parent }, hit ? { ok: true } : { ok: true, empty: true }); if (!hit) return EMPTY; return JSON.parse(JSON.stringify(parent)); },",
   "  async latestResumableJob(channel, o = {}) { boom('latestResumableJob'); rec('latestResumableJob', { channel, staleAfterMs: o.staleAfterMs }, { ok: true }); return parent ? JSON.parse(JSON.stringify(parent)) : JSON.parse(JSON.stringify(EMPTY)); },",
@@ -146,7 +147,7 @@ function loaderSource(pipelineHref, redirects) {
     '  resolve(specifier, context, nextResolve) {',
     '    const res = nextResolve(specifier, context);',
     '    if (context && context.parentURL === PIPELINE && res && res.url) {',
-    "      const m = res.url.match(/\\/lib\\/(job-store|artifact-store|warnings-store|warnings-probe)\\.mjs$/);",
+    "      const m = res.url.match(/\\/lib\\/(job-store|artifact-store|warnings-store|warnings-probe|station-recorder)\\.mjs$/);",
     "      if (m && REDIRECTS[m[1] + '.mjs']) return { url: REDIRECTS[m[1] + '.mjs'], shortCircuit: true };",
     '    }',
     '    return res;',
@@ -176,7 +177,7 @@ function readSpyLog(p) {
  * pipeline spawns children as e.g. `node verify-run.mjs` from its cwd) —
  * the child then fails exactly as in production (no token -> its own alert).
  */
-function runPipeline({ state = {}, files = {}, args = [], env = {}, loader = true, childLibs = false } = {}) {
+function runPipeline({ state = {}, files = {}, args = [], env = {}, loader = true, childLibs = false, brokenRecorder = false } = {}) {
   const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'pipe-t2-'));
   const spyLog = path.join(sandbox, 'spy.jsonl');
   try {
@@ -217,6 +218,11 @@ function runPipeline({ state = {}, files = {}, args = [], env = {}, loader = tru
         'warnings-store.mjs': pathToFileURL(path.join(sandbox, 'spy-warnings.mjs')).href,
         'warnings-probe.mjs': pathToFileURL(path.join(sandbox, 'spy-probe.mjs')).href,
       };
+      if (brokenRecorder) {
+        // Creator City: an import-time failure of the optional station recorder
+        redirects['station-recorder.mjs'] = pathToFileURL(path.join(sandbox, 'broken-recorder.mjs')).href;
+        fs.writeFileSync(path.join(sandbox, 'broken-recorder.mjs'), "throw new Error('station recorder import broken');");
+      }
       fs.writeFileSync(path.join(sandbox, 'spy-jobstore.mjs'), SPY_JOBSTORE);
       fs.writeFileSync(path.join(sandbox, 'spy-artifacts.mjs'), SPY_ARTIFACTS);
       fs.writeFileSync(path.join(sandbox, 'spy-warnings.mjs'), spyWarningsSource(pathToFileURL(path.join(ROOT, 'lib', 'warnings-store.mjs')).href));
@@ -364,6 +370,34 @@ describe('#106 T2 — job recording (AC-P4-1, AC-P4-3 terminal)', () => {
     const start = calls(r.spy, 'jobs', 'startJob')[0];
     assert.equal(start.args.kind, 'shorts', 'episode-free generated run is kind shorts');
     assert.equal(start.args.trigger, 'cron', 'schedule event -> cron');
+  });
+
+  test('Creator City stations: jobs.meta carries the GitHub run id; an ungated run marks approval auto at idx 52', () => {
+    const r = runPipeline({ state: QUOTA_BLOCKED_STATE, env: { JOB_STORE_ENABLED: '1', GITHUB_RUN_ID: '987654', GITHUB_RUN_ATTEMPT: '2' } });
+    assert.equal(r.status, 0);
+    const start = calls(r.spy, 'jobs', 'startJob')[0];
+    assert.equal(start.args.meta.runId, '987654', 'GitHub run id stored in jobs.meta');
+    assert.equal(start.args.meta.runAttempt, '2');
+    assert.ok(start.args.meta.resume_key, 'existing meta kept (merged, not replaced)');
+    const marks = calls(r.spy, 'jobs', 'upsertStep');
+    const approval = marks.find((c) => c.args.name === 'station:approval');
+    assert.ok(approval, 'approval station recorded');
+    assert.equal(approval.args.idx, 52);
+    assert.equal(approval.args.status, 'skipped');
+    assert.equal(approval.args.error, 'auto: no approval needed');
+    const noRun = runPipeline({ state: QUOTA_BLOCKED_STATE, env: { JOB_STORE_ENABLED: '1' } });
+    assert.equal(calls(noRun.spy, 'jobs', 'startJob')[0].args.meta.runId, undefined, 'no GitHub env -> no runId key');
+  });
+
+  test('Creator City: jobs.meta.runId is written by the pipeline itself — a broken station recorder import never loses it', () => {
+    const r = runPipeline({ state: QUOTA_BLOCKED_STATE, brokenRecorder: true, env: { JOB_STORE_ENABLED: '1', GITHUB_RUN_ID: '555', GITHUB_RUN_ATTEMPT: '1' } });
+    assert.equal(r.status, 0, 'exit semantics unchanged');
+    const start = calls(r.spy, 'jobs', 'startJob');
+    assert.equal(start.length, 1, 'the job is still recorded');
+    assert.equal(start[0].args.meta.runId, '555');
+    assert.equal(start[0].args.meta.runAttempt, '1');
+    assert.equal(calls(r.spy, 'jobs', 'upsertStep').length, 0, 'no recorder = no station marks');
+    assert.equal(calls(r.spy, 'jobs', 'finishJob').length, 1, 'the job still closes');
   });
 
   test('already-produced day: shipped upload + failed verify lane -> partial terminal (AC-P4-3); executed steps are never swept to skipped', () => {

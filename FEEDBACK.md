@@ -32,11 +32,11 @@ Status labels: 🆕 new · 🔍 looking into it · 💡 proposal ready (needs yo
 - **Your decision needed:** yes/no — …
 -->
 
-### O. Ideas from the "Creator City" AI-agent video — 💡 proposal ready (needs your OK) (2026-11-23)
+### O. Ideas from the "Creator City" AI-agent video — 🛠️ Phase 1 approved, spec next (2026-11-23)
 - **You said:** watch the TubeGuruji "AI Agent City" video + demo, tell me what to add to our project and how to make the screens clearer.
 - **What I found:** his engine is weaker than ours (his agents got stuck, showed stale "completed", publishing failed first try), but he SHOWS the work much better: a step strip per request, every in-between file in one library, a calendar with drafts, agents asking you questions with buttons, a clear accounts page. Full report: `research/creator-city-agent-factory-2026-11-23.md`.
 - **My recommendation:** Phase 1 (screens only, data we already have): (1) 7-dot station strip on each Today channel row, (2) step-by-step drawer for each run on Runs, (3) new Calendar page for all channels, (4) Accounts tab in Settings showing which logins are healthy. Later: Library with scripts/voice/thumbnails, Inbox "questions" with buttons, a station settings drawer, an optional illustrated factory floor, and finally one "Ask the factory" request box. Skip: cloud computer, Composio, 3D city as home page.
-- **Your decision needed:** yes. (a) approve Phase 1? (b) factory floor drawing yes/no? (c) Calendar in the menu or inside Channels? (d) OK to use the free Groq AI only to turn a sentence into a plan you then Start?
+- **Your decisions (2026-11-23):** (a) Phase 1 ✅ approved · (b) factory floor drawing ❌ no — 7 dots on Today only · (c) Calendar = its own menu item, under Inbox · (d) "Ask the factory" box ✅ yes, later (Phase 3), always shows the plan and waits for your Start.
 
 ### I. Live website test — 115 problems found, 5 fix batches — ✅ done & live (2026-11-20)
 - **You said:** test the real website like a normal user, every small feature and edge case.
@@ -133,4 +133,4 @@ _2026-11-19 — answers to your first 9 items. Reply "approve all" in chat (or t
 | 15 | L. Remove duplicate templates | ✅ done & live (2a98920) | 22 colour-only copies removed; 14 unique left (Red Flags Explained, Cashflow Challenge, Money Flow Diagram, Systems Diagram, Lecture Notes Paper, Myth vs Money + 8 distinct-layout storybooks); Money Rulebook's template untouched |
 | 16 | M. Human voice as a panel setting (pacing on/off · mood · speed · preview) | ✅ done & live (9a09aab) | Channels → Manage → Voice (or Edit profile → Look & sound); 49 real previews; Money Rulebook copied in unchanged (on · calm · 0.95×) · option 2 (laughs/emotion via Chatterbox on Kaggle) waits for a Kaggle account |
 | 17 | N. Emotional voice (laughs, sighs) via free GPU + voice library | ⏸️ parked (2026-11-23, owner) | none of the free GPU voices sounded natural (best: Ming natural, still not natural enough); Kaggle GPU queue unpredictable; next = ElevenLabs later. Work saved on branch wip/emotional-voice-gpu; Kaggle jobs, GitHub secrets, local tokens + Chatterbox files (2.6 GB) removed |
-| 18 | O. Ideas from the "Creator City" AI-agent video (station strip, run steps, calendar, accounts, library, ask-the-factory) | 💡 proposal ready (needs your OK) | report: research/creator-city-agent-factory-2026-11-23.md · 4 decisions waiting |
+| 18 | O. Ideas from the "Creator City" AI-agent video (station strip, run steps, calendar, accounts, library, ask-the-factory) | 🛠️ Phase 1 approved, spec next | Phase 1 = station dots on Today · run step drawer · Calendar menu item · Accounts tab; no factory drawing; ask-box later (Phase 3) · report: research/creator-city-agent-factory-2026-11-23.md |

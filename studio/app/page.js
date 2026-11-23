@@ -4,7 +4,7 @@
 // good" / "N things need you"), one compact row per channel for today, and
 // the views chart. Problems are LISTED only in the bell + Inbox; topics, trend
 // radar and lifetime totals moved to the Analytics page.
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, createContext, useContext, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   RefreshCw,
@@ -25,6 +25,10 @@ import { useOpenWarnings } from '@/components/use-open-warnings'; // #126: live 
 import { useMe } from '@/components/use-me'; // P0-7: greet the signed-in user, never a hardcoded name
 import { deriveVerdict, channelToday, nextSlot, fmtIn, reviewStatusFromHttp, todayMarks, verdictHref } from '@/lib/cockpit-verdict.mjs';
 import { lastDataDay, fmtDay } from '@/lib/analytics-view.mjs'; // wave C2 (T2-20): "data through" from the real last point
+import apiFetch from '@/components/shell/api-fetch';
+import StationDots from '@/components/StationDots'; // Creator City P1 (item O): today's 7 stations per row
+import RunStepsDrawer from '@/components/RunStepsDrawer';
+import { stationsFromPayload, normalizeStrip, stripAria, matchRunUrl, stationsUrl, browserTimeZone } from '@/lib/station-dots-view.mjs';
 
 const VERDICT_ICON = { all_good: CheckCircle2, needs_you: AlertTriangle, unknown: HelpCircle, loading: Loader2, empty: HelpCircle };
 const TONE_INK = { ok: 'var(--ok-ink)', warn: 'var(--warn-ink)', bad: 'var(--bad-ink)', info: 'var(--info-ink)', plain: 'var(--muted)' };
@@ -68,6 +72,7 @@ function VerdictLine({ verdict, onRetry }) {
 // One compact row per channel for TODAY: state (made / waiting / not run /
 // paused / YouTube error), a poster/episode mark only when made today, and
 // the next upload slot. Each row opens that channel's own page.
+// Creator City P1 (item O): each row also gets <RowStations> (below).
 function TodayList({ channels, marks, now }) {
   if (!channels.length) return null;
   return (
@@ -83,8 +88,8 @@ function TodayList({ channels, marks, now }) {
             // line beside the mark (it used to shrink to "Q."); the status and
             // next slot stack under it. From sm up: one line, as before.
             return (
-              <li key={c.slug}>
-                <Link href={`/channels/${c.slug}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 min-w-0 hover:bg-surface-2 transition-colors">
+              <li key={c.slug} className="hover:bg-surface-2 transition-colors">
+                <Link href={`/channels/${c.slug}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 min-w-0">
                   <BrandMark short={marks[c.slug]?.short || c.short || '•'} accent={c.accent || 'var(--accent)'} size={26} />
                   <span className="t-13 font-semibold text-ink min-w-0 flex-1 basis-[calc(100%-38px)] sm:basis-auto break-words sm:truncate sm:flex-none sm:w-48">{c.label || c.slug}</span>
                   <span className="flex flex-wrap items-center gap-1.5 pl-[38px] sm:pl-0">
@@ -97,12 +102,46 @@ function TodayList({ channels, marks, now }) {
                   </span>
                   <ChevronRight size={15} className="text-faint shrink-0" />
                 </Link>
+                <RowStations c={c} />
               </li>
             );
           })}
         </ul>
       </Card>
     </section>
+  );
+}
+
+// Creator City P1 (item O): today's stations, shared with the rows without
+// changing TodayList's props. value = { stations: { [slug]: entry } | null, open(target) }.
+const StationsContext = createContext(null);
+
+// Under the name: today's 7 station dots + the one-line summary. A SIBLING of
+// the row link (never a button inside a link); the dots open the run step
+// drawer. Nothing at all when /api/stations failed, was forbidden or has no
+// entry for this channel — failures stay in the bell + Inbox (no banner here).
+function RowStations({ c }) {
+  const ctx = useContext(StationsContext);
+  const st = ctx?.stations?.[c.slug];
+  if (!st || !Array.isArray(st.stations)) return null;
+  const strip = normalizeStrip(st.stations);
+  const canOpen = Boolean(st.jobId || (st.runId != null && st.runId !== ''));
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-[54px] pr-4 pb-2 -mt-1 min-w-0">
+      {canOpen ? (
+        <button
+          type="button"
+          onClick={() => ctx.open({ jobId: st.jobId || null, runId: st.runId ?? null, name: c.label || c.slug, startedAt: st.startedAt || null, logUrl: matchRunUrl(st.runId, c.todayRun) })}
+          aria-label={`Open run steps — ${stripAria(strip)}`}
+          className="inline-flex items-center rounded-md px-1 py-1.5 -mx-1 hover:bg-[var(--surface)] cursor-pointer"
+        >
+          <StationDots stations={strip} />
+        </button>
+      ) : (
+        <StationDots stations={strip} className="py-1.5" />
+      )}
+      {st.summary ? <span className="t-11 text-muted min-w-0 break-words">{st.summary}</span> : null}
+    </div>
   );
 }
 
@@ -121,6 +160,9 @@ function OverviewContent() {
   const [tick, setTick] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshedAt, setRefreshedAt] = useState(null);
+  // Creator City P1: today's stations per channel (null = no dots) + the open step drawer
+  const [stations, setStations] = useState(null);
+  const [steps, setSteps] = useState(null);
 
   // T2-06 (wave A3): the analytics call is slow (~12 s), so it loads on its
   // own — the verdict and the channel rows never wait for the chart.
@@ -140,9 +182,18 @@ function OverviewContent() {
       })
       .catch(() => setAnalyticsErr(true)); // keep the last good chart; say unavailable only when there is none
 
+  // Creator City P1: its own call, so the rows never wait for it; a failed or
+  // forbidden answer just means no dots (never an error box on Today)
+  const loadStations = () =>
+    apiFetch(stationsUrl(browserTimeZone()))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setStations(stationsFromPayload(d)))
+      .catch(() => setStations(null));
+
   const load = (fresh = false) => {
     if (fresh) setRefreshing(true);
     loadAnalytics(fresh);
+    loadStations();
     return Promise.allSettled([
       fetch('/api/overview' + (fresh ? '?fresh=1' : '')).then((r) => (r.ok ? r.json() : Promise.reject(new Error('overview ' + r.status)))),
       fetch('/api/review').then((r) => (r.ok
@@ -249,7 +300,9 @@ function OverviewContent() {
       <VerdictLine verdict={verdict} onRetry={() => { warnRetry?.(); load(); }} />
 
       {/* 2. one row per channel, today */}
-      <TodayList channels={active} marks={BRAND} now={now} />
+      <StationsContext value={{ stations, open: setSteps }}>
+        <TodayList channels={active} marks={BRAND} now={now} />
+      </StationsContext>
 
       {/* 3. views chart */}
       <Card className="overflow-hidden">
@@ -283,6 +336,7 @@ function OverviewContent() {
       <p className="mt-3 t-11 text-faint">
         Totals, per-channel numbers, today&apos;s topics and the trend radar are on <Link href="/analytics" className="text-accent hover:underline">Analytics</Link>.
       </p>
+      <RunStepsDrawer open={Boolean(steps)} target={steps} onClose={() => setSteps(null)} />
     </div>
   );
 }

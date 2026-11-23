@@ -24,6 +24,7 @@ import {
   Gauge,
   Users as UsersIcon,
   MonitorSmartphone,
+  CalendarDays,
 } from 'lucide-react';
 import { menuSectionFor } from '../../lib/breadcrumbs.mjs';
 
@@ -37,6 +38,7 @@ export const NAV = [
     items: [
       { href: '/', label: 'Today', icon: LayoutDashboard, desc: 'Did today run? What needs you, channel by channel', keywords: ['overview', 'home', 'dashboard', 'pulse'] },
       { href: '/tasks', label: 'Inbox', icon: Inbox, desc: 'Scripts to approve and open alerts, in one queue', keywords: ['tasks', 'approvals', 'review', 'warnings', 'alerts'] },
+      { href: '/calendar', label: 'Calendar', icon: CalendarDays, desc: 'Every channel on one calendar: published, scheduled, waiting, free slots', keywords: ['schedule', 'month', 'slots', 'upcoming', 'agenda'] },
       { href: '/channels', label: 'Channels', icon: Tv, desc: 'Every channel, its health and its settings', keywords: ['network', 'portfolio', 'brands'] },
       { href: '/runs', label: 'Runs', icon: Activity, desc: "Today's pipeline runs: started, finished, failed", keywords: ['operations', 'pipelines', 'production', 'logs'] },
       { href: '/videos', label: 'Library', icon: Library, desc: 'Every video made and published', keywords: ['content', 'videos', 'published'] },

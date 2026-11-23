@@ -92,6 +92,16 @@ applyChannelKeys(slug);
 //                           the doc from the STORED script input, never re-generate.
 const GENERATE_ONLY = flagOn(process.env.REVIEW_GENERATE_ONLY);
 const RESUME_SCRIPT_JOB = String(process.env.PIPELINE_RESUME_JOB_ID || '').trim();
+// Creator City Phase 1 (FEEDBACK item O): production-station marks
+// (lib/station-recorder.mjs) on the pipeline's job, threaded as
+// PIPELINE_JOB_ID. Best-effort by contract — never throws, time-boxed, and a
+// silent no-op without a job id (local runs: nothing imported).
+const STATION_JOB = String(process.env.PIPELINE_JOB_ID || '').trim();
+let stations = null;
+if (STATION_JOB) { try { stations = (await import('./lib/station-recorder.mjs')).makeChildStations(STATION_JOB); } catch { stations = null; } }
+const station = async (key, status, error = null) => { if (stations) await stations.station(key, status, error); };
+const failOpenStations = async (e) => { if (stations) await stations.failOpen(e); }; // running stations → failed
+const resetStations = async (keys) => { if (stations) await stations.reset(keys); }; // a lane starts clean
 
 // 09-20: per-channel state files are the source of truth (lib/state.mjs)
 const loadState = () => loadAllStates();
@@ -302,6 +312,11 @@ async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null
   if (docRenderOf(sbMeta) === 'diagram') {
     const pres = docPresentation(sbMeta, b);
     let visuals = null;
+    // the diagram engine voices AND renders inside one call — the two
+    // stations open and close together (a failure falls back to storybook,
+    // which re-opens them)
+    await station('voice', 'running');
+    await station('render', 'running');
     try {
       visuals = await renderDiagramEpisode({
         root: HERE, slug, script, pres,
@@ -317,6 +332,10 @@ async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null
         },
         pickMusic: (mood) => pickApprovedTrack(APPROVED_MUSIC[slug] || [], mood),
       });
+      if (visuals) {
+        await station('voice', 'succeeded');
+        await station('render', 'succeeded');
+      }
     } catch (e) {
       const why = String((e && e.message) || e).slice(0, 300);
       console.error(`[diagram] FAILED — ${why} — falling back to the storybook look for this episode`);
@@ -349,6 +368,9 @@ async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null
   let total = 0;
 
   // intro: title card with cold-open narration
+  // (narration is interleaved with the segment renders: voice + render open together)
+  await station('voice', 'running');
+  await station('render', 'running');
   const introNarr = narrate(script.intro, 'intro');
   const introDur = Math.max(6, probeDur(introNarr) + 0.8);
   await renderCard(await introCard(script.title), introNarr, `${work}/seg-00.mp4`, introDur);
@@ -397,6 +419,7 @@ async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null
 
   // end card with outro narration
   const endNarr = narrate(script.outro, 'end');
+  await station('voice', 'succeeded'); // the last narration is recorded
   const endDur = Math.max(6, probeDur(endNarr) + 1.0);
   const endSeg = `${work}/seg-end.mp4`;
   await renderCard(await endCard(), endNarr, endSeg, endDur);
@@ -435,6 +458,7 @@ async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null
       `[1:a]volume=0.09[m];[0:a][m]amix=inputs=2:duration=first:dropout_transition=0[a]`,
       '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', final]);
   } else { fs.copyFileSync(joined, final); }
+  await station('render', 'succeeded');
 
   // Chapter timestamps for the upload description — cumulative segment
   // durations (the storybook lane derives the same lines from its divider
@@ -495,6 +519,7 @@ async function renderStorybookVisuals(script, pres) {
   // the 8-silent-beat incident (MR oXAT8NGLV4Q, 2026-11-16) cannot repeat.
   // No voiceProfile = the Edge path below, byte-identical (V4).
   const prof = voiceProfileFor(slug); // lib/brands.json — the same DATA narrate.py reads
+  await station('voice', 'running');
   let tts;
   if (prof) {
     console.log(`[storybook] tts: ${spoken.length} spoken beats, human voice ${prof.voice} (speed ${prof.speed || 1})`);
@@ -505,8 +530,11 @@ async function renderStorybookVisuals(script, pres) {
     console.log(`[storybook] tts: ${spoken.length} spoken beats, voice ${voice}`);
     tts = spawnSync('python', [path.join(EXPL, 'edge_batch.py'), inPath], { ...sOpts, env: { ...process.env, EXPLAINER_VOICE: voice } });
   }
-  if (tts.status !== 0) throw new Error('storybook tts failed');
+  if (tts.status !== 0) throw new Error('storybook tts failed'); // the call site closes 'voice' failed
   const durs = JSON.parse(fs.readFileSync(path.join(audioDir, 'tts-durations.json'), 'utf8'));
+  await station('voice', 'succeeded');
+  // render = photos + timeline + the DocV2 render below
+  await station('render', 'running');
 
   // photos (SB-8): portrait stock per split slide — the same lane make-longform
   // proves (Pexels first, Pixabay fallback, niche-word retry, pool reuse), the
@@ -686,6 +714,7 @@ async function renderStorybookVisuals(script, pres) {
     return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')} ${c.title}`;
   });
   console.log(`[storybook] ✅ episode rendered: ${final} (${(totalMs / 1000 / 60).toFixed(1)} min)`);
+  await station('render', 'succeeded');
   // P1-fix: CLEAN photo backgrounds for the thumbnails — a storybook frame
   // grab IS a text slide (slide serif text doubled under the headline). Each
   // of the three thumbnail positions fetches its own LANDSCAPE large2x photo
@@ -727,6 +756,7 @@ async function shipEpisode(script, { yt, auth, intents, longSeed = null, reviewS
   const thumbDesign = thumbDesignFor(docTemplateId);
   const thumbOpts = { accent: (thumbDesign?.accent) || b.accent, eyebrow: thumbDesign ? (thumbDesign.eyebrow ?? '') : b.eyebrow, thumbDesign };
   const sbPhotos = (Array.isArray(thumbPhotos) ? thumbPhotos : []).filter((p) => fs.existsSync(p));
+  await station('thumbnail', 'running'); // closes after thumbnails.set below
   let thumb;
   if (sbPhotos.length) {
     // storybook lane: the episode's OWN portrait photos are clean backgrounds —
@@ -815,6 +845,8 @@ async function shipEpisode(script, { yt, auth, intents, longSeed = null, reviewS
   const docDup = findDup(script.title, await recentUploadTitles(yt));
   if (docDup) {
     console.log(`GATE: duplicate episode title "${script.title}" ≈ "${docDup}" — upload skipped`);
+    await station('upload', 'skipped', 'duplicate title — upload skipped');
+    await station('thumbnail', 'skipped', 'not set — upload skipped');
     return { skipped: 'dup' };
   }
 
@@ -823,6 +855,7 @@ async function shipEpisode(script, { yt, auth, intents, longSeed = null, reviewS
   // Minor 7: the intent fingerprints the EXACT uploaded title (sliced, as the
   // resource sends it) so recovery matches the live playlist byte-for-byte.
   const docTitle = docTitleFor(script.title, b.authority); // <=100 chars, never cut mid-word
+  await station('upload', 'running');
   const up = await uploadWithIntent({
     store: intents, channelId: slug, slotDate: today(), kind: 'doc', slotIdx: 0,
     title: docTitle, jobId: process.env.PIPELINE_JOB_ID || null,
@@ -836,11 +869,19 @@ async function shipEpisode(script, { yt, auth, intents, longSeed = null, reviewS
   });
   if (up.skipProduction && !up.videoId) {
     console.log(`[intent] doc upload skipped (intent conflict or past publishAt — safe direction); retry on the next doc day`);
+    await station('upload', 'skipped', 'slot already claimed or publish time passed');
+    await station('thumbnail', 'skipped', 'not set — upload skipped');
     return { skipped: 'intent' };
   }
-  if (!up.ok) throw new Error(`upload failed: ${up.error}`);
+  if (!up.ok) {
+    await station('thumbnail', 'skipped', 'not set — upload failed');
+    throw new Error(`upload failed: ${up.error}`); // the call site closes 'upload' failed
+  }
   const videoId = up.videoId;
-  await yt.thumbnails.set({ videoId, media: { body: Readable.from(thumb) } }).catch(() => { });
+  await station('upload', 'succeeded');
+  let thumbErr = null;
+  await yt.thumbnails.set({ videoId, media: { body: Readable.from(thumb) } }).catch((e) => { thumbErr = e; });
+  await station('thumbnail', thumbErr ? 'failed' : 'succeeded', thumbErr);
 
   // R7 (red-flags QA, the captions gap): the doc lane's SRT rides as YouTube
   // CLOSED CAPTIONS — the same CC behavior as the reference video. Both lanes
@@ -996,6 +1037,10 @@ async function resumeApprovedDoc({ slug, jobId, b }) {
     outro: stored.closing || '',
     source: 'review-stored',
   };
+  // topic + script were done by the HELD run; this run reuses them
+  await resetStations(); // the doc lane starts from a clean strip
+  await station('topic', 'skipped', 'reused: approved script');
+  await station('script', 'skipped', 'reused: approved script');
   log(`resume: rendering the APPROVED doc from its STORED input (${found.via}) — zero generation calls`);
   // This branch runs BEFORE the cadence guards, so it builds its own clients
   // (the yt-daily resume mirror).
@@ -1020,6 +1065,7 @@ async function resumeApprovedDoc({ slug, jobId, b }) {
   const docDup = findDup(script.title, await recentUploadTitles(yt));
   if (docDup) {
     log(`resume: duplicate episode title "${script.title}" ≈ "${docDup}" — refused before render spend; the script STAYS approved`);
+    await station('render', 'skipped', 'duplicate title — refused before render; script stays approved');
     return false;
   }
   const intents = await getUploadIntentStore();
@@ -1030,7 +1076,7 @@ async function resumeApprovedDoc({ slug, jobId, b }) {
     // P5 T5d round 1 (FIX 1): the compliance text the owner approved ships
     // VERBATIM — the live chain only covers rows that predate the block.
     docDisclaimerBlock: typeof stored.disclaimer_block === 'string' && stored.disclaimer_block.trim() ? stored.disclaimer_block : null,
-  });
+  }).catch(async (e) => { await failOpenStations(e); throw e; }); // station record only — the throw is unchanged
   if (ship?.claimed) {
     // The slot was produced by a crashed run's video — claimed, not
     // re-uploaded. The approval row stands (a re-dispatch would re-render and
@@ -1166,6 +1212,8 @@ console.log(`[long] ${b.label} — premium daily episode`);
 // used are skipped so episodes never circle the same subject.
 let theme = null;
 let longSeed = null;
+await resetStations(); // the doc lane starts from a clean strip
+await station('topic', 'running');
 try {
   const { researchTrend } = await import('./trend-research.mjs');
   const tokLong = JSON.parse(process.env[`YT_TOKEN_${slug.toUpperCase().replace(/-/g, '_')}`] || fs.readFileSync(path.resolve(HERE, `yt-mcp/channels/${slug}/token.json`), 'utf8'));
@@ -1182,7 +1230,10 @@ if (!theme) {
   // Last-resort evergreen angle (not a static list — derived from the niche).
   theme = `The most searched, most argued-about question in ${b.niche} right now, told as a story-driven documentary for ${b.label}.`;
 }
-const script = await llmScript(LONG_PROMPT(b, theme, docPlan), longSeed?.title || theme, docTemplateId);
+await station('topic', 'succeeded');
+await station('script', 'running');
+const script = await llmScript(LONG_PROMPT(b, theme, docPlan), longSeed?.title || theme, docTemplateId)
+  .catch(async (e) => { await station('script', 'failed', e); throw e; }); // station record only — the throw is unchanged
 
 // #106 T5c SEAM 1 (generate-only): the pipeline's gate held this run with no
 // approved script — the doc generation ran EXACTLY as today (the brain's
@@ -1205,6 +1256,7 @@ if (GENERATE_ONLY) {
       saveChannelState(slug, stD[slug]);
     }
     console.log(`GATE: duplicate episode title "${script.title}" ≈ "${docDupGen}" — doc script NOT saved (blocked); nothing to review`);
+    await station('script', 'skipped', 'duplicate title — not saved for review');
     process.exit(0);
   }
   const seams = await import('./lib/review-seams.mjs');
@@ -1212,6 +1264,7 @@ if (GENERATE_ONLY) {
   const store = await getScriptStore();
   if (!store) {
     console.log('[review] script store unavailable — doc script NOT saved (fail-closed; the gate re-holds and this retries next run)');
+    await station('script', 'failed', 'script store unavailable — not saved for review');
     process.exit(0);
   }
   const docTemplateId = await resolveTemplateId(slug);
@@ -1245,6 +1298,9 @@ if (GENERATE_ONLY) {
   });
   if (saved.ok) console.log(`[review] doc script saved awaiting_review (${saved.id}) — nothing renders until an owner approves at Studio > Review`);
   else console.log(`[review] WARN doc script not saved (${saved.error}) — the slot retries on the next run`);
+  // saved for review = the script station is done; voice..upload stay unmarked
+  if (saved.ok) await station('script', 'succeeded');
+  else await station('script', 'failed', `script not saved for review (${saved.error})`);
   if (longSeed) {
     const stG = loadState();
     stG[slug] = { ...(stG[slug] || {}), usedLongSeeds: [...(stG[slug]?.usedLongSeeds || []), longSeed.title].slice(-40) };
@@ -1256,7 +1312,9 @@ if (GENERATE_ONLY) {
 
 // audit 2026-11-13 #6: exit explicitly — an open pooled DB connection kept the
 // process alive after a successful upload until the pipeline's 45-min kill.
-const shipped = await renderAndShipEpisode(script, { yt, auth, intents, longSeed, docTemplateId });
+await station('script', 'succeeded');
+const shipped = await renderAndShipEpisode(script, { yt, auth, intents, longSeed, docTemplateId })
+  .catch(async (e) => { await failOpenStations(e); throw e; }); // station record only — the throw is unchanged
 const { closeDb } = await import('./studio/lib/db.mjs');
 await closeDb();
 process.exit(shipExitCode(shipped));
