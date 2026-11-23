@@ -57,7 +57,7 @@
       "cron": "47 2 * * *",
       "docDay": "Wed",
       "active": true,
-      "autopilot": false,
+      "autopilot": true,
       "tokenSecretSaved": true,
       "niche": "Investing psychology & market wisdom",
       "accent": "#E8C15A",
