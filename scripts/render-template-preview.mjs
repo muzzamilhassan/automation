@@ -10,7 +10,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { REGISTRY_META } from '../studio/lib/template-registry.data.js';
-import { previewLine, previewTitle, buildPreviewDoc, extractVisualQuery } from '../lib/template-preview.mjs';
+import { previewTitle, previewLines, buildPreviewDoc, extractVisualQuery } from '../lib/template-preview.mjs';
 import { edgeVoiceFor, buildStorybookBeats, timeBeats } from '../lib/doc-storybook.mjs';
 import { makeArtifactStore } from '../studio/lib/artifact-store.mjs';
 
@@ -46,6 +46,18 @@ if (isMain) {
     }
     meta = REGISTRY_META[id];
   }
+  // This renderer IS the storybook (DocV2) engine. A template that production
+  // renders any other way (doc_render "diagram" = Living Diagram tile/glow/paper,
+  // or no doc_render = the legacy b-roll lane) must never get a storybook
+  // preview — 2026-11-23: it overwrote the real Lecture Notes preview and gave
+  // Money Flow / Systems Diagram a look they never render. Their previews come
+  // from a real render via scripts/store-template-preview.mjs. Exit 0: a skip
+  // is not a CI failure.
+  const docRender = meta.story_structure?.doc_render || null;
+  if (docRender !== 'storybook') {
+    console.log(`[preview] ${id}: doc_render "${docRender || 'legacy'}" is not the storybook engine — skipped (store a real render with scripts/store-template-preview.mjs)`);
+    process.exit(0);
+  }
   const familyId = meta.family || id; // the gallery card unit — one sample per family card
   const pres = meta.doc_presentation && typeof meta.doc_presentation === 'object' ? meta.doc_presentation : {};
   const niche = Array.isArray(meta.niches) && meta.niches.length ? meta.niches[0] : 'stories';
@@ -71,9 +83,9 @@ if (isMain) {
   const { fetchBestBroll } = await import('../explainer/broll-fetch.mjs');
 
   const title = previewTitle(meta);
-  const rawBeats = meta.story_structure?.beats || [];
-  const clean = (s) => String(s || '').replace(/^(Opening|Evidence|Mechanism|Payoff|Rule \w+|Exhibit \w+):\s*/i, '').trim();
-  const hookLine = clean(rawBeats[0]) || previewLine(meta);
+  // viewer-facing lines only — authoring notes ("slot 1 …") never reach the screen
+  const lines = previewLines(meta);
+  const hookLine = lines.hook;
 
   const queryBase = extractVisualQuery(meta, title, hookLine);
   console.log(`[preview] content-matched visual query (95-100% target): "${queryBase}"`);
@@ -106,8 +118,8 @@ if (isMain) {
   console.log(`[preview] broll: ${broll || 'none'}`);
 
   // 2. Beats — construct an engaging 4-beat showcase with real photo and video, no forced chapter divider
-  const photoLine = clean(rawBeats[1]) || 'Every principle is backed by documented evidence and real practice.';
-  const videoLine = clean(rawBeats[2]) || clean(rawBeats[3]) || 'Consistency and disciplined execution create compounding results.';
+  const photoLine = lines.photoLine;
+  const videoLine = lines.videoLine;
 
   const dynamicLayout = pres.doc_layouts?.find((l) => !['hero', 'chapter', 'split', 'end'].includes(l)) || 'quote';
 
@@ -127,7 +139,7 @@ if (isMain) {
       layout: 'split',
       kicker: pres.eyebrow ? `${pres.eyebrow.split('//')[0].trim()} · EVIDENCE` : 'THE BREAKDOWN',
       headline: photoLine,
-      sub: clean(rawBeats[2]) || undefined,
+      sub: lines.sub,
       text: photoLine,
       photo: photo || undefined,
     },

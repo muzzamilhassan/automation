@@ -1,0 +1,38 @@
+// 2026-11-23 owner report: "on admin panel … its preview showing something else".
+// Pins the fixes: whole-word photo rules, no authoring notes on screen, the
+// storybook preview renderer refuses non-storybook templates, no family borrowing.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { extractVisualQuery, previewLines, isAuthoringNote } from '../lib/template-preview.mjs';
+import { REGISTRY_META } from '../studio/lib/template-registry.data.js';
+
+test('photo rules match WHOLE words: "mountain"/"explained"/"chain" are not "ai"', () => {
+  assert.notEqual(extractVisualQuery({ template_id: 'x' }, 'The supply chain explained', 'mountain trade paid off'), 'data center server artificial intelligence coding');
+  assert.equal(extractVisualQuery({ template_id: 'x' }, 'How AI recruiters read your CV', ''), 'data center server artificial intelligence coding');
+  assert.equal(extractVisualQuery({ template_id: 'old-banners-storybook' }, 'Three routes crossed one mountain pass', ''), 'ancient mountain fortress mist castle');
+});
+
+test('authoring notes ("slot 1 …") never become preview lines', () => {
+  assert.equal(isAuthoringNote('slot 1 states the popular money myth'), true);
+  assert.equal(isAuthoringNote('Opening: The criteria up front'), false);
+  for (const [id, meta] of Object.entries(REGISTRY_META)) {
+    const l = previewLines(meta);
+    for (const k of ['hook', 'photoLine', 'videoLine', 'sub']) {
+      if (l[k] !== undefined) assert.equal(isAuthoringNote(l[k]), false, `${id}.${k}: "${l[k]}"`);
+    }
+  }
+});
+
+test('previewLines: note-only templates use their own exemplar titles', () => {
+  const l = previewLines({ story_structure: { beats: ['slot 1 does x', 'slot 2 does y'], title_patterns: ['listicle ("7 Money Habits")', 'rules ("6 Rules for $10,000")', 'myths ("5 Money Myths")'] } });
+  assert.equal(l.hook, '6 Rules for $10,000');
+  assert.equal(l.photoLine, '5 Money Myths');
+});
+
+test('the storybook preview renderer refuses non-storybook templates before rendering', () => {
+  const src = fs.readFileSync(new URL('../scripts/render-template-preview.mjs', import.meta.url), 'utf8');
+  const guard = src.indexOf("if (docRender !== 'storybook')");
+  assert.ok(guard > 0, 'guard missing');
+  assert.ok(guard < src.indexOf('fetchPhoto'), 'guard must run before any media/render work');
+});

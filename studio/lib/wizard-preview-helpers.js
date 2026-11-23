@@ -2,17 +2,20 @@
 // hover previews. Framework-free (no DOM imports) so node --test can pin
 // them: tests/wizard-template-previews.test.mjs.
 
-// Best preview source for one template: its OWN CI-rendered sample row
-// first, then the visual family's latest sample (mirrors the gallery's
-// lookup). An mp4-less row still previews via its poster; nothing at all
-// returns null and the card shows no preview affordance.
+// Preview source for one template: its OWN rendered sample row only (the
+// gallery's rule). An mp4-less row still previews via its poster; nothing at
+// all returns null and the card shows no preview affordance.
+// 2026-11-23: the visual-family fallback was removed — every registry
+// template shares the family "documentary-frames", so a template without its
+// own row showed ANOTHER template's video under its name (owner: "its preview
+// showing something else"). familyId/familySamples stay in the signature so
+// callers don't break; they are deliberately ignored.
+// eslint-disable-next-line no-unused-vars
 export function previewSourceFor(templateId, familyId, samples = {}, familySamples = {}) {
   const usable = (s) => s && typeof s === 'object' && (s.mp4 || s.poster)
     ? { mp4: s.mp4 || null, poster: s.poster || null }
     : null;
-  const own = usable(samples?.[templateId]);
-  if (own) return own;
-  return usable(familySamples?.[familyId]);
+  return usable(samples?.[templateId]);
 }
 
 // Where a zoomed hover popup goes, given the card's rect, the popup size and

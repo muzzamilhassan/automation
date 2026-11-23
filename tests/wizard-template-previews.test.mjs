@@ -17,10 +17,9 @@ test('#115: previewSourceFor — the template own sample wins over the family sa
   assert.equal(src.poster, '/p.jpg');
 });
 
-test('#115: previewSourceFor — falls back to the family sample when no own row', () => {
-  const src = previewSourceFor('no-row-template', 'systems', {}, { systems: { mp4: '/family.mp4', poster: '/family.jpg' } });
-  assert.equal(src.mp4, '/family.mp4');
-  assert.equal(src.poster, '/family.jpg');
+test('previewSourceFor — NEVER borrows the family sample (2026-11-23: it showed another template\'s video)', () => {
+  const src = previewSourceFor('no-row-template', 'documentary-frames', {}, { 'documentary-frames': { mp4: '/other.mp4', poster: '/other.jpg' } });
+  assert.equal(src, null);
 });
 
 test('#115: previewSourceFor — poster-only row still previews (mp4 null)', () => {

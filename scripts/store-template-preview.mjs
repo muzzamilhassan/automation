@@ -16,7 +16,9 @@ import { resolveBinary } from '../lib/ffmpeg.mjs';
 
 loadEnv();
 const args = process.argv.slice(2);
-const [id, mp4In, posterIn] = args.filter((a) => !a.startsWith('--'));
+// positionals only — the VALUE after --clip is not a poster path (2026-11-23:
+// "--clip 40" made the script read a file named "40" and store nothing)
+const [id, mp4In, posterIn] = args.filter((a, i) => !a.startsWith('--') && args[i - 1] !== '--clip');
 const clipIdx = args.indexOf('--clip');
 const clip = clipIdx > -1 ? Number(args[clipIdx + 1]) : 30;
 if (!id || !mp4In) { console.error('usage: node scripts/store-template-preview.mjs <template_id> <sample.mp4> [poster.jpg] [--clip 30]'); process.exit(1); }
