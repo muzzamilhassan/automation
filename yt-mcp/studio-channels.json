@@ -96,7 +96,10 @@
           "finance",
           "investment strategy",
           "stock market for beginners"
-        ]
+        ],
+        "templateId": "money-flow-diagram",
+        "templateVersion": "1.0.0",
+        "templateMajor": 1
       },
       "destinations": {
         "fbPageId": "116157974886564"
