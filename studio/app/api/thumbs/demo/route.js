@@ -31,6 +31,7 @@ const SAMPLES = {
   pov: { title: 'IN YOUR OWN HANDS', accentWord: 'OWN', chip: 'ACTION', eyebrow: 'PERSPECTIVE' },
   iso: { title: 'THE FULL SYSTEM ARCHITECTURE', accentWord: 'SYSTEM', chip: 'DIAGRAM', eyebrow: 'INTERNAL' },
   map: { title: 'GLOBAL CAPITAL SHIFTS', accentWord: 'GLOBAL', chip: 'MACRO', eyebrow: 'MAPPING' },
+  'v2/left-stack': { title: 'THE RED FLAGS OF FAKE WEALTH', accentWord: 'WEALTH', chip: '', eyebrow: '', brand: 'MONEYRULEBOOK' },
 };
 
 export async function GET(req) {
@@ -58,6 +59,7 @@ export async function GET(req) {
         accent,
         chip: sample.chip,
         eyebrow: sample.eyebrow,
+        brand: sample.brand || '',
         shade,
       });
     } else if (TEMPLATES[id]) {

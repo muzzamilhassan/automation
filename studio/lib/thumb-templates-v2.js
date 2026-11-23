@@ -31,6 +31,7 @@ const TTF = {
   passionBlack: 'PassionOne-Black.ttf',
   barlow: 'BarlowCondensed-Medium.ttf',
   barlowBold: 'BarlowCondensed-Bold.ttf',
+  oswald: 'Oswald-500.ttf',
   bungee: 'Bungee-Regular.ttf',
   inter800: 'Inter-ExtraBold.ttf',
   playfair: 'PlayfairDisplay-Bold.ttf',
@@ -113,7 +114,8 @@ function renderLine({ f, words, x, y, size, fg, spacing = 0, treat = {}, stroke 
   };
   words.forEach((w, wi) => {
     const isHl = hit('highlight', wi);
-    const fill = isHl ? treat.hlFg : lineColor;
+    // `color` = recolour ONE word, no box (the left-stack last-word accent)
+    const fill = isHl ? treat.hlFg : (treat.colorC && hit('color', wi) ? treat.colorC : lineColor);
     const wp = f.getPath(w, cx, y, size);
     const bb = wp.getBoundingBox();
     const wpx = adv(f, w, size, 0);
@@ -204,6 +206,14 @@ export function renderV2(id, rawOpts = {}) {
   const photo = spec.photo || 'none';
   if (photo === 'full' && o.photoHref) els.push(photoEmbed(o.photoHref, 0, 0, W, H));
   if (spec.scrim) els.push(`<rect width="${W}" height="${H}" fill="#000" fill-opacity="${spec.scrim}"/>`);
+  // side fade (left-stack): black from the LEFT edge, clear past the middle —
+  // a gradient fill, not a filter, so the crisp-edges rule still holds.
+  if (spec.gradient && spec.gradient.side === 'left') {
+    const a = (v, d) => Math.min(Math.max(Number.isFinite(v) ? v : d, 0), 1);
+    const g = spec.gradient;
+    els.push(`<defs><linearGradient id="v2side" x1="0" y1="0" x2="${a(g.x2, 0.62)}" y2="0"><stop offset="0" stop-color="#000" stop-opacity="${a(g.a0, 0.85)}"/><stop offset="0.55" stop-color="#000" stop-opacity="${a(g.a55, 0.38)}"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient></defs>`);
+    els.push(`<rect width="${W}" height="${H}" fill="url(#v2side)"/>`);
+  }
 
   // split panel (primitive: split / vs)
   if (spec.panel) {
@@ -256,8 +266,10 @@ export function renderV2(id, rawOpts = {}) {
   if (t.maxWords) { const w = title.split(/\s+/); if (w.length > t.maxWords) title = w.slice(0, t.maxWords).join(' '); }
   const panelInset = spec.panel ? (W * spec.panel.w) / 100 + 40 : 0;
   const x0 = spec.panel && spec.panel.side === 'left' ? (W * spec.panel.w) / 100 + 40 : INSET;
-  const maxW = (spec.panel ? W - panelInset : W) - x0 - INSET;
-  const size = t.size === 'auto' ? autofit(f, title, maxW, { maxLines: t.maxLines || 3 }) : t.size;
+  // title.maxWidthPct caps the text column (left-stack keeps it in the faded left side)
+  const colW = (spec.panel ? W - panelInset : W) - x0 - INSET;
+  const maxW = t.maxWidthPct > 0 && t.maxWidthPct < 1 ? Math.min(colW, W * t.maxWidthPct - x0) : colW;
+  const size = t.size === 'auto' ? autofit(f, title, maxW, { maxLines: t.maxLines || 3, max: t.maxSize || 160, min: t.minSize || 64 }) : t.size;
   const lines = wrapLines(f, title, size, maxW);
   const lineH = size * 1.08;
   const blockH = lines.length * lineH;
@@ -305,7 +317,9 @@ const yStart = t.pos === 'center' ? (H - blockH) / 2 + size : t.pos === 'top' ? 
       underline: resolveWord(t.underline && t.underline.word),
       overline: resolveWord(t.overline && t.overline.word),
       strike: resolveWord(t.strike && t.strike.word),
+      color: resolveWord(t.color && t.color.word),
     },
+    colorC: t.color ? (t.color.followAccent && o.accent ? o.accent : t.color.c) : null,
     hlBg: t.highlight ? (o.accent || t.highlight.bg) : null,
     hlFg: t.highlight ? t.highlight.fg : null,
     underline: t.underline || null,
@@ -334,8 +348,20 @@ const yStart = t.pos === 'center' ? (H - blockH) / 2 + size : t.pos === 'top' ? 
     if (fc.ring !== 'none') els.push(`<circle cx="${fc.cx}" cy="${fc.cy}" r="${fc.r}" fill="none" stroke="${fc.ring}" stroke-width="${fc.ringW || 8}"/>`);
   }
 
-  // brand tag (bottom-left small)
-  if (o.brand) {
+  // brand mark (bottom-right, letterspaced) when the design declares one;
+  // otherwise the default small bottom-left brand tag.
+  if (o.brand && spec.brandmark) {
+    const bm = spec.brandmark;
+    const bf = font(bm.font || 'oswald');
+    const text = o.brand.toUpperCase().slice(0, 24);
+    const size = bm.size || 30, spacing = bm.spacing || 6;
+    // per-glyph placement so the letterspacing is real (paths carry no tracking)
+    let cx = W - INSET - adv(bf, text, size, spacing);
+    for (const ch of text) {
+      els.push(`<path d="${bf.getPath(ch, cx, H - 52, size).toPathData(1)}" fill="${bm.fg || '#FFFFFF'}" fill-opacity="0.92"/>`);
+      cx += bf.getAdvanceWidth(ch, size) + spacing;
+    }
+  } else if (o.brand) {
     const bf = font('mono');
     els.push(textPath(bf, o.brand.toUpperCase().slice(0, 24), INSET, H - 28, 22, { fill: '#FFFFFF', stroke: { c: '#000000', w: 4 } }).el);
   }

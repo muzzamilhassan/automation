@@ -1341,6 +1341,30 @@
         "highlight": { "word": "keyword", "bg": "#FF3D7F", "fg": "#FFFFFF" }
       },
       "face": { "shape": "circle", "cx": 1108, "cy": 486, "r": 114, "ring": "#FF3D7F", "ringW": 8 }
+    },
+    {
+      "id": "left-stack",
+      "label": "Left Stack",
+      "category": "doc-style",
+      "needsPhoto": true,
+      "desc": "Money Rulebook doc look — full-bleed photo, dark fade from the left, left-anchored Anton headline, last word in salmon, brand mark bottom-right",
+      "aiPreset": "cinematic documentary photo matching the topic, subject on the right half, no text",
+      "bg": "#101314",
+      "photo": "full",
+      "gradient": { "side": "left", "a0": 0.85, "a55": 0.38, "x2": 0.62 },
+      "title": {
+        "font": "anton",
+        "case": "upper",
+        "size": "auto",
+        "maxSize": 104,
+        "minSize": 80,
+        "maxWidthPct": 0.6,
+        "pos": "bottom",
+        "fg": "#FFFFFF",
+        "maxLines": 3,
+        "color": { "word": "last", "c": "#F0776E" }
+      },
+      "brandmark": { "font": "oswald", "size": 30, "spacing": 6, "fg": "#FFFFFF" }
     }
   ]
 }
