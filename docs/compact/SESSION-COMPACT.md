@@ -105,6 +105,14 @@ Cloud dry run (no upload): `bash scripts/gh-personal workflow run diagram-dryrun
   - MR 7/7, QQ 4/7, IC 5/7, DFD 5/7, yt-bot 2/7; discover picks only MR.
   - The prefill was applied to Neon + the registry.
   - quarry-render TikTok Post (QuoteQuarry) workflows are disabled.
+- **`aafed7c` #117 SHIPPED + verified live (2026-11-23):**
+  - The legacy qs_key cookie is refused (401, even with the correct hash); password login mints only qs_session.
+  - The auth files that sat uncommitted for days are now committed.
+- **Working-tree cleanup (2026-11-23):**
+  - 51 → 2 items.
+  - The unneeded files were moved to Documents/youtube-automation-cleanup-2026-11-23, not deleted.
+  - The security audit report moved to Documents/youtube-automation-private (keep it out of the public repo).
+  - The 2 remaining research files belong to other sessions.
 - **PARKED 2026-11-23 (owner):**
   - The emotional voice is parked: no free GPU voice was natural enough (Ming natural was best). ElevenLabs comes later.
   - Code is saved on branch `wip/emotional-voice-gpu` (GPU engine + fallback + 27-voice Kokoro library).
