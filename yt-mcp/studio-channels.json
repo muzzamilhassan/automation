@@ -47,7 +47,10 @@
         "thumbTemplates": [
           "gold-standard",
           "pillar"
-        ]
+        ],
+        "templateId": "money-flow-diagram",
+        "templateVersion": "1.0.0",
+        "templateMajor": 1
       },
       "destinations": null,
       "ownerEmail": "",
