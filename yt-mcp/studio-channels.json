@@ -62,27 +62,6 @@
       "niche": "Investing psychology & market wisdom",
       "accent": "#E8C15A",
       "kit": {
-        "niches": [
-          "warren buffett rules",
-          "market crashes & history",
-          "compounding secrets",
-          "investing psychology",
-          "risk management",
-          "value investing"
-        ],
-        "longSlot": "21:30",
-        "slots": [
-          "23:35"
-        ],
-        "docDay": "Wed",
-        "thumbTemplates": [
-          "gold-standard",
-          "coinflip",
-          "price-fight"
-        ],
-        "gateCron": "47 2 * * *",
-        "voice": "bm_george",
-        "description": "Investing wisdom and stock market psychology in 60 seconds. Timeless principles from Buffett, Munger and Bogle — patience, compounding, and buying fear instead of selling it. New Shorts daily. Build conviction, not panic. Subscribe for daily investing wisdom.",
         "tags": [
           "investing",
           "stock market",
@@ -97,13 +76,50 @@
           "investment strategy",
           "stock market for beginners"
         ],
+        "label": "Investor's Compass",
+        "slots": [
+          "23:35"
+        ],
+        "voice": "bm_george",
+        "docDay": "Wed",
+        "handle": "@investorscompasshq",
+        "niches": [
+          "warren buffett rules",
+          "market crashes & history",
+          "compounding secrets",
+          "investing psychology",
+          "risk management",
+          "value investing"
+        ],
+        "longSlot": "21:30",
+        "storyShape": "full",
         "templateId": "money-flow-diagram",
-        "templateVersion": "1.0.0",
-        "templateMajor": 1
+        "description": "Investing wisdom and stock market psychology in 60 seconds. Timeless principles from Buffett, Munger and Bogle — patience, compounding, and buying fear instead of selling it. New Shorts daily. Build conviction, not panic. Subscribe for daily investing wisdom.",
+        "hasChapters": false,
+        "templateMajor": 1,
+        "thumbTemplates": [
+          "gold-standard",
+          "coinflip",
+          "price-fight"
+        ],
+        "templateVersion": "1.0.0"
       },
-      "destinations": {
-        "fbPageId": "116157974886564"
-      }
+      "destinations": null,
+      "ownerEmail": "",
+      "channelId": "",
+      "style": "",
+      "voice": "",
+      "slots": [],
+      "ytDescription": "",
+      "ytKeywords": "",
+      "tokenSecret": "",
+      "subs": 0,
+      "connectedAt": "2026-10-27T03:02:54.322Z",
+      "consentedAt": null,
+      "consent": null,
+      "autopilotStartedAt": null,
+      "status": "",
+      "fromRegistry": true
     },
     {
       "slug": "money-rulebook",
