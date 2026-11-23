@@ -219,7 +219,10 @@
           "serif-frame",
           "plinth",
           "marquee"
-        ]
+        ],
+        "templateId": "old-verses-storybook",
+        "templateVersion": "1.0.0",
+        "templateMajor": 1
       },
       "destinations": null,
       "ownerEmail": "",
