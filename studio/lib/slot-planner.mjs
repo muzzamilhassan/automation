@@ -331,7 +331,7 @@ export function suggestHours({ niche = '', takenHours: taken = [], audienceHours
       : distance <= 2
         ? `Good — close to ${region}`
         : `Free — nearest open hour to ${region}`;
-    return { hour, reason: `⭐ ${what} · ${suffix}`, source, distance };
+    return { hour, reason: `${what} · ${suffix}`, source, distance };
   });
 }
 
@@ -349,7 +349,7 @@ export function suggestStartHours({ publishHours = [], takenHours: taken = [], c
     const room = (h) => (t.length ? Math.min(...t.map((x) => hourDistance(h, x))) : 24);
     const ranked = [...Array(24).keys()].sort((a, b) => room(b) - room(a) || a - b);
     return pickFree(ranked, taken, count, gapHours).map((hour) => ({
-      hour, reason: '⭐ Free — no other channel starts near this hour', source: 'free', lead: null,
+      hour, reason: 'Free — no other channel starts near this hour', source: 'free', lead: null,
     }));
   }
   const lead = (h) => (pub - h + 24) % 24;
@@ -358,7 +358,7 @@ export function suggestStartHours({ publishHours = [], takenHours: taken = [], c
     .sort((a, b) => Math.abs(lead(a) - idealLead) - Math.abs(lead(b) - idealLead) || lead(b) - lead(a));
   return pickFree(ranked, taken, count, gapHours).map((hour, idx) => ({
     hour,
-    reason: `⭐ ${idx === 0 ? 'Best' : 'Good'} — free · about ${lead(hour)} h to review before it goes public`,
+    reason: `${idx === 0 ? 'Best' : 'Good'} — free · about ${lead(hour)} h to review before it goes public`,
     source: 'publish',
     lead: lead(hour),
   }));

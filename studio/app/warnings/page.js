@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react';
 import { isRealSeverity, needsYou, scriptIdOf } from '@/lib/notify-policy.mjs';
 import Link from 'next/link';
-import { Loader2, TriangleAlert, Ban, Eye, RotateCw, CheckCircle2, Quote, ScrollText } from 'lucide-react';
+import { Loader2, TriangleAlert, Ban, Eye, RotateCw, CheckCircle2, Quote, ScrollText, ArrowRight } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, StatCard, EmptyState } from '@/components/ui';
 import Drawer from '@/components/Drawer';
 import apiFetch from '@/components/shell/api-fetch';
@@ -60,7 +60,7 @@ function WarningRow({ w, isOwner, onAck, onResolve, onRecheck, busy }) {
                 </span>
               </div>
             ) : null}
-            {w.recommended_action ? <div className="t-11 text-muted mt-1 break-words">→ {w.recommended_action}</div> : null}
+            {w.recommended_action ? <div className="t-11 text-muted mt-1 break-words flex items-start gap-1"><ArrowRight size={12} aria-hidden className="shrink-0 mt-0.5" style={{ color: 'var(--info-ink)' }} /><span className="min-w-0">{w.recommended_action}</span></div> : null}
             <div className="t-10 text-faint mt-1.5 tnum break-words">
               {w.channel_id} · {w.code}{w.job_id ? ` · job ${w.job_id}` : ''} · last checked {when(w.last_checked_at)} · opened {when(w.created_at)}
               {w.acknowledged_by ? ` · acknowledged by ${w.acknowledged_by}` : ''}

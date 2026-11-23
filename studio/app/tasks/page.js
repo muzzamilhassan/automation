@@ -10,7 +10,7 @@
 //                            warning-based, so nothing is counted twice)
 // Owner/staff only — both APIs gate on role; clients get an honest state.
 import { useEffect, useState } from 'react';
-import { SquareKanban, OctagonAlert, ScrollText, CircleCheck, Circle } from 'lucide-react';
+import { SquareKanban, OctagonAlert, ScrollText, CircleCheck, Circle, ArrowRight } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader } from '@/components/ui';
 import Link from 'next/link';
 import { groupRealWarnings, needsYou } from '@/lib/notify-policy.mjs';
@@ -119,7 +119,7 @@ export default function Tasks() {
               ))}
             </ul>
           )}
-          {warnings !== 'denied' ? <Link href="/warnings" className="inline-block mt-3 t-11 text-accent hover:underline">full triage →</Link> : null}
+          {warnings !== 'denied' ? <Link href="/warnings" className="inline-flex items-center gap-1 mt-3 t-11 text-accent hover:underline">full triage <ArrowRight size={12} aria-hidden /></Link> : null}
         </Card>
 
         <Card className="p-5 min-w-0">
@@ -153,7 +153,7 @@ export default function Tasks() {
               ))}
             </ul>
           )}
-          {pending !== 'denied' ? <Link href="/review" className="inline-block mt-3 t-11 text-accent hover:underline">review queue →</Link> : null}
+          {pending !== 'denied' ? <Link href="/review" className="inline-flex items-center gap-1 mt-3 t-11 text-accent hover:underline">review queue <ArrowRight size={12} aria-hidden /></Link> : null}
         </Card>
 
         <Card className="p-5 min-w-0">

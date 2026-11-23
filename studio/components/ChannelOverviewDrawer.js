@@ -16,7 +16,7 @@
 // publish" checklist sits at the top; its fixes open the matching manage
 // drawer through onManage (same single-drawer state) or link to Edit profile.
 import Link from 'next/link';
-import { Tv, CalendarDays } from 'lucide-react';
+import { Tv, CalendarDays, ArrowUpRight } from 'lucide-react';
 import Drawer from '@/components/Drawer';
 import ReadinessChecklist from '@/components/ReadinessChecklist';
 import { Chip } from '@/components/ui';
@@ -108,8 +108,8 @@ export default function ChannelOverviewDrawer({ channel, logs, open, onClose, on
       <div className="space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           {channel.flowPaused ? <Chip tone="plain">Paused</Chip> : <Chip tone="ok" dot>Active</Chip>}
-          <Link href={channelHref(channel.slug)} className="t-12 text-muted hover:text-ink hover:underline">
-            Full page ↗
+          <Link href={channelHref(channel.slug)} className="t-12 text-muted hover:text-ink hover:underline inline-flex items-center gap-1">
+            Full page <ArrowUpRight size={12} aria-hidden />
           </Link>
         </div>
 

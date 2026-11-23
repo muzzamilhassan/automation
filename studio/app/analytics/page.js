@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react';
 import {
   TrendingUp,
+  TrendingDown,
+  ChevronRight,
   Target,
   Search,
   FileSpreadsheet,
@@ -270,7 +272,7 @@ export default function Analytics() {
                           {r.trendPct == null ? (
                             <Chip>new</Chip>
                           ) : (
-                            <Chip tone={r.trendPct >= 0 ? 'ok' : 'warn'} dot>{r.trendPct >= 0 ? '▲' : '▼'} {Math.abs(r.trendPct)}%</Chip>
+                            <Chip tone={r.trendPct >= 0 ? 'ok' : 'warn'}>{r.trendPct >= 0 ? <TrendingUp size={12} aria-label="up" /> : <TrendingDown size={12} aria-label="down" />}{Math.abs(r.trendPct)}%</Chip>
                           )}
                         </td>
                       </tr>
@@ -662,13 +664,13 @@ export default function Analytics() {
                       {c.todayTopics?.length && c.todayTopicsAt ? <span className="t-10 text-faint">Shorts topics · picked {c.todayTopicsAt}</span> : null}
                       {(c.todayTopics || []).map((t, i) => (
                         <span key={i} className="t-11 text-muted leading-snug flex gap-1.5">
-                          <span style={{ color: c.accent || 'var(--accent)' }}>▸</span>
+                          <ChevronRight size={12} aria-hidden className="shrink-0 mt-0.5" style={{ color: c.accent || 'var(--accent)' }} />
                           <span>from viral wave: “{t}”</span>
                         </span>
                       ))}
                       {c.episodeTopic ? (
                         <span className="t-11 text-muted leading-snug flex gap-1.5">
-                          <span className="text-accent">▸</span>
+                          <ChevronRight size={12} aria-hidden className="shrink-0 mt-0.5 text-accent" />
                           <span>episode: “{c.episodeTopic}”{c.episodeTopicAt ? <span className="text-faint"> · picked {c.episodeTopicAt}</span> : null}</span>
                         </span>
                       ) : null}

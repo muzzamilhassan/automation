@@ -13,7 +13,7 @@
 //            picks, so a taken hour is never starred (T4-13)
 //   legend   "Taken:" sorted by your clock, real minutes (T4-20, T3-21)
 //   tags     short ("shared" / "taken" / "saved") so cells never truncate (T3-25)
-import { Clock } from 'lucide-react';
+import { Clock, Star } from 'lucide-react';
 import { timelineHours, zoneLabel, localClock, timelineCell, takenLegend } from '@/lib/slot-planner.mjs';
 
 function viewerZone() {
@@ -58,7 +58,10 @@ export default function SlotTimeline({ label, value, onPick, taken = [], suggest
                   style={on ? { borderColor: 'var(--accent)', background: 'var(--accent-soft)' } : { borderColor: 'var(--line)' }}
                 >
                   <span className="t-13 font-semibold text-ink tnum">{localClock(s.hour, minute, offsetMin)}</span>
-                  <span className="t-11 text-muted min-w-0">{s.reason}</span>
+                  <span className="t-11 text-muted min-w-0 inline-flex items-center gap-1">
+                    <Star size={12} aria-hidden fill="currentColor" className="shrink-0" style={{ color: 'var(--warn-ink)' }} />
+                    {s.reason}
+                  </span>
                 </button>
               </li>
             );
@@ -101,7 +104,7 @@ export default function SlotTimeline({ label, value, onPick, taken = [], suggest
               {cell.tag ? (
                 <span className="t-10">{cell.tag}</span>
               ) : star ? (
-                <span className="t-10" aria-hidden="true">⭐</span>
+                <Star size={10} aria-hidden fill="currentColor" style={{ color: 'var(--warn-ink)' }} />
               ) : null}
             </button>
           );

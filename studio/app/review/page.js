@@ -12,7 +12,7 @@
 // recorded-only after; unpicked = candidate 1).
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Loader2, ScrollText, ShieldCheck, ThumbsUp, ThumbsDown, RefreshCw, Image as ImageIcon, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Loader2, ScrollText, ShieldCheck, ThumbsUp, ThumbsDown, RefreshCw, Image as ImageIcon, AlertTriangle, ExternalLink, ArrowLeft } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, EmptyState } from '@/components/ui';
 import DataTable from '@/components/DataTable';
 import { useConfirm } from '@/components/ConfirmDialog';
@@ -210,7 +210,7 @@ export default function ReviewDeskPage() {
       ) : (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <button onClick={load} className="btn btn-ghost btn-sm min-h-[44px] md:min-h-0">← Back to queue</button>
+            <button onClick={load} className="btn btn-ghost btn-sm min-h-[44px] md:min-h-0"><ArrowLeft size={14} aria-hidden />Back to queue</button>
           </div>
 
           <Card>

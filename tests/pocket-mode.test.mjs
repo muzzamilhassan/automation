@@ -109,7 +109,7 @@ test('review: the script|sources pair stacks on phones (no forced 2 columns)', (
 });
 
 test('review: the other phone taps (back, pick, disclosure yes/no) are 44px targets', () => {
-  assert.match(buttonClassFor(review, '← Back to queue'), /btn[\s\S]*min-h-\[44px\]/);
+  assert.match(buttonClassFor(review, 'Back to queue'), /btn[\s\S]*min-h-\[44px\]/);
   assert.match(buttonClassFor(review, 'pick'), /btn btn-outline btn-sm min-h-\[44px\]/);
   assert.match(code(review), /<label key=\{String\(v\)\} className="[^"]*min-h-\[44px\]/);
 });

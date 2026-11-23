@@ -188,7 +188,7 @@ test('dots: reduced motion respected; fixed words; kit tokens only', () => {
   assert.match(DRAWER, /STATE_WORD\[/);
   assert.match(DRAWER, /Step details start with runs after 23 Nov\. Open the raw log for older runs\./);
   assert.match(DRAWER, /Couldn&apos;t load steps|Couldn't load steps/);
-  assert.match(DRAWER, /Raw log ↗/);
+  assert.match(DRAWER, /Raw log <ExternalLink size=\{12\} aria-hidden \/>/); // real icon, no ↗ glyph (2026-11-23)
   assert.match(DRAWER, /from '@\/components\/Drawer'/);
 });
 

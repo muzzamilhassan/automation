@@ -13,6 +13,7 @@ import {
   Film,
   Image as ImageIcon,
   ArrowRight,
+  Check,
   FileText,
   History,
   Pause,
@@ -56,7 +57,7 @@ function ClipQueueChips({ clipQueue }) {
   return <Chip tone="warn">queue empty</Chip>;
 }
 
-const runWord = (state, idle) => (state === 'busy' ? 'Starting…' : state === 'started' ? 'Started ✓' : state === 'error' ? 'Failed — retry' : idle);
+const runWord = (state, idle) => (state === 'busy' ? 'Starting…' : state === 'started' ? <><Check size={12} aria-hidden style={{ color: 'var(--ok-ink)' }} />Started</> : state === 'error' ? 'Failed — retry' : idle);
 
 export default function Production() {
   // 10-08 FLOW CONTROL — network master switch (Hootsuite-style suspend):

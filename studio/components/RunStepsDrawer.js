@@ -12,7 +12,7 @@
 // StationDrawer (that station's settings + last 5 results) for the job's
 // channel, nested on top; this drawer ignores closes while it is open.
 import { useCallback, useEffect, useState } from 'react';
-import { ListChecks, AlertTriangle, History, RotateCw } from 'lucide-react';
+import { ListChecks, AlertTriangle, History, RotateCw, ExternalLink } from 'lucide-react';
 import Drawer from '@/components/Drawer';
 import StationDots from '@/components/StationDots';
 import StationDrawer, { useGuardedClose } from '@/components/StationDrawer';
@@ -166,7 +166,7 @@ function RunSteps({ onClose, target }) {
         icon={ListChecks}
         size="lg"
         footer={target.logUrl ? (
-          <a href={target.logUrl} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">Raw log ↗</a>
+          <a href={target.logUrl} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">Raw log <ExternalLink size={12} aria-hidden /></a>
         ) : null}
       >
         <StepsBody key={url || 'none'} url={url} startedAt={target.startedAt} labels={target.labels} onStation={setStation} />

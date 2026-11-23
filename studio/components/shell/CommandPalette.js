@@ -18,6 +18,7 @@ import {
   SquareKanban,
   Settings,
   CornerDownLeft,
+  Check,
 } from 'lucide-react';
 import { ALL_NAV_ITEMS } from './nav';
 import { startNavProgress } from './NavProgress';
@@ -155,7 +156,7 @@ export default function CommandPalette({ open, onClose }) {
         .then(async (r) => {
           const d = await r.json().catch(() => ({}));
           if (!r.ok || d.error) { setNote('Failed: ' + (d.error || 'HTTP ' + r.status) + ' — nothing was started'); setArmed(null); return; }
-          setNote('Started ✓');
+          setNote('Started');
           onClose();
         })
         .catch(() => { setNote('Failed: network error — nothing was started'); setArmed(null); });
@@ -196,7 +197,10 @@ export default function CommandPalette({ open, onClose }) {
           <span className="kbd">ESC</span>
         </div>
         {note ? (
-          <p className="px-4 py-2 t-11 border-b border-line text-muted" role="status">{note}</p>
+          <p className="px-4 py-2 t-11 border-b border-line text-muted flex items-center gap-1" role="status">
+            {note === 'Started' ? <Check size={12} aria-hidden style={{ color: 'var(--ok-ink)' }} /> : null}
+            {note}
+          </p>
         ) : null}
         <div className="max-h-[46vh] overflow-y-auto py-2">
           {items.length === 0 ? (

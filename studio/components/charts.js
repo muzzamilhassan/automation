@@ -1,5 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
+import { Target } from 'lucide-react';
 
 /* -------------------------------- Sparkline ------------------------------- */
 
@@ -247,7 +248,7 @@ export function RetentionBars({ rows, goal }) {
       ))}
       <div className="flex items-center justify-between t-10 text-faint pt-1">
         <span>0%</span>
-        <span className="font-bold" style={{ color: 'var(--ink)' }}>▲ goal {goal}%</span>
+        <span className="font-bold inline-flex items-center gap-1" style={{ color: 'var(--ink)' }}><Target size={11} aria-hidden />goal {goal}%</span>
         <span>100% watched</span>
       </div>
     </div>

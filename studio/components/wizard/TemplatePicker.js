@@ -121,7 +121,7 @@ export default function TemplatePicker({ style, onStyle, niche, connectedSlug, t
           </h3>
           <Link href="/styles" className="t-11 font-semibold text-accent hover:underline">Open the full gallery</Link>
         </div>
-        <p className="t-11 text-faint mb-3">Hover or tap ▶ to watch a demo. “Use for this channel” assigns it right away — it doesn&apos;t wait for Save.</p>
+        <p className="t-11 text-faint mb-3">Hover or tap <Play size={11} aria-label="play" className="inline -mt-px" /> to watch a demo. “Use for this channel” assigns it right away — it doesn&apos;t wait for Save.</p>
 
         {templates.status === 'loading' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3" aria-busy="true">
@@ -164,7 +164,7 @@ export default function TemplatePicker({ style, onStyle, niche, connectedSlug, t
                       ) : (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-faint">
                           <Film size={20} />
-                          <span className="t-11">{src?.mp4 ? 'Tap ▶ for the demo' : 'No demo yet'}</span>
+                          <span className="t-11 inline-flex items-center gap-1">{src?.mp4 ? <>Tap <Play size={11} aria-label="play" /> for the demo</> : 'No demo yet'}</span>
                         </div>
                       )}
                       {src?.mp4 ? (

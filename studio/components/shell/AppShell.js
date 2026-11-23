@@ -20,6 +20,8 @@ import {
   Pickaxe,
   LogOut,
   Sparkles,
+  ArrowRight,
+  CircleHelp,
 } from 'lucide-react';
 import { NAV, ALL_NAV_ITEMS, MENU_ITEMS, navSectionFor } from './nav';
 import CommandPalette from './CommandPalette';
@@ -199,8 +201,8 @@ function Notifications({ open, onClose, warnings }) {
           })]}
         </div>
         {warnings.canSee ? (
-          <Link href="/warnings" onClick={onClose} className="block px-4 py-2.5 border-t border-border-tertiary t-11 text-accent hover:underline">
-            See all alerts →
+          <Link href="/warnings" onClick={onClose} className="flex items-center gap-1 px-4 py-2.5 border-t border-border-tertiary t-11 text-accent hover:underline">
+            See all alerts <ArrowRight size={12} aria-hidden />
           </Link>
         ) : null}
     </>
@@ -246,8 +248,8 @@ function NavGroups({ collapsed, onNavigate, channels }) {
         {!collapsed ? (
           <div className="qs-side-group flex items-center justify-between">
             <span>Channels</span>
-            <Link href="/channels" className="t-10 lowercase text-[#6b7671] hover:text-[#98a2a7]">
-              manage →
+            <Link href="/channels" className="t-10 lowercase text-[#6b7671] hover:text-[#98a2a7] inline-flex items-center gap-0.5">
+              manage <ArrowRight size={11} aria-hidden />
             </Link>
           </div>
         ) : null}
@@ -542,7 +544,7 @@ function ShellFrame({ children }) {
                 aria-label="Alerts"
               />
               {warnStatus === 'error' ? (
-                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9.5px] font-bold flex items-center justify-center bg-bg-tertiary text-fg-tertiary pointer-events-none" title="Can't check alerts — status unknown">?</span>
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9.5px] font-bold flex items-center justify-center bg-bg-tertiary text-fg-tertiary pointer-events-none" title="Can't check alerts — status unknown"><CircleHelp size={10} aria-label="Alerts status unknown" /></span>
               ) : warningsCanSee && bellCount ? (
                 <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9.5px] font-bold flex items-center justify-center bg-error-solid text-white pointer-events-none">
                   {bellCount}

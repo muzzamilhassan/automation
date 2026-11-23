@@ -171,7 +171,7 @@ test('H3: quick actions swap the overview for ONE manage drawer (single drawer s
 });
 
 test('H4: the overview drawer links to the full page, which keeps working', () => {
-  assert.match(OVERVIEW, /href=\{channelHref\(channel\.slug\)\}[\s\S]{0,200}Full page ↗/);
+  assert.match(OVERVIEW, /href=\{channelHref\(channel\.slug\)\}[\s\S]{0,240}Full page <ArrowUpRight size=\{12\} aria-hidden \/>/); // real icon, no ↗ glyph (2026-11-23)
 });
 
 test('parked brands open the keys drawer (not an inline panel below the grid)', () => {

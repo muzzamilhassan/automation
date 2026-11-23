@@ -143,7 +143,7 @@ test('T2-21 EARS: one place, two names — Inbox (/tasks) and Alerts (/warnings)
   assert.equal(labels('/warnings'), 'Inbox › Alerts');
   assert.match(POCKET, /href: '\/warnings', label: 'Alerts'/);
   // the bell's footer link
-  assert.match(SHELL, />\s*See all alerts →\s*</);
+  assert.match(SHELL, />\s*See all alerts <ArrowRight size=\{12\} aria-hidden \/>\s*</); // real icon, no → glyph (2026-11-23)
   assert.doesNotMatch(SHELL, /warning triage/);
   // page headings
   assert.match(TASKS, /<PageHeader icon=\{SquareKanban\} title="Inbox" /);

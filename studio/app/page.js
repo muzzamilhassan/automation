@@ -17,6 +17,7 @@ import {
   Loader2,
   ChevronRight,
   Clock,
+  Check,
 } from 'lucide-react';
 import { Card, CardHead, Chip, PageSkeleton, EmptyState, BrandMark } from '@/components/ui';
 import { MiniBars } from '@/components/charts';
@@ -94,7 +95,7 @@ function TodayList({ channels, marks, now }) {
                   <span className="t-13 font-semibold text-ink min-w-0 flex-1 basis-[calc(100%-38px)] sm:basis-auto break-words sm:truncate sm:flex-none sm:w-48">{c.label || c.slug}</span>
                   <span className="flex flex-wrap items-center gap-1.5 pl-[38px] sm:pl-0">
                     <Chip tone={t.tone} dot>{t.label}</Chip>
-                    {done.map((m) => <Chip key={m} tone="ok">{m} ✓</Chip>)}
+                    {done.map((m) => <Chip key={m} tone="ok"><Check size={12} aria-hidden />{m}</Chip>)}
                   </span>
                   <span className="t-11 text-faint tnum flex items-center gap-1 sm:ml-auto">
                     <Clock size={11} />

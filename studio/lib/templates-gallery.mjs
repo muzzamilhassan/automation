@@ -126,6 +126,26 @@ export function assignmentSummary(a, t) {
   };
 }
 
+// Owner bug 2026-11-23 ("Assign and pin is not working"): the channel drawer
+// let the owner pick templates the server's validator always refuses
+// (validateAssignment in template-registry.js — mostly niche_mismatch), with
+// no sign on the card. This previews the validator's CHANNEL-SHAPE checks
+// (format / niche / deprecated) on the same channelConfig the GET route hands
+// the panel, in the validator's order, so cards and the footer can say why
+// BEFORE the click. Capabilities stay server-only; the server still decides.
+// Parity with validateAssignment is pinned by
+// tests/template-assign-visible-result.test.mjs.
+export function pickBlockers(registry, channelConfig) {
+  if (!registry || typeof registry !== 'object') return [];
+  const out = [];
+  const chFormats = arr(channelConfig?.formats);
+  const chNiches = arr(channelConfig?.niches);
+  if (!arr(registry.formats).some((f) => chFormats.includes(f))) out.push('format_mismatch');
+  if (!arr(registry.niches).some((n) => chNiches.includes(n))) out.push('niche_mismatch');
+  if (registry.deprecated === true) out.push('deprecated_template');
+  return out;
+}
+
 function categoryLabel(id, categories) {
   const hit = arr(categories).find((c) => c && c.id === id);
   return hit?.label || humanizeId(id);

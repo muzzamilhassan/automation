@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Play, Loader2, Check, X } from 'lucide-react';
+import { Play, Loader2, Check, X, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -46,8 +46,8 @@ export default function ActionButton({ action, slug = null, label, small = false
         {busy ? 'Starting…' : ok === true ? 'Started' : ok === false ? 'Failed' : label}
       </button>
       {ok === true ? (
-        <Link href="/logs" className="t-11 text-accent hover:underline whitespace-nowrap">
-          watch logs →
+        <Link href="/logs" className="t-11 text-accent hover:underline whitespace-nowrap inline-flex items-center gap-1">
+          watch logs <ArrowRight size={12} aria-hidden />
         </Link>
       ) : null}
     </span>

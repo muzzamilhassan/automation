@@ -123,7 +123,7 @@ test('suggestHours: niche source, 3 stars, honest reason text', () => {
   assert.equal(s.length, 3);
   assert.equal(new Set(s.map((x) => x.hour)).size, 3);
   assert.equal(s[0].source, 'niche');
-  assert.match(s[0].reason, /^⭐ Best — evenings in the US · typical for this niche$/);
+  assert.match(s[0].reason, /^Best — evenings in the US · typical for this niche$/);
   for (const x of s) assert.match(x.reason, /typical for this niche/);
 });
 
@@ -152,7 +152,7 @@ test('suggestHours source order: real viewers → picked audience → niche → 
   const picked = suggestHours({ niche: 'Personal finance rules & money habits', preset: { utc: '19:00', label: 'UK & Ireland' } });
   assert.equal(picked[0].hour, 19);
   assert.equal(picked[0].source, 'preset');
-  assert.match(picked[0].reason, /^⭐ Best — evenings for UK & Ireland viewers · the audience you picked$/);
+  assert.match(picked[0].reason, /^Best — evenings for UK & Ireland viewers · the audience you picked$/);
 
   const general = suggestHours({ niche: '' });
   assert.equal(general[0].source, 'general');
@@ -174,7 +174,7 @@ test('suggestStartHours: free start hours that leave review time before the vide
     assert.ok(![1, 2, 3, 4].includes(x.hour), `gap kept (${x.hour})`);
     const lead = (0 - x.hour + 24) % 24;
     assert.ok(lead >= 6 && lead <= 22, `lead ${lead}h leaves review time`);
-    assert.match(x.reason, /^⭐ (Best|Good) — free · about \d+ h to review before it goes public$/);
+    assert.match(x.reason, /^(Best|Good) — free · about \d+ h to review before it goes public$/);
     assert.equal(x.source, 'publish');
   }
 });

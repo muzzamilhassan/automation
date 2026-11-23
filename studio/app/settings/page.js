@@ -12,7 +12,7 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { Settings, Sun, Moon, Check, Plug, Bell, Server, ShieldAlert, Users, Trash2, Plus, MonitorSmartphone, SquareKanban, Loader2, ChevronRight, LogOut } from 'lucide-react';
+import { Settings, Sun, Moon, Check, Plug, Bell, Server, ShieldAlert, Users, Trash2, Plus, MonitorSmartphone, SquareKanban, Loader2, ChevronRight, LogOut, ExternalLink } from 'lucide-react';
 import { Card, CardHead, Chip, PageHeader, PageSkeleton } from '@/components/ui';
 import TabNav from '@/components/TabNav';
 import { useConfirm } from '@/components/ConfirmDialog';
@@ -467,7 +467,7 @@ function SettingsContent() {
                   {pwResult.steps.map((s, i) => <li key={i}>{s}</li>)}
                 </ol>
                 <a className="btn btn-outline btn-sm" href={pwResult.dashboardUrl} target="_blank" rel="noreferrer">
-                  Open Vercel environment variables →
+                  Open Vercel environment variables <ExternalLink size={12} aria-hidden />
                 </a>
                 {pwResult.warning ? <p className="t-11 text-faint">{pwResult.warning}</p> : null}
                 <p className="t-11 text-faint">

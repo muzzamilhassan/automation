@@ -5,7 +5,7 @@
 // blocks Next with its message (stepIssues 'look') instead of silently
 // keeping the old colour. The profile route still only stores #RRGGBB.
 import { useState } from 'react';
-import { Check } from 'lucide-react';
+import { Check, Plus } from 'lucide-react';
 
 // generic starting points (not channel data — any colour is allowed)
 const SWATCHES = ['#38BDF8', '#E8C15A', '#3DDC97', '#F4766F', '#A78BFA', '#F97316', '#C1272D', '#5EEAD4'];
@@ -44,7 +44,7 @@ export default function AccentPicker({ value, onChange }) {
         })}
         <label className="relative w-8 h-8 rounded-full border border-dashed border-line overflow-hidden cursor-pointer" title="Pick any colour">
           <input type="color" value={HEX_RE.test(value) ? value : '#38BDF8'} onChange={(e) => onChange(e.target.value.toUpperCase())} className="absolute inset-0 opacity-0 cursor-pointer" aria-label="Pick any colour" />
-          <span className="absolute inset-0 flex items-center justify-center t-14 text-muted pointer-events-none">+</span>
+          <span className="absolute inset-0 flex items-center justify-center text-muted pointer-events-none"><Plus size={14} aria-hidden /></span>
         </label>
         <input
           className="input font-mono t-12 w-28"

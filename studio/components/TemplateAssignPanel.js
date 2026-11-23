@@ -38,12 +38,12 @@
 //  - T3-14: the selected template and its version sit in the sticky footer.
 //  - T3-20: Story shape is a radio-group setting that confirms before saving.
 import { useEffect, useMemo, useState } from 'react';
-import { Layers, AlertTriangle, CheckCircle2, XCircle, Loader2, Trash2, ArrowUpCircle, Info, RefreshCw, ExternalLink, BookOpen } from 'lucide-react';
+import { Layers, AlertTriangle, CheckCircle2, XCircle, Loader2, Trash2, ArrowUpCircle, Info, RefreshCw, ExternalLink, BookOpen, Star } from 'lucide-react';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import { Chip } from '@/components/ui';
 import { useConfirm } from '@/components/ConfirmDialog';
 import TemplatePreviewMedia from '@/components/TemplatePreviewMedia';
-import { previewFor, ratiosForFormats, majorOf, availableMajors, assignmentSummary } from '@/lib/templates-gallery.mjs';
+import { previewFor, ratiosForFormats, majorOf, availableMajors, assignmentSummary, pickBlockers } from '@/lib/templates-gallery.mjs';
 import { fetchJsonWithTimeout } from '@/lib/template-media.mjs';
 import { chapterValueFor, storyModeOf, storyShapeFor } from '@/lib/channel-kit-ui.mjs';
 
@@ -148,7 +148,6 @@ export default function TemplateAssignPanel({ slug, frame }) {
   const templates = tpl.templates;
   const assignments = asg.assignments;
   const channelNiches = useMemo(() => asg.channelConfig?.niches || [], [asg.channelConfig]);
-  const channelFormats = asg.channelConfig?.formats || [];
   const isOwner = tpl.role === 'owner';
   const channelLabel = chapters.label || slug;
   const byTemplate = useMemo(() => new Map(templates.map((t) => [t.templateId, t])), [templates]);
@@ -449,7 +448,7 @@ export default function TemplateAssignPanel({ slug, frame }) {
           <>
             {channelNiches.length ? (
               <div className="min-w-0">
-                <p className="t-11 text-faint mb-1.5">This channel&apos;s niches (matching templates are starred ★ and listed first)</p>
+                <p className="t-11 text-faint mb-1.5">This channel&apos;s niches (matching templates have a star and come first)</p>
                 <div className="flex flex-wrap gap-1.5">
                   {channelNiches.map((n) => (
                     <Chip key={n} tone="plain" className="max-w-full whitespace-normal break-words">{n}</Chip>
@@ -467,7 +466,8 @@ export default function TemplateAssignPanel({ slug, frame }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {orderedTemplates.map((t) => {
                 const nicheHit = (t.registry?.niches || []).some((n) => channelNiches.includes(n));
-                const fmtMiss = asg.status === 'ready' && !(t.registry?.formats || []).some((f) => channelFormats.includes(f));
+                // the validator's channel checks, shown before the click (owner bug 2026-11-23)
+                const blockers = asg.status === 'ready' ? pickBlockers(t.registry, asg.channelConfig) : [];
                 const isAssigned = assignedIds.has(t.templateId);
                 const selected = templateId === t.templateId;
                 const media = { name: t.name, preview: previewFor(t.templateId, samples.samples), ratios: ratiosForFormats(t.registry?.formats) };
@@ -490,15 +490,17 @@ export default function TemplateAssignPanel({ slug, frame }) {
                       onClick={() => pickTemplate(t.templateId)}
                       className="text-left p-3 flex-1 flex flex-col gap-1.5 min-w-0 disabled:cursor-default"
                     >
-                      <span className="t-13 font-semibold text-ink break-words">
-                        {nicheHit ? '★ ' : ''}{t.name}
+                      <span className="t-13 font-semibold text-ink break-words inline-flex items-start gap-1">
+                        {nicheHit ? <Star size={13} className="shrink-0 mt-[2px]" fill="currentColor" style={{ color: 'var(--warn-ink)' }} aria-label="Matches this channel's niche" /> : null}
+                        <span>{t.name}</span>
                       </span>
                       <span className="t-11 text-faint">v{t.registry.version}</span>
                       <span className="flex flex-wrap gap-1">
                         {isAssigned ? <Chip tone="ok">Assigned</Chip> : null}
                         {selected ? <Chip tone="accent">Selected</Chip> : null}
                         {t.registry.deprecated ? <Chip tone="warn">deprecated</Chip> : null}
-                        {fmtMiss ? <Chip tone="warn">format mismatch</Chip> : null}
+                        {blockers.includes('format_mismatch') ? <Chip tone="warn">format mismatch</Chip> : null}
+                        {blockers.includes('niche_mismatch') ? <Chip tone="warn">niche mismatch</Chip> : null}
                       </span>
                     </button>
                     {selected ? (
@@ -518,13 +520,23 @@ export default function TemplateAssignPanel({ slug, frame }) {
           </>
         )}
       </section>
+    </div>
+  );
 
-      {/* result / validation messages */}
+  // T3-14: the selection and its version live in the sticky footer, always
+  // on screen next to "Assign & pin" — never in a box scrolled out of view.
+  // Owner bug 2026-11-23: the assign ANSWER lives here too. It used to sit at
+  // the end of the body, under every demo card, so a refusal (or a success)
+  // was never on screen and the button looked dead.
+  const assigning = !!busy && busy === templateId;
+  const pickedBlockers = picked && asg.status === 'ready' ? pickBlockers(picked.registry, asg.channelConfig) : [];
+  const footer = isOwner && templates.length ? (
+    <>
       {msg ? (
         <div
           role="status"
           aria-live="polite"
-          className="rounded-lg border p-3 t-12"
+          className="w-full rounded-lg border p-3 t-12 max-h-40 overflow-y-auto"
           style={{
             borderColor: `color-mix(in srgb, ${msg.ok ? 'var(--ok)' : 'var(--bad)'} 35%, transparent)`,
             background: `color-mix(in srgb, ${msg.ok ? 'var(--ok)' : 'var(--bad)'} 8%, transparent)`,
@@ -545,15 +557,12 @@ export default function TemplateAssignPanel({ slug, frame }) {
             </ul>
           ) : null}
         </div>
+      ) : !assigning && pickedBlockers.length ? (
+        <p className="w-full flex items-start gap-1.5 t-12" style={{ color: 'var(--warn-ink)' }}>
+          <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+          <span className="min-w-0">{friendlyReason({ code: pickedBlockers[0] })}</span>
+        </p>
       ) : null}
-    </div>
-  );
-
-  // T3-14: the selection and its version live in the sticky footer, always
-  // on screen next to "Assign & pin" — never in a box scrolled out of view.
-  const assigning = !!busy && busy === templateId;
-  const footer = isOwner && templates.length ? (
-    <>
       {picked ? (
         <div className="flex flex-wrap items-center gap-2 min-w-0 mr-auto">
           <span className="t-12 text-muted min-w-0 break-words">Selected: <b className="text-ink">{picked.name}</b></span>
