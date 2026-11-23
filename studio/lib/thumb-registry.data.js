@@ -145,4 +145,15 @@ export const THUMB_REGISTRY = [
     id: 'pillar',
     niches: [...FINANCE_CLUSTER],
   },
+  // ---- doc-style ----
+  // Left Stack — the Money Rulebook doc-thumbnail look (owner 2026-11-23:
+  // "make it pickable in Channel → Thumbnails"). The one photo design in the
+  // set: `photo: 'frame'` = the engine supplies a frame from the video as the
+  // photo, so nothing has to be hunted (Ruling 6 still holds for every other
+  // photo design — the loader rejects needsPhoto without this declaration).
+  {
+    id: 'left-stack',
+    niches: [...FINANCE_CLUSTER],
+    photo: 'frame',
+  },
 ];

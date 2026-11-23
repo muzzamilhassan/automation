@@ -1187,18 +1187,27 @@ async function registryThumbCandidates(brand, page, slots) {
 // preview route passes; entry-level token pins win, D14). JPEG <= 2 MB (the
 // YouTube cap): one lower-quality re-encode, then the candidate is dropped —
 // per-variant fail-soft, candidate 1 still ships.
-async function renderRegistryThumb(design, brand, script) {
+// A design declaring photo:'frame' (Left Stack) gets `photoFile` — a frame
+// from the video — as its full-bleed photo; every other design ignores it.
+export async function renderRegistryThumb(design, brand, script, { photoFile = null } = {}) {
   const [{ renderV2 }, reg] = await Promise.all([
     import('./studio/lib/thumb-templates-v2.js'),
     import('./studio/lib/thumb-registry.mjs'),
   ]);
   const tokens = reg.thumbRenderTokens(design, brand);
+  let photoHref = '';
+  if (design.photo === 'frame') {
+    if (!photoFile || !fs.existsSync(photoFile)) throw new Error(`${design.id} needs a video frame and none was extracted`);
+    const jpg = await sharp(photoFile).resize(1280, 720, { fit: 'cover', position: 'attention' }).jpeg({ quality: 90 }).toBuffer();
+    photoHref = `data:image/jpeg;base64,${jpg.toString('base64')}`;
+  }
   const svg = renderV2(`v2/${design.id}`, {
     title: script.thumbHeadline || script.hook,
     accent: tokens.accent,
     shade: tokens.shade,
     brand: tokens.brand,
     eyebrow: tokens.eyebrow,
+    photoHref,
   });
   let jpeg = await sharp(Buffer.from(svg)).jpeg({ quality: 90 }).toBuffer();
   if (jpeg.length > 2 * 1024 * 1024) jpeg = await sharp(Buffer.from(svg)).jpeg({ quality: 78 }).toBuffer();
@@ -1312,11 +1321,17 @@ export async function renderYouTubeScriptShort(page, script, musicOverride = nul
       fs.rmSync(frameFile, { force: true });
     }
     if (reg) {
-      for (const design of reg.designs) {
+      for (const [i, design] of reg.designs.entries()) {
+        // photo:'frame' designs get their own later frame (staggered like the
+        // frame variants) so they don't repeat candidate 1's picture
+        const photoFile = design.photo === 'frame' ? `${POOL_DIR}/yt-thumb-frame-${page.id}-r${i}.jpg` : null;
         try {
-          thumbs.push(await renderRegistryThumb(design, brand, script));
+          if (photoFile) execFileSync(FF, ['-y', '-v', 'error', '-ss', String(clip.start + thumbFrameOffset(i + 1)), '-i', clip.file, '-frames:v', '1', photoFile]);
+          thumbs.push(await renderRegistryThumb(design, brand, script, { photoFile }));
         } catch (e) {
           console.log(`      [YT Script] registry thumb ${design.id} degraded (non-fatal): ${String(e.message).slice(0, 80)}`);
+        } finally {
+          if (photoFile) fs.rmSync(photoFile, { force: true });
         }
       }
       if (thumbs.length > 1) console.log(`      [YT Script] ${thumbs.length} thumb candidates (1 frame + ${thumbs.length - 1} registry) — candidate 1 ships, swap at Studio > Review`);

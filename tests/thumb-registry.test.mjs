@@ -34,6 +34,8 @@ const QA_POOL = [
   'blackout', 'whitespace', 'focal-cut', 'big-number', 'price-fight',
   'slab-quote', 'serif-frame', 'gold-standard', 'terminal', 'bungee-sign',
   'redact', 'ledger', 'screen', 'plinth', 'coinflip', 'marquee', 'pillar',
+  // + Left Stack (2026-11-23): the one photo design — its photo is a video frame
+  'left-stack',
 ];
 
 const idsOf = (designs) => designs.map((d) => d.id);
@@ -45,21 +47,35 @@ const catalogById = new Map(catalog.templates.map((t) => [t.id, t]));
 // ---------------------------------------------------------------------------
 
 describe('T2d — the launch registry data (AC-P5-11, QA Row 11)', () => {
-  test('the registry is exactly the 17 needsPhoto:false designs the QA file names, in catalog order', () => {
+  test('the registry is exactly the 17 needsPhoto:false designs the QA file names + Left Stack, in catalog order', () => {
     const { designs, invalid } = loadThumbRegistry();
-    assert.equal(designs.length, 17, `the v1 truth is the 17-design pool (spec's 18 corrected), got ${designs.length}`);
+    assert.equal(designs.length, 18, `the 17-design v1 pool + Left Stack, got ${designs.length}`);
     assert.deepEqual(idsOf(designs), QA_POOL);
     assert.deepEqual(invalid, [], 'the shipped launch set validates clean');
   });
 
-  test('every entry binds to a real catalog design that is needsPhoto:false (Ruling 6 — no photo hunting in v1)', () => {
+  test('every entry binds to a real catalog design that is needsPhoto:false, or declares photo:frame (Ruling 6 — no photo hunting)', () => {
     const { designs } = loadThumbRegistry();
     for (const d of designs) {
       const spec = catalogById.get(d.id);
       assert.ok(spec, `${d.id} must exist in thumb-catalog.json`);
-      assert.equal(spec.needsPhoto, false, `${d.id} must be a needsPhoto:false design`);
+      if (spec.needsPhoto) assert.equal(d.photo, 'frame', `${d.id} is a photo design — it must take its photo from the video frame`);
       assert.ok(d.label && d.category, `${d.id} joins the catalog label/category for the panel`);
     }
+    assert.deepEqual(designs.filter((d) => catalogById.get(d.id).needsPhoto).map((d) => d.id), ['left-stack'], 'Left Stack is the only photo design');
+  });
+
+  test('photo:frame is the only photo source, and only it unlocks a photo design', () => {
+    const { designs, invalid } = loadThumbRegistry([
+      { id: 'ketchup', niches: ['History stories'], photo: 'frame' }, // photo design + frame = accepted
+      { id: 'shout', niches: ['History stories'] }, // photo design without photo:frame = rejected
+      { id: 'left-stack', niches: ['History stories'], photo: 'stock' }, // unsupported source
+      { id: 'left-stack', niches: ['History stories'] }, // photo design without the frame declaration
+    ]);
+    assert.deepEqual(idsOf(designs), ['ketchup']);
+    assert.equal(invalid.length, 3);
+    assert.ok(invalid[1].errors.some((m) => /photo: "stock" is not supported/.test(m)));
+    assert.ok(invalid[2].errors.some((m) => /declare photo: 'frame'/.test(m)));
   });
 
   test('the D17 vocabulary pin: every niches[] string is a member of the closed set', () => {
@@ -119,7 +135,7 @@ describe('T2d — thumbSetFor (niche mapping + fallback)', () => {
     assert.ok(finance.includes('gold-standard') && finance.includes('pillar'), 'the old-money niche binds the luxury designs');
   });
 
-  test('the fallback: a niche with no bindings returns the FULL 17 pool', () => {
+  test('the fallback: a niche with no bindings returns the FULL 18 pool', () => {
     assert.deepEqual(idsOf(thumbSetFor('a niche nobody binds')), QA_POOL);
     assert.deepEqual(idsOf(thumbSetFor(null)), QA_POOL);
     assert.deepEqual(idsOf(thumbSetFor(undefined)), QA_POOL);
@@ -140,7 +156,7 @@ describe('T2d — thumbSetFor (niche mapping + fallback)', () => {
 // ---------------------------------------------------------------------------
 
 describe('T2d — pickCandidates (deterministic rotation selection)', () => {
-  const FULL = thumbSetFor('a niche nobody binds'); // the fallback = the full 17 pool
+  const FULL = thumbSetFor('a niche nobody binds'); // the fallback = the full 18 pool
 
   test('deterministic: the same inputs give the same output, in catalog order', () => {
     const a = pickCandidates('AI & future tech', 2);
@@ -175,7 +191,7 @@ describe('T2d — pickCandidates (deterministic rotation selection)', () => {
   });
 
   test('clamping: n is truncated, floored at 0, and capped at the pool size', () => {
-    assert.equal(pickCandidates('a niche nobody binds', 999).length, 17, 'clamped to the full pool size');
+    assert.equal(pickCandidates('a niche nobody binds', 999).length, 18, 'clamped to the full pool size');
     assert.equal(pickCandidates('Travel & geography explained', 999).length, idsOf(thumbSetFor('Travel & geography explained')).length, 'clamped to the NICHE set');
     assert.deepEqual(pickCandidates('a niche nobody binds', 0), []);
     assert.deepEqual(pickCandidates('a niche nobody binds', -3), []);

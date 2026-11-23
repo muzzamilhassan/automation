@@ -358,7 +358,7 @@ const yStart = t.pos === 'center' ? (H - blockH) / 2 + size : t.pos === 'top' ? 
     // per-glyph placement so the letterspacing is real (paths carry no tracking)
     let cx = W - INSET - adv(bf, text, size, spacing);
     for (const ch of text) {
-      els.push(`<path d="${bf.getPath(ch, cx, H - 52, size).toPathData(1)}" fill="${bm.fg || '#FFFFFF'}" fill-opacity="0.92"/>`);
+      els.push(`<path d="${bf.getPath(ch, cx, H - 52, size).toPathData(1)}" fill="${bm.fg || '#FFFFFF'}" fill-opacity="0.92" stroke="#000000" stroke-opacity="0.55" stroke-width="3" paint-order="stroke fill"/>`);
       cx += bf.getAdvanceWidth(ch, size) + spacing;
     }
   } else if (o.brand) {

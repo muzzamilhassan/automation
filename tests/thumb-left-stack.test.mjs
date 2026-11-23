@@ -28,3 +28,19 @@ test('without a brand the mark is omitted; other designs keep the bottom-left ta
   const other = renderV2ById('v2/ketchup', { title: 'Quiet money', brand: 'MR' });
   assert.match(other, /stroke="#000000" stroke-width="4"/, 'ketchup still uses the stroked bottom-left tag');
 });
+
+// Channel → Thumbnails (owner 2026-11-23): Left Stack is pickable, and the
+// engine feeds it a frame from the video so it never ships as a blank canvas.
+test('engine: a photo:frame design is drawn on the supplied video frame; no frame = degrade, never a blank thumb', async () => {
+  const { renderRegistryThumb } = await import('../youtube-engine.mjs');
+  const { loadThumbRegistry } = await import('../studio/lib/thumb-registry.mjs');
+  const design = loadThumbRegistry().designs.find((d) => d.id === 'left-stack');
+  assert.equal(design.photo, 'frame');
+  const brand = { accent: '#3DDC97', bg: '#101314', label: 'THE MONEY RULEBOOK' };
+  const script = { thumbHeadline: 'The red flags of fake wealth' };
+  const { fileURLToPath } = await import('node:url');
+  const frame = fileURLToPath(new URL('../thumbnails/photos/mr-1.jpg', import.meta.url));
+  const jpeg = await renderRegistryThumb(design, brand, script, { photoFile: frame });
+  assert.ok(jpeg.length > 30_000, `a photo thumbnail is a real image, got ${jpeg.length} bytes`);
+  await assert.rejects(renderRegistryThumb(design, brand, script, {}), /needs a video frame/);
+});

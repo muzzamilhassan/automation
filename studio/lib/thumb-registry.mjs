@@ -54,10 +54,15 @@ export function validateThumbEntry(entry) {
   const spec = CATALOG_BY_ID.get(id);
   if (!spec) {
     errors.push(`id: "${id}" does not exist in the v2 thumb catalog (studio/lib/thumb-catalog.json) — entries bind EXISTING designs`);
-  } else if (spec.needsPhoto) {
+  } else if (spec.needsPhoto && entry.photo !== 'frame') {
     // Ruling 6 / D14: the v1 launch set is needsPhoto:false ONLY — a photo
-    // design would block (or fake) its required input at render time.
-    errors.push(`id: "${id}" is a needsPhoto:true design — the v1 launch set ships needsPhoto:false designs only (stock-photo wiring is Phase 6)`);
+    // design would block (or fake) its required input at render time. The one
+    // exception is an entry declaring photo:'frame': the engine feeds it a
+    // frame from the video itself, so no photo is ever hunted or faked.
+    errors.push(`id: "${id}" is a needsPhoto:true design — the v1 launch set ships needsPhoto:false designs only (stock-photo wiring is Phase 6; declare photo: 'frame' to use a video frame)`);
+  }
+  if (entry.photo !== undefined && entry.photo !== 'frame') {
+    errors.push(`photo: "${entry.photo}" is not supported — the only photo source is 'frame' (a frame from the video)`);
   }
   if (!Array.isArray(entry.niches) || entry.niches.length === 0) {
     errors.push('niches: must be a non-empty array of canonical niche strings');
