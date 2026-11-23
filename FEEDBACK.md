@@ -32,6 +32,12 @@ Status labels: 🆕 new · 🔍 looking into it · 💡 proposal ready (needs yo
 - **Your decision needed:** yes/no — …
 -->
 
+### O. Ideas from the "Creator City" AI-agent video — 💡 proposal ready (needs your OK) (2026-11-23)
+- **You said:** watch the TubeGuruji "AI Agent City" video + demo, tell me what to add to our project and how to make the screens clearer.
+- **What I found:** his engine is weaker than ours (his agents got stuck, showed stale "completed", publishing failed first try), but he SHOWS the work much better: a step strip per request, every in-between file in one library, a calendar with drafts, agents asking you questions with buttons, a clear accounts page. Full report: `research/creator-city-agent-factory-2026-11-23.md`.
+- **My recommendation:** Phase 1 (screens only, data we already have): (1) 7-dot station strip on each Today channel row, (2) step-by-step drawer for each run on Runs, (3) new Calendar page for all channels, (4) Accounts tab in Settings showing which logins are healthy. Later: Library with scripts/voice/thumbnails, Inbox "questions" with buttons, a station settings drawer, an optional illustrated factory floor, and finally one "Ask the factory" request box. Skip: cloud computer, Composio, 3D city as home page.
+- **Your decision needed:** yes. (a) approve Phase 1? (b) factory floor drawing yes/no? (c) Calendar in the menu or inside Channels? (d) OK to use the free Groq AI only to turn a sentence into a plan you then Start?
+
 ### I. Live website test — 115 problems found, 5 fix batches — ✅ done & live (2026-11-20)
 - **You said:** test the real website like a normal user, every small feature and edge case.
 - **What I found:** 5 testers, desktop + phone, on the live site. 115 problems: about 15 serious, ~45 medium and the rest small. Full list with evidence: `research/live-e2e-test-2026-11-20.md`. The worst:
@@ -126,4 +132,5 @@ _2026-11-19 — answers to your first 9 items. Reply "approve all" in chat (or t
 | 14 | K. Nothing automatic — 7/7 ready gate | ✅ done & live (249f60e) | engine publishes ONLY 7/7 channels (today: Money Rulebook); QQ 4/7 · IC 5/7 · DFD 5/7 · YT-BOT 2/7 — finish them in the panel; Resume locked until 7/7; QuoteQuarry TikTok auto-post (quarry-render repo) switched off; 3 scheduled videos made private |
 | 15 | L. Remove duplicate templates | ✅ done & live (2a98920) | 22 colour-only copies removed; 14 unique left (Red Flags Explained, Cashflow Challenge, Money Flow Diagram, Systems Diagram, Lecture Notes Paper, Myth vs Money + 8 distinct-layout storybooks); Money Rulebook's template untouched |
 | 16 | M. Human voice as a panel setting (pacing on/off · mood · speed · preview) | ✅ done & live (9a09aab) | Channels → Manage → Voice (or Edit profile → Look & sound); 49 real previews; Money Rulebook copied in unchanged (on · calm · 0.95×) · option 2 (laughs/emotion via Chatterbox on Kaggle) waits for a Kaggle account |
-| 17 | N. Emotional voice (laughs, sighs) via free Kaggle GPU + multi-niche voice library | 🛠️ approved, building (2026-11-22) | Money Rulebook first; today's voice stays as automatic backup; many voices for different niches with previews in Manage → Voice |
+| 17 | N. Emotional voice (laughs, sighs) via free GPU + voice library | ⏸️ parked (2026-11-23, owner) | none of the free GPU voices sounded natural (best: Ming natural, still not natural enough); Kaggle GPU queue unpredictable; next = ElevenLabs later. Work saved on branch wip/emotional-voice-gpu; Kaggle jobs, GitHub secrets, local tokens + Chatterbox files (2.6 GB) removed |
+| 18 | O. Ideas from the "Creator City" AI-agent video (station strip, run steps, calendar, accounts, library, ask-the-factory) | 💡 proposal ready (needs your OK) | report: research/creator-city-agent-factory-2026-11-23.md · 4 decisions waiting |

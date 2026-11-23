@@ -105,7 +105,12 @@ Cloud dry run (no upload): `bash scripts/gh-personal workflow run diagram-dryrun
   - MR 7/7, QQ 4/7, IC 5/7, DFD 5/7, yt-bot 2/7; discover picks only MR.
   - The prefill was applied to Neon + the registry.
   - quarry-render TikTok Post (QuoteQuarry) workflows are disabled.
-- **Kaggle connected (2026-11-22):**
+- **PARKED 2026-11-23 (owner):**
+  - The emotional voice is parked: no free GPU voice was natural enough (Ming natural was best). ElevenLabs comes later.
+  - Code is saved on branch `wip/emotional-voice-gpu` (GPU engine + fallback + 27-voice Kokoro library).
+  - Removed: the Kaggle kernels, the KAGGLE_* GitHub secrets, ~/.kaggle, ~/.modal.toml, the chatterbox venv + cache, and the kaggle/modal CLIs.
+  - The owner must revoke the Modal token pasted in chat.
+- **Kaggle connected (2026-11-22, now removed):**
   - Token is in ~/.kaggle/access_token (outside the repo); GitHub secrets KAGGLE_API_TOKEN + KAGGLE_USERNAME.
   - Private kernel muzzamilhassan/quarry-voice-demo: Chatterbox-Turbo on a T4 at 2.28× realtime, ~5 min setup (it pins torch 2.6, so torchvision must be uninstalled).
   - A/B mp3s are on the owner's Desktop › Voice demo; waiting for the owner's listen.
