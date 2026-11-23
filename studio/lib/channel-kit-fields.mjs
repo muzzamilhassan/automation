@@ -15,9 +15,13 @@
 //   voiceProfile   — { human, mood, speed } human voice as a panel setting
 //     (docs/qa/human-voice-panel-qa.md); rules in human-voice.mjs. Read by the
 //     engine through lib/voice-profile.mjs + narrate.py voice_profile().
+//     + { emotional, expression, model } (docs/qa/emotional-voice-qa.md).
+//   voice          — the channel voice picked in the Voice drawer's library
+//     (voice-library.mjs ids only); readiness item 5 reads kit.voice.
 import { loadThumbRegistry } from './thumb-registry.mjs';
 import { parseStoryShape, hasChaptersForShape } from './channel-readiness.mjs';
 import { parseVoiceProfile } from './human-voice.mjs';
+import { isLibraryVoice } from './voice-library.mjs';
 
 export const MAX_THUMB_TEMPLATES = 8; // API cap
 // UI helpers live in a dependency-free module so client components don't
@@ -77,13 +81,19 @@ export function kitFieldPatch(k) {
     if (!r.ok) return { patch: {}, error: r.error };
     patch.voiceProfile = r.value;
   }
+  if (Object.prototype.hasOwnProperty.call(k, 'voice')) {
+    const id = typeof k.voice === 'string' ? k.voice.trim() : '';
+    if (!isLibraryVoice(id)) return { patch: {}, error: 'voice must be one of the voice library voices' };
+    patch.voice = id;
+  }
   return { patch };
 }
 
 // Kit keys a panel saves ON THEIR OWN through setChannelKitFields (patch the
 // Neon kit + only that key in the engine file) instead of the full-entry
-// upsert. Only the Voice drawer today; other panels keep their save path.
-export const KIT_ONLY_KEYS = Object.freeze(['voiceProfile']);
+// upsert. Only the Voice drawer today (its settings + the library voice);
+// other panels keep their save path.
+export const KIT_ONLY_KEYS = Object.freeze(['voiceProfile', 'voice']);
 
 // true = the body is { slug, kit: { <only KIT_ONLY_KEYS> } } and nothing else
 export function kitOnlySave(body) {

@@ -41,6 +41,22 @@ runs:
           echo "no voiceProfile for '${SLUG:-}' — legacy voice paths"
         fi
 
+    # Emotional voice via the free Kaggle GPU (docs/qa/emotional-voice-qa.md): ONLY for
+    # a channel the same shared reader says has the emotional voice on — installs
+    # the Kaggle CLI (pinned: its output is parsed) and sets EMOTIONAL_VOICE=1 so
+    # the calling job passes the Kaggle secrets. Never fails the job: without it
+    # the narration falls back to the human Kokoro voice.
+    - name: 🎭 Emotional voice (channels with it on)
+      shell: bash
+      run: |
+        if node -e "import('./lib/voice-profile.mjs').then((m)=>{const p=m.voiceProfileFor(process.env.SLUG||'');process.exit(p&&p.emotional?0:1)},()=>process.exit(1))" 2>/dev/null; then
+          python3 -m pip install --quiet "kaggle==2.2.5" || echo "kaggle CLI unavailable — standard voice fallback"
+          echo "EMOTIONAL_VOICE=1" >> "$GITHUB_ENV"
+          echo "emotional voice on for '${SLUG}'"
+        else
+          echo "no emotional voice for '${SLUG:-}'"
+        fi
+
     - name: 🎨 Start Image & Video Engine
       shell: bash
       run: |

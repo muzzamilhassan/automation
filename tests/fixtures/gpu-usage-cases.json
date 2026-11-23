@@ -1,0 +1,38 @@
+{
+  "_comment": "Emotional voice free-GPU quota guard (docs/qa/emotional-voice-qa.md EV-Q). ONE case table read by BOTH sides: tests/emotional-voice.test.mjs (studio/lib/gpu-usage.mjs — the panel) and services/ai/tests/test_kaggle_voice.py (explainer/kaggle_voice.py — the engine guard), so the panel and the engine always count the same week. Weeks are ISO weeks (Monday start, UTC).",
+  "weeks": [
+    { "at": "2026-11-22T10:00:00Z", "key": "2026-W47" },
+    { "at": "2026-11-23T00:00:00Z", "key": "2026-W48" },
+    { "at": "2026-11-16T00:00:00Z", "key": "2026-W47" },
+    { "at": "2026-11-15T23:59:59Z", "key": "2026-W46" },
+    { "at": "2027-01-01T12:00:00Z", "key": "2026-W53" },
+    { "at": "2027-01-04T12:00:00Z", "key": "2027-W01" },
+    { "at": "2025-12-29T12:00:00Z", "key": "2026-W01" }
+  ],
+  "summaries": [
+    {
+      "name": "no file yet = nothing used",
+      "now": "2026-11-22T10:00:00Z",
+      "usage": null,
+      "expect": { "week": "2026-W47", "hours": 0, "runs": 0, "limitHours": 30, "guardHours": 25, "paused": false }
+    },
+    {
+      "name": "only this week counts",
+      "now": "2026-11-22T10:00:00Z",
+      "usage": { "weeks": { "2026-W46": { "seconds": 90000, "runs": [] }, "2026-W47": { "seconds": 4320, "runs": [{ "at": "2026-11-20T10:00:00Z", "seconds": 4320 }] } } },
+      "expect": { "week": "2026-W47", "hours": 1.2, "runs": 1, "limitHours": 30, "guardHours": 25, "paused": false }
+    },
+    {
+      "name": "at the guard = paused until next week",
+      "now": "2026-11-22T10:00:00Z",
+      "usage": { "weeks": { "2026-W47": { "seconds": 90000, "runs": [] } } },
+      "expect": { "week": "2026-W47", "hours": 25, "runs": 0, "limitHours": 30, "guardHours": 25, "paused": true }
+    },
+    {
+      "name": "junk file = nothing used (never throws)",
+      "now": "2026-11-22T10:00:00Z",
+      "usage": { "weeks": { "2026-W47": { "seconds": "lots" } } },
+      "expect": { "week": "2026-W47", "hours": 0, "runs": 0, "limitHours": 30, "guardHours": 25, "paused": false }
+    }
+  ]
+}

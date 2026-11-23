@@ -90,6 +90,48 @@
       "slug": "money-rulebook",
       "registry": { "channels": [{ "slug": "money-rulebook", "kit": { "voiceProfile": { "human": true, "mood": "furious" } } }] },
       "expect": { "engine": "kokoro", "voice": "bm_daniel", "speed": 0.95, "mood": "calm" }
+    },
+    {
+      "name": "EV-E1 emotional voice on: the human Kokoro profile (the fallback) plus the GPU engine settings",
+      "slug": "money-rulebook",
+      "registry": { "channels": [{ "slug": "money-rulebook", "kit": { "voice": "bm_daniel", "voiceProfile": { "human": true, "mood": "calm", "speed": 0.95, "emotional": true, "expression": "light", "model": "chatterbox-turbo" } } }] },
+      "expect": { "engine": "kokoro", "voice": "bm_daniel", "speed": 0.95, "mood": "calm", "emotional": { "model": "chatterbox-turbo", "expression": "light" } }
+    },
+    {
+      "name": "EV-E2 emotional on with no expression or model: natural delivery (none) on chatterbox-turbo",
+      "slug": "quotequarry",
+      "registry": { "channels": [{ "slug": "quotequarry", "kit": { "voice": "am_michael", "voiceProfile": { "human": true, "emotional": true } } }] },
+      "expect": { "engine": "kokoro", "voice": "am_michael", "speed": 1, "mood": "warm", "emotional": { "model": "chatterbox-turbo", "expression": "none" } }
+    },
+    {
+      "name": "EV-E3 emotional off: exactly today's human profile (no emotional key)",
+      "slug": "money-rulebook",
+      "registry": { "channels": [{ "slug": "money-rulebook", "kit": { "voice": "bm_daniel", "voiceProfile": { "human": true, "mood": "calm", "speed": 0.95, "emotional": false, "expression": "rich", "model": "chatterbox-turbo" } } }] },
+      "expect": { "engine": "kokoro", "voice": "bm_daniel", "speed": 0.95, "mood": "calm" }
+    },
+    {
+      "name": "EV-E4 human pacing off wins over emotional on: the normal voice chain",
+      "slug": "money-rulebook",
+      "registry": { "channels": [{ "slug": "money-rulebook", "kit": { "voice": "bm_daniel", "voiceProfile": { "human": false, "emotional": true, "expression": "rich" } } }] },
+      "expect": null
+    },
+    {
+      "name": "EV-E5 a model that is not built is an unreadable kit value: today's static profile",
+      "slug": "money-rulebook",
+      "registry": { "channels": [{ "slug": "money-rulebook", "kit": { "voice": "bm_daniel", "voiceProfile": { "human": true, "emotional": true, "model": "orpheus" } } }] },
+      "expect": { "engine": "kokoro", "voice": "bm_daniel", "speed": 0.95, "mood": "calm" }
+    },
+    {
+      "name": "EV-E6 emotional on but the voice is not a Kokoro voice: normal voice chain",
+      "slug": "edge-channel",
+      "registry": { "channels": [{ "slug": "edge-channel", "kit": { "voice": "en-US-AndrewNeural", "voiceProfile": { "human": true, "emotional": true } } }] },
+      "expect": null
+    },
+    {
+      "name": "EV-E7 emotional must be true or false: junk is an unreadable kit value (static profile)",
+      "slug": "money-rulebook",
+      "registry": { "channels": [{ "slug": "money-rulebook", "kit": { "voice": "bm_daniel", "voiceProfile": { "human": true, "emotional": "yes" } } }] },
+      "expect": { "engine": "kokoro", "voice": "bm_daniel", "speed": 0.95, "mood": "calm" }
     }
   ]
 }

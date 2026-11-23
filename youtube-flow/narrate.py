@@ -156,6 +156,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HUMAN_MOODS = ("calm", "warm", "excited", "serious", "tense", "sad", "playful")
 HUMAN_SPEED_MIN, HUMAN_SPEED_MAX = 0.8, 1.2
 KOKORO_ID_RE = re.compile(r"^[ab][fm]_[a-z]+$")
+# Emotional voice (docs/qa/emotional-voice-qa.md): mirror of
+# studio/lib/emotional-voice.mjs GPU_VOICE_MODELS ids + EXPRESSIONS. The doc
+# lanes run the GPU engine; Shorts and the legacy doc narration here keep the
+# Kokoro human voice (a ~5 min GPU setup per Short would waste the free quota).
+GPU_MODELS = ("chatterbox-turbo",)
+EXPRESSIONS = ("none", "light", "rich")
 
 
 def _read_json(path):
@@ -179,14 +185,24 @@ def _kit_settings(own):
     speed = round(min(HUMAN_SPEED_MAX, max(HUMAN_SPEED_MIN, speed)), 2)
     if speed == int(speed):
         speed = int(speed)
-    return {"human": own["human"], "mood": mood, "speed": speed}
+    out = {"human": own["human"], "mood": mood, "speed": speed}
+    # the emotional keys ride along only when the value carries them
+    if any(k in own for k in ("emotional", "expression", "model")):
+        emotional = own.get("emotional", False)
+        expression = own.get("expression", "none")
+        model = own.get("model", GPU_MODELS[0])
+        if not isinstance(emotional, bool) or expression not in EXPRESSIONS or model not in GPU_MODELS:
+            return None
+        out.update(emotional=emotional, expression=expression, model=model)
+    return out
 
 
 def voice_profile(slug=None, brands_path=None, registry_path=None):
     """The channel's human-voice profile from DATA (no-static-maps):
     1. the registry kit.voiceProfile (the panel) wins — human false = None (the
        normal voice chain); human true = {engine:'kokoro', voice: the channel
-       voice, speed, mood} (None when that voice is not a Kokoro voice);
+       voice, speed, mood} (None when that voice is not a Kokoro voice), plus
+       emotional: {model, expression} when the emotional voice is on;
     2. otherwise lib/brands.json[slug].voiceProfile = {engine:'kokoro', voice, speed?, mood?}.
     None = today's engine chain, byte-identical (step 1 V4)."""
     slug = slug or os.environ.get("YT_VOICE_CHANNEL") or os.environ.get("SLUG") or ""
@@ -210,7 +226,10 @@ def voice_profile(slug=None, brands_path=None, registry_path=None):
                           if isinstance(v, str) and v.strip()), "")
             if not KOKORO_ID_RE.match(voice):
                 return None
-            return {"engine": "kokoro", "voice": voice, "speed": settings["speed"], "mood": settings["mood"]}
+            prof = {"engine": "kokoro", "voice": voice, "speed": settings["speed"], "mood": settings["mood"]}
+            if settings.get("emotional") is True:
+                prof["emotional"] = {"model": settings["model"], "expression": settings["expression"]}
+            return prof
     prof = static_kit.get("voiceProfile")
     if isinstance(prof, dict) and prof.get("engine") == "kokoro" and str(prof.get("voice") or "").strip():
         return prof

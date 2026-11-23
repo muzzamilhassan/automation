@@ -1,0 +1,20 @@
+{
+  "_comment": "Emotional voice proof run (docs/qa/emotional-voice-qa.md EV-P). A short Money Rulebook-style script (~300 words) so the dry run spends few GPU minutes. Carries a few voice tags so Light/Rich are heard; with expression none they are stripped before the GPU sees them.",
+  "title": "The Quiet Habit That Builds Wealth",
+  "intro": "Most people think wealth starts with a big salary. It does not. It starts with one quiet habit that almost nobody keeps.",
+  "chapters": [
+    {
+      "title": "The leak you never see",
+      "text": "Every month, money slips away in small amounts. A subscription here. A delivery fee there. None of it feels like much. [sigh] But add it up over a year and it is often more than a full paycheck. The problem is not that you spend. The problem is that you never decide where the money goes before it leaves."
+    },
+    {
+      "title": "Pay yourself first",
+      "text": "The fix is simple. On payday, move a fixed amount into savings before you pay a single bill. Treat it like rent you owe your future self. Start small if you must. Five percent is fine. What matters is that it happens every single month, automatically, without a debate. [chuckle] Your willpower is not needed when the transfer is already set."
+    },
+    {
+      "title": "Why it compounds",
+      "text": "Here is the part most people miss. Saved money does not just sit there. Invested in a simple index fund, it grows, and then the growth grows too. Ten years of a small habit can quietly beat a decade of big raises. It is not exciting. It is not fast. But it works, and it keeps working while you sleep."
+    }
+  ],
+  "outro": "Set up the transfer today, before you forget. Subscribe for one more money rule every week."
+}

@@ -79,11 +79,15 @@ export async function POST(req) {
   // Voice drawer sends ONLY { slug, kit: { voiceProfile } }. That one kit key
   // goes through setChannelKitFields (patch the Neon kit + change only this
   // entry in the engine file) — never the full-entry upsert below.
+  // Emotional voice (docs/qa/emotional-voice-qa.md): the drawer's library pick
+  // rides along as kit.voice AND the top-level voice (the engine reads the
+  // top-level voice first), so readiness item 5 and the narration agree.
   if (kitOnlySave(body)) {
     const one = kitFieldPatch(body.kit);
     if (one.error) return Response.json({ error: one.error }, { status: 400 });
     try {
-      const res = await setChannelKitFields(slug, one.patch, { message: `studio: ${Object.keys(one.patch).join(', ')} for ${slug}` });
+      const top = one.patch.voice ? { voice: one.patch.voice } : {};
+      const res = await setChannelKitFields(slug, one.patch, { top, message: `studio: ${Object.keys(one.patch).join(', ')} for ${slug}` });
       if (!res.ok) return Response.json({ error: 'This channel is not in the engine list yet — save its profile in Edit profile first.' }, { status: 404 });
       const actor = (await getUser(req).catch(() => null))?.email || 'owner';
       await appendAudit(actor, 'profile-save', `${slug}: kit.${Object.keys(one.patch).join(',kit.')}`);

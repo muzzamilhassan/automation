@@ -1,10 +1,13 @@
 'use client';
 // Human voice as a panel setting (docs/qa/human-voice-panel-qa.md) — the
 // per-channel Voice drawer: Human pacing on/off, mood, speed, Preview.
+// + Emotional voice (docs/qa/emotional-voice-qa.md): the voice library picker
+// (filters + ▶ per voice), the emotional switch + expression, this week's
+// free-GPU use.
 // Reads GET /api/channels/profile, saves POST /api/channels/profile with
-// ONLY { kit: { voiceProfile } } — the route sends that one key through
-// setChannelKitFields (Neon kit + only this entry in the engine file).
-// The voice itself is picked in Edit profile; this drawer previews it.
+// ONLY { kit: { voiceProfile, voice? } } — the route sends those keys through
+// setChannelKitFields (Neon kit + only this entry in the engine file); voice
+// is sent only when a library voice was picked (readiness item 5 reads kit.voice).
 // Owner edits; staff sees the same view read-only (the route is owner-only).
 //
 // Drawer contract (same as ThumbnailAssignPanel): `frame(body, footer, { dirty })`
@@ -14,20 +17,29 @@ import { useCallback, useEffect, useState } from 'react';
 import { Mic, CheckCircle2, XCircle, Info, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/untitledui/base/buttons/button';
 import HumanVoiceSection from '@/components/HumanVoiceSection';
+import EmotionalVoiceSection from '@/components/EmotionalVoiceSection';
+import VoiceLibraryPicker from '@/components/VoiceLibraryPicker';
 import { useMe } from '@/components/use-me';
 import { VOICES } from '@/lib/voices';
 import { DEFAULT_VOICE_SETTINGS, voiceSettingsOf, sameVoiceSettings } from '@/lib/human-voice.mjs';
+import { emotionalOf } from '@/lib/emotional-voice.mjs';
+import { libraryVoice } from '@/lib/voice-library.mjs';
 
 export default function VoicePanel({ slug, frame }) {
   const me = useMe();
   const isOwner = me?.role === 'owner';
-  const [voice, setVoice] = useState('');                         // the channel voice (Edit profile picks it)
+  const [voice, setVoice] = useState('');                         // the channel voice on the server
+  const [voiceDraft, setVoiceDraft] = useState('');               // the library pick being edited
   const [saved, setSaved] = useState({ ...DEFAULT_VOICE_SETTINGS }); // the settings on the server
   const [draft, setDraft] = useState({ ...DEFAULT_VOICE_SETTINGS }); // the settings being edited
   const [loaded, setLoaded] = useState(false);
   const [loadErr, setLoadErr] = useState(null);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);                           // { ok, text }
+  // a new library pick (only library voices are ever sent as kit.voice)
+  const voiceChanged = loaded && voiceDraft !== voice && Boolean(libraryVoice(voiceDraft));
+  // each key is sent only when it changed: a voice-only save never writes default settings
+  const settingsChanged = loaded && !sameVoiceSettings(draft, saved);
 
   // state is only set when the request settles (never synchronously in the effect)
   const load = useCallback(() => {
@@ -40,7 +52,9 @@ export default function VoicePanel({ slug, frame }) {
       .then((d) => {
         const c = d.channel;
         const s = voiceSettingsOf(c.kit?.voiceProfile);
-        setVoice(c.voice || c.kit?.voice || d.legacy?.voice || '');
+        const v = c.voice || c.kit?.voice || d.legacy?.voice || '';
+        setVoice(v);
+        setVoiceDraft(v);
         setSaved(s);
         setDraft(s);
         setLoadErr(null);
@@ -67,12 +81,14 @@ export default function VoicePanel({ slug, frame }) {
       const r = await fetch('/api/channels/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug, kit: { voiceProfile: draft } }),
+        body: JSON.stringify({ slug, kit: { ...(settingsChanged ? { voiceProfile: draft } : {}), ...(voiceChanged ? { voice: voiceDraft } : {}) } }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || `Save failed (HTTP ${r.status})`);
       setSaved(draft);
-      setMsg({ ok: true, text: draft.human ? 'Saved — the next videos use human pacing.' : 'Saved — the next videos use the normal voice.' });
+      setVoice(voiceDraft);
+      const emo = draft.human && emotionalOf(draft).emotional;
+      setMsg({ ok: true, text: emo ? 'Saved — the next long videos try the emotional voice.' : draft.human ? 'Saved — the next videos use human pacing.' : 'Saved — the next videos use the normal voice.' });
     } catch (e) {
       setMsg({ ok: false, text: String(e.message || e) });
     } finally {
@@ -111,8 +127,9 @@ export default function VoicePanel({ slug, frame }) {
     );
   }
 
-  const dirty = loaded && !sameVoiceSettings(draft, saved);
-  const voiceName = VOICES.find((v) => v.id === voice)?.label || voice || 'Not picked';
+  const dirty = settingsChanged || voiceChanged;
+  const lib = libraryVoice(voiceDraft);
+  const voiceName = lib ? `${lib.name} · ${lib.note}` : VOICES.find((v) => v.id === voiceDraft)?.label || voiceDraft || 'Not picked';
 
   const body = (
     <div className="space-y-4 min-w-0">
@@ -123,9 +140,15 @@ export default function VoicePanel({ slug, frame }) {
         </p>
       ) : null}
       <p className="t-12 text-muted">
-        Voice: <span className="font-semibold text-ink">{voiceName}</span> <span className="text-faint">· change it in Edit profile</span>
+        Voice: <span className="font-semibold text-ink">{voiceName}</span>
       </p>
-      <HumanVoiceSection voice={voice} value={draft} readOnly={!isOwner} onChange={(v) => { setDraft(v); setMsg(null); }} />
+      <VoiceLibraryPicker value={voiceDraft} emotional={draft.human && emotionalOf(draft).emotional} mood={draft.mood} readOnly={!isOwner} onChange={(id) => { setVoiceDraft(id); setMsg(null); }} />
+      <div className="border-t border-line pt-4">
+        <HumanVoiceSection voice={voiceDraft} value={draft} readOnly={!isOwner} onChange={(v) => { setDraft(v); setMsg(null); }} />
+      </div>
+      <div className="border-t border-line pt-4">
+        <EmotionalVoiceSection voice={voiceDraft} value={draft} readOnly={!isOwner} onChange={(v) => { setDraft(v); setMsg(null); }} />
+      </div>
       {msg ? (
         <div
           role="status"
@@ -147,7 +170,7 @@ export default function VoicePanel({ slug, frame }) {
   const footer = isOwner ? (
     <>
       {dirty ? (
-        <button type="button" className="btn btn-outline" onClick={() => { setDraft(saved); setMsg(null); }}>
+        <button type="button" className="btn btn-outline" onClick={() => { setDraft(saved); setVoiceDraft(voice); setMsg(null); }}>
           Undo changes
         </button>
       ) : null}

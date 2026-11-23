@@ -882,7 +882,10 @@ if (jobCtl?.isSkipped('episode')) {
   // exactly 2700s mid-render — the 10-chapter doc class with human-voice TTS
   // can exceed 45 min on a slow runner. The produce job's timeout-minutes
   // must stay above this (see channel-autopilot.yml).
-  const DOC_TIMEOUT_MS = 4500000;
+  // 105 min (was 75): the emotional voice (docs/qa/emotional-voice-qa.md) may
+  // spend up to its 30-min Kaggle hard timeout BEFORE falling back to the
+  // Kokoro voice — the worst case adds those 30 min to today's 75.
+  const DOC_TIMEOUT_MS = 6300000;
   const ep = runChild('yt-deepdive.mjs', [slug, ...(FORCE ? ['--force'] : [])], { timeoutMs: DOC_TIMEOUT_MS });
   if (ep.ok) { results.episode = true; log(`✓ Episode done`); await jobCtl?.finishStep('episode', 'succeeded'); }
   else {

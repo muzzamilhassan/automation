@@ -59,6 +59,8 @@ import { getUploadIntentStore, uploadWithIntent, recoverOpenIntents, makeFindByT
 import { flagOn, appendDisclaimers, declaredDisclaimers } from './lib/review-seams.mjs';
 import { loadEnv } from './lib/env.mjs';
 import { voiceProfileFor } from './lib/voice-profile.mjs';
+import { voiceTagPrompt, sanitizeEpisodeTags, stripEpisodeTags, spokenScriptOf } from './studio/lib/emotional-voice.mjs';
+import { emotionalVoiceArgs, spokenBeatTexts, reportEmotionalVoice } from './lib/emotional-voice-run.mjs';
 import { renderDiagramEpisode, isDiagramPlanReply } from './lib/diagram-episode.mjs';
 loadEnv();
 const FF = resolveBinary('ffmpeg');
@@ -158,6 +160,14 @@ async function llmScript(prompt, topic, templateId = null) {
   throw new Error('all script providers failed');
 }
 
+// Emotional voice (docs/qa/emotional-voice-qa.md): with the channel's
+// emotional voice on at Light/Rich, the writer may add SPARING voice tags
+// (DOC_VOICE_TAGS, appended last); the reply is sanitized right after
+// generation. Off / None = '' and the same object — the prompt and the script
+// are byte-identical to today.
+const DOC_EMOTIONAL = voiceProfileFor(slug)?.emotional || null;
+const DOC_VOICE_TAGS = DOC_EMOTIONAL ? voiceTagPrompt(DOC_EMOTIONAL.expression, DOC_EMOTIONAL.model) : '';
+
 // P5-T2e (D15/AC-P5-16): the LAST line is the shape directive — the hardcoded
 // 8-chapters default when no doc plan is assigned (byte-identical), the
 // assigned doc template's section plan (chapter count + word floor, clamped
@@ -168,7 +178,7 @@ Episode theme: ${theme}.
 STRICT RULES: every chapter delivers concrete, specific ${b.niches[0]} insight — stories, mechanisms, numbers, mistakes, consequences. NO generic motivation, NO repetition between chapters. Documentary storytelling: each chapter opens a tension and closes a payoff.
 Return ONLY valid JSON:
 {"title":"episode title <=60 chars, curiosity gap","intro":"2 sentence cold-open that sets stakes","chapters":[{"title":"<=40 chars","text":"120-150 words of spoken-style narration"}],"outro":"2 sentences with a natural subscribe push"}
-${docPlan ? docStoryPlanLines(docPlan) : 'Exactly 8 chapters. Every chapter text MUST be 120-150 words.'}`;
+${docPlan ? docStoryPlanLines(docPlan) : 'Exactly 8 chapters. Every chapter text MUST be 120-150 words.'}${DOC_VOICE_TAGS}`;
 
 function sh(args, timeout = 900000) {
   try {
@@ -283,6 +293,11 @@ function segment(cardPng, clipFile, audioFile, outFile, dur, drift = false) {
 // ignores the result and the module ends right after (identical behavior), the
 // resume maps a refusal to exit 1 with the script left approved.
 async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null, reviewScript = null, docTemplateId = null, docDisclaimerBlock = null } = {}) {
+  // Emotional voice: everything SHOWN or PUBLISHED below (slides, captions,
+  // SRT, title, description, state) uses the tag-free script; only the
+  // storybook narration reads the voice tags back (spokenScriptOf). No tags =
+  // the same object, byte-identical.
+  script = stripEpisodeTags(script);
   // STORYBOOK LANE (spec SB-1/SB-12): the ASSIGNED template's own DATA picks
   // the visual layer — story_structure.doc_render === 'storybook' renders the
   // DocV2 vox engine (the reference's editorial storybook look); any other
@@ -485,7 +500,15 @@ async function renderStorybookVisuals(script, pres) {
   // TTS (SB-7): one edge_batch call for ALL beats — a real Edge voice (the kit
   // voice when Edge-shaped, else en-US-AndrewNeural; kokoro ids like bm_daniel
   // are NOT edge voices). The #41 text-hash resume cache makes re-runs cheap.
-  const spoken = beats.filter((x) => (x.text || '').trim()).map((x) => ({ i: x.i, text: x.text }));
+  // Emotional voice: the beats are tag-free (what is SHOWN); a beat SPEAKS its
+  // tagged sentence only when the tagged script lines up beat-for-beat.
+  const said = spokenScriptOf(script);
+  const sayText = spokenBeatTexts(beats, said === script ? [] : buildStorybookBeats(said, {
+    followLine: `Follow ${pres.brand} for more.`,
+    docLayouts: pres.docLayouts,
+    hasChapters,
+  }));
+  const spoken = beats.filter((x) => (x.text || '').trim()).map((x) => ({ i: x.i, text: sayText.get(x.i) || x.text }));
   const inPath = path.join(audioDir, 'tts-input.json');
   fs.writeFileSync(inPath, JSON.stringify(spoken));
   // Step 1 V3 (docs/qa/step1-mr-voice-moneyflow-qa.md): a channel whose kit DATA
@@ -497,15 +520,16 @@ async function renderStorybookVisuals(script, pres) {
   const prof = voiceProfileFor(slug); // lib/brands.json — the same DATA narrate.py reads
   let tts;
   if (prof) {
-    console.log(`[storybook] tts: ${spoken.length} spoken beats, human voice ${prof.voice} (speed ${prof.speed || 1})`);
+    console.log(`[storybook] tts: ${spoken.length} spoken beats, human voice ${prof.voice} (speed ${prof.speed || 1})${prof.emotional ? `, emotional voice ${prof.emotional.model} (${prof.emotional.expression}) first` : ''}`);
     tts = spawnSync('python', [path.join(EXPL, 'voice_lines.py'), inPath, audioDir, '--engine', 'kokoro', '--voice', prof.voice,
-      '--speed', String(prof.speed || 1), ...(prof.mood ? ['--mood', String(prof.mood)] : []), '--layout', 'edge_batch'], sOpts);
+      '--speed', String(prof.speed || 1), ...(prof.mood ? ['--mood', String(prof.mood)] : []), ...emotionalVoiceArgs(prof, slug), '--layout', 'edge_batch'], sOpts);
   } else {
     const voice = edgeVoiceFor(pres.voice || b.voice); // template voice wins; kit falls back
     console.log(`[storybook] tts: ${spoken.length} spoken beats, voice ${voice}`);
     tts = spawnSync('python', [path.join(EXPL, 'edge_batch.py'), inPath], { ...sOpts, env: { ...process.env, EXPLAINER_VOICE: voice } });
   }
   if (tts.status !== 0) throw new Error('storybook tts failed');
+  if (prof) await reportEmotionalVoice({ slug, outDir: audioDir });
   const durs = JSON.parse(fs.readFileSync(path.join(audioDir, 'tts-durations.json'), 'utf8'));
 
   // photos (SB-8): portrait stock per split slide — the same lane make-longform
@@ -1182,7 +1206,7 @@ if (!theme) {
   // Last-resort evergreen angle (not a static list — derived from the niche).
   theme = `The most searched, most argued-about question in ${b.niche} right now, told as a story-driven documentary for ${b.label}.`;
 }
-const script = await llmScript(LONG_PROMPT(b, theme, docPlan), longSeed?.title || theme, docTemplateId);
+const script = sanitizeEpisodeTags(await llmScript(LONG_PROMPT(b, theme, docPlan), longSeed?.title || theme, docTemplateId), DOC_EMOTIONAL?.expression, DOC_EMOTIONAL?.model);
 
 // #106 T5c SEAM 1 (generate-only): the pipeline's gate held this run with no
 // approved script — the doc generation ran EXACTLY as today (the brain's

@@ -5,6 +5,7 @@
 // are UTC "HH:MM" strings (comma list), docDay is one of Mon–Fri. The owner
 // SEES local time; these helpers do the conversion both ways.
 import { parseVoiceProfile, MOOD_LABEL } from './human-voice.mjs';
+import { emotionalOf, EXPRESSION_LABEL } from './emotional-voice.mjs';
 
 export const STEPS = [
   { id: 'connect', label: 'Connect', hint: 'Google login' },
@@ -412,7 +413,10 @@ export function sameForm(a, b) {
     if (k === 'thumbTemplates') return Array.isArray(f[k]) ? f[k].join('\u0001') : '';
     if (k === 'voiceProfile') {
       const r = parseVoiceProfile(f[k]);
-      return r.ok ? `${r.value.human}|${r.value.mood}|${r.value.speed}` : '';
+      if (!r.ok) return '';
+      // emotional voice (docs/qa/emotional-voice-qa.md): absent = off / none
+      const e = emotionalOf(r.value);
+      return `${r.value.human}|${r.value.mood}|${r.value.speed}|${e.emotional}|${e.expression}|${e.model}`;
     }
     return String(f[k] ?? '');
   };
@@ -427,7 +431,12 @@ export function sameForm(a, b) {
 function humanPacingRow(v) {
   const r = parseVoiceProfile(v);
   if (!r.ok) return [];
-  return [['Human pacing', r.value.human ? `On · ${MOOD_LABEL[r.value.mood]} · ${r.value.speed}×` : 'Off']];
+  const rows = [['Human pacing', r.value.human ? `On · ${MOOD_LABEL[r.value.mood]} · ${r.value.speed}×` : 'Off']];
+  // emotional voice: listed once the setting exists
+  if (r.value.emotional !== undefined) {
+    rows.push(['Emotional voice', r.value.human && r.value.emotional ? `On · ${EXPRESSION_LABEL[r.value.expression]} expression` : 'Off']);
+  }
+  return rows;
 }
 
 export function reviewSummary(form, { channel = null, offsetMin = 0, names = {}, audience = '' } = {}) {

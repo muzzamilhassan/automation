@@ -1,0 +1,92 @@
+# Emotional voice PROOF RUN (docs/qa/emotional-voice-qa.md EV-P).
+# Narrates one doc script through the free Kaggle GPU voice EXACTLY as the
+# storybook doc lane does (same beats, tags, arguments and fallbacks), joins it
+# into one narration.mp3 and attaches it as an artifact. NOTHING is uploaded to
+# YouTube; no production state is touched (read-only token, no commit).
+# Manual dispatch only. Uses one Kaggle GPU batch (~10 min of the free ~30 h/week).
+name: 🧪 Emotional voice dry run
+
+on:
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: "channel slug (its voice, mood and speed are used)"
+        required: true
+        default: "money-rulebook"
+      script:
+        description: "script JSON { title, intro, chapters[{title,text}], outro }"
+        required: true
+        default: "longvideo/emotional-voice-demo/mr-proof.script.json"
+      expression:
+        description: "none (natural delivery) | light | rich"
+        required: true
+        default: "none"
+      as_is:
+        description: "1 = use the channel's SAVED profile exactly (after enable --apply); 0 = force the emotional voice on"
+        required: false
+        default: "0"
+
+permissions:
+  contents: read
+
+jobs:
+  dryrun:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SLUG: ${{ inputs.slug }}
+      SCRIPT: ${{ inputs.script }}
+      EXPRESSION: ${{ inputs.expression }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 💾 Restore Pixabay pool (holds the Kokoro model when cached)
+        uses: actions/cache/restore@v4
+        with:
+          path: pixabay-pool
+          key: pixabay-pool-v1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: 🔊 Setup FFmpeg
+        uses: ./.github/actions/setup-ffmpeg
+
+      - name: 🎨 Setup render env (fonts, TTS, human voice lane for this slug)
+        uses: ./.github/actions/setup-render
+
+      # the proof runs BEFORE the channel's emotional switch is on, so the
+      # Kaggle CLI + aligner + Kokoro model are installed here unconditionally
+      - name: 🎭 Emotional voice tools
+        run: |
+          python3 -m pip install --quiet "kaggle==2.2.5" faster-whisper kokoro-onnx soundfile
+          mkdir -p pixabay-pool
+          for f in kokoro-v1.0.onnx voices-v1.0.bin; do
+            [ -s "pixabay-pool/$f" ] || curl -sL --retry 3 -o "pixabay-pool/$f" "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/$f"
+          done
+
+      - name: 🧪 Proof run (no upload)
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          # GPU minutes are counted in the run folder (this workflow never commits)
+          KAGGLE_USAGE_DIR: longvideo/out/emotional-voice/gpu-usage
+        run: |
+          set -o pipefail
+          START=$(date +%s)
+          node scripts/emotional-voice-dryrun.mjs "$SLUG" "$SCRIPT" --expression "$EXPRESSION" ${{ inputs.as_is == '1' && '--as-is' || '' }}
+          echo "::notice::emotional voice dry run wall time: $(( ($(date +%s) - START) / 60 )) min"
+
+      - name: ⬆️ Attach the narration
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: emotional-voice-dryrun-${{ inputs.slug }}-${{ github.run_id }}
+          path: |
+            longvideo/out/emotional-voice/${{ inputs.slug }}-dryrun/narration.mp3
+            longvideo/out/emotional-voice/${{ inputs.slug }}-dryrun/voice-report.json
+            longvideo/out/emotional-voice/${{ inputs.slug }}-dryrun/tts-durations.json
+            longvideo/out/emotional-voice/gpu-usage/
+          retention-days: 7
+          if-no-files-found: warn

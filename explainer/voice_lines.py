@@ -12,6 +12,14 @@
 #               Timings: faster-whisper (MIT) word timestamps mapped onto the script words.
 #   edge        Edge TTS; mood -> rate/pitch per line; real WordBoundary timings.
 #   kokoro      Kokoro-82M ONNX (Apache-2.0); mood -> speed; faster-whisper timings.
+#   chatterbox-kaggle  = kokoro + --gpu-model chatterbox-turbo (below).
+#
+# Emotional voice via the free Kaggle GPU (docs/qa/emotional-voice-qa.md):
+#   --gpu-model M --expression none|light|rich --gpu-tags "sigh,clear throat" --gpu-slug SLUG
+#   renders every line in ONE private Kaggle GPU batch first (explainer/kaggle_voice.py),
+#   with the same human pacing + loudness + clean-text timings; lines that fail
+#   the quality gate, or the whole run on any failure, fall back to the
+#   --engine kokoro path below. <outdir>/voice-report.json says what happened.
 #
 # Usage: python voice_lines.py <lines.json> <outdir> --engine chatterbox --ref ref.wav
 #        python voice_lines.py <lines.json> <outdir> --engine edge --voice en-US-AndrewMultilingualNeural
@@ -361,14 +369,20 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("lines")
     ap.add_argument("outdir")
-    ap.add_argument("--engine", default="chatterbox", choices=["chatterbox", "chatterbox-local", "edge", "kokoro"])
+    ap.add_argument("--engine", default="chatterbox", choices=["chatterbox", "chatterbox-local", "chatterbox-kaggle", "edge", "kokoro"])
     ap.add_argument("--voice", default="en-US-AndrewMultilingualNeural")
     ap.add_argument("--ref", default=None)
     ap.add_argument("--speed", type=float, default=1.0, help="kokoro base speed (the channel voiceProfile)")
     ap.add_argument("--mood", default=None, help="default mood for lines without one (the channel voiceProfile)")
     ap.add_argument("--layout", default="lines", choices=["lines", "edge_batch"],
                     help="edge_batch = audio/beat-XX.mp3 + tts-durations.json (drop-in for edge_batch.py)")
+    ap.add_argument("--gpu-model", default=None, help="emotional voice: the GPU engine model (Kokoro --voice is the fallback)")
+    ap.add_argument("--expression", default="none", choices=["none", "light", "rich"])
+    ap.add_argument("--gpu-tags", default="", help="comma-separated voice tags the script may carry at this expression")
+    ap.add_argument("--gpu-slug", default=None, help="the channel (per-channel kernel id)")
     args = ap.parse_args()
+    if args.engine == "chatterbox-kaggle":  # the emotional engine; Kokoro human voice is its fallback
+        args.engine, args.gpu_model = "kokoro", args.gpu_model or "chatterbox-turbo"
     stem, durs_name = ("beat", "tts-durations.json") if args.layout == "edge_batch" else ("line", "voice-durations.json")
 
     lines = json.load(open(args.lines, encoding="utf8"))
@@ -384,6 +398,25 @@ def main():
 
     def key_of(ln):
         return hashlib.sha256(json.dumps([args.engine, args.voice, ref_hash, ln["text"], ln.get("mood"), args.speed]).encode()).hexdigest()[:16]
+
+    # emotional voice: the GPU pass first; whatever it does not take, the loop below renders
+    report_path = os.path.join(args.outdir, "voice-report.json")
+    if os.path.exists(report_path):
+        os.remove(report_path)  # never a stale report from an earlier run
+    gpu_done = {}
+    if args.gpu_model:
+        sys.modules.setdefault("voice_lines", sys.modules[__name__])  # one module copy (one Kokoro load)
+        import kaggle_voice
+        tags = [t.strip() for t in args.gpu_tags.split(",") if t.strip()]
+
+        def key_gpu(ln):
+            return hashlib.sha256(json.dumps(["gpu", args.gpu_model, args.expression, tags, args.voice, ln["text"],
+                                              ln.get("mood"), args.speed]).encode()).hexdigest()[:16]
+        gpu_done, report = kaggle_voice.gpu_narrate(
+            lines, args.voice, args.mood, args.gpu_model, args.expression, tags,
+            args.gpu_slug or os.environ.get("SLUG") or "adhoc", adir, tmp, stem, key_gpu, cache)
+        json.dump(cache, open(cache_path, "w", encoding="utf8"))
+        json.dump(report, open(report_path, "w", encoding="utf8"))
 
     # chatterbox-local: render every uncached line in ONE helper run (model loads once)
     if args.engine == "chatterbox-local":
@@ -417,6 +450,9 @@ def main():
     results = []
     for ln in lines:
         i, raw, mood = ln["i"], ln["text"], ln.get("mood") or args.mood
+        if i in gpu_done:
+            results.append({"i": i, "ms": gpu_done[i]["ms"], "words": gpu_done[i]["words"]})
+            continue
         script = clean(raw)
         key = key_of(ln)
         mp3 = os.path.join(adir, f"{stem}-{i:02d}.mp3")

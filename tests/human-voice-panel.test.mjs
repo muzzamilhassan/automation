@@ -176,7 +176,8 @@ describe('HV-S: saving the setting', () => {
   });
 
   test('HV-S2 a voice-only save is recognised (and nothing else is)', () => {
-    assert.deepEqual([...KIT_ONLY_KEYS], ['voiceProfile']);
+    // + 'voice': the Voice drawer's library pick (docs/qa/emotional-voice-qa.md EV-D5)
+    assert.deepEqual([...KIT_ONLY_KEYS], ['voiceProfile', 'voice']);
     assert.equal(kitOnlySave({ slug: 'mr', kit: { voiceProfile: { human: true } } }), true);
     assert.equal(kitOnlySave({ slug: 'mr', kit: { voiceProfile: {} , tagline: 'x' } }), false);
     assert.equal(kitOnlySave({ slug: 'mr', label: 'X', kit: { voiceProfile: {} } }), false);
@@ -319,8 +320,10 @@ describe('HV-P: the panel', () => {
     assert.match(PANEL, /export default function VoicePanel\(\{ slug, frame \}\)/);
     assert.match(PANEL, /if \(frame\) return frame\(body, footer, \{ dirty \}\);/);
     assert.match(PANEL, /fetch\(`\/api\/channels\/profile\?slug=\$\{encodeURIComponent\(slug\)\}`\)/);
-    assert.match(PANEL, /body: JSON\.stringify\(\{ slug, kit: \{ voiceProfile: draft \} \}\)/);
-    assert.match(PANEL, /const dirty = loaded && !sameVoiceSettings\(draft, saved\);/);
+    // + the library voice when one was picked (docs/qa/emotional-voice-qa.md EV-P2)
+    assert.match(PANEL, /body: JSON\.stringify\(\{ slug, kit: \{ \.\.\.\(settingsChanged \? \{ voiceProfile: draft \} : \{\}\), \.\.\.\(voiceChanged \? \{ voice: voiceDraft \} : \{\}\) \} \}\)/);
+    assert.match(PANEL, /const settingsChanged = loaded && !sameVoiceSettings\(draft, saved\);/);
+    assert.match(PANEL, /const dirty = settingsChanged \|\| voiceChanged;/);
     assert.match(PANEL, /const isOwner = me\?\.role === 'owner';/);
     assert.match(PANEL, /<HumanVoiceSection\b[^>]*readOnly=\{!isOwner\}/);
     // declared before any hook/effect uses them

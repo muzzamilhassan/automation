@@ -620,8 +620,10 @@ export function applyKitPatchToChannels(channels, slug, kitPatch = {}, top = {})
   return { channels: next, found };
 }
 
-// top = top-level entry fields to set with the kit (only `slots` today: the
-// engine reads a non-empty top-level slots list before kit.slots).
+// top = top-level entry fields to set with the kit: `slots` (the engine reads
+// a non-empty top-level slots list before kit.slots) and `voice` (the Voice
+// drawer's library pick — the engine reads the top-level voice first;
+// docs/qa/emotional-voice-qa.md).
 export async function setChannelKitFields(slug, kitPatch, { top = {}, message } = {}) {
   const warnings = [];
   if (dbReady) {
@@ -631,6 +633,7 @@ export async function setChannelKitFields(slug, kitPatch, { top = {}, message } 
         const kit = patchKit(rows[0].kit, kitPatch);
         await db`UPDATE channels SET kit = ${db.json(kit)} WHERE slug = ${slug}`;
         if (Array.isArray(top.slots)) await db`UPDATE channels SET slots = ${top.slots} WHERE slug = ${slug}`;
+        if (typeof top.voice === 'string' && top.voice) await db`UPDATE channels SET voice = ${top.voice} WHERE slug = ${slug}`;
       }
     } catch (e) {
       warnings.push(`db kit update failed: ${String(e.message).slice(0, 100)}`);

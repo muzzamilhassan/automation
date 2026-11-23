@@ -8,6 +8,9 @@
 // Python lanes; both are pinned to tests/fixtures/voice-profile-cases.json.
 //
 //   kit.voiceProfile = { human: boolean, mood: one of HUMAN_MOODS, speed: 0.8–1.2 }
+//   + optional emotional voice (docs/qa/emotional-voice-qa.md, emotional-voice.mjs):
+//     { emotional: boolean, expression: 'none'|'light'|'rich', model } — kept
+//     only when the value carries `emotional`; absent = today, byte-identical.
 //   The voice itself stays the channel voice (entry.voice / kit.voice).
 //
 // Engine precedence (resolveVoiceProfile):
@@ -15,7 +18,12 @@
 //        human:false -> null (the channel's normal voice chain)
 //        human:true  -> { engine:'kokoro', voice: the channel voice, speed, mood }
 //                       (null when that voice is not a Kokoro voice)
+//                       + emotional:true -> also { emotional: { model, expression } }:
+//                       the doc lanes try the GPU engine first; the Kokoro
+//                       profile above is the automatic fallback
 //   2. no (readable) kit field -> lib/brands.json voiceProfile, exactly as before.
+
+import { parseEmotional } from './emotional-voice.mjs';
 
 // the 7 moods of explainer/voice_lines.py MOOD, in its order
 export const HUMAN_MOODS = Object.freeze(['calm', 'warm', 'excited', 'serious', 'tense', 'sad', 'playful']);
@@ -28,6 +36,7 @@ export const SPEED_STEP = 0.05;
 // what the engine does with a mood-less, speed-less profile (voice_lines.py: mood or 'warm', speed 1.0)
 export const DEFAULT_VOICE_SETTINGS = Object.freeze({ human: false, mood: 'warm', speed: 1 });
 export const HUMAN_PACING_HINT = 'Natural pauses and pace between sentences';
+const EMOTIONAL_KEYS = ['emotional', 'expression', 'model'];
 
 const KOKORO_VOICE_RE = /^[ab][fm]_[a-z]+$/;
 const isObj = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
@@ -59,6 +68,12 @@ export function parseVoiceProfile(v) {
     }
     speed = clampSpeed(v.speed);
   }
+  // emotional voice: its 3 keys ride along only when the value carries the switch
+  if (EMOTIONAL_KEYS.some((k) => v[k] !== undefined)) {
+    const e = parseEmotional(v);
+    if (!e.ok) return e;
+    return { ok: true, value: { human: v.human, mood, speed, ...e.value } };
+  }
   return { ok: true, value: { human: v.human, mood, speed } };
 }
 
@@ -71,7 +86,11 @@ export function voiceSettingsOf(v) {
 export function sameVoiceSettings(a, b) {
   const x = voiceSettingsOf(a);
   const y = voiceSettingsOf(b);
-  return x.human === y.human && x.mood === y.mood && x.speed === y.speed;
+  // absent emotional keys = off / none / the default model
+  const ex = parseEmotional(x).value || {};
+  const ey = parseEmotional(y).value || {};
+  return x.human === y.human && x.mood === y.mood && x.speed === y.speed
+    && ex.emotional === ey.emotional && ex.expression === ey.expression && ex.model === ey.model;
 }
 
 // the word under the slider thumb
@@ -114,7 +133,10 @@ export function resolveVoiceProfile({ staticKit = null, entry = null } = {}) {
       const sk = isObj(staticKit) ? staticKit : {};
       const voice = [entry.voice, kit.voice, isObj(sk.voiceProfile) ? sk.voiceProfile.voice : '', sk.voice].map(text).find(Boolean) || '';
       if (!isKokoroVoice(voice)) return null; // human pacing runs on Kokoro only
-      return { engine: 'kokoro', voice, speed: r.value.speed, mood: r.value.mood };
+      const prof = { engine: 'kokoro', voice, speed: r.value.speed, mood: r.value.mood };
+      // emotional voice: the GPU engine first, this Kokoro profile as its fallback
+      if (r.value.emotional === true) prof.emotional = { model: r.value.model, expression: r.value.expression };
+      return prof;
     }
     // unreadable kit value: ignored — today's behaviour below
   }

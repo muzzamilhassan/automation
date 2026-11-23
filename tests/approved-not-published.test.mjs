@@ -54,8 +54,9 @@ test('pipeline: a failed doc render raises a real warning and stops saying "not 
   assert.match(src, /code: 'doc_render_failed'/);
   assert.match(src, /severity: 'action_required',\s*\n\s*code: 'doc_render_failed'/);
   assert.match(src, /results\.episodeFailed \? 'doc render FAILED this run/);
-  assert.match(src, /const DOC_TIMEOUT_MS = 4500000;/);
-  assert.match(fs.readFileSync('.github/workflows/channel-autopilot.yml', 'utf8'), /timeout-minutes: 120/);
+  // 105 / 150 min (were 75 / 120): + the emotional voice's 30-min Kaggle hard timeout (docs/qa/emotional-voice-qa.md EV-C)
+  assert.match(src, /const DOC_TIMEOUT_MS = 6300000;/);
+  assert.match(fs.readFileSync('.github/workflows/channel-autopilot.yml', 'utf8'), /timeout-minutes: 150/);
 });
 
 // Nov 14 died because 3 approvals in 30s made GitHub cancel a WAITING run

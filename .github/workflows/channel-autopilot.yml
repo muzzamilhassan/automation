@@ -139,7 +139,9 @@ jobs:
     runs-on: ubuntu-latest
     # 120 (was 90): the documentary lane alone may now take up to 75 min
     # (channel-pipeline DOC_TIMEOUT_MS) after setup + the Shorts lane.
-    timeout-minutes: 120
+    # 150 (was 120): DOC_TIMEOUT_MS is 105 min now — the emotional voice's
+    # 30-min Kaggle hard timeout before its Kokoro fallback (docs/qa/emotional-voice-qa.md).
+    timeout-minutes: 150
     env:
       SLUG: ${{ matrix.slug.slug }}
     steps:
@@ -175,6 +177,19 @@ jobs:
 
       - name: 🎨 Setup Render Environment
         uses: ./.github/actions/setup-render
+
+      # Emotional voice via the free Kaggle GPU (docs/qa/emotional-voice-qa.md):
+      # the Kaggle key reaches the run ONLY for a channel whose voice profile has
+      # the emotional voice on (setup-render sets EMOTIONAL_VOICE=1 and installs
+      # the CLI). Missing secrets = the standard voice, never a failed job.
+      - name: 🔑 Kaggle key (emotional-voice channels only)
+        if: ${{ env.EMOTIONAL_VOICE == '1' }}
+        env:
+          K_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+          K_USER: ${{ secrets.KAGGLE_USERNAME }}
+        run: |
+          if [ -z "$K_TOKEN" ]; then echo "::warning::KAGGLE_API_TOKEN secret missing — standard voice"; exit 0; fi
+          { echo "KAGGLE_API_TOKEN=$K_TOKEN"; echo "KAGGLE_USERNAME=${K_USER:-muzzamilhassan}"; } >> "$GITHUB_ENV"
 
       - name: 🔑 Resolve this channel's token
         env:

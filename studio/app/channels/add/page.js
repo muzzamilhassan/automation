@@ -36,7 +36,10 @@ import IdentityStep from '@/components/wizard/IdentityStep';
 import TemplatePicker from '@/components/wizard/TemplatePicker';
 import VoicePicker from '@/components/wizard/VoicePicker';
 import HumanVoiceSection from '@/components/HumanVoiceSection';
+import EmotionalVoiceSection from '@/components/EmotionalVoiceSection';
+import VoiceLibraryPicker from '@/components/VoiceLibraryPicker';
 import { voiceSettingsOf } from '@/lib/human-voice.mjs';
+import { emotionalOf } from '@/lib/emotional-voice.mjs';
 import AccentPicker from '@/components/wizard/AccentPicker';
 import ThumbnailStep from '@/components/wizard/ThumbnailStep';
 import SchedulePicker from '@/components/wizard/SchedulePicker';
@@ -641,9 +644,21 @@ export default function AddChannel() {
                   />
                   <div className="border-t border-line pt-6">
                     <VoicePicker value={form.voice} onChange={(v) => setField('voice', v)} />
+                    <div className="mt-3">
+                      <VoiceLibraryPicker
+                        startCollapsed
+                        value={form.voice}
+                        emotional={Boolean(voiceSettingsOf(form.voiceProfile).human) && emotionalOf(form.voiceProfile).emotional}
+                        mood={voiceSettingsOf(form.voiceProfile).mood}
+                        onChange={(v) => setField('voice', v)}
+                      />
+                    </div>
                   </div>
                   <div className="border-t border-line pt-6">
                     <HumanVoiceSection voice={form.voice} value={voiceSettingsOf(form.voiceProfile)} onChange={(v) => setField('voiceProfile', v)} />
+                  </div>
+                  <div className="border-t border-line pt-6">
+                    <EmotionalVoiceSection voice={form.voice} value={voiceSettingsOf(form.voiceProfile)} onChange={(v) => setField('voiceProfile', v)} />
                   </div>
                   <div className="border-t border-line pt-6">
                     <AccentPicker value={form.accent} onChange={(c) => setField('accent', c)} />
