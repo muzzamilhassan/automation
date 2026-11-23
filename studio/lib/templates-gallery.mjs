@@ -277,9 +277,12 @@ export function galleryFacets(items) {
   };
 }
 
-export function filterGallery(items, { kind = 'all', ratio = 'all', niche = 'all', query = '' } = {}) {
+// Retired (deprecated) templates are hidden unless `retired` is true — they
+// can't take new assignments, so they only clutter the list (owner 2026-11-23).
+export function filterGallery(items, { kind = 'all', ratio = 'all', niche = 'all', query = '', retired = false } = {}) {
   const q = str(query).trim().toLowerCase();
   return arr(items).filter((it) => {
+    if (!retired && it.deprecated) return false;
     if (kind !== 'all' && it.kind !== kind) return false;
     if (ratio !== 'all' && !it.ratios.includes(ratio)) return false;
     if (niche !== 'all' && !it.niches.includes(niche)) return false;

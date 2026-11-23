@@ -74,8 +74,12 @@ export default function TemplatesPage() {
     () => buildGallery({ catalog: TEMPLATES_DATA, registryTemplates: reg.templates, samples: prev.samples, categories: TEMPLATE_CATEGORIES }),
     [reg.templates, prev.samples],
   );
-  const facets = useMemo(() => galleryFacets(items), [items]);
-  const shown = useMemo(() => filterGallery(items, { kind, ratio, niche, query }), [items, kind, ratio, niche, query]);
+  // retired templates stay out of the list (and the counts) unless asked for
+  const [showRetired, setShowRetired] = useState(false);
+  const retiredCount = useMemo(() => items.filter((it) => it.deprecated).length, [items]);
+  const pool = useMemo(() => (showRetired ? items : items.filter((it) => !it.deprecated)), [items, showRetired]);
+  const facets = useMemo(() => galleryFacets(pool), [pool]);
+  const shown = useMemo(() => filterGallery(items, { kind, ratio, niche, query, retired: showRetired }), [items, kind, ratio, niche, query, showRetired]);
   const openItem = useMemo(() => items.find((it) => it.id === openId) || null, [items, openId]);
   const filtersOn = kind !== 'all' || ratio !== 'all' || niche !== 'all' || query.trim() !== '';
   const clearFilters = () => { setKind('all'); setRatio('all'); setNiche('all'); setQuery(''); };
@@ -151,7 +155,7 @@ export default function TemplatesPage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter by category">
-          <FilterPill active={kind === 'all'} onClick={() => setKind('all')}>All · {items.length}</FilterPill>
+          <FilterPill active={kind === 'all'} onClick={() => setKind('all')}>All · {pool.length}</FilterPill>
           {facets.kinds.map((k) => (
             <FilterPill key={k.id} active={kind === k.id} onClick={() => setKind(k.id)}>
               {k.label} · {k.count}
@@ -164,12 +168,19 @@ export default function TemplatesPage() {
       {!loading ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="t-12 text-muted">
-            Showing <span className="text-ink font-semibold">{shown.length}</span> of {items.length} templates
+            Showing <span className="text-ink font-semibold">{shown.length}</span> of {pool.length} templates
             {prev.status === 'ready' ? <> · {facets.withPreview} with a rendered preview</> : null}
           </p>
-          {filtersOn ? (
-            <button type="button" className="btn btn-ghost btn-sm" onClick={clearFilters}>Clear filters</button>
-          ) : null}
+          <div className="flex items-center gap-2">
+            {retiredCount > 0 ? (
+              <button type="button" className="btn btn-ghost btn-sm" aria-pressed={showRetired} onClick={() => setShowRetired((v) => !v)}>
+                {showRetired ? 'Hide retired' : `Show retired (${retiredCount})`}
+              </button>
+            ) : null}
+            {filtersOn ? (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={clearFilters}>Clear filters</button>
+            ) : null}
+          </div>
         </div>
       ) : null}
 

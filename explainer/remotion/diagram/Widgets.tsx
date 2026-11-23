@@ -42,6 +42,9 @@ const NATURAL_H: Record<string, (w: any) => number> = {
   takeaway: () => 300,
   roadmap: () => 180,
 };
+// widgets whose content is drawn at a FIXED width (it ignores r.w) — the layer
+// scales them down when their slot is narrower (stepper: 250 card + 30 + 620 note)
+const RIGID_W: Record<string, number> = { stepper: 900 };
 const NATURAL_W: Record<string, (w: any) => number> = {
   boxes: (w) => Math.min(STAGE.w, Math.max(4, (w.cells || []).length) * 168),
   stepper: () => 900,
@@ -352,13 +355,24 @@ export const WidgetLayer: React.FC<{ widgets: any[]; cues: any[]; ms: number; ac
         if (!View || !r) return null;
         const { appear, applied } = applyWidgetCues(cues, spec.id, ms);
         const p = appear === -Infinity ? 1 : pop(appear);
+        // a widget drawn at a fixed width (RIGID_W) that is wider than its slot
+        // renders at its own width and is scaled down to fit — 2026-11-20 CI run:
+        // a stepper (900 wide) in a half-row slot (574) spilled off the page edge
+        const rigid = RIGID_W[spec.type];
+        const fit = rigid && rigid > r.w ? r.w / rigid : 1;
         return (
           <div key={spec.id} style={{
             position: "absolute", left: r.x, top: r.y, width: r.w, height: r.h,
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start",
             opacity: hidden ? 0.15 : Math.max(0, Math.min(1, p)), transform: `translateY(${(1 - Math.max(0, Math.min(1, p))) * 26}px)`,
           }}>
-            <View spec={spec} ap={applied} accent={accent} pop={pop} r={r} />
+            {fit < 1 ? (
+              <div style={{ width: rigid, flex: "none", transform: `scale(${fit})`, transformOrigin: "top center", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <View spec={spec} ap={applied} accent={accent} pop={pop} r={{ ...r, w: rigid as number, h: r.h / fit }} />
+              </div>
+            ) : (
+              <View spec={spec} ap={applied} accent={accent} pop={pop} r={r} />
+            )}
           </div>
         );
       })}

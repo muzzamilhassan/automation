@@ -39,7 +39,8 @@ export default function TemplatePicker({ style, onStyle, niche, connectedSlug, t
   const closeDetail = useCallback(() => setDetail(null), []);
 
   const nicheRec = recommendedStyleFor(niche);
-  const list = templates.templates || [];
+  // a new channel can't take a retired (deprecated) template — never list one
+  const list = (templates.templates || []).filter((t) => !t.registry?.deprecated);
   const fits = (t) => Array.isArray(t.registry?.niches) && t.registry.niches.includes(niche);
   const ordered = [...list].sort((a, b) => Number(fits(b)) - Number(fits(a)));
   const srcFor = (t) => previewSourceFor(t.templateId, t.family, samples.samples, samples.familySamples);

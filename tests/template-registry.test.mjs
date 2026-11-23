@@ -339,12 +339,16 @@ test('seeds: no seed declares image-gen (pin P3 — Phase 1 vault has no generat
   }
 });
 
-test('seeds: version 1.0.0, not deprecated, changelog initial entry, >=2 variation rules', () => {
+// 2026-11-23 owner "go": the six legacy b-roll seeds were RETIRED (deprecated,
+// dated) — the look the owner rejected on 2026-11-04; red-flags-explained stays.
+const RETIRED_SEEDS = new Set(['documentary-frames', 'timeline-history', 'photo-stories', 'finance-explainers', 'editorial-headlines', 'myth-vs-money']);
+
+test('seeds: version 1.0.0, deprecated only when retired (dated), changelog initial entry, >=2 variation rules', () => {
   for (const id of SEED_IDS) {
     const meta = REGISTRY_META[id];
     assert.equal(meta.version, '1.0.0', `seed ${id}`);
-    assert.equal(meta.deprecated, false, `seed ${id}`);
-    assert.equal(meta.deprecated_on, undefined, `seed ${id}`);
+    assert.equal(meta.deprecated, RETIRED_SEEDS.has(id), `seed ${id}`);
+    assert.equal(meta.deprecated_on, RETIRED_SEEDS.has(id) ? '2026-11-23' : undefined, `seed ${id}`);
     assert.deepEqual(meta.changelog, [{ version: '1.0.0', date: '2026-10-26', note: 'initial registry entry' }], `seed ${id}`);
     assert.ok(meta.variation_rules.length >= 2, `seed ${id} needs >=2 variation rules`);
     assert.ok(meta.variation_rules.every((r) => typeof r === 'string' && r.length > 0), `seed ${id}`);

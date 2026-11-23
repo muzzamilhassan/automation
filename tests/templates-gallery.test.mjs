@@ -156,7 +156,7 @@ test('page: same data path as the wizard (#115) and the tested core', () => {
   assert.match(page, /fetch\('\/api\/templates'\)/);
   assert.match(page, /fetch\('\/api\/template-previews'\)/);
   assert.match(page, /buildGallery\(\{ catalog: TEMPLATES_DATA, registryTemplates: reg\.templates, samples: prev\.samples/);
-  assert.match(page, /filterGallery\(items, \{ kind, ratio, niche, query \}\)/);
+  assert.match(page, /filterGallery\(items, \{ kind, ratio, niche, query, retired: showRetired \}\)/);
 });
 
 test('page: cards show the real poster (lazy) and play the mp4 muted+looped on hover/tap', () => {

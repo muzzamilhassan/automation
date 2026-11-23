@@ -61,7 +61,8 @@ export const REGISTRY_META = {
       'rotate opening variants (documentary-open / chapter-card / reconstruction-card) so consecutive videos do not open with the same frame style',
     ],
     safety: { required_sources: true, review_required: [] },
-    deprecated: false,
+    deprecated: true,
+    deprecated_on: '2026-11-23',
     changelog: [{ version: '1.0.0', date: '2026-10-26', note: 'initial registry entry' }],
   },
   'timeline-history': {
@@ -78,7 +79,8 @@ export const REGISTRY_META = {
       'no repeated timeline span: the start/end years and milestone events differ from every prior video on the channel',
     ],
     safety: { required_sources: true, review_required: [] },
-    deprecated: false,
+    deprecated: true,
+    deprecated_on: '2026-11-23',
     changelog: [{ version: '1.0.0', date: '2026-10-26', note: 'initial registry entry' }],
   },
   'photo-stories': {
@@ -95,7 +97,8 @@ export const REGISTRY_META = {
       'no reused photo set: each video draws a different subject, year, and caption context',
     ],
     safety: { required_sources: true, review_required: [] },
-    deprecated: false,
+    deprecated: true,
+    deprecated_on: '2026-11-23',
     changelog: [{ version: '1.0.0', date: '2026-10-26', note: 'initial registry entry' }],
   },
 
@@ -126,7 +129,8 @@ export const REGISTRY_META = {
     // owner swaps at Studio > Review). The T5 gate reads THIS key.
     review_thumb_pick: true,
     safety: { required_sources: true, review_required: ['finance'] },
-    deprecated: false,
+    deprecated: true,
+    deprecated_on: '2026-11-23',
     changelog: [{ version: '1.0.0', date: '2026-10-26', note: 'initial registry entry' }],
   },
   'editorial-headlines': {
@@ -148,7 +152,8 @@ export const REGISTRY_META = {
       'no repeated hook across the channel\'s last 5 videos',
     ],
     safety: { required_sources: true, review_required: [] },
-    deprecated: false,
+    deprecated: true,
+    deprecated_on: '2026-11-23',
     changelog: [
       { version: '1.0.0', date: '2026-10-27', note: 'registry entry #7 — exit-gate proof: data-only addition' },
       { version: '1.0.1', date: '2026-11-01', note: 'formats corrected to [long]: the family ships only 16:9 — short was declared beyond what the family ships (T1 formats gate)' },
@@ -226,7 +231,8 @@ export const REGISTRY_META = {
     // publish (the tax-shield kit's "Education, not advice" pattern); the
     // contains() save gate refuses a finance record without it.
     safety: { required_sources: true, review_required: ['finance'], disclaimers: ['Education, not financial advice.'] },
-    deprecated: false,
+    deprecated: true,
+    deprecated_on: '2026-11-23',
     changelog: [
       { version: '1.0.0', date: '2026-11-02', note: 'Phase 5 pilot — structure-faithful to the money-rulebook kit format' },
       { version: '1.0.1', date: '2026-11-04', note: 'family re-bound beat-synced-type -> documentary-frames: beat-synced-type removed with the cloned 10–15s pack (owner-approved catalog cleanup); documentary-frames is the interim kept 9:16-capable family' },

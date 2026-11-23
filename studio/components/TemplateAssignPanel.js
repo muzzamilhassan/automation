@@ -156,8 +156,13 @@ export default function TemplateAssignPanel({ slug, frame }) {
   // AC-10: templates whose niches overlap the channel's niches first.
   const orderedTemplates = useMemo(() => {
     const hit = (t) => (t.registry?.niches || []).some((n) => channelNiches.includes(n));
-    return [...templates].sort((a, b) => Number(hit(b)) - Number(hit(a)) || a.name.localeCompare(b.name));
-  }, [templates, channelNiches]);
+    // retired (deprecated) templates can't be picked — leave them out, except
+    // the one this channel still runs (its card keeps the deprecated notice)
+    const inUse = new Set(assignments.map((a) => a.family_id));
+    return templates
+      .filter((t) => !t.registry?.deprecated || inUse.has(t.templateId))
+      .sort((a, b) => Number(hit(b)) - Number(hit(a)) || a.name.localeCompare(b.name));
+  }, [templates, channelNiches, assignments]);
 
   const pickTemplate = (id) => {
     setTemplateId(id);

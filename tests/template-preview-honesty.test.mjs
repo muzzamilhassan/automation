@@ -36,3 +36,15 @@ test('the storybook preview renderer refuses non-storybook templates before rend
   assert.ok(guard > 0, 'guard missing');
   assert.ok(guard < src.indexOf('fetchPhoto'), 'guard must run before any media/render work');
 });
+
+test('gallery hides retired (deprecated) templates unless asked; the 6 legacy b-roll templates are retired', async () => {
+  const { filterGallery } = await import('../studio/lib/templates-gallery.mjs');
+  const items = [{ id: 'a', kind: 'k', ratios: [], niches: [], name: 'A', deprecated: false }, { id: 'b', kind: 'k', ratios: [], niches: [], name: 'B', deprecated: true }];
+  assert.deepEqual(filterGallery(items).map((i) => i.id), ['a']);
+  assert.deepEqual(filterGallery(items, { retired: true }).map((i) => i.id), ['a', 'b']);
+  for (const id of ['documentary-frames', 'timeline-history', 'photo-stories', 'finance-explainers', 'editorial-headlines', 'myth-vs-money']) {
+    assert.equal(REGISTRY_META[id].deprecated, true, id);
+    assert.equal(REGISTRY_META[id].deprecated_on, '2026-11-23', id);
+  }
+  assert.equal(REGISTRY_META['red-flags-explained'].deprecated, false, 'the template Money Rulebook runs stays active');
+});
