@@ -1,13 +1,13 @@
 {
-  "at": "2026-11-23T23:36:57.777Z",
-  "problems": 3,
+  "at": "2026-11-24T04:42:04.599Z",
+  "problems": 1,
   "results": [
     {
       "slug": "debt-free-doctrine",
       "channel": "Debt-Free Doctrine",
       "subs": "2",
       "totalVideos": "165",
-      "lastUploadHours": 74,
+      "lastUploadHours": 79,
       "status": "STALE"
     },
     {
@@ -15,14 +15,14 @@
       "channel": "Investor's Compass",
       "subs": "9",
       "totalVideos": "168",
-      "lastUploadHours": 70,
-      "status": "STALE"
+      "lastUploadHours": 2,
+      "status": "OK"
     },
     {
       "slug": "money-rulebook",
       "channel": "The Money Rulebook",
       "subs": "11",
-      "totalVideos": "142",
+      "totalVideos": "143",
       "lastUploadHours": 1,
       "status": "OK"
     },
@@ -31,22 +31,14 @@
       "channel": "QuoteQuarry",
       "subs": "219",
       "totalVideos": "366",
-      "lastUploadHours": 70,
-      "status": "STALE"
+      "lastUploadHours": 2,
+      "status": "OK"
     }
   ],
   "alerts": {
     "debt-free-doctrine": {
       "status": "STALE",
-      "at": "2026-11-23T00:45:33.370Z"
-    },
-    "investors-compass": {
-      "status": "STALE",
-      "at": "2026-11-23T12:05:56.330Z"
-    },
-    "quotequarry": {
-      "status": "STALE",
-      "at": "2026-11-23T12:05:56.330Z"
+      "at": "2026-11-24T04:42:02.545Z"
     }
   }
 }
