@@ -331,8 +331,9 @@
         "eyebrow": "AI MONEY // BEHIND THE AI BILL",
         "tagline": "Who really pays for AI?",
         "gateCron": "0 15 * * *",
+        "storyShape": "template",
         "description": "The money behind artificial intelligence, explained simply. Who pays for AI, who profits, and what happens when the bill arrives. We follow the deals, the data centers, the rises and the collapses with clear animated diagrams and real sources. New video every Tuesday. Education only, not financial advice. Made with the help of AI tools and reviewed by a person.\n",
-        "hasChapters": false,
+        "hasChapters": null,
         "thumbTemplates": [
           "terminal",
           "screen",
