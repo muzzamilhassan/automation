@@ -8,9 +8,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "Aqhi1SiX_nk",
-        "publishAt": "2026-11-21T23:35:00Z",
-        "title": "$3,200 Slippage Loss Shows Why Liquidity Matters"
+        "videoId": "Rxcrhedmoaw",
+        "publishAt": "2026-11-24T23:35:00Z",
+        "title": "ETF Soars 40% on Rumor, Then Crashes 55% When Launch Delays"
       }
     ],
     "imageDate": "2026-10-17",
@@ -123,6 +123,11 @@
         "t": "$3,200 Slippage Loss Shows Why Liquidity Matters",
         "at": "2026-11-21T23:35:00Z",
         "v": "Aqhi1SiX_nk"
+      },
+      {
+        "t": "ETF Soars 40% on Rumor, Then Crashes 55% When Launch Delays",
+        "at": "2026-11-24T23:35:00Z",
+        "v": "Rxcrhedmoaw"
       }
     ],
     "cooldownSeeds": [
@@ -130,13 +135,14 @@
       "Still Waiting For the Market Crash? Watch This Right Now | Weekend Investing | Alok Jain"
     ],
     "uploadsToday": {
-      "date": "2026-11-20",
+      "date": "2026-11-23",
       "count": 1
     },
     "usedLongSeeds": [
       "The 3 Secrets to Building Wealth",
       "risk free 👍 #viral #viralreels #trending #Mindset #Discipline",
-      "What Happened to My GTA 6 Investment?"
+      "What Happened to My GTA 6 Investment?",
+      "Gold Prices: Why I Believe They're Going Much Higher"
     ],
     "todayTopic": {
       "at": "2026-11-18",
@@ -192,15 +198,16 @@
           "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/761614443",
           "startSec": 15.2,
           "durSec": 21.6,
-          "file": "tt-lf/clipfeed-investors-compass/clips/clip-04.mp4"
+          "file": "tt-lf/clipfeed-investors-compass/clips/clip-04.mp4",
+          "postedAt": "2026-11-24T03:07:09.307Z"
         }
       ]
     },
-    "clipLastPostDate": "2026-11-21",
+    "clipLastPostDate": "2026-11-24",
     "reviewGate": {
-      "assigned": false,
-      "gated": false,
-      "checkedAt": "2026-11-21T03:07:31.773Z"
+      "assigned": true,
+      "gated": true,
+      "checkedAt": "2026-11-24T03:07:02.070Z"
     }
   },
   "money-rulebook": {
