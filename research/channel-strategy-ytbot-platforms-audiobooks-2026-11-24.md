@@ -84,10 +84,13 @@ Hits are still uneven: First Domino's other videos range from 301 to 10,000. Onl
 **Move to: "Who pays for AI" — the money, companies, jobs and power behind AI.** Evergreen mix: about half company
 stories (rise, collapse, deals), half "how the money flows" explainers; news hooks only when there is a real event.
 
-- **Settings to use when the owner says yes:** main niche `AI & future tech`; add sub-niche `Entrepreneurship & lean
-  business`. That makes Money Flow Diagram, Systems Diagram, Lecture Notes and Silicon Pulse all assignable.
-- **Template:** Money Flow Diagram (circular chip/cloud deals are literally money-flow diagrams). One active template
-  per channel, so Systems Diagram is the second choice.
+- **Settings (corrected the same day, checked against the panel's rules):** niche `AI & future tech`; first pillar
+  `ai money and business`. The panel lowercases pillars and templates match exact text, so a second canonical niche
+  added as a pillar does NOT unlock a template.
+- **Template (corrected):** Systems Diagram. Money Flow is refused for this niche, and its beats are about a personal
+  paycheck. Thumbnails that fit: `terminal` and `screen` only.
+- **Approval (fixed 55abf30):** systems-diagram, lecture-notes-paper and silicon-pulse-storybook had an empty
+  `review_required` list and would have published unreviewed. Eight other active templates still have one.
 - **Not:** AI explained/CS (0–2%), AI tool tutorials (need screen recording; tutorials are called out by YouTube's
   trust chief), daily AI news (accuracy risk, short life). This corrects my earlier suggestion to lead with Systems
   Diagram and Lecture Notes.
