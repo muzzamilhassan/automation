@@ -18,11 +18,12 @@
 // warn and block Next (T4-10 — stepIssues); an existing channel's saved hours
 // stay pickable even when another channel shares them (T3-09, `editing`).
 import { useEffect, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { AUDIENCES, suggestionFor } from '@/lib/audiences';
-import { DOC_DAYS, MAX_SLOTS, parseSlots, slotsToString, utcToLocal, formatClock, removeSlot, addSlot, shiftHHMM, stepIssues } from '@/lib/wizard-steps.mjs';
+import { MAX_SLOTS, parseSlots, slotsToString, utcToLocal, formatClock, removeSlot, addSlot, shiftHHMM, stepIssues } from '@/lib/wizard-steps.mjs';
 import SlotTimeline from '@/components/SlotTimeline';
 import { channelTimes, takenHours, suggestHours, parseHHMM, toHHMM, freeSlotTime } from '@/lib/slot-planner.mjs';
+import { UPLOAD_DAYS, dayList, toggleDay, weekdayFor } from '@/lib/wizard-days.mjs';
 import { Notice } from './fields';
 
 // a new slot starts 4 hours after the last one (two shorts at the same
@@ -32,6 +33,35 @@ function nextSlotDefault(rows) {
   return last ? shiftHHMM(last, 240).time : '22:35';
 }
 
+// One row of day toggles (several can be on).
+function DayRow({ label, value, onChange, disabled }) {
+  const on = dayList(value);
+  return (
+    <fieldset className="min-w-0">
+      <legend className="t-13 font-semibold text-ink mb-2">{label}</legend>
+      <div className="flex flex-wrap gap-1.5">
+        {UPLOAD_DAYS.map((d) => {
+          const active = on.includes(d);
+          return (
+            <button
+              key={d}
+              type="button"
+              aria-pressed={active}
+              disabled={disabled}
+              onClick={() => onChange(toggleDay(value, d))}
+              data-kit="chip"
+              className="w-14 rounded-xl border py-2 t-13 font-semibold transition-colors disabled:opacity-50"
+              style={active ? { borderColor: 'var(--accent)', color: 'var(--accent)', background: 'var(--accent-soft)' } : { borderColor: 'var(--line)', color: 'var(--muted)' }}
+            >
+              {d}
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
 function wizardSlug(slug) {
   if (slug) return slug;
   if (typeof window === 'undefined') return '';
@@ -39,10 +69,12 @@ function wizardSlug(slug) {
   return q.get('edit') || q.get('connected') || '';
 }
 
-export default function SchedulePicker({ slots, docDay, onSlots, onDocDay, audience, onAudience, slug, niche, editing = false }) {
+// Upload days (docs/qa/wizard-upload-days-qa.md): `docDays`/`shortDays` are the
+// channel's saved schedule as comma strings; `daysStatus` = loading | ready | error.
+export default function SchedulePicker({ slots, docDay, docDays = '', shortDays = '', daysStatus = 'loading', onSlots, onDocDay, onDocDays, onShortDays, onRetryDays, audience, onAudience, slug, niche, editing = false }) {
   const offsetMin = -new Date().getTimezoneOffset();
   const rows = parseSlots(slots);
-  const issues = stepIssues('schedule', { form: { slots, docDay } });
+  const issues = stepIssues('schedule', { form: { slots, docDay, docDays, shortDays }, daysReady: daysStatus === 'ready' });
   const [active, setActive] = useState(0);
   const [times, setTimes] = useState([]);
   const [ownSlug, setOwnSlug] = useState('');
@@ -164,27 +196,20 @@ export default function SchedulePicker({ slots, docDay, onSlots, onDocDay, audie
         />
       </section>
 
-      <section>
-        <h3 className="t-13 font-semibold text-ink mb-2">Weekly long episode</h3>
-        <div role="radiogroup" aria-label="Weekly episode day" className="flex flex-wrap gap-1.5">
-          {DOC_DAYS.map((d) => {
-            const on = docDay === d;
-            return (
-              <button
-                key={d}
-                type="button"
-                role="radio"
-                aria-checked={on}
-                onClick={() => onDocDay(d)}
-                data-kit="chip"
-                className="w-14 rounded-xl border py-2 t-13 font-semibold transition-colors"
-                style={on ? { borderColor: 'var(--accent)', color: 'var(--accent)', background: 'var(--accent-soft)' } : { borderColor: 'var(--line)', color: 'var(--muted)' }}
-              >
-                {d}
-              </button>
-            );
-          })}
-        </div>
+      {/* the saved schedule's days — the same ones the Schedule drawer edits */}
+      <section className="space-y-5" aria-label="Upload days">
+        <DayRow label="Shorts days" value={shortDays} onChange={onShortDays} disabled={daysStatus !== 'ready'} />
+        <DayRow
+          label="Long video days"
+          value={docDays}
+          onChange={(v) => { onDocDays(v); onDocDay(weekdayFor(v, docDay)); }}
+          disabled={daysStatus !== 'ready'}
+        />
+        {daysStatus === 'error' ? (
+          <Notice tone="warn" title="Couldn't load the upload days" action={<button type="button" className="btn btn-sm btn-outline" onClick={onRetryDays}><RefreshCw size={13} /> Retry</button>}>
+            Saving keeps the days the channel already has.
+          </Notice>
+        ) : null}
       </section>
 
       {issues.length ? (

@@ -29,6 +29,7 @@ import { VOICES } from '@/lib/voices';
 import { STEPS, STEP_INDEX, EMPTY_FORM, stepIssues, allIssues, canOpenStep, stepStates, reviewSummary, withField, eyebrowFor, draftKey, draftSnapshot, parseDraft, sameForm } from '@/lib/wizard-steps.mjs';
 import { channelTimes, takenHours, freeSlotTime } from '@/lib/slot-planner.mjs';
 import { suggestionFor } from '@/lib/audiences';
+import { formDays, daysDirty, daysBody, daysSentence } from '@/lib/wizard-days.mjs';
 import { engineFormValues, editPayload, withReviewKeyRow } from '@/lib/edit-prefill.mjs';
 import StepIndicator from '@/components/wizard/StepIndicator';
 import ConnectStep from '@/components/wizard/ConnectStep';
@@ -114,6 +115,10 @@ export default function AddChannel() {
   const [samples, setSamples] = useState({ status: 'loading', samples: {}, familySamples: {} });
   const [assignState, setAssignState] = useState({}); // templateId -> { state, msg? }
 
+  // upload days (docs/qa/wizard-upload-days-qa.md): the channel's saved
+  // schedule; null until read — an unread schedule is never written
+  const [sched, setSched] = useState({ status: 'loading', saved: null });
+
   // #112 — target audience for the slot suggestion; wizard-local, not saved
   const [audience, setAudience] = useState('');
 
@@ -163,6 +168,28 @@ export default function AddChannel() {
     });
   };
 
+  // the days the engine uses (the Schedule drawer's) → the form
+  const loadDays = (slug) => {
+    setSched({ status: 'loading', saved: null });
+    return fetch(`/api/channels/schedule?slug=${encodeURIComponent(slug)}`)
+      .then((r) => {
+        if (!r.ok) throw new Error(`schedule ${r.status}`);
+        return r.json();
+      })
+      .then((d) => {
+        if (!d?.schedule) throw new Error('no schedule');
+        setForm((f) => {
+          const days = formDays(d.schedule, f.docDay);
+          const next = { ...f, ...days };
+          cleanForm.current = cleanForm.current ? { ...cleanForm.current, ...days } : next;
+          if (savedForm.current) savedForm.current = { ...savedForm.current, ...days };
+          return next;
+        });
+        setSched({ status: 'ready', saved: d.schedule });
+      })
+      .catch(() => setSched({ status: 'error', saved: null }));
+  };
+
   // the saved profile wins; the registry row is the fallback
   const loadProfile = (slug, channels) => {
     const fallback = () => {
@@ -172,7 +199,8 @@ export default function AddChannel() {
     return fetch(`/api/channels/profile?slug=${encodeURIComponent(slug)}`)
       .then((x) => x.json())
       .then((d) => (d?.channel ? prefill(d.channel, d.legacy || null) : fallback()))
-      .catch(fallback);
+      .catch(fallback)
+      .then(() => loadDays(slug));
   };
 
   // T4-09: a NEW channel (no saved times) gets a default short time no other
@@ -197,7 +225,9 @@ export default function AddChannel() {
     let d = null;
     try { d = parseDraft(window.sessionStorage.getItem(draftKey(mode, slug))); } catch { d = null; }
     if (d) {
-      setForm((f) => ({ ...f, ...d.form }));
+      // a draft stored before its days were loaded must not blank them
+      const { docDays, shortDays, ...rest } = d.form;
+      setForm((f) => ({ ...f, ...rest, ...(docDays || shortDays ? { docDays: docDays || '', shortDays: shortDays || '' } : {}) }));
       if (d.audience) setAudience(d.audience);
       if (d.step > 0 && canOpenStep(d.step, { form: { ...EMPTY_FORM, ...d.form }, connectedSlug: slug })) {
         setStep(d.step);
@@ -433,6 +463,19 @@ export default function AddChannel() {
       // T4-02: editing an existing channel sends only the changed fields (an
       // emptied field goes out with `clear`), so an untouched field can never
       // overwrite the live value
+      // D3/D4: days first, so "Save & start" checks readiness with them; a
+      // refused schedule stops here and nothing else is saved
+      if (sched.status === 'ready' && daysDirty(sched.saved, form)) {
+        const body = daysBody(connectedSlug, sched.saved, form);
+        const rs = await fetch('/api/channels/schedule', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const ds = await rs.json().catch(() => ({}));
+        if (!rs.ok) throw new Error(`upload days — ${ds.error || `error ${rs.status}`}`);
+        setSched({ status: 'ready', saved: { ...sched.saved, ...body } });
+      }
       const full = profileBody(form);
       const payload = editing && savedForm.current ? editPayload(full, profileBody(savedForm.current)) : full;
       const r = await fetch('/api/channels/profile', {
@@ -459,7 +502,7 @@ export default function AddChannel() {
     }
   };
 
-  const ctx = { form, connectedSlug };
+  const ctx = { form, connectedSlug, daysReady: sched.status === 'ready' };
 
   const goTo = (i) => {
     if (i < 0 || i >= STEPS.length || !canOpenStep(i, ctx)) return;
@@ -480,6 +523,7 @@ export default function AddChannel() {
     setDraftNote(false);
     setThumbDesigns([]);
     setForm({ ...EMPTY_FORM });
+    setSched({ status: 'loading', saved: null });
     setAssignState({});
     setAudience('');
     setConsent(false);
@@ -546,7 +590,7 @@ export default function AddChannel() {
               </p>
               <p className="t-13 text-muted mt-1.5 leading-relaxed">
                 {started
-                  ? `One short per day at your times, a long episode every ${form.docDay}, Sunday off. Your consent to automated publishing was recorded on ${new Date().toLocaleDateString()} (YouTube API policy). Pause any time from the Channels page.`
+                  ? `${daysSentence(form) ? `It makes ${daysSentence(form)}.` : 'It follows the channel’s saved schedule.'} Your consent to automated publishing was recorded on ${new Date().toLocaleDateString()} (YouTube API policy). Pause any time from the Channels page.`
                   : 'Nothing publishes until you start it — come back here and press “Save & start autopilot”, or use Resume on the Channels page.'}
               </p>
               {startBlocked ? (
@@ -661,6 +705,12 @@ export default function AddChannel() {
                   docDay={form.docDay}
                   onSlots={(v) => setField('slots', v)}
                   onDocDay={(d) => setField('docDay', d)}
+                  docDays={form.docDays}
+                  shortDays={form.shortDays}
+                  daysStatus={sched.status}
+                  onDocDays={(v) => setField('docDays', v)}
+                  onShortDays={(v) => setField('shortDays', v)}
+                  onRetryDays={() => loadDays(connectedSlug)}
                   audience={audience}
                   onAudience={setAudience}
                   slug={connectedSlug}

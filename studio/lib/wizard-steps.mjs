@@ -5,6 +5,7 @@
 // are UTC "HH:MM" strings (comma list), docDay is one of Mon–Fri. The owner
 // SEES local time; these helpers do the conversion both ways.
 import { parseVoiceProfile, MOOD_LABEL } from './human-voice.mjs';
+import { daysIssue, daysText } from './wizard-days.mjs';
 
 export const STEPS = [
   { id: 'connect', label: 'Connect', hint: 'Google login' },
@@ -33,7 +34,7 @@ export const EYEBROW_MAX = 60;
 // (the old reset object forgot subNiches and crashed the next save).
 export const EMPTY_FORM = Object.freeze({
   label: '', niche: '', subNiches: '', style: 'cinematic', voice: 'am_michael', accent: '#38BDF8', slots: '22:35',
-  docDay: 'Tue', eyebrow: '', tagline: '', tags: '', description: '',
+  docDay: 'Tue', docDays: '', shortDays: '', eyebrow: '', tagline: '', tags: '', description: '',
   fbPageId: '', igHandle: '', threadsHandle: '', tiktokHandle: '',
 });
 
@@ -197,6 +198,8 @@ export function stepIssues(stepId, ctx = {}) {
       for (const r of rows) if (r.utc == null) out.push(`Can't read the time "${r.raw}" — use a time like 19:30.`);
       if (rows.length > MAX_SLOTS) out.push(`At most ${MAX_SLOTS} short times.`);
       if (!DOC_DAYS.includes(form.docDay)) out.push('Pick the weekly episode day.');
+      // upload days (D8) — judged only once the saved schedule has loaded
+      if (ctx.daysReady && daysIssue(form)) out.push(daysIssue(form));
       return out;
     }
     case 'destinations':
@@ -485,7 +488,9 @@ export function reviewSummary(form, { channel = null, offsetMin = 0, names = {},
       rows: [
         ['Audience', orDash(audience, 'Not picked')],
         ['Daily shorts', describeSlots(f.slots, offsetMin)],
-        ['Weekly long episode', `Every ${orDash(f.docDay)}`],
+        ...(daysText(f.docDays) || daysText(f.shortDays)
+          ? [['Long video days', orDash(daysText(f.docDays), 'None')], ['Shorts days', orDash(daysText(f.shortDays), 'None')]]
+          : [['Weekly long episode', `Every ${orDash(f.docDay)}`]]),
       ],
     },
     {
