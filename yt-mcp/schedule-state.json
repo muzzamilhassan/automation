@@ -219,9 +219,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "mAUKrujERSE",
-        "publishAt": "2026-11-24T00:05:00Z",
-        "title": "DIY car AC fix saves $1,280—no mechanic needed"
+        "videoId": "emfMP0MyRYI",
+        "publishAt": "2026-11-25T00:05:00Z",
+        "title": "How a $2,000 Buffer Saved Him $200 on Mortgage Rate"
       }
     ],
     "imageDate": "2026-10-18",
@@ -355,6 +355,11 @@
         "t": "DIY car AC fix saves $1,280—no mechanic needed",
         "at": "2026-11-24T00:05:00Z",
         "v": "mAUKrujERSE"
+      },
+      {
+        "t": "How a $2,000 Buffer Saved Him $200 on Mortgage Rate",
+        "at": "2026-11-25T00:05:00Z",
+        "v": "emfMP0MyRYI"
       }
     ],
     "cooldownSeeds": [
@@ -388,7 +393,8 @@
           "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/783785450",
           "startSec": 106.8,
           "durSec": 22.2,
-          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-01.mp4"
+          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-01.mp4",
+          "postedAt": "2026-11-24T03:37:31.898Z"
         },
         {
           "part": 2,
@@ -419,15 +425,15 @@
         }
       ]
     },
-    "clipLastPostDate": "2026-11-23",
+    "clipLastPostDate": "2026-11-24",
     "uploadsToday": {
       "date": "2026-11-23",
-      "count": 1
+      "count": 2
     },
     "reviewGate": {
       "assigned": true,
       "gated": true,
-      "checkedAt": "2026-11-23T16:40:40.565Z"
+      "checkedAt": "2026-11-24T03:37:25.372Z"
     },
     "usedLongSeeds": [
       "Stop Wasting Vegetables! 8 Freezer Tricks That Save You Money | Annie Tips",
@@ -449,7 +455,8 @@
       "The New Rules of Off Grid Living",
       "Snowball or Avalanche? 2 Ways to Crush Debt ⛰️",
       "The 50/30/20 Rule That Can Change Your Finances 💰 #shorts",
-      "How I saved $100k on an average salary"
+      "How I saved $100k on an average salary",
+      "Middle-Class Mindset vs Rich Mindset  | The Difference That Changes How You Build Wealth"
     ],
     "deepdiveVideo": {
       "videoId": "ZgH6h_NrW_Q",
