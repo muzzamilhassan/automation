@@ -866,7 +866,7 @@ export const REGISTRY_META = {
     "review_thumb_pick": true,
     "safety": {
       "required_sources": true,
-      "review_required": [],
+      "review_required": ["all"],
       "disclaimers": [
         "Technology analysis with cited sources — not investment or security advice."
       ]
@@ -1045,7 +1045,7 @@ export const REGISTRY_META = {
     "review_thumb_pick": true,
     "safety": {
       "required_sources": true,
-      "review_required": []
+      "review_required": ["all"]
     },
     "deprecated": false,
     "changelog": [
@@ -1402,7 +1402,7 @@ export const REGISTRY_META = {
     "review_thumb_pick": true,
     "safety": {
       "required_sources": true,
-      "review_required": []
+      "review_required": ["all"]
     },
     "deprecated": false,
     "changelog": [

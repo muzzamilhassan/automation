@@ -48,3 +48,14 @@ test('gallery hides retired (deprecated) templates unless asked; the 6 legacy b-
   }
   assert.equal(REGISTRY_META['red-flags-explained'].deprecated, false, 'the template Money Rulebook runs stays active');
 });
+
+test('the AI templates wait for owner approval (2026-11-24: an empty list published unreviewed)', async () => {
+  const { resolveGating } = await import('../lib/review-gate.mjs');
+  for (const id of ['systems-diagram', 'lecture-notes-paper', 'silicon-pulse-storybook']) {
+    assert.deepEqual(REGISTRY_META[id].safety.review_required, ['all'], id);
+    const registryDb = { listAssignments: async () => [{ family_id: id }] };
+    const g = await resolveGating({ slug: 'yt-bot', registryDb, db: registryDb, templateMeta: (t) => REGISTRY_META[t] });
+    assert.equal(g.state, 'gated', id);
+    assert.equal(g.familyId, id, 'gated by the template itself, not the unreadable-database fallback');
+  }
+});
