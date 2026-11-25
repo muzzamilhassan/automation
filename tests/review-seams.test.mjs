@@ -1,3 +1,4 @@
+import { nextSlotOnDays } from '../lib/publish-days.mjs';
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -788,10 +789,8 @@ const STORED_DOC = {
 
 // quotequarry's legacy kit longSlot — the D8 recompute both branches must land on
 function expectedDocPublishAt() {
-  const now = new Date();
-  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 14, 30, 0));
-  if (d <= new Date(now.getTime() + 35 * 60 * 1000)) d.setUTCDate(d.getUTCDate() + 1);
-  return d.toISOString().replace(/\.\d+Z$/, 'Z');
+  // 2026-11-25: the next LONG-VIDEO day (the fixtures' cadence day), never just tonight
+  return nextSlotOnDays('14:30', [NOT_TODAY_NAME]);
 }
 
 // the pipeline-threading fakes gain the deepdive child (the fake dumps the same

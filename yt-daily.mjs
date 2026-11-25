@@ -41,6 +41,7 @@ import { flagOn, appendDisclaimers, declaredDisclaimers } from './lib/review-sea
 // (D5); the two-step resumable upload whose session URI is ours to keep (D6);
 // the run-start open-intent resolution that kills the duplicate class (D7a).
 import { getUploadIntentStore, uploadWithIntent, recoverOpenIntents, makeFindByTitle, oauthAccessToken, slotISOOnDate, nextFutureSlotISO } from './lib/upload-intents.mjs';
+import { nextSlotOnDays, nextFutureSlotOnDays, isPublishDay } from './lib/publish-days.mjs';
 
 const slug = process.argv[2];
 const FORCE = process.argv.includes('--force');
@@ -223,7 +224,7 @@ async function resumeApprovedScript({ slug, jobId, b }) {
   // render spend — the stored publishAt is history by construction (the
   // approval came later), and a past publishAt would publish instantly. No
   // future slot remains today => take the skip terminal WITHOUT rendering.
-  const publishAt = nextFutureSlotISO(b.slots, { now: new Date() }) || stored.publishAt || (b.slots?.length ? nextSlotISO(b.slots[0]) : null);
+  const publishAt = nextFutureSlotOnDays(b.slots, b.shortDays, new Date()) || stored.publishAt || (b.slots?.length ? nextSlotISO(b.slots[0]) : null);
   if (publishAt && new Date(publishAt).getTime() <= Date.now()) {
     log(`resume: no future slot remains today (publishAt ${publishAt} already past) — slot skipped before any render spend (AC-P4-19; the script STAYS approved)`);
     await station('render', 'skipped', 'no future slot left today — script stays approved');
@@ -366,7 +367,14 @@ if ((state[slug]?.pausedUntil || '') >= today) {
 // Shorts come from the feed, not a subscription calendar, so a dark Sunday is
 // free; it buys the weekly review that keeps quality up (research/
 // upload-cadence-research-2026-10-05.md). --force overrides.
-if (!FORCE && !TOPUP_N && new Date().getUTCDay() === 0) {
+// 2026-11-25 (docs/qa/publish-days-qa.md): the Shorts days set in the panel win;
+// the Sunday break stays for a channel with none set.
+const hasShortDays = Array.isArray(b.shortDays) && b.shortDays.length > 0;
+if (!FORCE && !TOPUP_N && hasShortDays && !isPublishDay(b.shortDays)) {
+  console.log(`[${slug}] not a Shorts day (${b.shortDays.join('/')}) — no shorts produced`);
+  process.exit(0);
+}
+if (!FORCE && !TOPUP_N && !hasShortDays && new Date().getUTCDay() === 0) {
   console.log(`[${slug}] Sunday break day — no shorts produced`);
   process.exit(0);
 }
@@ -537,7 +545,7 @@ if (RUN_SHORTS) {
       console.log(`  slot ${i + 1} already produced (recovered upload intent) — skipped (AC-P4-8)`);
       continue;
     }
-    const publishAt = nextSlotISO(b.slots[i]);
+    const publishAt = nextSlotOnDays(b.slots[i], b.shortDays);
     console.log(`\n[${slug}] short ${i + 1}/${b.slots.length} → goes public ${publishAt}`);
     if (!themesToday[i]) {
       console.log('  ✗ no researched topic (trend research failed) — slot skipped (fail-closed, no static fallback)');

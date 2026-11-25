@@ -30,12 +30,12 @@ test('T5: a sent time the server did not store is named', () => {
   assert.match(timesMissed(sent, { gateCron: '0 15 * * *' }), /long-video time and the autopilot start time did not save/);
 });
 
-test('T3: the next public date, rolled a day when the time is before the start', () => {
+test('T3: the next public date is always one of the chosen days', () => {
   const now = new Date('2026-11-25T03:00:00Z'); // Wednesday
   assert.equal(nextPublic('Thu', '17:00', '05:00', now).toISOString(), '2026-11-26T17:00:00.000Z');
   assert.equal(nextPublic('Wed, Fri', '16:35', '05:00', now).toISOString(), '2026-11-25T16:35:00.000Z');
-  assert.equal(nextPublic('Thu', '14:00', '15:00', now).toISOString(), '2026-11-27T14:00:00.000Z', 'goes public the day after the run');
-  assert.equal(nextPublic('Tue', '02:00', '15:00', new Date('2026-11-25T01:00:00Z')).toISOString(), '2026-11-25T02:00:00.000Z', "yesterday's run is still ahead");
+  assert.equal(nextPublic('Thu', '14:00', '15:00', now).toISOString(), '2026-11-26T14:00:00.000Z', 'never an unlisted day');
+  assert.equal(nextPublic('Tue', '02:00', '15:00', new Date('2026-11-25T01:00:00Z')).toISOString(), '2026-12-01T02:00:00.000Z');
   assert.equal(nextPublic('', '17:00', '05:00', now), null);
   assert.equal(nextPublic('Thu', '', '05:00', now), null);
   assert.equal(dateText(new Date('2026-11-26T17:07:00Z'), 300), 'Thu 26 Nov, 10:07 pm');

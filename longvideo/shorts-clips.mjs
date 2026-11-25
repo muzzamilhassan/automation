@@ -26,7 +26,7 @@ import { isDupTitle } from '../lib/dup-gate.mjs';
 import { sendAlert } from '../lib/ntfy-alert.mjs';
 import { loadChannelState, saveChannelState, loadAllStates } from '../lib/state.mjs';
 import { resolveBrand } from '../lib/brand-resolve.mjs';
-import { nextSlotISO } from '../lib/schedule.mjs';
+import { nextSlotOnDays } from '../lib/publish-days.mjs';
 import { nextUnposted } from '../lib/clipper.mjs';
 import { recentUploadTitles } from '../lib/dup-gate.mjs';
 import { nextCounter } from '../lib/quota-ledger.mjs';
@@ -568,7 +568,7 @@ async function postNext() {
     fs.writeFileSync(file, buf);
   }
 
-  const publishAt = nextSlotISO((b.slots && b.slots[0]) || '22:35');
+  const publishAt = nextSlotOnDays((b.slots && b.slots[0]) || '22:35', b.shortDays); // only on a Shorts day
   // #106 P5 T2c (D4/AC-P5-4): the channel's active template may declare fixed
   // disclaimers — the upload DESCRIPTION carries them machine-appended (code,
   // never the LLM). Fail-open: no assignment / registry unreadable / nothing

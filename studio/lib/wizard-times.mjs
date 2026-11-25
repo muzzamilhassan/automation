@@ -53,18 +53,17 @@ export function leadMinutes(startAt, hhmm) {
 }
 
 /**
- * The next time a video goes public (T3): a listed UTC day's run, at its first
- * go-public time after the start (the engine rolls a passed time to the next
- * day). null when the days or the time are missing.
+ * The next time a video goes public (T3): the next listed UTC day at its time
+ * (lib/publish-days.mjs nextSlotOnDays — never an unlisted day). null when the
+ * days or the time are missing.
  */
-export function nextPublic(days, hhmm, startAt, now = new Date()) {
+export function nextPublic(days, hhmm, _startAt, now = new Date()) {
   const list = dayList(days);
   if (!list.length || !isTime(hhmm)) return null;
-  const rolls = isTime(startAt) && minutes(hhmm) <= minutes(startAt) ? 1440 : 0;
-  for (let i = -1; i <= 8; i++) {
+  for (let i = 0; i <= 8; i++) {
     const day = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + i));
     if (!list.includes(UPLOAD_DAYS[(day.getUTCDay() + 6) % 7])) continue;
-    const at = new Date(day.getTime() + (minutes(hhmm) + rolls) * 60000);
+    const at = new Date(day.getTime() + minutes(hhmm) * 60000);
     if (at > now) return at;
   }
   return null;

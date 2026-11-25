@@ -99,6 +99,8 @@ export function factoryChannels(registry, cadence, templateMeta = null) {
       slug: c.slug,
       label: String(c.label || kit.label || c.slug),
       shortsSource: cad.shortsSource === 'clips' ? 'clips' : 'generated',
+      docDays: Array.isArray(cad.docDays) ? cad.docDays : [],
+      shortDays: Array.isArray(cad.shortDays) ? cad.shortDays : [],
       reviewGate: req === null ? null : req.length > 0,
       // engine order (lib/brand-resolve.mjs: top-level list, else kit.slots) — index 0 is the factory Short's slot
       slots: (Array.isArray(c.slots) && c.slots.length ? c.slots : Array.isArray(kit.slots) ? kit.slots : []).filter((t) => typeof t === 'string').map((t) => t.trim()),
@@ -215,9 +217,16 @@ export function ruleParse(text, channels) {
  * deploys without the repo root, so the rule is mirrored here and pinned
  * equal to lib/schedule.mjs by tests/factory-plan.test.mjs. null = bad slot.
  */
-export function slotPublishISO(hhmm, now = new Date()) {
+export function slotPublishISO(hhmm, now = new Date(), days = []) {
   if (typeof hhmm !== 'string' || !HHMM_RE.test(hhmm.trim())) return null;
   const [h, m] = hhmm.trim().split(':').map(Number);
+  // 2026-11-25: only on the channel's own days (lib/publish-days.mjs nextSlotOnDays)
+  const names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const list = (Array.isArray(days) ? days : []).filter((x) => names.includes(x));
+  for (let i = 0; list.length && i <= 7; i++) {
+    const at = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + i, h, m, 0));
+    if (list.includes(names[at.getUTCDay()]) && at.getTime() > now.getTime() + 35 * 60 * 1000) return at.toISOString().replace(/\.\d+Z$/, 'Z');
+  }
   const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h, m, 0));
   if (d <= new Date(now.getTime() + 35 * 60 * 1000)) d.setUTCDate(d.getUTCDate() + 1);
   return d.toISOString().replace(/\.\d+Z$/, 'Z');
@@ -263,7 +272,7 @@ export function buildPlan(pick, channels, { now = new Date(), source = 'rules' }
   }
   // the exact slot the engine uses: a doc publishes at longSlot, the factory
   // Short takes slot INDEX 0 (yt-daily nextSlotISO(b.slots[0]))
-  const publishAt = slotPublishISO(lane === 'doc' ? ch.longSlot : ch.slots[0], now);
+  const publishAt = slotPublishISO(lane === 'doc' ? ch.longSlot : ch.slots[0], now, lane === 'doc' ? ch.docDays : ch.shortDays);
   const when = publishAt ? `next slot ${slotWords(publishAt, now)}` : null;
   if (lane === 'doc') {
     warnings.push('This run makes only the documentary — today’s Shorts run on their normal schedule.');

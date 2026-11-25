@@ -12,6 +12,7 @@ import {
 } from '../studio/lib/factory-plan.mjs';
 import { STATION_KEYS } from '../studio/lib/stations.mjs';
 import { nextSlotISO } from '../lib/schedule.mjs';
+import { nextSlotOnDays } from '../lib/publish-days.mjs';
 import fs from 'node:fs';
 
 const REGISTRY = {
@@ -167,7 +168,12 @@ test('EARS: the plan time is the ENGINE time — slotPublishISO matches lib/sche
   const body = (src, name) => src.slice(src.indexOf(`function ${name}(`)).split(`${NL}}${NL}`)[0].replace(/^export /, '');
   const daily = fs.readFileSync('yt-daily.mjs', 'utf8');
   assert.equal(body(daily, 'nextSlotISO'), body(fs.readFileSync('lib/schedule.mjs', 'utf8'), 'nextSlotISO'));
-  assert.match(daily, /const publishAt = nextSlotISO\(b\.slots\[i\]\);/);
+  assert.match(daily, /const publishAt = nextSlotOnDays\(b\.slots\[i\], b\.shortDays\);/);
+  // with days set, the panel's day is the engine's day
+  for (let t = Date.parse('2026-11-23T00:00:00Z'); t < Date.parse('2026-12-01T00:00:00Z'); t += 53 * 60_000) {
+    const now = new Date(t);
+    for (const days of [['Thu'], ['Fri', 'Sat'], ['Mon', 'Sun'], []]) for (const hhmm of ['00:05', '16:35', '22:30']) assert.equal(slotPublishISO(hhmm, now, days), nextSlotOnDays(hhmm, days, now), `${days} ${hhmm} @ ${now.toISOString()}`);
+  }
 });
 
 test('EARS: a documentary is refused when this channel’s doc already shipped today', () => {

@@ -11,6 +11,8 @@ import { Readable } from 'node:stream';
 import { google } from 'googleapis';
 import { loadAllStates, saveChannelState } from './lib/state.mjs';
 import { isDocDay, docDaysOf, isDocDue, mostRecentDocDay } from './lib/doc-days.mjs';
+// 2026-11-25 (docs/qa/publish-days-qa.md): long videos go public on their own days only
+import { nextSlotOnDays, lastLongDate } from './lib/publish-days.mjs';
 import { cuesFromWords, toSrt } from './lib/srt.mjs';
 import { nextCounter } from './lib/quota-ledger.mjs';
 import { shipExitCode } from './lib/ship-exit.mjs';
@@ -822,11 +824,7 @@ async function shipEpisode(script, { yt, auth, intents, longSeed = null, reviewS
 
   // ---------- upload scheduled ----------
 
-  const [hh, mm] = b.longSlot.split(':').map(Number);
-  const now = new Date();
-  const pub = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hh, mm, 0));
-  if (pub <= new Date(now.getTime() + 35 * 60 * 1000)) pub.setUTCDate(pub.getUTCDate() + 1);
-  const publishAt = pub.toISOString().replace(/\.\d+Z$/, 'Z');
+  const publishAt = nextSlotOnDays(b.longSlot, docDaysOf(b));
 
   // #106 P5 T5d (D4/AC-P5-4): the doc template may declare fixed disclaimers —
   // the upload DESCRIPTION gains them machine-appended (code, never the LLM),
@@ -1061,7 +1059,7 @@ async function resumeApprovedDoc({ slug, jobId, b }) {
   // render spend — the stored publishAt is history by construction (the
   // approval came later), and a past publishAt would publish instantly. No
   // future long slot remains => take the skip terminal WITHOUT rendering.
-  const publishAt = nextFutureSlotISO([b.longSlot], { now: new Date() });
+  const publishAt = b.longSlot ? nextSlotOnDays(b.longSlot, docDaysOf(b)) : null;
   if (publishAt && new Date(publishAt).getTime() <= Date.now()) {
     log(`resume: no future long slot remains (publishAt ${publishAt} already past) — episode skipped before any render spend (AC-P4-19; the script STAYS approved)`);
     // Unreachable via nextFutureSlotISO (always future-or-null) — belt-and-braces for a null-slot fallback evolution.
@@ -1137,7 +1135,7 @@ const DOC_DAY_NAME = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(
 // "Ask the factory": an owner-given documentary topic is a deliberate order —
 // it bypasses the doc-day cadence too (never via --force), while the
 // already-produced-today and pause guards still apply.
-if (!isDocDue(b, state[slug]?.deepdiveDate) && !FORCE && !GENERATE_ONLY && !FACTORY_DOC_TOPIC) {
+if (!isDocDue(b, lastLongDate(state[slug])) && !FORCE && !GENERATE_ONLY && !FACTORY_DOC_TOPIC) {
   const days = docDaysOf(b);
   console.log(`[${slug}] doc day${days.length === 1 ? '' : 's'} ${days.join('/') || '(none configured)'} (today is ${DOC_DAY_NAME}; last doc ${state[slug]?.deepdiveDate || 'never'}) — episode skipped`);
   process.exit(0);
@@ -1306,7 +1304,7 @@ if (GENERATE_ONLY) {
     claims: [],
     seed: longSeed?.title || null,
     themes: theme || null,
-    publishAt: nextFutureSlotISO([b.longSlot], { now: new Date() }),
+    publishAt: b.longSlot ? nextSlotOnDays(b.longSlot, docDaysOf(b)) : null,
     slotDate: process.env.REVIEW_SCRIPT_SLOT_DATE || today(),
     slotIdx: 0,
     jobId: process.env.PIPELINE_JOB_ID || null,

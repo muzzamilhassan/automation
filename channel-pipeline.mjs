@@ -694,6 +694,7 @@ async function whyNoDocScript() {
   docNotDue = '';
   if (shortsSource !== 'clips' && !DOC_ONLY_RUN) return docNotDue; // the Shorts script lane keeps its own rules
   const { docScriptDue, notDueText } = await import('./lib/doc-script-due.mjs');
+  const { lastLongDate } = await import('./lib/publish-days.mjs');
   let pending = [];
   try {
     const { getScriptStore } = await import('./lib/script-store.mjs');
@@ -705,7 +706,7 @@ async function whyNoDocScript() {
   const { loadChannelState: loadState } = await import('./lib/state.mjs');
   const due = docScriptDue({
     kit: b,
-    lastDocDate: (loadState(slug) || {}).deepdiveDate || null,
+    lastDocDate: lastLongDate(loadState(slug) || {}),
     pending,
     ordered: FORCE || Boolean(process.env.FACTORY_TOPIC),
   });
