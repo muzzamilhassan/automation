@@ -805,10 +805,20 @@ const FAKE_YT_DEEPDIVE = [
 ].join('\n');
 
 describe('#106 T5c — the pipeline spawns the DOC lane generate-only on a clips-source hold (spawn-style)', () => {
+  test('2026-11-25: no long video due today -> NO script is written, the run still exits held', () => {
+    const r = runPipeline({
+      deepdive: true,
+      cadence: { [SLUG]: { shortsSource: 'clips', docDays: [NOT_TODAY_NAME] } },
+      env: { JOB_STORE_ENABLED: '1', REVIEW_QUEUE_ENABLED: '1', PIPELINE_GATE_VERDICT: GATE_HOLD_NO_SCRIPT },
+    });
+    assert.equal(r.status, 0);
+    assert.equal(r.childEnv.filter((e) => e.child === 'deepdive').length, 0, 'nothing written on a day without a long video');
+  });
+
   test('SEAM 1 (doc): gate hold no_approved_script on a clips-source channel -> yt-deepdive runs GENERATE-ONLY (env threaded), held terminal', () => {
     const r = runPipeline({
       deepdive: true,
-      cadence: { [SLUG]: { shortsSource: 'clips' } },
+      cadence: { [SLUG]: { shortsSource: 'clips', docDays: [TODAY_NAME] } },
       env: { JOB_STORE_ENABLED: '1', REVIEW_QUEUE_ENABLED: '1', PIPELINE_GATE_VERDICT: GATE_HOLD_NO_SCRIPT },
     });
     assert.equal(r.status, 0, 'the held run still exits 0');

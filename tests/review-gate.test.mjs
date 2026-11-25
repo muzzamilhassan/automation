@@ -939,3 +939,25 @@ describe('Phase 5 T1 identity — the gate reads the assignment id, never the fa
     assert.ok(!lookedUp.includes(FAMILY_ID));
   });
 });
+
+test('2026-11-25: no script due today holds quietly; a due day (or an unreadable answer) still alerts', async () => {
+  const run = async (scriptExpected) => {
+    const rows = [];
+    const r = await evaluateReviewGate({
+      slug: 'demo', slotDate: '2026-11-25',
+      scriptStore: { scriptsForSlot: async () => ({ ok: true, scripts: [] }), latestForJob: async () => ({ ok: true, script: null }) },
+      registryDb: () => ({ listAssignments: async () => [{ family_id: 't' }] }),
+      templateMeta: () => ({ safety: { review_required: ['finance'] } }),
+      warningsStore: {}, emit: async (_s, f) => { rows.push(f.code); },
+      ...(scriptExpected ? { scriptExpected } : {}),
+    });
+    return { r, rows };
+  };
+  const quiet = await run(async () => false);
+  assert.equal(quiet.r.action, 'hold', JSON.stringify(quiet.r));
+  assert.equal(quiet.r.reason, 'no_approved_script');
+  assert.deepEqual(quiet.rows, []);
+  assert.deepEqual((await run(async () => true)).rows, ['review_hold']);
+  assert.deepEqual((await run(null)).rows, ['review_hold']);
+  assert.deepEqual((await run(async () => { throw new Error('x'); })).rows, ['review_hold']);
+});

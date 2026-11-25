@@ -685,6 +685,34 @@ async function runClipsPhase1() {
   }
 }
 
+// 2026-11-25 (docs/qa/doc-script-cadence-qa.md): '' = write the documentary
+// script this run would write; else why none is due. Asked once, by the gate
+// (no alert when nothing is due) and by the hold below (no script written).
+let docNotDue = null;
+async function whyNoDocScript() {
+  if (docNotDue !== null) return docNotDue;
+  docNotDue = '';
+  if (shortsSource !== 'clips' && !DOC_ONLY_RUN) return docNotDue; // the Shorts script lane keeps its own rules
+  const { docScriptDue, notDueText } = await import('./lib/doc-script-due.mjs');
+  let pending = [];
+  try {
+    const { getScriptStore } = await import('./lib/script-store.mjs');
+    const p = await (await getScriptStore())?.pendingFor(slug);
+    if (p?.ok) pending = p.scripts || [];
+  } catch (e) {
+    log(`[review] WARN waiting scripts unreadable (${String((e && e.message) || e).slice(0, 90)}) — the long-video day decides`);
+  }
+  const { loadChannelState: loadState } = await import('./lib/state.mjs');
+  const due = docScriptDue({
+    kit: b,
+    lastDocDate: (loadState(slug) || {}).deepdiveDate || null,
+    pending,
+    ordered: FORCE || Boolean(process.env.FACTORY_TOPIC),
+  });
+  if (!due.due) docNotDue = notDueText(due.reason, b);
+  return docNotDue;
+}
+
 if (REVIEW_QUEUE_ENABLED) {
   let gate = null;
   let REGISTRY_META = null;
@@ -713,6 +741,7 @@ if (REVIEW_QUEUE_ENABLED) {
       // (the gate and the child must agree, or the resumed run holds while
       // the child renders, and the shipped video never brain-embeds).
       resumeJobId: RESUME_JOB_ID || jobCtl?.parentJobId || null,
+      scriptExpected: async () => (await whyNoDocScript()) === '',
       log,
     });
   } catch (e) {
@@ -777,7 +806,10 @@ if (REVIEW_QUEUE_ENABLED) {
     // (yt-deepdive — T5b's skip-exact hold left the /review desk with nothing
     // to approve for them; the docDay cadence is bypassed by the child's
     // GENERATE_ONLY flag, the pause/already-produced guards still apply).
-    const generateOnly = gate.reason === 'no_approved_script';
+    let generateOnly = gate.reason === 'no_approved_script';
+    // the DOC lane writes one only when a long video is due and none is waiting
+    const notDue = generateOnly ? await whyNoDocScript() : '';
+    if (notDue) generateOnly = false;
     // A factory DOCUMENTARY on a generated-Shorts channel takes the DOC lane
     // below (its script is saved for review), never the Shorts script lane.
     if (generateOnly && shortsSource !== 'clips' && !DOC_ONLY_RUN) {
@@ -802,6 +834,8 @@ if (REVIEW_QUEUE_ENABLED) {
       const okGen = run('yt-deepdive.mjs', [slug, ...(FORCE ? ['--force'] : [])]);
       if (!okGen) await jobCtl?.failOpenStations('doc script generation failed');
       await jobCtl?.finishStep('episode', okGen ? 'succeeded' : 'failed', okGen ? null : 'generate-only doc generation failed');
+    } else if (notDue) {
+      log(`[review] ${notDue}`);
     } else {
       log(`[review] held — slot skipped today (${gate.reason}); approve at Studio > Review to resume at render (D17)`);
       if (process.env.FACTORY_TOPIC) log(`[factory] WARN held (${gate.reason}) — no new script was written, so the owner topic is NOT used this run`);
@@ -810,7 +844,7 @@ if (REVIEW_QUEUE_ENABLED) {
     // cannot see whether the child saved a survivor (store down / dup-block /
     // pause guards all exit 0), so the terminal must not claim a generation
     // that may not exist.
-    const holdNote = generateOnly ? 'review hold: generate-only run (scripts awaiting review where produced)' : `review hold: ${gate.reason}`;
+    const holdNote = generateOnly ? 'review hold: generate-only run (scripts awaiting review where produced)' : notDue ? `nothing due: ${notDue}` : `review hold: ${gate.reason}`;
     await jobCtl?.markStation('approval', 'skipped', `held: ${generateOnly ? 'generate-only' : gate.reason}`);
     if (jobCtl?.id) {
       try {
