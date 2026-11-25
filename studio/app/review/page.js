@@ -179,7 +179,7 @@ export default function ReviewDeskPage() {
       <PageHeader
         icon={ScrollText}
         title="Review Desk"
-        sub="Fail-closed script approvals — nothing renders, uploads, or schedules until an owner approves here (staff read + prepare)."
+        sub="Nothing is made until a script is approved. You approve here; if you don't answer, a long-video script whose facts are checked is approved on its own (each channel's Schedule sets when)."
       />
 
       {err && detail ? <p className="t-13 mb-4" role="alert" style={{ color: 'var(--bad-ink)' }}>{err}</p> : null}
