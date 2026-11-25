@@ -338,7 +338,8 @@
           "left-stack",
           "marquee"
         ],
-        "templateVersion": "1.0.0"
+        "templateVersion": "1.0.0",
+        "longSlot": "17:00"
       },
       "destinations": null,
       "ytDescription": "",
