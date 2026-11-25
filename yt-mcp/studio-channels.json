@@ -298,7 +298,7 @@
         "16:35"
       ],
       "docDay": "Thu",
-      "autopilot": true,
+      "autopilot": false,
       "kit": {
         "tags": [
           "ai money",
