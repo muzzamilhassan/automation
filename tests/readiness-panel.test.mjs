@@ -191,7 +191,7 @@ describe('P6 — the Schedule drawer edits the go-public times', () => {
     assert.match(PANEL, /Long videos go public at/);
     assert.match(PANEL, /<PublishTimeInput\b/);
     const INPUT = read('studio/components/PublishTimeInput.js');
-    assert.match(INPUT, /type="time"/);
+    assert.match(INPUT, /type="text"/);
     assert.match(INPUT, /UTC/);
     assert.match(INPUT, /localToUtc\(/);
     assert.match(INPUT, /utcToLocal\(/);

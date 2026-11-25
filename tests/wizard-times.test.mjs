@@ -70,3 +70,17 @@ test('review names the times and the draft keeps them', () => {
   assert.equal(rows['Autopilot start'], '10:00 am your time (05:00 UTC)');
   assert.equal(parseDraft(JSON.stringify(draftSnapshot(form))).form.longSlot, '17:00');
 });
+
+test('T2: a typed time reads the way people write it; anything unclear is refused', async () => {
+  const { parseClock } = await import('../studio/lib/wizard-times.mjs');
+  const ok = { '10:07 pm': '22:07', '10pm': '22:00', '1007PM': '22:07', '10.07 p.m.': '22:07', '22:07': '22:07', '9:35': '09:35', '12 am': '00:00', '12:30pm': '12:30', ' 7:05 AM ': '07:05', '2207': '22:07' };
+  for (const [t, want] of Object.entries(ok)) assert.equal(parseClock(t), want, t);
+  for (const t of ['', '10', '25:00', '13 pm', '0 am', '10:75 pm', 'ten', '10:07 xm', '10m', null]) assert.equal(parseClock(t), null, String(t));
+});
+
+test('T2: the time box is plain text, read on Enter or leaving it, and never commits unreadable text', () => {
+  const src = read('components/PublishTimeInput.js');
+  assert.match(src, /type="text"/);
+  assert.match(src, /onBlur=\{commit\}/);
+  assert.match(src, /if \(text && !at\) \{\s*setBad\(true\);\s*return;/);
+});

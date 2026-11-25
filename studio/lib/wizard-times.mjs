@@ -92,3 +92,20 @@ export function leadWarning(startAt, times) {
   const gap = h ? `${h} hour${h === 1 ? '' : 's'}` : `${min} minutes`;
   return `Only about ${gap} between the start and a video going public. Leave at least 3 hours to approve and render.`;
 }
+
+/**
+ * What the owner typed → 'HH:MM' (24-hour, same clock as typed), or null.
+ * Understands "10:07 pm", "10pm", "1007PM", "10.07 p.m.", "22:07", "9:35".
+ * A bare hour needs am/pm ("10" alone is refused: it could be either).
+ */
+export function parseClock(text) {
+  const t = String(text ?? '').trim().toLowerCase().replace(/\./g, (m, i, s) => (/\d\.\d/.test(s.slice(i - 1, i + 2)) ? ':' : ''));
+  const m = /^(\d{1,2})(?::?([0-5]\d))?\s*([ap])?\s*m?$/.exec(t);
+  if (!m) return null;
+  const half = m[3];
+  if (!half && (m[2] === undefined || /m$/.test(t))) return null;
+  let h = Number(m[1]);
+  if (half ? h < 1 || h > 12 : h > 23) return null;
+  if (half) h = (h % 12) + (half === 'p' ? 12 : 0);
+  return `${pad(h)}:${m[2] || '00'}`;
+}
