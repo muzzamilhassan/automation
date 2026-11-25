@@ -7,9 +7,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "5sxFqnyyOHI",
-      "publishAt": "2026-11-24T21:20:00Z",
-      "title": "How a NY Family Cut Wardrobe Costs 37% with One Simple Trick"
+      "videoId": "Q-ESHoO3m-0",
+      "publishAt": "2026-11-25T21:20:00Z",
+      "title": "Zero Credit Card Debt & 800+ Credit Score: Old‑Money Secret"
     }
   ],
   "imageDate": "2026-10-20",
@@ -152,6 +152,11 @@
       "t": "How a NY Family Cut Wardrobe Costs 37% with One Simple Trick",
       "at": "2026-11-24T21:20:00Z",
       "v": "5sxFqnyyOHI"
+    },
+    {
+      "t": "Zero Credit Card Debt & 800+ Credit Score: Old‑Money Secret",
+      "at": "2026-11-25T21:20:00Z",
+      "v": "Q-ESHoO3m-0"
     }
   ],
   "usedLongSeeds": [
@@ -160,7 +165,8 @@
     "The Baniya Family: How Small Money Habits Become Generational Wealth",
     "The Quiet Rules of Money | 5 Habits That Build Real Financial Security | A Stealth Wealth Story",
     "The Silent Habits That Make Everyone Respect You | Powerful MAYA ANGELOU Motivation",
-    "DOCTORX – LILY FLOWER (TUMSE PYAR HUA) | MV | OLD MONEY EP (2026)"
+    "DOCTORX – LILY FLOWER (TUMSE PYAR HUA) | MV | OLD MONEY EP (2026)",
+    "13 \"Old Lady\" Household Habits That Are Actually Brilliant (SAVE MONEY)"
   ],
   "todayTopic": {
     "at": "2026-11-16",
@@ -200,7 +206,8 @@
         "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/787730672",
         "startSec": 75.2,
         "durSec": 20.1,
-        "file": "tt-lf/clipfeed-debt-free-doctrine/clips/clip-02.mp4"
+        "file": "tt-lf/clipfeed-debt-free-doctrine/clips/clip-02.mp4",
+        "postedAt": "2026-11-25T03:34:26.652Z"
       },
       {
         "part": 3,
@@ -222,14 +229,14 @@
       }
     ]
   },
-  "clipLastPostDate": "2026-11-24",
+  "clipLastPostDate": "2026-11-25",
   "uploadsToday": {
     "date": "2026-11-24",
-    "count": 2
+    "count": 3
   },
   "reviewGate": {
     "assigned": true,
     "gated": true,
-    "checkedAt": "2026-11-24T15:01:16.831Z"
+    "checkedAt": "2026-11-25T03:34:21.795Z"
   }
 }
