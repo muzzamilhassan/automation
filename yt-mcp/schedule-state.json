@@ -8,9 +8,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "Rxcrhedmoaw",
-        "publishAt": "2026-11-24T23:35:00Z",
-        "title": "ETF Soars 40% on Rumor, Then Crashes 55% When Launch Delays"
+        "videoId": "juXWVHiOJyY",
+        "publishAt": "2026-11-25T23:35:00Z",
+        "title": "$2,600 Difference in 5 Years: Why Gold Beats Cash"
       }
     ],
     "imageDate": "2026-10-17",
@@ -128,6 +128,11 @@
         "t": "ETF Soars 40% on Rumor, Then Crashes 55% When Launch Delays",
         "at": "2026-11-24T23:35:00Z",
         "v": "Rxcrhedmoaw"
+      },
+      {
+        "t": "$2,600 Difference in 5 Years: Why Gold Beats Cash",
+        "at": "2026-11-25T23:35:00Z",
+        "v": "juXWVHiOJyY"
       }
     ],
     "cooldownSeeds": [
@@ -136,13 +141,14 @@
     ],
     "uploadsToday": {
       "date": "2026-11-24",
-      "count": 1
+      "count": 2
     },
     "usedLongSeeds": [
       "The 3 Secrets to Building Wealth",
       "risk free 👍 #viral #viralreels #trending #Mindset #Discipline",
       "What Happened to My GTA 6 Investment?",
-      "Gold Prices: Why I Believe They're Going Much Higher"
+      "Gold Prices: Why I Believe They're Going Much Higher",
+      "Gold-Silver Crash: अब और सस्ता होगा सोना, अमेरिका की महंगाई से क्या कनेक्शन? | SAGAR SINHA"
     ],
     "todayTopic": {
       "at": "2026-11-18",
@@ -169,7 +175,8 @@
           "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/787718475",
           "startSec": 251,
           "durSec": 22.8,
-          "file": "tt-lf/clipfeed-investors-compass/clips/clip-01.mp4"
+          "file": "tt-lf/clipfeed-investors-compass/clips/clip-01.mp4",
+          "postedAt": "2026-11-25T03:00:14.472Z"
         },
         {
           "part": 2,
@@ -200,11 +207,11 @@
         }
       ]
     },
-    "clipLastPostDate": "2026-11-24",
+    "clipLastPostDate": "2026-11-25",
     "reviewGate": {
       "assigned": true,
       "gated": true,
-      "checkedAt": "2026-11-24T15:00:34.021Z"
+      "checkedAt": "2026-11-25T03:00:08.316Z"
     }
   },
   "money-rulebook": {
