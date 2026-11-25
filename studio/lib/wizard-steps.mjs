@@ -34,7 +34,7 @@ export const EYEBROW_MAX = 60;
 // (the old reset object forgot subNiches and crashed the next save).
 export const EMPTY_FORM = Object.freeze({
   label: '', niche: '', subNiches: '', style: 'cinematic', voice: 'am_michael', accent: '#38BDF8', slots: '22:35',
-  docDay: 'Tue', docDays: '', shortDays: '', eyebrow: '', tagline: '', tags: '', description: '',
+  docDay: 'Tue', docDays: '', shortDays: '', longSlot: '', startAt: '', eyebrow: '', tagline: '', tags: '', description: '',
   fbPageId: '', igHandle: '', threadsHandle: '', tiktokHandle: '',
 });
 
@@ -491,6 +491,8 @@ export function reviewSummary(form, { channel = null, offsetMin = 0, names = {},
         ...(daysText(f.docDays) || daysText(f.shortDays)
           ? [['Long video days', orDash(daysText(f.docDays), 'None')], ['Shorts days', orDash(daysText(f.shortDays), 'None')]]
           : [['Weekly long episode', `Every ${orDash(f.docDay)}`]]),
+        ...(f.longSlot ? [['Long video time', describeSlots(f.longSlot, offsetMin)]] : []),
+        ...(f.startAt ? [['Autopilot start', describeSlots(f.startAt, offsetMin)]] : []),
       ],
     },
     {

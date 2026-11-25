@@ -28,3 +28,21 @@ Owner: "there is nothing option for short select when shorts will be upload" →
 | 3 | Failed read never writes (D5) | automated |
 | 4 | Live panel: YT-BOT shows Sat / Mon–Thu, picks change, nothing saved by the test | visual |
 | 5 | Regression: Schedule drawer, wizard suites | automated |
+
+## Round 2: exact times (2026-11-25)
+
+Owner: the long video time is missing on this page, and times must be typeable, not fixed hours.
+
+- **T1** The step SHALL show and edit the long-video go-public time and the autopilot start time, filled from the saved schedule.
+- **T2** Every time SHALL be typeable to the minute in the owner clock, beside the hour grid. Clearing a box SHALL never wipe a saved time.
+- **T3** WHEN days and a time are set, the step SHALL show the next real date and time.
+- **T4** Changed times SHALL be saved with the days through POST /api/channels/schedule; unchanged or blank ones are not sent.
+- **T5** IF the server did not store a sent time, THEN the wizard SHALL say so and stop.
+- **T6** IF the start leaves under 3 hours before a video goes public, THEN the step SHALL warn.
+
+Not included: a one-off calendar date for a single video. The schedule repeats by weekday.
+
+| # | Check | Type |
+|---|---|---|
+| 6 | tests/wizard-times.test.mjs | automated |
+| 7 | Live panel: type times, see Next, Review and the blocked request | visual |

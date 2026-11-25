@@ -22,8 +22,10 @@ import { Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { AUDIENCES, suggestionFor } from '@/lib/audiences';
 import { MAX_SLOTS, parseSlots, slotsToString, utcToLocal, formatClock, removeSlot, addSlot, shiftHHMM, stepIssues } from '@/lib/wizard-steps.mjs';
 import SlotTimeline from '@/components/SlotTimeline';
+import PublishTimeInput from '@/components/PublishTimeInput';
 import { channelTimes, takenHours, suggestHours, parseHHMM, toHHMM, freeSlotTime } from '@/lib/slot-planner.mjs';
 import { UPLOAD_DAYS, dayList, toggleDay, weekdayFor } from '@/lib/wizard-days.mjs';
+import { nextPublic, dateText, leadWarning } from '@/lib/wizard-times.mjs';
 import { Notice } from './fields';
 
 // a new slot starts 4 hours after the last one (two shorts at the same
@@ -71,7 +73,7 @@ function wizardSlug(slug) {
 
 // Upload days (docs/qa/wizard-upload-days-qa.md): `docDays`/`shortDays` are the
 // channel's saved schedule as comma strings; `daysStatus` = loading | ready | error.
-export default function SchedulePicker({ slots, docDay, docDays = '', shortDays = '', daysStatus = 'loading', onSlots, onDocDay, onDocDays, onShortDays, onRetryDays, audience, onAudience, slug, niche, editing = false }) {
+export default function SchedulePicker({ slots, docDay, docDays = '', shortDays = '', daysStatus = 'loading', onSlots, onDocDay, longSlot = '', startAt = '', onDocDays, onShortDays, onLongSlot, onStartAt, onRetryDays, audience, onAudience, slug, niche, editing = false }) {
   const offsetMin = -new Date().getTimezoneOffset();
   const rows = parseSlots(slots);
   const issues = stepIssues('schedule', { form: { slots, docDay, docDays, shortDays }, daysReady: daysStatus === 'ready' });
@@ -115,6 +117,28 @@ export default function SchedulePicker({ slots, docDay, docDays = '', shortDays 
     onSlots(addSlot(slots, free || prefer));
     setActive(rows.length);
   };
+
+  // a typed time replaces the selected short's time exactly (T2); clearing the
+  // box changes nothing (a blank never wipes a time)
+  const typeShort = (utc) => {
+    if (!utc) return;
+    const list = rows.map((r) => r.utc ?? r.raw);
+    if (!list.length) {
+      onSlots(addSlot(slots, utc));
+      return;
+    }
+    list[idx] = utc;
+    onSlots(slotsToString(list));
+  };
+  const daysReady = daysStatus === 'ready';
+  const shortTimes = rows.map((r) => r.utc).filter(Boolean);
+  const nextText = (days, hhmm) => dateText(nextPublic(days, hhmm, startAt), offsetMin);
+  const nextShort = nextText(shortDays, rows[idx]?.utc);
+  const nextLong = nextText(docDays, longSlot);
+  const lead = leadWarning(startAt, [
+    ...(dayList(shortDays).length ? shortTimes : []),
+    ...(dayList(docDays).length && longSlot ? [longSlot] : []),
+  ]);
 
   // the picked hour replaces the selected short's hour (its minute is kept)
   const pick = (hour) => {
@@ -194,20 +218,35 @@ export default function SchedulePicker({ slots, docDay, docDays = '', shortDays 
           own={ownHours}
           loading={!loaded}
         />
+        <div>
+          <p className="t-12 text-muted mb-1.5">Or type the exact time</p>
+          <PublishTimeInput id="wizard-short-time" label={`Short ${idx + 1} exact time`} value={rows[idx]?.utc || ''} onChange={typeShort} />
+        </div>
+        <DayRow label="Shorts days" value={shortDays} onChange={onShortDays} disabled={!daysReady} />
+        {nextShort ? <p className="t-12 text-muted tnum">Next: {nextShort}</p> : null}
       </section>
 
       {/* the saved schedule's days — the same ones the Schedule drawer edits */}
-      <section className="space-y-5" aria-label="Upload days">
-        <DayRow label="Shorts days" value={shortDays} onChange={onShortDays} disabled={daysStatus !== 'ready'} />
+      <section className="space-y-5 border-t border-line pt-5" aria-label="Long videos">
+        <div>
+          <h3 className="t-13 font-semibold text-ink mb-2">Long video goes public at</h3>
+          <PublishTimeInput id="wizard-long-time" label="Long-video time" value={longSlot} disabled={!daysReady} onChange={onLongSlot} />
+        </div>
         <DayRow
           label="Long video days"
           value={docDays}
           onChange={(v) => { onDocDays(v); onDocDay(weekdayFor(v, docDay)); }}
-          disabled={daysStatus !== 'ready'}
+          disabled={!daysReady}
         />
+        {nextLong ? <p className="t-12 text-muted tnum">Next: {nextLong}</p> : null}
+        <div className="border-t border-line pt-5">
+          <h3 className="t-13 font-semibold text-ink mb-2">Autopilot starts making videos at</h3>
+          <PublishTimeInput id="wizard-start-time" label="Autopilot start time" value={startAt} disabled={!daysReady} onChange={onStartAt} />
+          {lead ? <p className="t-12 mt-2" style={{ color: 'var(--warn-ink)' }} role="status">{lead}</p> : null}
+        </div>
         {daysStatus === 'error' ? (
-          <Notice tone="warn" title="Couldn't load the upload days" action={<button type="button" className="btn btn-sm btn-outline" onClick={onRetryDays}><RefreshCw size={13} /> Retry</button>}>
-            Saving keeps the days the channel already has.
+          <Notice tone="warn" title="Couldn't load the days and times" action={<button type="button" className="btn btn-sm btn-outline" onClick={onRetryDays}><RefreshCw size={13} /> Retry</button>}>
+            Saving keeps the ones the channel already has.
           </Notice>
         ) : null}
       </section>

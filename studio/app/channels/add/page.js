@@ -30,6 +30,7 @@ import { STEPS, STEP_INDEX, EMPTY_FORM, stepIssues, allIssues, canOpenStep, step
 import { channelTimes, takenHours, freeSlotTime } from '@/lib/slot-planner.mjs';
 import { suggestionFor } from '@/lib/audiences';
 import { formDays, daysDirty, daysBody, daysSentence } from '@/lib/wizard-days.mjs';
+import { formTimes, timesBody, timesMissed } from '@/lib/wizard-times.mjs';
 import { engineFormValues, editPayload, withReviewKeyRow } from '@/lib/edit-prefill.mjs';
 import StepIndicator from '@/components/wizard/StepIndicator';
 import ConnectStep from '@/components/wizard/ConnectStep';
@@ -179,13 +180,13 @@ export default function AddChannel() {
       .then((d) => {
         if (!d?.schedule) throw new Error('no schedule');
         setForm((f) => {
-          const days = formDays(d.schedule, f.docDay);
+          const days = { ...formDays(d.schedule, f.docDay), ...formTimes(d) };
           const next = { ...f, ...days };
           cleanForm.current = cleanForm.current ? { ...cleanForm.current, ...days } : next;
           if (savedForm.current) savedForm.current = { ...savedForm.current, ...days };
           return next;
         });
-        setSched({ status: 'ready', saved: d.schedule });
+        setSched({ status: 'ready', saved: { ...d.schedule, ...formTimes(d) } });
       })
       .catch(() => setSched({ status: 'error', saved: null }));
   };
@@ -226,8 +227,14 @@ export default function AddChannel() {
     try { d = parseDraft(window.sessionStorage.getItem(draftKey(mode, slug))); } catch { d = null; }
     if (d) {
       // a draft stored before its days were loaded must not blank them
-      const { docDays, shortDays, ...rest } = d.form;
-      setForm((f) => ({ ...f, ...rest, ...(docDays || shortDays ? { docDays: docDays || '', shortDays: shortDays || '' } : {}) }));
+      const { docDays, shortDays, longSlot, startAt, ...rest } = d.form;
+      setForm((f) => ({
+        ...f,
+        ...rest,
+        ...(docDays || shortDays ? { docDays: docDays || '', shortDays: shortDays || '' } : {}),
+        ...(longSlot ? { longSlot } : {}),
+        ...(startAt ? { startAt } : {}),
+      }));
       if (d.audience) setAudience(d.audience);
       if (d.step > 0 && canOpenStep(d.step, { form: { ...EMPTY_FORM, ...d.form }, connectedSlug: slug })) {
         setStep(d.step);
@@ -465,16 +472,23 @@ export default function AddChannel() {
       // overwrite the live value
       // D3/D4: days first, so "Save & start" checks readiness with them; a
       // refused schedule stops here and nothing else is saved
-      if (sched.status === 'ready' && daysDirty(sched.saved, form)) {
+      const sentTimes = sched.status === 'ready' ? timesBody(sched.saved, form) : {};
+      if (sched.status === 'ready' && (daysDirty(sched.saved, form) || Object.keys(sentTimes).length)) {
         const body = daysBody(connectedSlug, sched.saved, form);
         const rs = await fetch('/api/channels/schedule', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
+          body: JSON.stringify({ ...body, ...sentTimes }),
         });
         const ds = await rs.json().catch(() => ({}));
-        if (!rs.ok) throw new Error(`upload days — ${ds.error || `error ${rs.status}`}`);
-        setSched({ status: 'ready', saved: { ...sched.saved, ...body } });
+        if (!rs.ok) throw new Error(`days and times — ${ds.error || `error ${rs.status}`}`);
+        const missed = timesMissed(sentTimes, ds);
+        // the days are stored either way; a time the server did not store stays "changed"
+        setSched({
+          status: 'ready',
+          saved: { ...sched.saved, ...body, ...(missed ? {} : { longSlot: form.longSlot || sched.saved.longSlot, startAt: form.startAt || sched.saved.startAt }) },
+        });
+        if (missed) throw new Error(missed);
       }
       const full = profileBody(form);
       const payload = editing && savedForm.current ? editPayload(full, profileBody(savedForm.current)) : full;
@@ -707,6 +721,10 @@ export default function AddChannel() {
                   onDocDay={(d) => setField('docDay', d)}
                   docDays={form.docDays}
                   shortDays={form.shortDays}
+                  longSlot={form.longSlot}
+                  startAt={form.startAt}
+                  onLongSlot={(v) => setField('longSlot', v)}
+                  onStartAt={(v) => setField('startAt', v)}
                   daysStatus={sched.status}
                   onDocDays={(v) => setField('docDays', v)}
                   onShortDays={(v) => setField('shortDays', v)}

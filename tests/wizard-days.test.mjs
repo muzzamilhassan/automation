@@ -55,7 +55,7 @@ test('D3/D4/D5: days POST comes before the profile POST, stops on error, and nee
   const save = page.slice(page.indexOf('const saveProfile'), page.indexOf('const ctx ='));
   const days = save.indexOf("fetch('/api/channels/schedule'");
   assert.ok(days > 0 && days < save.indexOf("fetch('/api/channels/profile'"));
-  assert.match(save, /sched\.status === 'ready' && daysDirty\(sched\.saved, form\)/);
+  assert.match(save, /sched\.status === 'ready' && \(daysDirty\(sched\.saved, form\)/);
   assert.match(save, /if \(!rs\.ok\) throw new Error/);
   assert.match(page, /\.catch\(\(\) => setSched\(\{ status: 'error', saved: null \}\)\)/);
 });
