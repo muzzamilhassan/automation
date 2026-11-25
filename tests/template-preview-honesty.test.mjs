@@ -59,3 +59,10 @@ test('the AI templates wait for owner approval (2026-11-24: an empty list publis
     assert.equal(g.familyId, id, 'gated by the template itself, not the unreadable-database fallback');
   }
 });
+
+test('EVERY active template waits for approval (owner 2026-11-25) — an empty list publishes unreviewed', () => {
+  for (const [id, m] of Object.entries(REGISTRY_META)) {
+    if (m.deprecated) continue;
+    assert.ok((m.safety?.review_required || []).length > 0, `${id} has no approval step`);
+  }
+});

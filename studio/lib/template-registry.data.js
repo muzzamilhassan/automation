@@ -412,7 +412,7 @@ export const REGISTRY_META = {
     "review_thumb_pick": true,
     "safety": {
       "required_sources": true,
-      "review_required": [],
+      "review_required": ["all"],
       "disclaimers": [
         "The strategies shown focus on personal finance habits and are not a substitute for professional financial advice."
       ]
@@ -593,7 +593,7 @@ export const REGISTRY_META = {
     "review_thumb_pick": true,
     "safety": {
       "required_sources": true,
-      "review_required": [],
+      "review_required": ["all"],
       "disclaimers": [
         "Educational money audits with cited sources — not financial advice."
       ]
@@ -684,7 +684,7 @@ export const REGISTRY_META = {
     "review_thumb_pick": true,
     "safety": {
       "required_sources": true,
-      "review_required": [],
+      "review_required": ["all"],
       "disclaimers": [
         "Philosophy and history retold from cited sources — not psychological or medical advice."
       ]
@@ -775,7 +775,7 @@ export const REGISTRY_META = {
     "review_thumb_pick": true,
     "safety": {
       "required_sources": true,
-      "review_required": [],
+      "review_required": ["all"],
       "disclaimers": [
         "Money-history storytelling with cited sources — not financial advice."
       ]
@@ -957,7 +957,7 @@ export const REGISTRY_META = {
     "review_thumb_pick": true,
     "safety": {
       "required_sources": true,
-      "review_required": [],
+      "review_required": ["all"],
       "disclaimers": [
         "Productivity history and research summaries from cited sources — not psychological or medical advice."
       ]
@@ -1133,7 +1133,7 @@ export const REGISTRY_META = {
     "review_thumb_pick": true,
     "safety": {
       "required_sources": true,
-      "review_required": [],
+      "review_required": ["all"],
       "disclaimers": [
         "Fitness education from cited sources — not medical or training advice; consult a professional before changing your program."
       ]
@@ -1224,7 +1224,7 @@ export const REGISTRY_META = {
     "review_thumb_pick": true,
     "safety": {
       "required_sources": true,
-      "review_required": [],
+      "review_required": ["all"],
       "disclaimers": [
         "Sleep science education from cited sources — not medical advice; see a clinician for persistent sleep disorders."
       ]
@@ -1315,7 +1315,7 @@ export const REGISTRY_META = {
     "review_thumb_pick": true,
     "safety": {
       "required_sources": true,
-      "review_required": [],
+      "review_required": ["all"],
       "disclaimers": [
         "History retold from cited sources — interpretations vary and historians debate the details."
       ]
