@@ -3,7 +3,25 @@
 *Living handoff file. Updated before every context compaction (owner rule, 2026-11-20).
 Read this first after a compaction; it replaces re-reading the whole conversation.*
 
-**Last updated:** 2026-11-20 (evening) · **main at:** `e0b1705`
+**Last updated:** 2026-11-25 (see section 0 first; sections 1-5 are older)
+
+---
+
+## 0. Latest (2026-11-25): facts first, 2-hour auto-approve, publish days
+
+| Commit | What |
+|---|---|
+| `88c7af0` | Doc scripts are written only when a long video is due |
+| `ec64e76` | Every active template waits for approval (owner yes) |
+| `36d85b4` | Videos go public only on the days set in the panel (`lib/publish-days.mjs`) |
+| facts-first + auto-approve (this commit) | Scripts use only sourced numbers/names/quotes; unanswered + fully sourced = approved after 2 h (`docs/qa/facts-first-qa.md`) |
+
+- **Owner decisions 2026-11-25:** facts first then auto-approve after 2 h; add approval to the 8 templates; days/counts stay per channel in the panel.
+- **Auto-approve:** rules `studio/lib/auto-approve.mjs`; runner `scripts/auto-approve.mjs` (job `auto-approve` in channel-autopilot.yml, scheduler ticks only); setting `kit.autoApproveHours` (Schedule drawer, 0 = wait for me, default 2). Scripts without a saved factCheck are never approved. `DRY_RUN=1` only prints.
+- **yt-bot = "Behind The AI Bill":** PAUSED by owner (pausedUntil 2099-12-31), 7/7 ready. Long Thu 17:00 UTC, Shorts Fri/Sat 16:35 UTC, start 05:00 UTC, Systems Diagram.
+- **Owner still to do:** reject 3 old waiting scripts (MR Green Energy, DFD Quiet Wealth, IC Gold); decide Quote Quarry video zrcoRuSHJ3s (made unapproved, public 2026-11-25 14:30Z); change "reviewed by a person" wording; approve music for yt-bot; answer: should the gate STOP if the approval system itself crashes?
+- **Known limits:** a false statement with no number/name/quote can pass; paper planner has no on-screen number check; GDELT returns 429 from some IPs.
+- **Deploy Studio only from a clean worktree of origin/main** (other session may have uncommitted studio edits). The Bash tool collapses backslashes: write patch scripts with the Write tool.
 
 ---
 

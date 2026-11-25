@@ -77,7 +77,7 @@ test('EARS: a gated generated channel with a factory documentary saves the DOC s
 });
 
 test('EARS: yt-deepdive takes a factory topic off the doc-day cadence but keeps the already-shipped-today guard', () => {
-  assert.match(deepdive, /if \(!isDocDue\(b, state\[slug\]\?\.deepdiveDate\) && !FORCE && !GENERATE_ONLY && !FACTORY_DOC_TOPIC\) \{/);
+  assert.match(deepdive, /if \(!isDocDue\(b, lastLongDate\(state\[slug\]\)\) && !FORCE && !GENERATE_ONLY && !FACTORY_DOC_TOPIC\) \{/);
   assert.match(deepdive, /const catchingUp = !FORCE && !GENERATE_ONLY && !FACTORY_DOC_TOPIC && !isDocDay\(b\);/);
   assert.match(deepdive, /if \(state\[slug\]\?\.deepdiveDate === today\(\) && !FORCE\) \{/);
 });
@@ -125,7 +125,8 @@ test('EARS: unset = unchanged — yt-deepdive researches the theme exactly as be
   // the research body, the evergreen fallback and the station close are untouched
   assert.match(deepdive, /longSeed = trend\.videos\.find\(\(v\) => !usedLong\.includes\(v\.title\)\) \|\| trend\.videos\[0\] \|\| null;/);
   assert.match(deepdive, /if \(!theme\) \{\n  \/\/ Last-resort evergreen angle/);
-  assert.match(deepdive, /await station\('topic', 'succeeded'\);\nawait station\('script', 'running'\);\nconst script = await llmScript\(LONG_PROMPT\(b, theme, docPlan\), longSeed\?\.title \|\| theme, docTemplateId\)/);
+  assert.match(deepdive, /await station\('topic', 'succeeded'\);\nawait station\('script', 'running'\);\n/);
+  assert.ok(deepdive.includes('write: (p) => llmScript(p, longSeed?.title || theme, docTemplateId),'));
   // the review gate is untouched: generate-only still saves awaiting_review and stops
   assert.match(deepdive, /if \(GENERATE_ONLY\) \{\n  const docDupGen = findDup/);
 });

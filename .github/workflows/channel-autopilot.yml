@@ -138,6 +138,35 @@ jobs:
             fs.writeFileSync(process.env.GITHUB_OUTPUT, 'channels=' + JSON.stringify(chans));
           "
 
+  # 2026-11-25 (docs/qa/facts-first-qa.md): scripts the owner did not answer in time
+  # (kit.autoApproveHours, default 2) are approved here — only when every number has
+  # a source. Scheduler ticks only; a manual run never approves anything.
+  auto-approve:
+    if: ${{ github.event_name == 'schedule' || inputs.heartbeat == '1' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      actions: write # starts the approved video's run (same dispatch as the Approve button)
+      issues: write
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: ⚙️ Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: 📦 Install Dependencies
+        run: npm install --no-audit --no-fund
+      - name: ✅ Approve unanswered scripts with checked facts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/auto-approve.mjs
+
   produce:
     needs: discover
     if: ${{ needs.discover.outputs.channels != '[]' && needs.discover.outputs.channels != '' }}

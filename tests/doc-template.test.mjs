@@ -161,7 +161,7 @@ describe('P5-T2e — the yt-deepdive threading pins (AC-P5-15)', () => {
       'the LONG_PROMPT shape directive is the plan when assigned, the exact hardcoded line when not',
     );
     assert.ok(
-      src.includes('llmScript(LONG_PROMPT(b, theme, docPlan), longSeed?.title || theme, docTemplateId)'),
+      src.includes('prompt: LONG_PROMPT(b, theme, docPlan),') && src.includes('write: (p) => llmScript(p, longSeed?.title || theme, docTemplateId),'),
       'the call site passes the plan into the prompt AND the resolved template id into the brain seam',
     );
   });
@@ -171,7 +171,7 @@ describe('P5-T2e — the yt-deepdive threading pins (AC-P5-15)', () => {
     const resolveIdx = src.indexOf('const docTemplateId = await resolveTemplateId(slug);');
     const skipIdx = src.indexOf('const foreignDoc = foreignDocFormat(docTemplate);');
     const trendIdx = src.indexOf('researchTrend');
-    const genIdx = src.indexOf('await llmScript(');
+    const genIdx = src.indexOf('await groundedScript(');
     assert.ok(resolveIdx > -1 && skipIdx > -1 && trendIdx > -1 && genIdx > -1, 'all the run-start markers exist');
     assert.ok(resumeIdx > -1 && resumeIdx < resolveIdx, 'the RESUME branch exits first — a resumed run never reads the template (renders the STORED script)');
     assert.ok(skipIdx < trendIdx, 'the loud skip precedes trend research — zero spend on a misassigned channel');
@@ -427,7 +427,7 @@ function runDeepdiveChild({ assigned = null } = {}) {
       YOUTUBE_CLIENT_ID: 'dummy', YOUTUBE_CLIENT_SECRET: 'dummy',
       YT_TOKEN_QUOTEQUARRY: JSON.stringify({ refresh_token: 'dummy' }),
       T2E_EPISODE_JSON: JSON.stringify(T2E_EPISODE),
-      REVIEW_GENERATE_ONLY: '1',
+      FACT_PACK_OFFLINE: '1', REVIEW_GENERATE_ONLY: '1',
       REVIEW_SCRIPT_SLOT_DATE: new Date().toISOString().slice(0, 10),
     };
     if (assigned) env.T2E_ASSIGNED_TEMPLATE = assigned;
@@ -495,7 +495,7 @@ describe('P5-T2e — the doc lane spawns (real yt-deepdive.mjs, generate-only)',
     }, 'registryThresholds(null) semantics: D8 defaults, non-finance tiered — exactly today');
     const prompt = brains[0].args.prompt;
     assert.ok(
-      prompt.endsWith('Exactly 8 chapters. Every chapter text MUST be 120-150 words.'),
+      prompt.includes('Exactly 8 chapters. Every chapter text MUST be 120-150 words.\n\nFACT RULES'),
       'the committed prompt (byte-identical default directive)',
     );
     assert.equal(prompt.includes('Episode section plan'), false, 'no template plan leaks into the unassigned prompt');

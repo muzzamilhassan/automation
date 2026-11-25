@@ -18,6 +18,7 @@ import DataTable from '@/components/DataTable';
 import { useConfirm } from '@/components/ConfirmDialog';
 import apiFetch from '@/components/shell/api-fetch';
 import { DISCLOSURE_CATEGORIES, reviewStatusView } from '@/lib/review-actions.mjs';
+import { autoApproveLine } from '@/lib/auto-approve.mjs';
 
 const when = (iso) => (iso ? String(iso).replace('T', ' ').slice(0, 16) : '—');
 const ageOf = (iso) => {
@@ -147,6 +148,8 @@ export default function ReviewDeskPage() {
   // Live fix wave A4 (T2-08): the deep-link shows the script's REAL status and
   // only the actions valid for it (approved → Redispatch; published/rejected → none).
   const view = detail ? reviewStatusView(detail.script) : null;
+  // facts first (2026-11-25): what happens if the owner does not answer
+  const approveLine = detail?.autoApproveHours != null ? autoApproveLine(detail.script, { autoApproveHours: detail.autoApproveHours }, new Date(), (iso) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })) : '';
   const flagged = (detail?.claims || []).filter((c) => c.verification && c.verification !== 'verified');
 
   const columns = [
@@ -223,6 +226,7 @@ export default function ReviewDeskPage() {
             <div className="px-5 pb-5 grid grid-cols-1 md:grid-cols-2 gap-5 min-w-0">
               {/* script text LEFT (top on phones) */}
               <div className="min-w-0">
+                {approveLine ? <p className="t-12 mb-2" style={{ color: 'var(--info-ink)' }} role="status">{approveLine}</p> : null}
                 <h4 className="t-12 font-semibold text-muted mb-2">Script</h4>
                 {disclaimerBlock ? (
                   <div className="t-12 bg-surface-2 border border-line rounded-lg p-3 mb-2">

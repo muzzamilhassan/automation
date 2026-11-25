@@ -605,7 +605,8 @@ test('yt-deepdive: doc lane wires /context + checkDup with kind doc and keeps it
   assert.ok(src.includes('crossThreshold'), 'the registry cross-channel band is transported');
   assert.ok(src.includes('financeGated'), 'the D6 tiering signal is explicit on the doc descriptor');
   assert.ok(src.includes('docDedupeChunks'), 'the episode rides to /dedupe as pooled chunks');
-  assert.ok(src.includes('llmScript(LONG_PROMPT(b, theme, docPlan), longSeed?.title || theme, docTemplateId)'), 'the call site passes the prompt (and topic) + the resolved template id through the brain seam (P5-T2e)');
+  // 2026-11-25 facts first: the prompt rides through groundedScript, whose writer is the same seam
+  assert.ok(/groundedScript\(\{[\s\S]{0,200}LONG_PROMPT\(b, theme, docPlan\)/.test(src) && src.includes('write: (p) => llmScript(p, longSeed?.title || theme, docTemplateId)'), 'the call site passes the prompt (and topic) + the resolved template id through the brain seam (P5-T2e)');
   assert.ok(src.includes("throw new Error('all script providers failed')"), 'exhausted walks still throw (episode retried next doc day)');
   assert.ok(src.includes('maxAttempts: 3'), 'the 3-walk escalation ceiling stays');
 });

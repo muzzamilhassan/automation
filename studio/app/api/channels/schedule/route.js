@@ -23,6 +23,7 @@ import { ensureQuotaModelSchema, loadQuotaModel } from '@/lib/quota-ledger';
 import { adaptPostgres } from '@/lib/provider-routing';
 import { db, dbReady } from '@/lib/db';
 import { channelTimes, parsePublishTimes } from '@/lib/slot-planner.mjs';
+import { autoApproveHours, parseAutoApproveHours } from '@/lib/auto-approve.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -131,16 +132,18 @@ export async function GET(req) {
   // owner/staff only; a client sees just their own channel.
   let channels = [];
   let publish = { slots: [], long: null };
+  let approveHours = autoApproveHours(null);
   try {
     const reg = await readRegistry();
     const entry = (reg.channels || []).find((c) => c.slug === slug);
     gateCron = entry?.cron || entry?.kit?.gateCron || null;
+    approveHours = autoApproveHours(entry?.kit);
     const own = channelTimes(entry ? [entry] : [])[0];
     if (own) publish = { slots: own.publish, long: own.long };
     channels = ['owner', 'staff'].includes(user.role) ? channelTimes(reg.channels || []) : [];
   } catch { }
   const { proj } = await scheduleProjection({ docDays, shortDays });
-  return Response.json({ slug, schedule: { docDays, shortDays, shortsSource }, gateCron, publish, channels, projection: proj });
+  return Response.json({ slug, schedule: { docDays, shortDays, shortsSource }, gateCron, publish, autoApproveHours: approveHours, channels, projection: proj });
 }
 
 const DAILY_CRON_RE = /^(\d{1,2}) (\d{1,2}) \* \* \*$/;
@@ -162,7 +165,7 @@ export async function POST(req) {
     return Response.json({ error: 'only owner and staff can change scheduling' }, { status: 403 });
   }
   const body = await req.json().catch(() => ({}));
-  const { slug, gateCron: rawGateCron, slots: rawSlots, longSlot: rawLongSlot, ...schedule } = body || {};
+  const { slug, gateCron: rawGateCron, slots: rawSlots, longSlot: rawLongSlot, autoApproveHours: rawApprove, ...schedule } = body || {};
   if (!(await canAccessChannelSlug(user, slug))) return Response.json({ error: 'this channel is not linked to your account' }, { status: 403 });
 
   const explicitCron = validGateCron(rawGateCron);
@@ -178,6 +181,14 @@ export async function POST(req) {
     ...(rawLongSlot !== undefined ? { longSlot: rawLongSlot } : {}),
   });
   if (!times.ok) return Response.json({ error: times.error }, { status: 400 });
+  // only a changed choice is sent; stored in the kit the engine reads
+  if (rawApprove !== undefined) {
+    // approvals are owner-only (OQ-5): staff can never turn them automatic
+    if (user.role !== 'owner') return Response.json({ error: 'only the owner can change what happens to unanswered scripts' }, { status: 403 });
+    const ap = parseAutoApproveHours(rawApprove);
+    if (!ap.ok) return Response.json({ error: ap.error }, { status: 400 });
+    times.kitPatch.autoApproveHours = ap.value;
+  }
 
   const v = validateSchedule(schedule);
   if (!v.ok) return Response.json({ error: v.errors.join('; ') }, { status: 400 });

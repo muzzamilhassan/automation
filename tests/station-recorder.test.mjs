@@ -400,7 +400,7 @@ describe('yt-deepdive.mjs marks every documentary station at its real point', ()
   });
 
   test('topic: running before trend research, succeeded once the theme is set', () => {
-    const r = between("console.log(`[long] ${b.label} — premium daily episode`);", 'await llmScript(');
+    const r = between("console.log(`[long] ${b.label} — premium daily episode`);", 'await groundedScript(');
     has(r, "station('topic', 'running')", 'topic opens before research');
     has(r, "station('topic', 'succeeded'", 'topic closes with the chosen theme');
   });

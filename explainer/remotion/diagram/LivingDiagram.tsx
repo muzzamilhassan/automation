@@ -276,7 +276,9 @@ export const LivingDiagram: React.FC<{ doc: DiagramDoc }> = ({ doc }) => {
     if (counter) {
       const dur = counter.durMs || 900;
       const v = lerp(counter.from ?? 0, counter.to as number, prog(ms, counter.t, dur, easeInOut));
-      value = `${counter.prefix || ""}${Math.round(v).toLocaleString("en-US")}${counter.suffix || ""}`;
+      // keep the target's decimals: 0.24 Wh must never show as "0Wh" (2026-11-25)
+      const dec = Math.min(3, (String(counter.to).split(".")[1] || "").length);
+      value = `${counter.prefix || ""}${v.toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec })}${counter.suffix || ""}`;
       counting = ms < counter.t + dur + 250 ? 1 : 0;
     }
     const badge = lastOf(mine, (c) => c.do === "badge");

@@ -38,6 +38,7 @@ import SlotTimeline from '@/components/SlotTimeline';
 import PublishTimeInput from '@/components/PublishTimeInput';
 import { parseDailyCron, cronFromUtc, parseHHMM, takenHours, suggestStartHours, scheduleDirty, parsePublishTimes, MAX_SHORT_TIMES } from '@/lib/slot-planner.mjs';
 import { shiftHHMM } from '@/lib/wizard-steps.mjs';
+import { AUTO_APPROVE_CHOICES, AUTO_APPROVE_DEFAULT_HOURS } from '@/lib/auto-approve.mjs';
 import { plainScheduleWarnings, longPublicText, shortsPublicText } from '@/lib/channel-overview.mjs';
 
 const TONE_INK = { error: 'var(--bad-ink)', warn: 'var(--warn-ink)', ok: 'var(--ok-ink)' };
@@ -100,6 +101,7 @@ export default function SchedulePanel({ slug, frame }) {
   const [channels, setChannels] = useState([]); // every channel's times (live registry) → taken hours
   const [publish, setPublish] = useState([]); // this channel's "goes public" slots (UTC HH:MM)
   const [publishLong, setPublishLong] = useState(null); // this channel's long-form "goes public" time (UTC HH:MM)
+  const [approveHours, setApproveHours] = useState(AUTO_APPROVE_DEFAULT_HOURS); // unanswered scripts (0 = wait for me)
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
   // Admin-panel review #3: a failed load used to fall back to an EMPTY
@@ -120,7 +122,8 @@ export default function SchedulePanel({ slug, frame }) {
         const loaded = d.schedule || { docDays: [], shortDays: [], shortsSource: 'generated' };
         setLoadError(null);
         setSchedule(loaded);
-        setSaved({ ...loaded, gateCron: d.gateCron || '', slots: Array.isArray(d.publish?.slots) ? d.publish.slots : [], longSlot: d.publish?.long || '' });
+        setSaved({ ...loaded, gateCron: d.gateCron || '', slots: Array.isArray(d.publish?.slots) ? d.publish.slots : [], longSlot: d.publish?.long || '', approveHours: d.autoApproveHours ?? AUTO_APPROVE_DEFAULT_HOURS });
+        setApproveHours(d.autoApproveHours ?? AUTO_APPROVE_DEFAULT_HOURS);
         setServerProj(d.projection || null);
         setGateCron(d.gateCron || '');
         setModelWarnings(plainScheduleWarnings(d.projection?.warnings));
@@ -144,7 +147,8 @@ export default function SchedulePanel({ slug, frame }) {
   const draft = schedule || { docDays: [], shortDays: [], shortsSource: 'generated' };
   const proj = projection({ ...draft, ...deriveModelParams(serverProj) });
   const cronState = parseGateCron(gateCron);
-  const dirty = scheduleDirty(saved, { ...draft, gateCron, slots: publish, longSlot: publishLong || '' });
+  const approveChanged = Boolean(saved) && approveHours !== saved.approveHours;
+  const dirty = approveChanged || scheduleDirty(saved, { ...draft, gateCron, slots: publish, longSlot: publishLong || '' });
   // go-public times: only the ones that differ from the saved baseline are sent
   const timesChanged = {
     slots: Boolean(saved) && publish.join(',') !== (saved.slots || []).join(','),
@@ -176,7 +180,7 @@ export default function SchedulePanel({ slug, frame }) {
     setSaving(true);
     setMsg(null);
     try {
-      const payload = { slug, ...draft, ...timesSent, ...(gateCron.trim() ? { gateCron: gateCron.trim() } : {}) };
+      const payload = { slug, ...draft, ...timesSent, ...(approveChanged ? { autoApproveHours: approveHours } : {}), ...(gateCron.trim() ? { gateCron: gateCron.trim() } : {}) };
       const r = await fetch('/api/channels/schedule', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -187,7 +191,7 @@ export default function SchedulePanel({ slug, frame }) {
       else {
         if (j.projection) setServerProj(j.projection);
         if (j.gateCron) setGateCron(j.gateCron);
-        setSaved({ ...draft, gateCron: j.gateCron || gateCron, slots: j.publishSaved?.slots || saved.slots, longSlot: j.publishSaved?.longSlot || saved.longSlot });
+        setSaved({ ...draft, gateCron: j.gateCron || gateCron, slots: j.publishSaved?.slots || saved.slots, longSlot: j.publishSaved?.longSlot || saved.longSlot, approveHours: j.publishSaved?.autoApproveHours ?? saved.approveHours });
         // the server's normalised times become the drafts too (never left "dirty")
         if (j.publishSaved?.slots) setPublish(j.publishSaved.slots);
         if (j.publishSaved?.longSlot) setPublishLong(j.publishSaved.longSlot);
@@ -298,6 +302,22 @@ export default function SchedulePanel({ slug, frame }) {
         {!timesCheck.ok ? (
           <p className="t-12" style={{ color: 'var(--bad-ink)' }}>{timesCheck.error}</p>
         ) : null}
+      </section>
+
+      {/* 2026-11-25 (docs/qa/facts-first-qa.md): unanswered scripts */}
+      <section aria-label="Scripts I don't answer" className="min-w-0">
+        <label htmlFor={`approve-${slug}`} className="block t-13 font-semibold text-ink mb-2">If I don&apos;t answer a script</label>
+        <select
+          id={`approve-${slug}`}
+          className="input w-full sm:w-auto"
+          value={approveHours}
+          disabled={!schedule}
+          onChange={(e) => setApproveHours(Number(e.target.value))}
+        >
+          {AUTO_APPROVE_CHOICES.map((h) => (
+            <option key={h} value={h}>{h === 0 ? 'Wait for me' : `Approve it after ${h} hour${h === 1 ? '' : 's'}, if its facts check out`}</option>
+          ))}
+        </select>
       </section>
 
       <SlotTimeline

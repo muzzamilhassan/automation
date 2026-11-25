@@ -1245,8 +1245,26 @@ if (!theme) {
 }
 await station('topic', 'succeeded');
 await station('script', 'running');
-const script = await llmScript(LONG_PROMPT(b, theme, docPlan), longSeed?.title || theme, docTemplateId)
-  .catch(async (e) => { await station('script', 'failed', e); throw e; }); // station record only — the throw is unchanged
+// 2026-11-25 FACTS FIRST (docs/qa/facts-first-qa.md): the script may use only numbers,
+// names and quotes found in fetched sources; lib/claim-check.mjs checks every sentence.
+const { groundedScript, validQueries } = await import('./lib/grounded-script.mjs');
+const grounded = await groundedScript({
+  prompt: LONG_PROMPT(b, theme, docPlan),
+  theme,
+  kit: { label: b.label, niche: b.niche, niches: b.niches },
+  write: (p) => llmScript(p, longSeed?.title || theme, docTemplateId),
+  ask: async (p) => {
+    const r = await callScriptBrain({ slug, jobId: `facts:${slug}:${today()}`, prompt: p, isValidJson: validQueries, maxAttempts: 1 });
+    return r.ok ? r.parsed : null;
+  },
+  log: (m) => console.log(m),
+}).catch(async (e) => { await station('script', 'failed', e); throw e; }); // station record only — the throw is unchanged
+const script = grounded.script;
+// no review desk on this path: unverified facts must never be rendered or published
+if (!GENERATE_ONLY && grounded.factCheck.status !== 'passed') {
+  await station('script', 'failed', 'facts could not be verified');
+  throw new Error(`facts could not be verified — not published: ${grounded.factCheck.problems[0] || 'no sources'}`);
+}
 
 // #106 T5c SEAM 1 (generate-only): the pipeline's gate held this run with no
 // approved script — the doc generation ran EXACTLY as today (the brain's
@@ -1300,8 +1318,10 @@ if (GENERATE_ONLY) {
     // allows it; sources added at review time) instead of letting an undefined
     // field crash the save. The /review desk's flagged-claims panel surfaces
     // required-sources docs as unsourced until the owner attaches sources.
-    sources: [],
-    claims: [],
+    // 2026-11-25: they are tracked now — the desk shows every claim with its source
+    sources: grounded.sources,
+    claims: grounded.claims,
+    factCheck: grounded.factCheck,
     seed: longSeed?.title || null,
     themes: theme || null,
     publishAt: b.longSlot ? nextSlotOnDays(b.longSlot, docDaysOf(b)) : null,

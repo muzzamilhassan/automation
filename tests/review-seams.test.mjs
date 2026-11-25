@@ -1190,7 +1190,7 @@ function runYtDeepdive({ env = {}, engine, store, intents, registry = null } = {
       : {}));
     const r = spawnSync(process.execPath, [path.join(sandbox, 'repo', 'yt-deepdive.mjs'), SLUG], {
       cwd: runDir,
-      env: {
+      env: { FACT_PACK_OFFLINE: '1',
         PATH: process.env.PATH,
         SystemRoot: process.env.SystemRoot,
         PIPELINE_SPY_LOG: spyLog,
@@ -1239,7 +1239,7 @@ describe('#106 T5c — GENERATE-ONLY saves the doc awaiting_review, zero render 
     assert.equal(f.title, DOC_EPISODE.title);
     assert.equal(f.publishAt, expectedDocPublishAt(), 'publishAt is the long-slot D8 recompute');
     assert.deepEqual(
-      { ...f.fullRenderInput, themes: null },
+      (({ factCheck: _fc, ...x }) => ({ ...x, themes: null }))(f.fullRenderInput),
       {
         hook: DOC_EPISODE.title,
         intro: DOC_EPISODE.intro,
@@ -1684,7 +1684,7 @@ describe('#106 P5 T5d — the doc lane\'s disclaimer chain (save through the sha
     assert.equal(f.fullRenderInput.disclaimer_block, T2C_DISCLAIMER,
       'the record carries the machine-appended description line — /review sees the disclaimer (D4)');
     assert.ok(!f.text.includes(T2C_DISCLAIMER), 'the narration text is NOT mutated and NEED NOT carry the text — creative freedom stays with the brain');
-    const { disclaimer_block: block, ...rest } = f.fullRenderInput;
+    const { disclaimer_block: block, factCheck: _fc, ...rest } = f.fullRenderInput;
     assert.equal(block, T2C_DISCLAIMER);
     assert.deepEqual(
       { ...rest, themes: null },

@@ -40,6 +40,8 @@ import {
   parseRenderInput,
 } from '@/lib/review-actions.mjs';
 import { createAccessToken } from '@/lib/yt-token.mjs';
+import { readRegistry } from '@/lib/channels-registry';
+import { autoApproveHours } from '@/lib/auto-approve.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -124,8 +126,12 @@ export async function GET(req) {
     if (!g.ok) return Response.json({ error: g.error }, { status: 503 });
     if (!g.script) return Response.json({ error: 'not found' }, { status: 404 });
     const meta = parseRenderInput(g.script.meta) || {};
+    // what happens if the owner does not answer (docs/qa/facts-first-qa.md A6)
+    let autoHours = null;
+    try { autoHours = autoApproveHours((await readRegistry()).channels?.find((c) => c.slug === g.script.channel_id)?.kit); } catch { /* unknown = say nothing */ }
     return Response.json({
       script: g.script,
+      autoApproveHours: autoHours,
       sources: g.sources,
       claims: g.claims,
       thumbCandidates: meta.thumb_candidates || [],

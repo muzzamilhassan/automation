@@ -200,13 +200,13 @@ describe('P6 — the Schedule drawer edits the go-public times', () => {
   test('saves only changed times (dirty-field), through the schedule route', () => {
     assert.match(PANEL, /const timesSent = \{\n\s*\.\.\.\(timesChanged\.slots \? \{ slots: publish \} : \{\}\),\n\s*\.\.\.\(timesChanged\.longSlot \? \{ longSlot: publishLong \|\| '' \} : \{\}\),\n\s*\};/);
     assert.match(PANEL, /const payload = \{ slug, \.\.\.draft, \.\.\.timesSent, /);
-    assert.match(PANEL, /const dirty = scheduleDirty\(saved, \{ \.\.\.draft, gateCron, slots: publish, longSlot: publishLong \|\| '' \}\);/);
+    assert.match(PANEL, /const dirty = approveChanged \|\| scheduleDirty\(saved, \{ \.\.\.draft, gateCron, slots: publish, longSlot: publishLong \|\| '' \}\);/);
     assert.match(PANEL, /const timesCheck = parsePublishTimes\(timesSent\);/);
     assert.match(PANEL, /!timesCheck\.ok/);
     // after a save, the baseline only takes the times the server confirmed
     assert.match(PANEL, /slots: j\.publishSaved\?\.slots \|\| saved\.slots, longSlot: j\.publishSaved\?\.longSlot \|\| saved\.longSlot/);
     for (const name of ['const [publish, setPublish]', 'const [publishLong, setPublishLong]', 'const [saved, setSaved]']) {
-      assert.ok(PANEL.indexOf(name) < PANEL.indexOf('const dirty = scheduleDirty('), `${name} declared before use`);
+      assert.ok(PANEL.indexOf(name) < PANEL.indexOf('const dirty = approveChanged'), `${name} declared before use`);
       assert.ok(PANEL.indexOf(name) < PANEL.indexOf('const timesChanged ='), `${name} declared before use`);
     }
     assert.ok(PANEL.indexOf('const timesChanged =') < PANEL.indexOf('const timesSent ='));
@@ -214,7 +214,7 @@ describe('P6 — the Schedule drawer edits the go-public times', () => {
   });
 
   test('the route validates the times BEFORE any write, then writes them with the kit writer', () => {
-    assert.match(ROUTE, /const \{ slug, gateCron: rawGateCron, slots: rawSlots, longSlot: rawLongSlot, \.\.\.schedule \} = body \|\| \{\};/);
+    assert.match(ROUTE, /const \{ slug, gateCron: rawGateCron, slots: rawSlots, longSlot: rawLongSlot, autoApproveHours: rawApprove, \.\.\.schedule \} = body \|\| \{\};/);
     const parse = ROUTE.indexOf('const times = parsePublishTimes({');
     const firstWrite = ROUTE.indexOf('await writeRepoJSON(FILE, file');
     assert.ok(parse > 0 && parse < firstWrite, 'a bad time never half-saves');

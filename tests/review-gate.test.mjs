@@ -841,6 +841,8 @@ describe('#106 T5 round 1 — /api/review route path (BLOCKER 2)', () => {
       '@/lib/artifact-store.mjs': pathToFileURL(path.join(ROOT, 'studio', 'lib', 'artifact-store.mjs')).href,
       '@/lib/warnings-store.mjs': pathToFileURL(path.join(ROOT, 'studio', 'lib', 'warnings-store.mjs')).href,
       '@/lib/data.mjs': write('data.mjs', 'export const ENV = {};'), // no GITHUB_TOKEN — dispatch fails WITHOUT network
+      '@/lib/channels-registry': write('registry.mjs', 'export async function readRegistry() { return { channels: [] }; }'),
+      '@/lib/auto-approve.mjs': pathToFileURL(path.join(ROOT, 'studio', 'lib', 'auto-approve.mjs')).href,
       '@/lib/audit': write('audit.mjs', 'export async function appendAudit(...a) { globalThis.__T5_AUDIT.push(a); }'),
       '@/lib/yt-token.mjs': write('yt.mjs', 'export function createAccessToken() { return async () => "at"; }'),
       '@/lib/review-actions.mjs': pathToFileURL(path.join(ROOT, 'studio', 'lib', 'review-actions.mjs')).href, // the REAL module under test's own import — @/ is a Next alias, not a node package
