@@ -223,9 +223,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "emfMP0MyRYI",
-        "publishAt": "2026-11-25T00:05:00Z",
-        "title": "How a $2,000 Buffer Saved Him $200 on Mortgage Rate"
+        "videoId": "TOGImRgo1U4",
+        "publishAt": "2026-11-26T00:05:00Z",
+        "title": "How Canceling 12 Subscriptions Saved $3,600 a Year"
       }
     ],
     "imageDate": "2026-10-18",
@@ -364,6 +364,11 @@
         "t": "How a $2,000 Buffer Saved Him $200 on Mortgage Rate",
         "at": "2026-11-25T00:05:00Z",
         "v": "emfMP0MyRYI"
+      },
+      {
+        "t": "How Canceling 12 Subscriptions Saved $3,600 a Year",
+        "at": "2026-11-26T00:05:00Z",
+        "v": "TOGImRgo1U4"
       }
     ],
     "cooldownSeeds": [
@@ -397,7 +402,8 @@
           "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/787707851",
           "startSec": 33.6,
           "durSec": 22.9,
-          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-01.mp4"
+          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-01.mp4",
+          "postedAt": "2026-11-25T03:37:12.410Z"
         },
         {
           "part": 2,
@@ -428,15 +434,15 @@
         }
       ]
     },
-    "clipLastPostDate": "2026-11-24",
+    "clipLastPostDate": "2026-11-25",
     "uploadsToday": {
       "date": "2026-11-24",
-      "count": 1
+      "count": 2
     },
     "reviewGate": {
       "assigned": true,
       "gated": true,
-      "checkedAt": "2026-11-24T15:01:19.774Z"
+      "checkedAt": "2026-11-25T03:37:07.424Z"
     },
     "usedLongSeeds": [
       "Stop Wasting Vegetables! 8 Freezer Tricks That Save You Money | Annie Tips",
@@ -459,7 +465,8 @@
       "Snowball or Avalanche? 2 Ways to Crush Debt ⛰️",
       "The 50/30/20 Rule That Can Change Your Finances 💰 #shorts",
       "How I saved $100k on an average salary",
-      "Middle-Class Mindset vs Rich Mindset  | The Difference That Changes How You Build Wealth"
+      "Middle-Class Mindset vs Rich Mindset  | The Difference That Changes How You Build Wealth",
+      "KPI Green Energy की कमाई बढ़ी, मिले कई बड़े ऑर्डर! | BIZ Tak | Shorts"
     ],
     "deepdiveVideo": {
       "videoId": "nyglrRIX8LM",
