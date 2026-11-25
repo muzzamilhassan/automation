@@ -73,16 +73,14 @@
   },
   "yt-bot": {
     "docDays": [
-      "Sat"
-    ],
-    "shortDays": [
-      "Mon",
-      "Tue",
-      "Wed",
       "Thu"
     ],
+    "shortDays": [
+      "Wed",
+      "Fri"
+    ],
     "shortsSource": "clips",
-    "updated": "2026-11-21T08:08:44.973Z",
+    "updated": "2026-11-25T03:14:03.706Z",
     "updatedBy": "muzzamilhassan302@gmail.com"
   }
 }
