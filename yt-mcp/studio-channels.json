@@ -298,7 +298,7 @@
         "16:35"
       ],
       "docDay": "Thu",
-      "autopilot": false,
+      "autopilot": true,
       "kit": {
         "tags": [
           "ai money",
@@ -329,6 +329,7 @@
         "eyebrow": "AI MONEY // BEHIND THE AI BILL",
         "tagline": "Who really pays for AI?",
         "gateCron": "0 5 * * *",
+        "longSlot": "17:00",
         "storyShape": "template",
         "templateId": "systems-diagram",
         "description": "The money behind artificial intelligence, explained simply. Who pays for AI, who profits, and what happens when the bill arrives. We follow the deals, the data centers, the rises and the collapses with clear animated diagrams and real sources. New video every Tuesday. Education only, not financial advice. Made with the help of AI tools and reviewed by a person.\n",
@@ -341,8 +342,7 @@
           "left-stack",
           "marquee"
         ],
-        "templateVersion": "1.0.0",
-        "longSlot": "17:00"
+        "templateVersion": "1.0.0"
       },
       "destinations": null,
       "ytDescription": "",
@@ -351,9 +351,17 @@
       "tokenSecretSaved": true,
       "subs": 0,
       "connectedAt": "2026-11-17T17:09:06.395Z",
-      "consentedAt": null,
-      "consent": null,
-      "autopilotStartedAt": null,
+      "consentedAt": "2026-11-25T04:05:06.053Z",
+      "consent": {
+        "at": "2026-11-25T04:05:06.053Z",
+        "niche": "AI & future tech",
+        "slots": [
+          "16:35"
+        ],
+        "style": "tech",
+        "docDay": "Thu"
+      },
+      "autopilotStartedAt": "2026-11-25T04:05:06.053Z",
       "status": "connected · automation wiring pending",
       "active": true,
       "fromRegistry": true,
