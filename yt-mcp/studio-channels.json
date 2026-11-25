@@ -292,9 +292,9 @@
       "voice": "am_adam",
       "accent": "#38BDF8",
       "slots": [
-        "02:35"
+        "16:35"
       ],
-      "docDay": "",
+      "docDay": "Thu",
       "autopilot": false,
       "kit": {
         "tags": [
@@ -317,11 +317,6 @@
         "label": "Behind The AI Bill",
         "handle": "",
         "niches": [
-          "ai tools replacing jobs",
-          "future tech predictions",
-          "cybersecurity warnings",
-          "breakthrough inventions",
-          "how algorithms control you",
           "ai money and business",
           "who pays for ai",
           "rise and fall of ai companies",
@@ -332,8 +327,10 @@
         "tagline": "Who really pays for AI?",
         "gateCron": "0 15 * * *",
         "storyShape": "template",
+        "templateId": "systems-diagram",
         "description": "The money behind artificial intelligence, explained simply. Who pays for AI, who profits, and what happens when the bill arrives. We follow the deals, the data centers, the rises and the collapses with clear animated diagrams and real sources. New video every Tuesday. Education only, not financial advice. Made with the help of AI tools and reviewed by a person.\n",
         "hasChapters": null,
+        "templateMajor": 1,
         "thumbTemplates": [
           "terminal",
           "screen",
@@ -341,9 +338,7 @@
           "left-stack",
           "marquee"
         ],
-        "templateId": "systems-diagram",
-        "templateVersion": "1.0.0",
-        "templateMajor": 1
+        "templateVersion": "1.0.0"
       },
       "destinations": null,
       "ytDescription": "",
