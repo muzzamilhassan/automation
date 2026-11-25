@@ -50,7 +50,8 @@
         ],
         "templateId": "money-flow-diagram",
         "templateVersion": "1.0.0",
-        "templateMajor": 1
+        "templateMajor": 1,
+        "gateCron": "53 3 * * *"
       },
       "destinations": null,
       "ownerEmail": "",
@@ -121,7 +122,8 @@
           "coinflip",
           "price-fight"
         ],
-        "templateVersion": "1.0.0"
+        "templateVersion": "1.0.0",
+        "gateCron": "47 2 * * *"
       },
       "destinations": null,
       "ownerEmail": "",
@@ -260,7 +262,8 @@
           "big-number",
           "blackout"
         ],
-        "templateVersion": "1.0.0"
+        "templateVersion": "1.0.0",
+        "gateCron": "13 2 * * *"
       },
       "destinations": null,
       "ownerEmail": "",
@@ -325,7 +328,7 @@
         ],
         "eyebrow": "AI MONEY // BEHIND THE AI BILL",
         "tagline": "Who really pays for AI?",
-        "gateCron": "0 15 * * *",
+        "gateCron": "0 5 * * *",
         "storyShape": "template",
         "templateId": "systems-diagram",
         "description": "The money behind artificial intelligence, explained simply. Who pays for AI, who profits, and what happens when the bill arrives. We follow the deals, the data centers, the rises and the collapses with clear animated diagrams and real sources. New video every Tuesday. Education only, not financial advice. Made with the help of AI tools and reviewed by a person.\n",
@@ -354,7 +357,7 @@
       "status": "connected · automation wiring pending",
       "active": true,
       "fromRegistry": true,
-      "cron": "0 15 * * *"
+      "cron": "0 5 * * *"
     }
   ]
 }
