@@ -1,0 +1,29 @@
+{
+ "title": "Who Really Pays When You Ask AI a Question?",
+ "intro": "You type a question. An answer appears, and it looks free. But somewhere, a meter just moved.",
+ "chapters": [
+  {
+   "title": "One tiny question",
+   "text": "Let's follow a single question. It leaves your phone, and travels to a data center. Inside, chips wake up, and they need power. How much? Google published its own number. The median Gemini text prompt uses about zero point two four watt hours. Google says that is like watching television for less than nine seconds. It also uses about five drops of water. OpenAI's Sam Altman gave a similar figure for ChatGPT. About zero point three four watt hours for an average question. So one question is tiny. Almost nothing. And that is exactly where the story gets strange."
+  },
+  {
+   "title": "The bill that multiplies",
+   "text": "Because nobody asks just one. In September twenty twenty-five, OpenAI counted seven hundred million people using ChatGPT every week. Picture the line. Every phone sends a question. Every question needs a chip. Every chip needs power. And cooling. And a building. A tiny cost, repeated without end, becomes a very large one. The International Energy Agency added it up for every kind of data center, not only AI. In twenty twenty-four, they used about four hundred and fifteen terawatt hours. Around one and a half percent of the world's electricity."
+  },
+  {
+   "title": "A building that eats a city",
+   "text": "So where does that power go? Into buildings. A typical AI data center uses as much electricity as one hundred thousand households. Now look at the biggest ones being built today. They will use twenty times as much. That is one building, and two million homes. The power has to come from somewhere. The grid sends it. Power plants make it. New lines carry it. In the United States, the agency expects data centers to drive nearly half of all growth in electricity demand, between now and twenty thirty."
+  },
+  {
+   "title": "Who holds the receipt",
+   "text": "So who pays? Start with you. Some people pay a monthly subscription. Then come businesses, who pay to put AI inside their own products. Their customers may pay a little more. Then investors, who fund the chips and the buildings today, and hope the money comes back tomorrow. And last, the grid. Someone has to build the new lines and plants, and who covers that is still being argued over. By twenty thirty, the agency expects data centers to use about nine hundred and forty-five terawatt hours. More than double. Your question is tiny. The bill is not."
+  }
+ ],
+ "outro": "Next time an answer looks free, ask who is holding the receipt. Subscribe, and we will keep following the money.",
+ "sources": [
+  "https://cloud.google.com/blog/products/infrastructure/measuring-the-environmental-impact-of-ai-inference (Gemini median prompt 0.24 Wh, under nine seconds of TV, about five drops of water; company figure, May 2025 data, not third-party verified)",
+  "https://blog.samaltman.com/the-gentle-singularity (average ChatGPT query about 0.34 Wh)",
+  "https://openai.com/index/how-people-are-using-chatgpt/ (700 million weekly active users, 2025-09-15)",
+  "https://www.iea.org/reports/energy-and-ai/executive-summary (415 TWh and about 1.5% in 2024; about 945 TWh by 2030; 100,000 households; largest 20x; nearly half of US demand growth)"
+ ]
+}
