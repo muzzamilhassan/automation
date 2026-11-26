@@ -7,9 +7,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "TOGImRgo1U4",
-      "publishAt": "2026-11-26T00:05:00Z",
-      "title": "How Canceling 12 Subscriptions Saved $3,600 a Year"
+      "videoId": "w_ZJcUI_7ug",
+      "publishAt": "2026-11-27T00:05:00Z",
+      "title": "48‑Hour Wait Cuts Debt 27% & Adds $3,500 in 5 Years"
     }
   ],
   "imageDate": "2026-10-18",
@@ -153,6 +153,11 @@
       "t": "How Canceling 12 Subscriptions Saved $3,600 a Year",
       "at": "2026-11-26T00:05:00Z",
       "v": "TOGImRgo1U4"
+    },
+    {
+      "t": "48‑Hour Wait Cuts Debt 27% & Adds $3,500 in 5 Years",
+      "at": "2026-11-27T00:05:00Z",
+      "v": "w_ZJcUI_7ug"
     }
   ],
   "cooldownSeeds": [
@@ -196,7 +201,8 @@
         "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/787707912",
         "startSec": 145.9,
         "durSec": 20.8,
-        "file": "tt-lf/clipfeed-money-rulebook/clips/clip-02.mp4"
+        "file": "tt-lf/clipfeed-money-rulebook/clips/clip-02.mp4",
+        "postedAt": "2026-11-26T03:43:38.117Z"
       },
       {
         "part": 3,
@@ -218,15 +224,15 @@
       }
     ]
   },
-  "clipLastPostDate": "2026-11-25",
+  "clipLastPostDate": "2026-11-26",
   "uploadsToday": {
-    "date": "2026-11-24",
-    "count": 2
+    "date": "2026-11-25",
+    "count": 1
   },
   "reviewGate": {
     "assigned": true,
     "gated": true,
-    "checkedAt": "2026-11-25T03:37:07.424Z"
+    "checkedAt": "2026-11-26T03:43:31.482Z"
   },
   "usedLongSeeds": [
     "Stop Wasting Vegetables! 8 Freezer Tricks That Save You Money | Annie Tips",
