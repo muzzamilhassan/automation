@@ -7,9 +7,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "juXWVHiOJyY",
-      "publishAt": "2026-11-25T23:35:00Z",
-      "title": "$2,600 Difference in 5 Years: Why Gold Beats Cash"
+      "videoId": "R2tdUbiC5lE",
+      "publishAt": "2026-11-26T23:35:00Z",
+      "title": "China Boosts Gold Reserves, Demand Jumps 6%"
     }
   ],
   "imageDate": "2026-10-17",
@@ -132,6 +132,11 @@
       "t": "$2,600 Difference in 5 Years: Why Gold Beats Cash",
       "at": "2026-11-25T23:35:00Z",
       "v": "juXWVHiOJyY"
+    },
+    {
+      "t": "China Boosts Gold Reserves, Demand Jumps 6%",
+      "at": "2026-11-26T23:35:00Z",
+      "v": "R2tdUbiC5lE"
     }
   ],
   "cooldownSeeds": [
@@ -139,8 +144,8 @@
     "Still Waiting For the Market Crash? Watch This Right Now | Weekend Investing | Alok Jain"
   ],
   "uploadsToday": {
-    "date": "2026-11-24",
-    "count": 2
+    "date": "2026-11-25",
+    "count": 1
   },
   "usedLongSeeds": [
     "The 3 Secrets to Building Wealth",
@@ -184,7 +189,8 @@
         "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/787718545",
         "startSec": 172.6,
         "durSec": 21.9,
-        "file": "tt-lf/clipfeed-investors-compass/clips/clip-02.mp4"
+        "file": "tt-lf/clipfeed-investors-compass/clips/clip-02.mp4",
+        "postedAt": "2026-11-26T02:54:26.343Z"
       },
       {
         "part": 3,
@@ -206,10 +212,10 @@
       }
     ]
   },
-  "clipLastPostDate": "2026-11-25",
+  "clipLastPostDate": "2026-11-26",
   "reviewGate": {
     "assigned": true,
     "gated": true,
-    "checkedAt": "2026-11-25T03:07:27.773Z"
+    "checkedAt": "2026-11-26T02:54:16.415Z"
   }
 }
