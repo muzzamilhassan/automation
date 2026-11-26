@@ -7,9 +7,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "Q-ESHoO3m-0",
-      "publishAt": "2026-11-25T21:20:00Z",
-      "title": "Zero Credit Card Debt & 800+ Credit Score: Old‑Money Secret"
+      "videoId": "gWgkfZyo_ZM",
+      "publishAt": "2026-11-26T21:20:00Z",
+      "title": "Chicago Family Saved $420K in Taxes Using a Bi‑Annual Hack"
     }
   ],
   "imageDate": "2026-10-20",
@@ -157,6 +157,11 @@
       "t": "Zero Credit Card Debt & 800+ Credit Score: Old‑Money Secret",
       "at": "2026-11-25T21:20:00Z",
       "v": "Q-ESHoO3m-0"
+    },
+    {
+      "t": "Chicago Family Saved $420K in Taxes Using a Bi‑Annual Hack",
+      "at": "2026-11-26T21:20:00Z",
+      "v": "gWgkfZyo_ZM"
     }
   ],
   "usedLongSeeds": [
@@ -216,7 +221,8 @@
         "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/787730741",
         "startSec": 175.8,
         "durSec": 20,
-        "file": "tt-lf/clipfeed-debt-free-doctrine/clips/clip-03.mp4"
+        "file": "tt-lf/clipfeed-debt-free-doctrine/clips/clip-03.mp4",
+        "postedAt": "2026-11-26T02:53:59.359Z"
       },
       {
         "part": 4,
@@ -229,14 +235,14 @@
       }
     ]
   },
-  "clipLastPostDate": "2026-11-25",
+  "clipLastPostDate": "2026-11-26",
   "uploadsToday": {
-    "date": "2026-11-24",
-    "count": 3
+    "date": "2026-11-25",
+    "count": 1
   },
   "reviewGate": {
     "assigned": true,
     "gated": true,
-    "checkedAt": "2026-11-25T04:07:31.997Z"
+    "checkedAt": "2026-11-26T02:53:49.960Z"
   }
 }
