@@ -8,9 +8,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "-oAUgS3BLVU",
-      "publishAt": "2026-11-25T18:35:00Z",
-      "title": "The Reverse Endowment Effect: How Silence Shatters Their Power"
+      "videoId": "0uToUxEABWM",
+      "publishAt": "2026-11-26T18:35:00Z",
+      "title": "Boost Your Creativity 30% with Intentional Solitude"
     }
   ],
   "deepdiveDate": "2026-11-25",
@@ -126,14 +126,19 @@
       "t": "The Reverse Endowment Effect: How Silence Shatters Their Power",
       "at": "2026-11-25T18:35:00Z",
       "v": "-oAUgS3BLVU"
+    },
+    {
+      "t": "Boost Your Creativity 30% with Intentional Solitude",
+      "at": "2026-11-26T18:35:00Z",
+      "v": "0uToUxEABWM"
     }
   ],
   "cooldownSeeds": [
     "THE POWER OF SOLITUDE WILL CHANGE YOUR LIFE | Jim Rohn Motivation"
   ],
   "uploadsToday": {
-    "date": "2026-11-24",
-    "count": 2
+    "date": "2026-11-25",
+    "count": 1
   },
   "clipQueue": {
     "lastRunId": "45534047177",
@@ -160,7 +165,8 @@
         "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/789811099",
         "startSec": 35.1,
         "durSec": 21.5,
-        "file": "tt-lf/clipfeed-quotequarry/clips/clip-01.mp4"
+        "file": "tt-lf/clipfeed-quotequarry/clips/clip-01.mp4",
+        "postedAt": "2026-11-26T02:37:31.610Z"
       },
       {
         "part": 2,
@@ -191,7 +197,7 @@
       }
     ]
   },
-  "clipLastPostDate": "2026-11-25",
+  "clipLastPostDate": "2026-11-26",
   "usedLongSeeds": [
     "3 Psychological Tricks to Win Any Fight 🥶🥊 | Dark Psychology #Shorts #psychology #fighting #viral",
     "⭐ 10 RÈGLES STOÏCIENNES POUR ATTEINDRE TES OBJECTIFS ET CRÉER LA VIE QUE TU VEUX | STOÏCISME",
@@ -212,7 +218,7 @@
   },
   "reviewGate": {
     "assigned": true,
-    "gated": false,
-    "checkedAt": "2026-11-25T02:37:20.174Z"
+    "gated": true,
+    "checkedAt": "2026-11-26T02:37:22.933Z"
   }
 }
