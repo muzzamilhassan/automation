@@ -7,9 +7,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "w_ZJcUI_7ug",
-      "publishAt": "2026-11-27T00:05:00Z",
-      "title": "48‑Hour Wait Cuts Debt 27% & Adds $3,500 in 5 Years"
+      "videoId": "jNBQEugcDLA",
+      "publishAt": "2026-11-28T00:05:00Z",
+      "title": "Say ‘Asset’ 3×/Meeting = 15% Faster Net‑Worth Growth"
     }
   ],
   "imageDate": "2026-10-18",
@@ -158,6 +158,11 @@
       "t": "48‑Hour Wait Cuts Debt 27% & Adds $3,500 in 5 Years",
       "at": "2026-11-27T00:05:00Z",
       "v": "w_ZJcUI_7ug"
+    },
+    {
+      "t": "Say ‘Asset’ 3×/Meeting = 15% Faster Net‑Worth Growth",
+      "at": "2026-11-28T00:05:00Z",
+      "v": "jNBQEugcDLA"
     }
   ],
   "cooldownSeeds": [
@@ -211,7 +216,8 @@
         "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/787707991",
         "startSec": 92.1,
         "durSec": 22,
-        "file": "tt-lf/clipfeed-money-rulebook/clips/clip-03.mp4"
+        "file": "tt-lf/clipfeed-money-rulebook/clips/clip-03.mp4",
+        "postedAt": "2026-11-27T03:37:44.386Z"
       },
       {
         "part": 4,
@@ -224,15 +230,15 @@
       }
     ]
   },
-  "clipLastPostDate": "2026-11-26",
+  "clipLastPostDate": "2026-11-27",
   "uploadsToday": {
-    "date": "2026-11-25",
+    "date": "2026-11-26",
     "count": 1
   },
   "reviewGate": {
     "assigned": true,
     "gated": true,
-    "checkedAt": "2026-11-26T03:43:31.482Z"
+    "checkedAt": "2026-11-27T03:37:35.543Z"
   },
   "usedLongSeeds": [
     "Stop Wasting Vegetables! 8 Freezer Tricks That Save You Money | Annie Tips",
