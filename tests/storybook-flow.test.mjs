@@ -267,3 +267,16 @@ describe('ENGINE pins — one persistent background layer, frame drawn once', ()
     assert.match(DEEP, /planShots\(beats\)/);
   });
 });
+
+// 2026-11-27 owner: "Shorts show 2 subtitles" — the clips lane cuts from a caption-free copy
+test('a clips channel gets a caption-free copy of its storybook video; the clips lane prefers it', () => {
+  const dd = fs.readFileSync(new URL('../yt-deepdive.mjs', import.meta.url), 'utf8');
+  assert.match(dd, /if \(b\.shortsSource === 'clips'\) \{[\s\S]{0,400}captions: false[\s\S]{0,300}episode-clean\.mp4/);
+  const tsx = fs.readFileSync(new URL('../explainer/remotion/longscenes2.tsx', import.meta.url), 'utf8');
+  assert.match(tsx, /captions !== false/);
+  const pipe = fs.readFileSync(new URL('../channel-pipeline.mjs', import.meta.url), 'utf8');
+  assert.match(pipe, /episode-clean\.mp4[\s\S]{0,200}lf-clean-\$\{slug\}\.mp4/);
+  assert.match(pipe, /fs\.copyFileSync\(clipSource\(slug\), path\.join\(feedDir, 'video\.mp4'\)\)/);
+  const clips = fs.readFileSync(new URL('../longvideo/shorts-clips.mjs', import.meta.url), 'utf8');
+  assert.match(clips, /a\.name === `lf-clean-\$\{slug\}`/);
+});

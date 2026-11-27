@@ -24,19 +24,24 @@ const clip = clipIdx > -1 ? Number(args[clipIdx + 1]) : 30;
 if (!id || !mp4In) { console.error('usage: node scripts/store-template-preview.mjs <template_id> <sample.mp4> [poster.jpg] [--clip 30]'); process.exit(1); }
 
 const { REGISTRY_META } = await import('../studio/lib/template-registry.data.js');
-const meta = REGISTRY_META[id];
+// 2026-11-27: the Shorts looks live in the catalog (studio/lib/templates-catalog.js), not the registry
+const { TEMPLATES_DATA } = await import('../studio/lib/templates-catalog.js');
+const cat = TEMPLATES_DATA.find((c) => c.id === id);
+const meta = REGISTRY_META[id] || (cat ? { family: cat.family || cat.id, doc_presentation: { style: cat.category || 'catalog' } } : null);
 if (!meta) { console.error(`unknown template "${id}" — approve it into the registry first`); process.exit(1); }
 
 const FF = resolveBinary('ffmpeg');
 const tmp = path.resolve('longvideo', 'out', 'preview-store', id);
 fs.mkdirSync(tmp, { recursive: true });
 const mp4 = path.join(tmp, 'preview.mp4');
+// 1280 wide for 16:9, 720 wide for a vertical Short (never a 1280x2276 upscale)
+const SCALE = "scale='if(gt(iw,ih),1280,720)':-2";
 // 720p, short, faststart — the gallery plays it on hover
-execFileSync(FF, ['-y', '-v', 'error', '-i', mp4In, '-t', String(clip), '-vf', 'scale=1280:-2', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '24', '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', mp4]);
+execFileSync(FF, ['-y', '-v', 'error', '-i', mp4In, '-t', String(clip), '-vf', SCALE, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '24', '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', mp4]);
 let poster = posterIn;
 if (!poster) {
   poster = path.join(tmp, 'poster.jpg');
-  execFileSync(FF, ['-y', '-v', 'error', '-ss', String(Math.min(8, clip / 3)), '-i', mp4In, '-frames:v', '1', '-vf', 'scale=1280:-2', poster]);
+  execFileSync(FF, ['-y', '-v', 'error', '-ss', String(Math.min(8, clip / 3)), '-i', mp4In, '-frames:v', '1', '-vf', SCALE, poster]);
 }
 
 const store = makeArtifactStore();

@@ -773,6 +773,20 @@ async function renderStorybookVisuals(script, pres) {
   }
   if (r.status !== 0) throw new Error('storybook docv2 render failed');
 
+  // 2026-11-27 (owner: Shorts showed two subtitle lines): a clips channel's Shorts
+  // are cut from this video, which has captions burnt in — so render the same
+  // video once more WITHOUT them; the clips lane cuts from that copy and adds its
+  // own big captions. Never fatal: without it the clips lane uses episode.mp4.
+  if (b.shortsSource === 'clips') {
+    try {
+      const cleanJson = path.join(PUB, `lf-${slug}-clean.json`);
+      fs.writeFileSync(cleanJson, JSON.stringify({ ...doc, captions: false }));
+      const clean = path.resolve(work, 'episode-clean.mp4');
+      const rc = spawnSync('npx', ['remotion', 'render', 'remotion/index.ts', 'DocV2', clean, `--props=${cleanJson}`, '--concurrency=2', '--timeout=300000', '--port=3494'], { cwd: EXPL, ...sOpts });
+      console.log(rc.status === 0 ? `[storybook] caption-free copy for Shorts -> ${clean}` : '[storybook] WARN caption-free copy failed — Shorts are cut from the captioned video');
+    } catch (e) { console.log(`[storybook] WARN caption-free copy skipped (${String(e.message).slice(0, 80)})`); }
+  }
+
   // SRT (SB-10): the beat words shifted onto the episode timeline — the same
   // cuesFromWords/toSrt the legacy lane feeds; episode.srt lands where the
   // pipeline's tt-lf artifact step already reads it.
