@@ -11,6 +11,7 @@
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path'; // restored — the #72 dead-code range accidentally cut this mid-file import (IC heal regression)
+import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { EMBEDDED_FONTS_CSS } from './typography-poster-engine.mjs';
 import { ensurePoolClip } from './cinematic-engine.mjs';
@@ -800,9 +801,21 @@ export async function resolveTemplateId(channelId) {
     const row = await db.getActiveAssignment(channelId);
     return row?.family_id || null;
   } catch (e) {
-    console.log(`[brain] template lookup unavailable (${String(e?.message || e).slice(0, 80)}) — template-less thresholds (D8 defaults)`);
-    return null;
+    // 2026-11-27: a database hiccup must not silently render the OLD look — use the
+    // template the panel mirrored into the engine registry (kit.templateId).
+    const mirrored = mirroredTemplateId(channelId);
+    console.log(`[brain] template lookup unavailable (${String(e?.message || e).slice(0, 80)}) — ${mirrored ? `using the panel's saved template ${mirrored}` : 'template-less thresholds (D8 defaults)'}`);
+    return mirrored;
   }
+}
+
+/** The channel's template as last saved by the panel into yt-mcp/studio-channels.json. */
+export function mirroredTemplateId(channelId, file = path.join(path.dirname(fileURLToPath(import.meta.url)), 'yt-mcp', 'studio-channels.json')) {
+  try {
+    const reg = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const id = (reg.channels || []).find((c) => c?.slug === channelId)?.kit?.templateId;
+    return typeof id === 'string' && id ? id : null;
+  } catch { return null; }
 }
 
 // Adapter error classes worth an escalation walk: the provider RESPONDED but

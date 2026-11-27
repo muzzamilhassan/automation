@@ -8,6 +8,7 @@ export const TEMPLATE_CATEGORIES = [
   { id: 'all', label: 'All Templates' },
   { id: 'documentary', label: 'Documentary & Cinema', count: 5 },
   { id: 'finance', label: 'Finance & Infographics', count: 1 },
+  { id: 'shorts', label: 'Shorts', count: 2 },
 ];
 
 export const TEMPLATES_DATA = [
@@ -150,5 +151,39 @@ export const TEMPLATES_DATA = [
       currency: '$',
     },
     accentColor: '#10B981',
+  },
+  // ================= SHORTS (2026-11-27, owner: "the shorts templates are not showing") =================
+  // The two looks every channel's Shorts are made in. Not assigned like a long-video
+  // template: each channel picks one in Channels › Schedule › "Where Shorts come from".
+  {
+    id: 'shorts-clipped',
+    name: 'Shorts Clipped From Your Long Video',
+    category: 'shorts',
+    family: 'shorts-clipped',
+    aspectRatios: ['9:16'],
+    status: 'ready',
+    variants: ['title card (first 0.8 s)', 'big word-by-word captions', 'brand colour frame'],
+    desc: 'The best 20-60 second moments of the channel’s newest long video, cut and stood up for Shorts: a short title card, the moment itself in the brand colour frame, and big word-by-word captions. The title may only use numbers the clip says.',
+    usedFor: 'Choose it in Channels › Schedule › "Where Shorts come from" › Clips from long videos',
+    howTo: 'Channels › Schedule › Where Shorts come from › Clips from long videos',
+    renderer: 'longvideo/shorts-clips.mjs',
+    previewTheme: 'dark',
+    accentColor: '#F5E31C',
+  },
+  {
+    id: 'shorts-fresh',
+    name: 'Fresh Daily Shorts',
+    category: 'shorts',
+    family: 'shorts-fresh',
+    aspectRatios: ['9:16'],
+    status: 'ready',
+    variants: ['topic stock clip', 'section cards', 'big word-by-word captions'],
+    desc: 'A new Short written each day on its own topic: a stock clip that fits the topic, short section cards and big word-by-word captions in the channel colour and voice.',
+    usedFor: 'Choose it in Channels › Schedule › "Where Shorts come from" › Made fresh each day',
+    howTo: 'Channels › Schedule › Where Shorts come from › Made fresh each day',
+    renderer: 'youtube-engine.mjs',
+    previewTheme: 'dark',
+    poster: '/styles/cinematic.jpg',
+    accentColor: '#F5E31C',
   },
 ];

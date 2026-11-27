@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseSrt } from '../lib/srt.mjs';
-import { candidateWindows, parseSelection, pickTitles, cuesToWords, cardSvg, nextUnposted } from '../lib/clipper.mjs';
+import { candidateWindows, parseSelection, pickTitles, cuesToWords, cardSvg, nextUnposted, titleProblems } from '../lib/clipper.mjs';
+import { checkSentence } from '../lib/claim-check.mjs';
 
 function srtFixture() {
   // 6 cues, ~10s total — times in seconds
@@ -97,4 +98,18 @@ test('nextUnposted returns null (with skips) when the queue is exhausted', () =>
   ];
   const pick = nextUnposted(clips, [], (a, b) => false);
   assert.equal(pick, null);
+});
+
+// docs/qa/facts-first-qa.md C1 — a clip title says only what the clip says
+test('C1: clip titles may only use numbers the clip speaks; an invented one falls back to altTitle or drops the clip', () => {
+  const text = 'He waited forty eight hours before every purchase, and his card debt fell by 27 percent over the year.';
+  assert.deepEqual(titleProblems('Wait 48 Hours, Cut Card Debt 27%', text, checkSentence), []);
+  assert.ok(titleProblems('48-Hour Wait Adds $3,500 in 5 Years', text, checkSentence).length, 'money and years never said');
+  assert.ok(titleProblems('Say Asset 3x Per Meeting = 15% Faster Growth', text, checkSentence).length);
+  const ok = (t) => titleProblems(t, text, checkSentence).length === 0;
+  const out = pickTitles([
+    { index: 0, title: 'Adds $3,500 in 5 Years', altTitle: 'The 48-Hour Rule That Shrank His Card Debt' },
+    { index: 1, title: 'Gains 15% Faster', altTitle: 'Saves $9,000' },
+  ], [], () => false, ok);
+  assert.deepEqual(out.map((p) => p.title), ['The 48-Hour Rule That Shrank His Card Debt']);
 });

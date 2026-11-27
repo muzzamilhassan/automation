@@ -312,6 +312,16 @@ jobs:
           path: tt-lf/lf-${{ matrix.slug.slug }}.mp4
           retention-days: 30
 
+      # 2026-11-27: the same doc without burnt-in captions — the clips lane cuts
+      # Shorts from it so a Short never shows two subtitle lines
+      - name: ⬆️ Upload caption-free doc render (clips lane)
+        if: ${{ hashFiles(format('tt-lf/lf-clean-{0}.mp4', matrix.slug.slug)) != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lf-clean-${{ matrix.slug.slug }}
+          path: tt-lf/lf-clean-${{ matrix.slug.slug }}.mp4
+          retention-days: 30
+
       - name: ⬆️ Upload doc meta artifact
         if: ${{ hashFiles(format('tt-lf/lf-meta-{0}.json', matrix.slug.slug)) != '' }}
         uses: actions/upload-artifact@v4

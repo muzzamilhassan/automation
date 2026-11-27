@@ -198,3 +198,18 @@ test('contrast: kit buttons, no sky/zinc/raw-px classes on the template surfaces
   assert.match(page, /className="btn btn-primary" onClick=\{\(\) => \{ setMode\('assign'\)/);
   assert.match(page, /className="btn btn-primary" onClick=\{assign\}/);
 });
+
+// 2026-11-27 owner: "the shorts templates are not showing"
+test('the two Shorts looks show in the gallery, under 9:16, and are never assigned like a long-video template', async () => {
+  const { TEMPLATES_DATA, TEMPLATE_CATEGORIES } = await import('../studio/lib/templates-catalog.js');
+  const { buildGallery: build, filterGallery: filter } = await import('../studio/lib/templates-gallery.mjs');
+  const items = build({ catalog: TEMPLATES_DATA, registryTemplates: [], samples: {}, categories: TEMPLATE_CATEGORIES });
+  const shorts = filter(items, { ratio: '9:16', kind: 'shorts' });
+  assert.deepEqual(shorts.map((s) => s.id).sort(), ['shorts-clipped', 'shorts-fresh']);
+  for (const s of shorts) {
+    assert.equal(s.assignable, false);
+    assert.match(s.usedFor, /Where Shorts come from/);
+    assert.equal(s.kindLabel, 'Shorts');
+  }
+  assert.equal(shorts.find((s) => s.id === 'shorts-fresh').preview.poster, '/styles/cinematic.jpg');
+});

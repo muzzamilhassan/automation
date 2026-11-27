@@ -230,7 +230,9 @@ function fromCatalog(c, categories, samples) {
     deprecated: false,
     version: '',
     createStyle: str(c.create_style) || null,
-    preview: previewFor(c.id, samples),
+    // a stored sample wins; a catalog poster (a real still) is the fallback
+    preview: previewFor(c.id, samples) || (str(c.poster) ? { mp4: null, poster: str(c.poster), renderedAt: null } : null),
+    howTo: str(c.howTo),
     structure: { formatLabel: '', sections: [], chapterMinWords: null, beats: [], hookClasses: [], titlePatterns: [], payoffRule: '' },
     look: { voice: '', musicMood: '', theme: str(c.previewTheme), style: '', layouts: [], variants: arr(c.variants) },
     capabilities: [],

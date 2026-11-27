@@ -25,10 +25,12 @@ test('a missed day is made up on the next run', () => {
   assert.equal(docScriptDue({ kit, lastDocDate: '2026-11-19', now: FRI }).due, true);
 });
 
-test('a script already waiting stops a second one; a Short, or one over a week old, does not', () => {
+test('a script already waiting stops a second one; a Short, or one over 2 days old (auto-approve would never take it), does not', () => {
   assert.equal(docScriptDue({ kit, lastDocDate: '2026-11-19', pending: [script('2026-11-26T05:01:00Z')], now: FRI }).reason, 'already_waiting');
   assert.equal(docScriptDue({ kit, lastDocDate: '2026-11-19', pending: [script('2026-11-26T05:01:00Z', 'short')], now: FRI }).due, true);
   assert.equal(docScriptDue({ kit, lastDocDate: '2026-11-12', pending: [script('2026-11-12T05:00:00Z')], now: THU }).due, true);
+  // the live case: Money Rulebook's 25 Nov leftover blocked its 27 Nov long video
+  assert.equal(docScriptDue({ kit: { docDays: ['Thu', 'Sun'] }, lastDocDate: '2026-11-24', pending: [script('2026-11-25T03:37:00Z')], now: new Date('2026-11-27T14:00:00Z') }).due, true);
 });
 
 test('a new channel starts on its own day, whatever day it was switched on', () => {

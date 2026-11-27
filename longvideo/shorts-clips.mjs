@@ -20,7 +20,8 @@ import sharp from 'sharp';
 import { containsSyntheticMediaFor } from '../lib/synthetic-media.mjs';
 import { loadEnv } from '../lib/env.mjs';
 import { parseSrt } from '../lib/srt.mjs';
-import { candidateWindows, parseSelection, pickTitles, cuesToWords, cardSvg } from '../lib/clipper.mjs';
+import { candidateWindows, parseSelection, pickTitles, cuesToWords, cardSvg, titleProblems } from '../lib/clipper.mjs';
+import { checkSentence } from '../lib/claim-check.mjs';
 import { buildAssCaptions, resolveTemplateId } from '../youtube-engine.mjs';
 import { isDupTitle } from '../lib/dup-gate.mjs';
 import { sendAlert } from '../lib/ntfy-alert.mjs';
@@ -302,6 +303,8 @@ if (localDir) {
   const arts = (await ghApi(`actions/runs/${pick.runId}/artifacts`)).artifacts || [];
   const chosen = {
     runId: pick.runId,
+    // 2026-11-27: the caption-free copy first — the full render has captions burnt in
+    clean: arts.find((a) => a.name === `lf-clean-${slug}` && !a.expired),
     vid: arts.find((a) => a.name === `lf-${slug}` && !a.expired),
     srt: arts.find((a) => a.name === `lf-srt-${slug}` && !a.expired),
     meta: arts.find((a) => a.name === `lf-meta-${slug}` && !a.expired),
@@ -311,10 +314,12 @@ if (localDir) {
   docRunId = chosen.runId;
   fs.mkdirSync(tmp, { recursive: true });
   log(`clipping doc run ${docRunId}`);
-  await downloadArtifact(chosen.vid, tmp);
+  if (chosen.clean) await downloadArtifact(chosen.clean, tmp);
+  else await downloadArtifact(chosen.vid, tmp);
   await downloadArtifact(chosen.srt, tmp);
   if (chosen.meta) await downloadArtifact(chosen.meta, tmp);
-  videoFile = path.join(tmp, `lf-${slug}.mp4`);
+  videoFile = path.join(tmp, chosen.clean ? `lf-clean-${slug}.mp4` : `lf-${slug}.mp4`);
+  log(chosen.clean ? 'clipping the caption-free copy' : 'no caption-free copy for this doc — clipping the full render');
   srtFile = path.join(tmp, `lf-srt-${slug}.srt`);
   const metaPath = path.join(tmp, `lf-meta-${slug}.json`);
   meta = fs.existsSync(metaPath) ? JSON.parse(fs.readFileSync(metaPath, 'utf8')) : {};
@@ -331,6 +336,7 @@ log(`${windows.length} candidate windows (target ${maxArg})`);
 const rankingPrompt = `You are a YouTube Shorts editor. Below are numbered candidate segments (transcripts) from one documentary titled "${docTitle(meta)}" in the ${b.niche} niche.
 Pick the ${maxArg} BEST standalone Shorts moments: self-contained story, strong hook potential, works without the surrounding context. Prefer segments that end on a payoff.
 For EACH pick return: index (the candidate number), title (a Shorts title, max 60 chars, no channel suffix), altTitle (a different angle on the same clip).
+Titles may only use numbers, amounts, percentages and names that are SPOKEN in that segment; never invent a statistic. A title without numbers is fine.
 Reply with ONLY JSON: {"picks":[{"index":0,"title":"...","altTitle":"..."}]} ranked best first.
 
 CANDIDATES:
@@ -342,7 +348,12 @@ const picks = parseSelection(raw, windows);
 if (!picks.length) await fail('LLM returned no valid picks', new Error(raw.slice(0, 120)));
 
 const recent = (st.titleHistory || []).map((h) => h.t || h).filter(Boolean);
-const titled = pickTitles(picks, recent, isDupTitle).slice(0, maxArg);
+const grounded = (t, p) => {
+  const bad = titleProblems(t, windows[p.index]?.text, checkSentence);
+  if (bad.length) log(`  title refused ("${t}"): ${bad[0]}`);
+  return bad.length === 0;
+};
+const titled = pickTitles(picks, recent, isDupTitle, grounded).slice(0, maxArg);
 if (!titled.length) await fail('every picked clip title collided with recent uploads');
 
 // ---------- cut + repack + release/queue ----------
@@ -358,7 +369,7 @@ for (let n = 0; n < titled.length; n++) {
   const winCues = cues.filter((c) => c.start >= w.startSec - 0.5 && c.end <= w.endSec + 0.5);
   let assFile = null;
   try {
-    const ass = buildAssCaptions(cuesToWords(winCues, w.startSec), { width: 1080, height: 1920 });
+    const ass = buildAssCaptions(cuesToWords(winCues, w.startSec), { w: 1080, h: 1920 });
     assFile = path.join(workDir, `cap-${n + 1}.ass`);
     fs.writeFileSync(assFile, ass, 'utf8');
   } catch (e) { log(`  [warn] captions skipped: ${String(e.message).slice(0, 60)}`); }

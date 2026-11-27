@@ -8,7 +8,7 @@ new documentary script each time, skipping the doc-day check on purpose (T5c). E
 ## Spec
 - **S1** WHEN a gated clips channel has no approved script, the pipeline SHALL write a documentary script only if a long
   video is due (its doc day, or a missed one).
-- **S2** WHILE a documentary script from the last 7 days waits for review, it SHALL NOT write another.
+- **S2** WHILE a documentary script from the last 2 days waits for review (older ones can no longer be auto-approved, so they stop blocking — 2026-11-27), it SHALL NOT write another.
 - **S3** A channel that never published a long video SHALL start on its doc day.
 - **S4** A forced run or an owner-given topic SHALL always write one.
 - **S5** IF the waiting scripts cannot be read, THEN S1 alone decides.

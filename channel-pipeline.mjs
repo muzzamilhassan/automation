@@ -1117,6 +1117,10 @@ try {
   } else if (fs.existsSync(epFile)) {
     fs.mkdirSync('tt-lf', { recursive: true });
     fs.copyFileSync(epFile, path.join('tt-lf', `lf-${slug}.mp4`));
+    // 2026-11-27: the caption-free copy (storybook docs burn captions in) — Shorts
+    // are cut from it so they never show two subtitle lines
+    const cleanFile = path.join('demos', `deepdive-${slug}`, 'episode-clean.mp4');
+    if (fs.existsSync(cleanFile)) fs.copyFileSync(cleanFile, path.join('tt-lf', `lf-clean-${slug}.mp4`));
     let title = '';
     try {
       const files = fs.readdirSync(path.join('fb-outbox', slug)).filter(f => f.endsWith('.json')).reverse();
@@ -1144,6 +1148,11 @@ try {
 }
 
 // ---- Phase 5b: doc-day clips (clips source only) ----
+/** Shorts are cut from the caption-free copy when the doc has one (no double subtitles). */
+function clipSource(s) {
+  const clean = path.join('tt-lf', `lf-clean-${s}.mp4`);
+  return fs.existsSync(clean) ? clean : path.join('tt-lf', `lf-${s}.mp4`);
+}
 // The doc rendered THIS run (deepdiveDate === today): feed it to the clipper
 // from the local files (its GitHub artifacts don't exist until the workflow's
 // upload steps run after this job) and give the publisher its turn — Phase 1
@@ -1158,7 +1167,7 @@ try {
   if (shortsSource === 'clips' && docToday && !fedToday && fs.existsSync(path.join('tt-lf', `lf-${slug}.mp4`))) {
     log(`Phase 5b — doc-day clips: feeding today's doc to the clipper...`);
     fs.mkdirSync(feedDir, { recursive: true });
-    fs.copyFileSync(path.join('tt-lf', `lf-${slug}.mp4`), path.join(feedDir, 'video.mp4'));
+    fs.copyFileSync(clipSource(slug), path.join(feedDir, 'video.mp4'));
     if (fs.existsSync(path.join('tt-lf', `lf-srt-${slug}.srt`))) fs.copyFileSync(path.join('tt-lf', `lf-srt-${slug}.srt`), path.join(feedDir, 'episode.srt'));
     fs.copyFileSync(path.join('tt-lf', `lf-meta-${slug}.json`), path.join(feedDir, 'meta.json'));
     // --max 4: 2 doc-days/week × 4 clips = 8/week supply for 7 short-days
