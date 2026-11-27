@@ -496,9 +496,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "gWgkfZyo_ZM",
-        "publishAt": "2026-11-26T21:20:00Z",
-        "title": "Chicago Family Saved $420K in Taxes Using a Bi‑Annual Hack"
+        "videoId": "TEloQmf_D60",
+        "publishAt": "2026-11-27T21:20:00Z",
+        "title": "Estate Freeze Turned $5M Into $18M Tax‑Free Growth"
       }
     ],
     "imageDate": "2026-10-20",
@@ -651,6 +651,11 @@
         "t": "Chicago Family Saved $420K in Taxes Using a Bi‑Annual Hack",
         "at": "2026-11-26T21:20:00Z",
         "v": "gWgkfZyo_ZM"
+      },
+      {
+        "t": "Estate Freeze Turned $5M Into $18M Tax‑Free Growth",
+        "at": "2026-11-27T21:20:00Z",
+        "v": "TEloQmf_D60"
       }
     ],
     "usedLongSeeds": [
@@ -720,19 +725,20 @@
           "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/787730815",
           "startSec": 220.9,
           "durSec": 23,
-          "file": "tt-lf/clipfeed-debt-free-doctrine/clips/clip-04.mp4"
+          "file": "tt-lf/clipfeed-debt-free-doctrine/clips/clip-04.mp4",
+          "postedAt": "2026-11-27T02:53:21.579Z"
         }
       ]
     },
-    "clipLastPostDate": "2026-11-26",
+    "clipLastPostDate": "2026-11-27",
     "uploadsToday": {
-      "date": "2026-11-25",
+      "date": "2026-11-26",
       "count": 1
     },
     "reviewGate": {
       "assigned": true,
       "gated": true,
-      "checkedAt": "2026-11-26T04:10:41.956Z"
+      "checkedAt": "2026-11-27T02:53:15.264Z"
     }
   },
   "quotequarry": {
