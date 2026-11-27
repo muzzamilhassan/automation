@@ -7,9 +7,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "R2tdUbiC5lE",
-      "publishAt": "2026-11-26T23:35:00Z",
-      "title": "China Boosts Gold Reserves, Demand Jumps 6%"
+      "videoId": "4wPT0RbiM38",
+      "publishAt": "2026-11-27T23:35:00Z",
+      "title": "FOMO on AI? Why Gold’s Steady Climb Wins"
     }
   ],
   "imageDate": "2026-10-17",
@@ -137,6 +137,11 @@
       "t": "China Boosts Gold Reserves, Demand Jumps 6%",
       "at": "2026-11-26T23:35:00Z",
       "v": "R2tdUbiC5lE"
+    },
+    {
+      "t": "FOMO on AI? Why Gold’s Steady Climb Wins",
+      "at": "2026-11-27T23:35:00Z",
+      "v": "4wPT0RbiM38"
     }
   ],
   "cooldownSeeds": [
@@ -144,7 +149,7 @@
     "Still Waiting For the Market Crash? Watch This Right Now | Weekend Investing | Alok Jain"
   ],
   "uploadsToday": {
-    "date": "2026-11-25",
+    "date": "2026-11-26",
     "count": 1
   },
   "usedLongSeeds": [
@@ -199,7 +204,8 @@
         "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/787718584",
         "startSec": 263.2,
         "durSec": 22.5,
-        "file": "tt-lf/clipfeed-investors-compass/clips/clip-03.mp4"
+        "file": "tt-lf/clipfeed-investors-compass/clips/clip-03.mp4",
+        "postedAt": "2026-11-27T02:53:58.698Z"
       },
       {
         "part": 4,
@@ -212,10 +218,10 @@
       }
     ]
   },
-  "clipLastPostDate": "2026-11-26",
+  "clipLastPostDate": "2026-11-27",
   "reviewGate": {
     "assigned": true,
     "gated": true,
-    "checkedAt": "2026-11-26T03:07:09.072Z"
+    "checkedAt": "2026-11-27T02:53:50.883Z"
   }
 }
