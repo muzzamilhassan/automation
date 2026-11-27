@@ -7,6 +7,20 @@ Read this first after a compaction; it replaces re-reading the whole conversatio
 
 ---
 
+## 0a. 2026-11-27: Shorts + template fixes (owner: shorts templates missing, double subtitles, QQ "old template"/restart feel)
+
+| Commit | What |
+|---|---|
+| `cdcceb4` | Gallery lists 2 Shorts looks (catalog `shorts-clipped`, `shorts-fresh`); clip titles may only use numbers the clip says; DB hiccup uses kit.templateId (no silent old look); a waiting script blocks new ones only 2 days (MR/IC/DFD were stuck behind pre-fact-check scripts) |
+| `4b9c127` | Edge "No audio" (3 channels voicing at once) made IC+DFD ship storybook instead of Money Flow on 11-24 -> longer backoff + one resumed rerun; fallback = panel warning `template_fallback`; clip Shorts fill 9:16 (blurred bg, title on top, captions at y=1430) |
+| `5fc8e15` | Storybook continuous flow: shots of 15-30 s with one persistent crossfaded background, letterbox enters once, 180 ms beat pad; `doc_presentation.background: "broll"` on old-verses-storybook 1.1.0 (synced to Neon) = video clip per shot |
+| `2e8a089` | Clips channels render `episode-clean.mp4` (DocV2 captions:false) -> artifact `lf-clean-<slug>` -> clips cut from it (no double subtitles) |
+
+- Live assignments (Neon) 11-27: QQ old-verses-storybook, MR red-flags-explained, IC+DFD money-flow-diagram, yt-bot systems-diagram.
+- Local tokens for QQ/IC/DFD in yt-mcp/channels/*/token.json are expired (engine uses Neon/secrets) - only MR works locally.
+- **Gotcha:** agent worktrees junction node_modules — `rmdir` the junction BEFORE removing the worktree (2026-11-27 a forced remove wiped main node_modules; fixed by npm ci).
+- Not yet seen live: first clean-copy render + new clip layout on a real doc day; fresh-Shorts gallery preview is only a dark still.
+
 ## 0. Latest (2026-11-25): facts first, 2-hour auto-approve, publish days
 
 | Commit | What |
