@@ -745,9 +745,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "0uToUxEABWM",
-        "publishAt": "2026-11-26T18:35:00Z",
-        "title": "Boost Your Creativity 30% with Intentional Solitude"
+        "videoId": "NnBhUWgusV4",
+        "publishAt": "2026-11-27T18:35:00Z",
+        "title": "Solo Retreats Add 41% Revenue Growth for Entrepreneurs"
       }
     ],
     "deepdiveDate": "2026-11-25",
@@ -868,13 +868,18 @@
         "t": "Boost Your Creativity 30% with Intentional Solitude",
         "at": "2026-11-26T18:35:00Z",
         "v": "0uToUxEABWM"
+      },
+      {
+        "t": "Solo Retreats Add 41% Revenue Growth for Entrepreneurs",
+        "at": "2026-11-27T18:35:00Z",
+        "v": "NnBhUWgusV4"
       }
     ],
     "cooldownSeeds": [
       "THE POWER OF SOLITUDE WILL CHANGE YOUR LIFE | Jim Rohn Motivation"
     ],
     "uploadsToday": {
-      "date": "2026-11-25",
+      "date": "2026-11-26",
       "count": 1
     },
     "clipQueue": {
@@ -912,7 +917,8 @@
           "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/789811138",
           "startSec": 93.1,
           "durSec": 21.6,
-          "file": "tt-lf/clipfeed-quotequarry/clips/clip-02.mp4"
+          "file": "tt-lf/clipfeed-quotequarry/clips/clip-02.mp4",
+          "postedAt": "2026-11-27T02:37:17.893Z"
         },
         {
           "part": 3,
@@ -934,7 +940,7 @@
         }
       ]
     },
-    "clipLastPostDate": "2026-11-26",
+    "clipLastPostDate": "2026-11-27",
     "usedLongSeeds": [
       "3 Psychological Tricks to Win Any Fight 🥶🥊 | Dark Psychology #Shorts #psychology #fighting #viral",
       "⭐ 10 RÈGLES STOÏCIENNES POUR ATTEINDRE TES OBJECTIFS ET CRÉER LA VIE QUE TU VEUX | STOÏCISME",
@@ -956,7 +962,7 @@
     "reviewGate": {
       "assigned": true,
       "gated": true,
-      "checkedAt": "2026-11-26T02:37:22.933Z"
+      "checkedAt": "2026-11-27T02:37:11.163Z"
     }
   },
   "fajrofquran": {
