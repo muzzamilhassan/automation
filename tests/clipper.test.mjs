@@ -113,3 +113,18 @@ test('C1: clip titles may only use numbers the clip speaks; an invented one fall
   ], [], () => false, ok);
   assert.deepEqual(out.map((p) => p.title), ['The 48-Hour Rule That Shrank His Card Debt']);
 });
+
+// 2026-11-27: clip Shorts used ~70% black bars; the frame is filled now
+test('clip Shorts fill the 9:16 frame: blurred moment behind, title kept on top, captions below the moment', async () => {
+  const { clipFilter, CLIP_LAYOUT } = await import('../longvideo/shorts-clips.mjs');
+  const { headerSvg } = await import('../lib/clipper.mjs');
+  const f = clipFilter('C:/tmp/cap.ass');
+  assert.match(f, /crop=1080:1920,setsar=1,boxblur/);
+  assert.doesNotMatch(f, /pad=1080:1920/, 'no black bars');
+  assert.match(f, new RegExp(`overlay=0:${CLIP_LAYOUT.videoY}`));
+  assert.ok(f.includes("subtitles='C"+String.fromCharCode(92)+":/tmp/cap.ass'"), 'the drive colon is escaped for ffmpeg');
+  assert.ok(CLIP_LAYOUT.captionY > CLIP_LAYOUT.videoY + 608, 'captions sit below the 16:9 moment');
+  const svg = headerSvg({ title: 'The 48-Hour Rule That Shrank His Card Debt And More Words Here', brand: 'MR' });
+  const ys = [...svg.matchAll(/y="(\d+)"/g)].map((m) => Number(m[1]));
+  assert.ok(Math.max(...ys) < CLIP_LAYOUT.videoY, 'the title ends above the moment');
+});

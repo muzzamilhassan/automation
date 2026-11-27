@@ -20,7 +20,7 @@ import sharp from 'sharp';
 import { containsSyntheticMediaFor } from '../lib/synthetic-media.mjs';
 import { loadEnv } from '../lib/env.mjs';
 import { parseSrt } from '../lib/srt.mjs';
-import { candidateWindows, parseSelection, pickTitles, cuesToWords, cardSvg, titleProblems } from '../lib/clipper.mjs';
+import { candidateWindows, parseSelection, pickTitles, cuesToWords, cardSvg, headerSvg, titleProblems } from '../lib/clipper.mjs';
 import { checkSentence } from '../lib/claim-check.mjs';
 import { buildAssCaptions, resolveTemplateId } from '../youtube-engine.mjs';
 import { isDupTitle } from '../lib/dup-gate.mjs';
@@ -172,13 +172,25 @@ async function llm(prompt) {
 }
 
 // ---------- ffmpeg: cut + vertical repack + captions + title card ----------
-function cutClip(videoFile, out, startSec, durSec, assFile, cardPng) {
+// 2026-11-27 (owner: the Shorts looked empty): the whole 9:16 frame is used — a
+// blurred, darkened copy of the moment fills it, the moment sits above the middle,
+// its title stays on top and the captions sit below (CLIP_LAYOUT), never black bars.
+export const CLIP_LAYOUT = Object.freeze({ videoY: 560, captionY: 1430 });
+export function clipFilter(assFile, layout = CLIP_LAYOUT) {
   const capFilter = assFile ? `,subtitles='${assFile.replace(/\\/g, '/').replace(/:/g, '\\:')}':fontsdir=image-tools/fonts` : '';
-  const vf = `[0:v]scale=1080:-2,setsar=1,pad=1080:1920:0:656:${PAD}[pv];` +
-    `[pv][1:v]overlay=0:0:enable='lte(t,0.8)'[pc];` +
+  return `[0:v]split=2[src][fgsrc];` +
+    `[src]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,boxblur=28:2,eq=brightness=-0.38:saturation=0.7[bg];` +
+    `[fgsrc]scale=1080:-2,setsar=1[fg];` +
+    `[bg][fg]overlay=0:${layout.videoY}[base];` +
+    `[base][2:v]overlay=0:0[hd];` +
+    `[hd][1:v]overlay=0:0:enable='lte(t,0.8)'[pc];` +
     `[pc]format=yuv420p${capFilter}[v]`;
+}
+
+function cutClip(videoFile, out, startSec, durSec, assFile, cardPng, headerPng) {
+  const vf = clipFilter(assFile);
   const r = spawnSync(FFMPEG, ['-y', '-v', 'error', '-ss', String(startSec), '-t', String(durSec), '-i', videoFile,
-    '-i', cardPng, '-filter_complex', `${vf}`, '-map', '[v]', '-map', '0:a?',
+    '-i', cardPng, '-i', headerPng, '-filter_complex', `${vf}`, '-map', '[v]', '-map', '0:a?',
     '-t', String(durSec), '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '21', '-c:a', 'aac', '-b:a', '128k', '-ar', '44100',
     '-avoid_negative_ts', 'make_zero', '-max_muxing_queue_size', '1024', '-movflags', '+faststart', out],
     { stdio: ['ignore', 'ignore', 'pipe'], timeout: 600000 });
@@ -369,11 +381,13 @@ for (let n = 0; n < titled.length; n++) {
   const winCues = cues.filter((c) => c.start >= w.startSec - 0.5 && c.end <= w.endSec + 0.5);
   let assFile = null;
   try {
-    const ass = buildAssCaptions(cuesToWords(winCues, w.startSec), { w: 1080, h: 1920 });
+    const ass = buildAssCaptions(cuesToWords(winCues, w.startSec), { w: 1080, h: 1920, y: CLIP_LAYOUT.captionY });
     assFile = path.join(workDir, `cap-${n + 1}.ass`);
     fs.writeFileSync(assFile, ass, 'utf8');
   } catch (e) { log(`  [warn] captions skipped: ${String(e.message).slice(0, 60)}`); }
-  cutClip(videoFile, out, w.startSec, w.durSec, assFile, cardPng);
+  const headerPng = path.join(workDir, `head-${n + 1}.png`);
+  await sharp(Buffer.from(headerSvg({ title: p.title, brand: b.label, accent: b.accent }))).png().toFile(headerPng);
+  cutClip(videoFile, out, w.startSec, w.durSec, assFile, cardPng, headerPng);
   clips.push({ part: n + 1, file: out, title: p.title, startSec: w.startSec, durSec: w.durSec });
   log(`✓ clip ${n + 1}: "${p.title}" (${w.startSec}s +${w.durSec}s)`);
 }

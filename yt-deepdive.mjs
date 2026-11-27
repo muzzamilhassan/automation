@@ -352,6 +352,19 @@ async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null
         const { sendAlert } = await import('./lib/ntfy-alert.mjs');
         await sendAlert({ text: `${slug}: Living Diagram render failed (${why}). This episode falls back to the storybook look; the slot still ships.`, title: `[${slug}] diagram fallback` });
       } catch { }
+      // 2026-11-27: also a row in the panel (Inbox) — a phone push alone was missed
+      // and the owner saw the channel "still using the old template"
+      try {
+        const { emitWarning, getDefaultWarningsStore } = await import('./lib/warnings-store.mjs');
+        const ws = await getDefaultWarningsStore();
+        if (ws) await emitWarning(ws, {
+          channel_id: slug, severity: 'warning', code: 'template_fallback',
+          title: `Today's long video was made in the storybook look, not ${docTemplateId || 'its template'}`,
+          explanation: 'The channel’s own template could not be made this time, so the video was made in the storybook look to keep the slot.',
+          evidence: why, recommended_action: 'Nothing to do if this is rare. If it repeats, open Runs and check the voice/render step.',
+          auto_verifiable: false, dedupe_key: `${slug}:template_fallback:${today()}`,
+        }, { sendAlert: async () => ({ channel: 'none', ok: true }) });
+      } catch { }
     }
     return shipEpisode(script, {
       yt, auth, intents, longSeed, reviewScript, docTemplateId, docDisclaimerBlock,

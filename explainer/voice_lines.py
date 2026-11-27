@@ -429,15 +429,20 @@ def main():
         if args.engine == "edge":
             raw_mp3 = os.path.join(tmp, "edge.mp3")
             words = None
-            for attempt in range(4):  # Edge intermittently answers "No audio was received"
+            # Edge answers "No audio was received" when several channels voice at
+            # once (2026-11-24: IC + DFD lost their diagram look to it) — back off
+            # for ~2.5 min before giving up; finished lines stay cached for a rerun
+            waits = [3, 8, 20, 40, 75]
+            for attempt in range(len(waits) + 1):
                 try:
                     words = asyncio.run(synth_edge(script, mood, args.voice, raw_mp3))
                     break
                 except Exception as e:
                     print(f"  [voice] edge retry {attempt + 1}: {str(e)[:120]}", flush=True)
-                    time.sleep(3 * (attempt + 1))
+                    if attempt < len(waits):
+                        time.sleep(waits[attempt])
             if words is None:
-                sys.exit(f"edge failed on line {i} after 4 attempts")
+                sys.exit(f"edge failed on line {i} after {len(waits) + 1} attempts")
             to_mp3(raw_mp3, mp3)
             matched = len(words)
         elif args.engine == "kokoro":
