@@ -37,7 +37,7 @@ import { chapterLowerThirdSvg, docBrollGate } from './lib/doc-frames.mjs';
 // visual layer to the DocV2 vox engine (the owner's wanted look — the reference
 // BFCa-bRy-3M style). Pure helpers live in lib/doc-storybook.mjs; photos ride
 // the same Pexels→Pixabay lane make-longform proves, in portrait for the cards.
-import { docRenderOf, docPresentation, edgeVoiceFor, buildStorybookBeats, timeBeats, buildStorybookDoc, storybookPhotoGate, photoQueryFor, srtFromBeats, planStoryDirectives, planEntityDirectives, entityDomainFor } from './lib/doc-storybook.mjs';
+import { docRenderOf, docPresentation, edgeVoiceFor, buildStorybookBeats, timeBeats, buildStorybookDoc, storybookPhotoGate, photoQueryFor, srtFromBeats, planStoryDirectives, planEntityDirectives, entityDomainFor, planShots, shotQueriesFor, assignShotClips, storybookBrollGate } from './lib/doc-storybook.mjs';
 import { fetchPhoto, fetchPhotoPixabay } from './explainer/assets-photos.mjs';
 // REGISTRY_META is registry DATA keyed by the ONE identity string (D19) — the
 // doc lane reads the ASSIGNED template's own block (no family fallback).
@@ -558,6 +558,21 @@ async function renderStorybookVisuals(script, pres) {
   // render = photos + timeline + the DocV2 render below
   await station('render', 'running');
 
+  // timeline (SB-6) + doc json (SB-2/SB-15): the flow pacing (short pad,
+  // chapter-boundary pause). Timed BEFORE the media so the beats can group
+  // into SHOTS (~15-30 s) — the background changes per shot, never per
+  // sentence (2026-11-27 owner complaint, QQ).
+  const audioFor = (i) => {
+    const rel = `lf-audio/${slug}/audio/beat-${String(i).padStart(2, '0')}.mp3`;
+    const abs = path.join(PUB, rel);
+    return fs.existsSync(abs) && fs.statSync(abs).size > 2048 ? rel : null;
+  };
+  const { totalMs } = timeBeats(beats, durs, audioFor);
+  const shots = planShots(beats);
+  console.log(`[storybook] ${shots.length} shots (${shots.map((s) => Math.round(s.ms / 1000) + 's').join(' ')})`);
+  const { fetchBestBroll } = await import('./explainer/broll-fetch.mjs');
+  const usedClipUrls = new Set(); // no clip repeats across the episode
+
   // photos (SB-8): portrait stock per split slide — the same lane make-longform
   // proves (Pexels first, Pixabay fallback, niche-word retry, pool reuse), the
   // research doc's "portrait crops for the cards".
@@ -601,14 +616,15 @@ async function renderStorybookVisuals(script, pres) {
 
     try {
       const outPath = path.join(photoDir, 'hero-broll.mp4');
-      const { fetchBestBroll } = await import('./explainer/broll-fetch.mjs');
       const r = await fetchBestBroll({
         query: heroQuery,
         outPath,
         pexelsKey: process.env.PEXELS_API_KEY,
+        pixabayKey: process.env.PIXABAY_API_KEY,
         minDurationSec: 8,
       });
       if (r) {
+        if (r.url) usedClipUrls.add(r.url);
         heroBeat.broll = path.relative(PUB, r.file).split(path.sep).join('/');
         console.log(`[storybook] beat 0 hook broll set: ${heroBeat.broll} (query: "${heroQuery}")`);
       }
@@ -631,13 +647,53 @@ async function renderStorybookVisuals(script, pres) {
     }
   }
 
+  // background: 'broll' (template DATA — doc_presentation.background): ONE
+  // stock video clip per SHOT behind the whole runtime, never repeated; every
+  // beat of the shot shares it. Keys: process.env after channel-pipeline's
+  // applyChannelKeys (per-channel overrides) — the same read as the hero clip.
+  // Per-shot fallback: a pool photo (the family pans it), else the family
+  // gradient — never black. <50% video coverage warns loudly, never crashes.
+  if (pres.background === 'broll') {
+    const nicheForShots = nicheWords.length ? nicheWords : String(b.niche || '').split(/[,&]/).map((x) => x.trim()).filter(Boolean);
+    const clips = await assignShotClips({
+      shots,
+      beats,
+      used: usedClipUrls,
+      fetchBroll: (o) => {
+        for (const f of [o.outPath, o.outPath.replace(/\.mp4$/, '-display.mp4')]) fs.rmSync(f, { force: true }); // never a stale clip from a past episode
+        return fetchBestBroll({ ...o, pexelsKey: process.env.PEXELS_API_KEY, pixabayKey: process.env.PIXABAY_API_KEY });
+      },
+      outPathFor: (s) => path.join(photoDir, `shot-${s.k}.mp4`),
+      relOf: (f) => path.relative(PUB, f).split(path.sep).join('/'),
+      queriesFor: (s) => shotQueriesFor(s, beats, nicheForShots, s.k),
+      log: (m) => console.log(`[storybook] broll ${m}`),
+    });
+    let poolPhoto = 0;
+    for (const s of shots) {
+      const members = s.beats.map((x) => beats[x]);
+      if (members.some((m) => m.broll || m.video || m.photo) || !pool.length) continue;
+      const first = members.find((m) => m.layout !== 'chapter' && m.layout !== 'end');
+      if (first) first.photo = pool[poolPhoto++ % pool.length]; // fallback 1: a panned photo
+    }
+    const bgate = storybookBrollGate(clips.total, clips.withVideo);
+    console.log(`[storybook] broll: ${clips.withVideo}/${clips.total} shots carry a video clip`);
+    if (!bgate.ok) {
+      console.warn(`::warning::[storybook] ${slug}: ${bgate.reason}`);
+      try {
+        const { sendAlert } = await import('./lib/ntfy-alert.mjs');
+        await sendAlert({ text: `${slug}: ${bgate.reason}. The episode still ships.`, title: `[${slug}] storybook broll coverage low` });
+      } catch { }
+    }
+  }
+
   const slides = beats.filter((x) => x.layout === 'split');
   console.log(`[storybook] photos: ${slides.filter((x) => x.photo).length}/${slides.length} slides set (pool ${pool.length})`);
   // #106 doctrine on the photo lane: a run where ZERO slides carry a photo is
   // systemic (dead key / network down) — refuse BEFORE the render spend. The
   // script stays approved (the resume can re-render after a re-dispatch); a
   // partially covered episode is degraded (text-only slides), not refused.
-  const gate = storybookPhotoGate(slides.length, slides.filter((x) => x.photo).length);
+  // (a broll template's shot clip counts as the slide's media)
+  const gate = storybookPhotoGate(slides.length, slides.filter((x) => x.photo || x.broll).length);
   if (!gate.ok) {
     console.error(`[storybook] FAIL-CLOSED: ${gate.reason}`);
     try {
@@ -647,14 +703,8 @@ async function renderStorybookVisuals(script, pres) {
     throw new Error(gate.reason);
   }
 
-  // timeline (SB-6) + doc json (SB-2/SB-15): make-longform's proven pacing;
+  // directives on the timed beats (timeBeats ran before the media, above);
   // progressParts = one dash per chapter (the reference's track).
-  const audioFor = (i) => {
-    const rel = `lf-audio/${slug}/audio/beat-${String(i).padStart(2, '0')}.mp3`;
-    const abs = path.join(PUB, rel);
-    return fs.existsSync(abs) && fs.statSync(abs).size > 2048 ? rel : null;
-  };
-  const { totalMs } = timeBeats(beats, durs, audioFor);
   const directives = planStoryDirectives(beats);
   const entities = planEntityDirectives(beats);
   // step 6: entity LOGOS — a mapped brand's mark fires with its name at the

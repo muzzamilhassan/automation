@@ -166,11 +166,17 @@ describe('SB-5/SB-6 — timeBeats: make-longform pacing + ms word mapping', () =
   const audioFor = (i) => (i === 0 ? 'lf-audio/x/audio/beat-00.mp3' : null);
   const { totalMs } = timeBeats(beats, durs, audioFor);
 
-  test('pacing: lead-in 800, spoken = max(spoken+600, 3000), divider 3500, end 4000', () => {
+  // 2026-11-27 owner complaint (QQ storybook "every quote feels like a new
+  // video"): the old max(spoken+600, 3000) pacing made the narration
+  // stop-start. Now: a short same-chapter pad, a 1.2 s reading floor instead of
+  // 3 s, and the longer pause ONLY at a chapter boundary (here every spoken beat
+  // sits on one: hero -> divider, split -> end). Full matrix in
+  // tests/storybook-flow.test.mjs.
+  test('pacing: lead-in 800, spoken = max(spoken + pad, 1200) (chapter-boundary pad 700), divider 3500, end 4000', () => {
     assert.equal(beats[0].startMs, 800);
-    assert.equal(beats[0].ms, 4835, 'round(spoken)+600');
+    assert.equal(beats[0].ms, 4935, 'round(spoken)+700 (hero -> chapter boundary)');
     assert.equal(beats[1].ms, 3500, 'divider');
-    assert.equal(beats[2].ms, 3000, 'short spoken floors at 3000');
+    assert.equal(beats[2].ms, 1900, 'spoken 1200 + 700 boundary pad (no more 3000 floor)');
     assert.equal(beats[3].ms, 4000, 'end');
   });
   test('audio binds only where the caller found the file', () => {
@@ -182,7 +188,7 @@ describe('SB-5/SB-6 — timeBeats: make-longform pacing + ms word mapping', () =
     assert.deepEqual(beats[2].words, []);
   });
   test('totalMs = cursor + 1500 tail', () => {
-    assert.equal(totalMs, 800 + 4835 + 3500 + 3000 + 4000 + 1500);
+    assert.equal(totalMs, 800 + 4935 + 3500 + 1900 + 4000 + 1500);
   });
   test('beats with no duration entry still get floor timing + null audio', () => {
     assert.equal(beats[3].audio, null);

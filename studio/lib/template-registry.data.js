@@ -609,7 +609,7 @@ export const REGISTRY_META = {
   },
 
   'old-verses-storybook': {
-    "version": "1.0.0",
+    "version": "1.1.0",
     "template_id": "old-verses-storybook",
     "display_name": "Old Verses Storybook",
     "family": "documentary-frames",
@@ -641,7 +641,8 @@ export const REGISTRY_META = {
       ],
       "brand": "OLD VERSES",
       "badge": "OV",
-      "eyebrow": "TIMELESS VERSES // OV"
+      "eyebrow": "TIMELESS VERSES // OV",
+      "background": "broll"
     },
     "story_structure": {
       "doc_render": "storybook",
@@ -695,6 +696,11 @@ export const REGISTRY_META = {
         "version": "1.0.0",
         "date": "2026-11-09",
         "note": "family F4 landscape-quote draft — staged, awaiting owner approval (--approve)"
+      },
+      {
+        "version": "1.1.0",
+        "date": "2026-11-27",
+        "note": "owner request (QQ): continuous flow — doc_presentation.background = broll puts one stock video clip per shot (~15-30 s) behind the whole runtime; the background and letterbox no longer restart each sentence"
       }
     ]
   },

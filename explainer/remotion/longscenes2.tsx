@@ -234,6 +234,84 @@ export type V2Beat = {
   pop?: { kind: string; text: string; w: number; logo?: string };
   cues?: Array<{ t0: number; t1: number; text: string }>;
   startMs: number; ms: number; audio: string | null; i: number;
+  // the SHOT this beat belongs to (lib/doc-storybook.mjs planShots) — the
+  // background lives on the shot. Absent = the beat is its own shot.
+  shot?: number;
+};
+
+// ---------------- continuous flow: SHOTS (2026-11-27) ----------------
+// Owner complaint (QQ storybook): "at every quote a new scene starts". The
+// background is ONE persistent layer driven by the global timeline: beats
+// sharing b.shot share one backdrop (one pan / one clip, never re-mounted per
+// sentence); shots crossfade into each other. Docs without b.shot fields get
+// one shot per beat (the old cadence, now crossfaded).
+export type V2Shot = { idx: number; startMs: number; endMs: number; beats: V2Beat[] };
+export const SHOT_XFADE_SEC = 0.75;
+
+export const shotsOf = (beats: V2Beat[]): V2Shot[] => {
+  const out: V2Shot[] = [];
+  let lastKey: number | null = null;
+  for (const b of beats) {
+    const key = typeof b.shot === "number" ? b.shot : null;
+    const cur = out[out.length - 1];
+    if (cur && key !== null && key === lastKey) {
+      cur.beats.push(b);
+      cur.endMs = b.startMs + b.ms;
+    } else {
+      out.push({ idx: out.length, startMs: b.startMs, endMs: b.startMs + b.ms, beats: [b] });
+    }
+    lastKey = key;
+  }
+  return out;
+};
+
+// the engine's own shot backdrop: the beat-media rule the per-beat backdrop
+// used (a clip, or a non-split photo — split photos are cards, not backdrops)
+const engineShotFile = (s: V2Shot): string | null => {
+  for (const b of s.beats) {
+    const f = b.broll || b.video || (b.layout !== "split" && b.photo ? b.photo : null);
+    if (f) return f;
+  }
+  return null;
+};
+const EngineShotBackdrop: React.FC<{ shot: V2Shot; seed: number }> = ({ shot }) => {
+  const f = engineShotFile(shot);
+  return f ? <BeatBackdrop file={f} /> : null;
+};
+
+const ShotFade: React.FC<{ fadeIn: number; fadeOut: number; children: React.ReactNode }> = ({ fadeIn, fadeOut, children }) => {
+  const f = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  const a = fadeIn > 0 ? interpolate(f, [0, fadeIn], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 1;
+  const z = fadeOut > 0 ? interpolate(f, [durationInFrames - fadeOut, durationInFrames], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 1;
+  return <AbsoluteFill style={{ opacity: Math.min(a, z) }}>{children}</AbsoluteFill>;
+};
+
+// One Sequence per SHOT (not per beat). The incoming shot fades in ON TOP of
+// the outgoing one, which holds opaque through the crossfade — so a dark
+// backdrop never dips to the paper colour mid-dissolve. An outgoing shot fades
+// out only when the next shot has no backdrop.
+const ShotLayer: React.FC<{ shots: V2Shot[]; fps: number; Bd: React.FC<{ shot: V2Shot; seed: number }>; has: (s: V2Shot) => boolean }> = ({ shots, fps, Bd, has }) => {
+  const xf = Math.max(1, Math.round(SHOT_XFADE_SEC * fps));
+  return (
+    <>
+      {shots.map((s, j) => {
+        if (!has(s)) return null;
+        const from = Math.round((s.startMs / 1000) * fps);
+        const end = Math.round((s.endMs / 1000) * fps);
+        const isLast = j === shots.length - 1;
+        const nextHas = !isLast && has(shots[j + 1]);
+        // the last shot ends with its beats (never bleeds into the tail)
+        return (
+          <Sequence key={`shot-${j}`} from={from} durationInFrames={Math.max(end - from + (isLast ? 0 : xf), 2)} name={`shot${j}`}>
+            <ShotFade fadeIn={xf} fadeOut={nextHas ? 0 : xf}>
+              <Bd shot={s} seed={j} />
+            </ShotFade>
+          </Sequence>
+        );
+      })}
+    </>
+  );
 };
 
 // badge/progressParts: the storybook doc lane's furniture overrides — BOTH
@@ -244,7 +322,7 @@ export type V2Beat = {
 // progressParts  ONE dash per part (capped 16) instead of one per beat, filled
 //                by the beat's chapter progress (beat.n) — the reference's
 //                10-dash chapter track
-export type V2Doc = { title: string; theme?: string; style?: string; brand?: string; eyebrow?: string; badge?: string; progressParts?: number; beats: V2Beat[]; totalMs: number; fps: number };
+export type V2Doc = { title: string; theme?: string; style?: string; brand?: string; eyebrow?: string; badge?: string; progressParts?: number; captions?: boolean; beats: V2Beat[]; totalMs: number; fps: number };
 
 const loadFonts = () => {
   const h = delayRender("lv2 fonts");
@@ -849,24 +927,40 @@ export const DocV2: React.FC<any> = (input) => {
     : b.layout === "quote" ? <QuoteLayout b={b} /> : b.layout === "process" ? <ProcessLayout b={b} /> : b.layout === "versus" ? <VersusLayout b={b} />
     : b.layout === "timeline" ? <TimelineLayout b={b} /> : b.layout === "map" ? <MapLayout b={b} /> : b.layout === "terminal" ? <TerminalLayout b={b} />
     : <SplitLayout b={b} side={(b.photoSide || (i % 2 === 0 ? "left" : "right")) as "left" | "right"} />;
+  // continuous flow: the background is a SHOT layer under every beat; a
+  // family frame (e.g. letterbox bars) mounts ONCE for the whole run
+  const shots = shotsOf(doc.beats);
+  const ShotBd = fam?.Backdrop || EngineShotBackdrop;
+  const shotHas = fam?.Backdrop ? (fam.hasBackdrop || (() => true)) : (s: V2Shot) => Boolean(engineShotFile(s));
+  const firstFrame = doc.beats.length ? Math.round((doc.beats[0].startMs / 1000) * fps) : 0;
+  const lastB = doc.beats[doc.beats.length - 1];
+  const lastFrame = lastB ? Math.round(((lastB.startMs + lastB.ms) / 1000) * fps) : 0;
+  const FamFrame = fam?.Frame;
+  // captions gate: the burnt-in karaoke renders unless the props say
+  // captions === false (a caption-free copy, e.g. for Shorts). Absent = on.
+  const showCaptions = input?.captions !== false && doc?.captions !== false;
   return (
     <ThemeCtx.Provider value={T}>
       <AbsoluteFill style={{ background: T.bg }}>
         {T.grain ? <Grain /> : null}
         <AbsoluteFill style={stage || undefined}>
+        <ShotLayer shots={shots} fps={fps} Bd={ShotBd} has={shotHas} />
+        {FamFrame && lastFrame > firstFrame ? (
+          <Sequence from={firstFrame} durationInFrames={lastFrame - firstFrame} name="frame">
+            <FamFrame />
+          </Sequence>
+        ) : null}
         {doc.beats.map((b: V2Beat, i: number) => {
           const from = Math.round((b.startMs / 1000) * fps);
           const dur = Math.max(Math.ceil((b.ms / 1000) * fps), 2);
           const FamScene = fam ? fam.scenes[b.layout] : null;
           const comp = FamScene ? <FamScene b={b} /> : defaultComp(b, i);
-          const bgFile = b.broll || b.video || (b.layout !== "split" && b.photo ? b.photo : null);
           return (
             <Sequence key={`${b.layout}-${b.i}`} from={from} durationInFrames={dur} name={`b${b.i}-${b.layout}`}>
-              {bgFile ? <BeatBackdrop file={bgFile} /> : null}
               {comp}
               <Furniture beat={{ ...b, i }} total={total} kicker={T.eyebrow} showBadge={Boolean(doc?.badge)} progressParts={doc?.progressParts} />
               {b.pop ? <BeatPop b={b} /> : null}
-              {b.words && b.words.length ? <Captions b={b} /> : null}
+              {showCaptions && b.words && b.words.length ? <Captions b={b} /> : null}
             </Sequence>
           );
         })}
