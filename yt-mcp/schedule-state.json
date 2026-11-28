@@ -242,9 +242,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "jNBQEugcDLA",
-        "publishAt": "2026-11-28T00:05:00Z",
-        "title": "Say ‘Asset’ 3×/Meeting = 15% Faster Net‑Worth Growth"
+        "videoId": "xO6XFghfOrU",
+        "publishAt": "2026-11-29T00:05:00Z",
+        "title": "Engineer Turns $45K Savings into $1,000/Year Extra Yield"
       }
     ],
     "imageDate": "2026-10-18",
@@ -398,6 +398,11 @@
         "t": "Say ‘Asset’ 3×/Meeting = 15% Faster Net‑Worth Growth",
         "at": "2026-11-28T00:05:00Z",
         "v": "jNBQEugcDLA"
+      },
+      {
+        "t": "Engineer Turns $45K Savings into $1,000/Year Extra Yield",
+        "at": "2026-11-29T00:05:00Z",
+        "v": "xO6XFghfOrU"
       }
     ],
     "cooldownSeeds": [
@@ -461,19 +466,20 @@
           "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/787708057",
           "startSec": 270,
           "durSec": 25.4,
-          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-04.mp4"
+          "file": "tt-lf/clipfeed-money-rulebook/clips/clip-04.mp4",
+          "postedAt": "2026-11-28T03:37:30.162Z"
         }
       ]
     },
-    "clipLastPostDate": "2026-11-27",
+    "clipLastPostDate": "2026-11-28",
     "uploadsToday": {
-      "date": "2026-11-26",
+      "date": "2026-11-27",
       "count": 1
     },
     "reviewGate": {
       "assigned": true,
       "gated": true,
-      "checkedAt": "2026-11-27T03:37:35.543Z"
+      "checkedAt": "2026-11-28T03:37:26.286Z"
     },
     "usedLongSeeds": [
       "Stop Wasting Vegetables! 8 Freezer Tricks That Save You Money | Annie Tips",
@@ -497,7 +503,8 @@
       "The 50/30/20 Rule That Can Change Your Finances 💰 #shorts",
       "How I saved $100k on an average salary",
       "Middle-Class Mindset vs Rich Mindset  | The Difference That Changes How You Build Wealth",
-      "KPI Green Energy की कमाई बढ़ी, मिले कई बड़े ऑर्डर! | BIZ Tak | Shorts"
+      "KPI Green Energy की कमाई बढ़ी, मिले कई बड़े ऑर्डर! | BIZ Tak | Shorts",
+      "My Retirement, My Rules.  I’m Done Following Everyone Else’s Advice"
     ],
     "deepdiveVideo": {
       "videoId": "nyglrRIX8LM",
