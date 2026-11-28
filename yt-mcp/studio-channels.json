@@ -352,7 +352,12 @@
           "left-stack",
           "marquee"
         ],
-        "templateVersion": "1.0.0"
+        "templateVersion": "1.0.0",
+        "voiceProfile": {
+          "human": false,
+          "mood": "warm",
+          "speed": 1.1
+        }
       },
       "destinations": null,
       "ytDescription": "",
