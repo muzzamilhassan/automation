@@ -123,7 +123,12 @@
           "price-fight"
         ],
         "templateVersion": "1.0.0",
-        "gateCron": "47 2 * * *"
+        "gateCron": "47 2 * * *",
+        "voiceProfile": {
+          "human": true,
+          "mood": "warm",
+          "speed": 1
+        }
       },
       "destinations": null,
       "ownerEmail": "",
