@@ -8,9 +8,9 @@
     ],
     "lastVideos": [
       {
-        "videoId": "4wPT0RbiM38",
-        "publishAt": "2026-11-27T23:35:00Z",
-        "title": "FOMO on AI? Why Gold’s Steady Climb Wins"
+        "videoId": "wAW14RwhxhY",
+        "publishAt": "2026-11-28T23:35:00Z",
+        "title": "Allocate 7% to Gold – Capture the Next Wealth Transfer"
       }
     ],
     "imageDate": "2026-10-17",
@@ -143,6 +143,11 @@
         "t": "FOMO on AI? Why Gold’s Steady Climb Wins",
         "at": "2026-11-27T23:35:00Z",
         "v": "4wPT0RbiM38"
+      },
+      {
+        "t": "Allocate 7% to Gold – Capture the Next Wealth Transfer",
+        "at": "2026-11-28T23:35:00Z",
+        "v": "wAW14RwhxhY"
       }
     ],
     "cooldownSeeds": [
@@ -150,7 +155,7 @@
       "Still Waiting For the Market Crash? Watch This Right Now | Weekend Investing | Alok Jain"
     ],
     "uploadsToday": {
-      "date": "2026-11-26",
+      "date": "2026-11-27",
       "count": 1
     },
     "usedLongSeeds": [
@@ -158,7 +163,8 @@
       "risk free 👍 #viral #viralreels #trending #Mindset #Discipline",
       "What Happened to My GTA 6 Investment?",
       "Gold Prices: Why I Believe They're Going Much Higher",
-      "Gold-Silver Crash: अब और सस्ता होगा सोना, अमेरिका की महंगाई से क्या कनेक्शन? | SAGAR SINHA"
+      "Gold-Silver Crash: अब और सस्ता होगा सोना, अमेरिका की महंगाई से क्या कनेक्शन? | SAGAR SINHA",
+      "Gold Price Crash: ₹1,20,000 तक गिरेगा सोना? (Don't Buy Yet)"
     ],
     "todayTopic": {
       "at": "2026-11-18",
@@ -215,15 +221,16 @@
           "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/787718621",
           "startSec": 358.2,
           "durSec": 22.7,
-          "file": "tt-lf/clipfeed-investors-compass/clips/clip-04.mp4"
+          "file": "tt-lf/clipfeed-investors-compass/clips/clip-04.mp4",
+          "postedAt": "2026-11-28T02:43:48.456Z"
         }
       ]
     },
-    "clipLastPostDate": "2026-11-27",
+    "clipLastPostDate": "2026-11-28",
     "reviewGate": {
       "assigned": true,
       "gated": true,
-      "checkedAt": "2026-11-27T03:07:14.112Z"
+      "checkedAt": "2026-11-28T02:43:40.648Z"
     }
   },
   "money-rulebook": {
