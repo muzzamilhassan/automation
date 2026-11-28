@@ -251,8 +251,8 @@
         "description": "Welcome to Quote Quarry, your digital mine for timeless wisdom, self‑mastery strategies, and the deep psychology behind human behavior. Each short delivers a powerful quote paired with concise, research‑backed commentary that helps you apply ancient insights to modern challenges. Whether you’re looking to boost motivation, understand emotional triggers, or build lasting habits, our bite‑size videos give you the tools to transform thought into action. Dive in, reflect, and let each nugget shape a better you. Subscribe for fresh wisdom every week!",
         "hasChapters": false,
         "voiceProfile": {
-          "mood": "serious",
-          "human": false,
+          "human": true,
+          "mood": "warm",
           "speed": 1
         },
         "templateMajor": 1,
