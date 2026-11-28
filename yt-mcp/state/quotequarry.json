@@ -8,9 +8,9 @@
   ],
   "lastVideos": [
     {
-      "videoId": "NnBhUWgusV4",
-      "publishAt": "2026-11-27T18:35:00Z",
-      "title": "Solo Retreats Add 41% Revenue Growth for Entrepreneurs"
+      "videoId": "ggXwnol23g8",
+      "publishAt": "2026-11-28T18:35:00Z",
+      "title": "Quiet Breaks Restore 30% of Lost Mental Stamina"
     }
   ],
   "deepdiveDate": "2026-11-25",
@@ -136,13 +136,18 @@
       "t": "Solo Retreats Add 41% Revenue Growth for Entrepreneurs",
       "at": "2026-11-27T18:35:00Z",
       "v": "NnBhUWgusV4"
+    },
+    {
+      "t": "Quiet Breaks Restore 30% of Lost Mental Stamina",
+      "at": "2026-11-28T18:35:00Z",
+      "v": "ggXwnol23g8"
     }
   ],
   "cooldownSeeds": [
     "THE POWER OF SOLITUDE WILL CHANGE YOUR LIFE | Jim Rohn Motivation"
   ],
   "uploadsToday": {
-    "date": "2026-11-26",
+    "date": "2026-11-27",
     "count": 1
   },
   "clipQueue": {
@@ -190,7 +195,8 @@
         "url": "https://api.github.com/repos/muzzamilhassan/automation/releases/assets/789811156",
         "startSec": 257.8,
         "durSec": 22,
-        "file": "tt-lf/clipfeed-quotequarry/clips/clip-03.mp4"
+        "file": "tt-lf/clipfeed-quotequarry/clips/clip-03.mp4",
+        "postedAt": "2026-11-28T02:37:27.561Z"
       },
       {
         "part": 4,
@@ -203,14 +209,15 @@
       }
     ]
   },
-  "clipLastPostDate": "2026-11-27",
+  "clipLastPostDate": "2026-11-28",
   "usedLongSeeds": [
     "3 Psychological Tricks to Win Any Fight 🥶🥊 | Dark Psychology #Shorts #psychology #fighting #viral",
     "⭐ 10 RÈGLES STOÏCIENNES POUR ATTEINDRE TES OBJECTIFS ET CRÉER LA VIE QUE TU VEUX | STOÏCISME",
     "Musashi Never Lost a Duel, Then He Wrote Down His Secret",
     "झूठी उम्मीद का खतरनाक जाल! 🧠 क्या आप भी इसमें फँसे हैं? 💔 #psychology #mindset #shorts",
     "100% GUARANTEED? She'll Reappear and Beg for You Again | Female Psychology | Robert Greene",
-    "The Power of Solitude Will Change Your Life | Jim Rohn"
+    "The Power of Solitude Will Change Your Life | Jim Rohn",
+    "The hardships of a girl without sight emotional😭😱 #ytshorts #blindgirl #emotional"
   ],
   "todayTopic": {
     "at": "2026-11-25",
@@ -225,6 +232,6 @@
   "reviewGate": {
     "assigned": true,
     "gated": true,
-    "checkedAt": "2026-11-27T02:37:11.163Z"
+    "checkedAt": "2026-11-28T02:37:17.913Z"
   }
 }
