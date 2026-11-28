@@ -51,7 +51,12 @@
         "templateId": "money-flow-diagram",
         "templateVersion": "1.0.0",
         "templateMajor": 1,
-        "gateCron": "53 3 * * *"
+        "gateCron": "53 3 * * *",
+        "voiceProfile": {
+          "human": true,
+          "mood": "warm",
+          "speed": 1
+        }
       },
       "destinations": null,
       "ownerEmail": "",
