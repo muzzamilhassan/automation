@@ -113,9 +113,12 @@ def synth_chatterbox(text, mood, ref, out_wav, seed):
 synth_chatterbox.client = None
 
 
-async def synth_edge(text, mood, voice, out_mp3):
+async def synth_edge(text, mood, voice, out_mp3, speed=1.0):
     import edge_tts
     rate, pitch = MOOD.get(mood or "warm", MOOD["warm"])[:2]
+    # the panel's Speed (2026-11-28): 1.10 adds +10% on top of the mood's rate
+    pct = int(rate.rstrip("%")) + round((speed - 1.0) * 100)
+    rate = f"{'+' if pct >= 0 else ''}{pct}%"
     words = []
     comm = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch, boundary="WordBoundary")
     with open(out_mp3, "wb") as f:
@@ -364,7 +367,7 @@ def main():
     ap.add_argument("--engine", default="chatterbox", choices=["chatterbox", "chatterbox-local", "edge", "kokoro"])
     ap.add_argument("--voice", default="en-US-AndrewMultilingualNeural")
     ap.add_argument("--ref", default=None)
-    ap.add_argument("--speed", type=float, default=1.0, help="kokoro base speed (the channel voiceProfile)")
+    ap.add_argument("--speed", type=float, default=1.0, help="base speed (the channel voiceProfile; Edge: a rate on top of the mood)")
     ap.add_argument("--mood", default=None, help="default mood for lines without one (the channel voiceProfile)")
     ap.add_argument("--layout", default="lines", choices=["lines", "edge_batch"],
                     help="edge_batch = audio/beat-XX.mp3 + tts-durations.json (drop-in for edge_batch.py)")
@@ -435,7 +438,7 @@ def main():
             waits = [3, 8, 20, 40, 75]
             for attempt in range(len(waits) + 1):
                 try:
-                    words = asyncio.run(synth_edge(script, mood, args.voice, raw_mp3))
+                    words = asyncio.run(synth_edge(script, mood, args.voice, raw_mp3, args.speed))
                     break
                 except Exception as e:
                     print(f"  [voice] edge retry {attempt + 1}: {str(e)[:120]}", flush=True)

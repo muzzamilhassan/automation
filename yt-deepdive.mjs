@@ -60,7 +60,7 @@ import { getUploadIntentStore, uploadWithIntent, recoverOpenIntents, makeFindByT
 // at their snippets.
 import { flagOn, appendDisclaimers, declaredDisclaimers } from './lib/review-seams.mjs';
 import { loadEnv } from './lib/env.mjs';
-import { voiceProfileFor } from './lib/voice-profile.mjs';
+import { voiceProfileFor, voiceSettingsFor, edgeRate } from './lib/voice-profile.mjs';
 import { renderDiagramEpisode, isDiagramPlanReply } from './lib/diagram-episode.mjs';
 loadEnv();
 const FF = resolveBinary('ffmpeg');
@@ -182,9 +182,20 @@ async function llmScript(prompt, topic, templateId = null) {
 // assigned doc template's section plan (chapter count + word floor, clamped
 // onto the validEpisode contract) when one is. The JSON contract line above
 // it is the immutable episode shape and never changes.
+// 2026-11-28 (owner: "the voice feels like you are reading, not storytelling" — all
+// channels): the words decide most of that. A narrator TELLS one listener a story;
+// an essay is read. Pinned in tests/storybook-flow.test.mjs.
+const STORYTELLER_RULES = `HOW IT MUST SOUND — told out loud by one storyteller to one listener, never read like an article:
+- Open chapters on a moment, not a definition: a time, a place, a person doing something ("Before dawn. The camp is still asleep."). A made-up scene starts with "Imagine".
+- Talk to the listener as "you". Ask them a question now and then, and let the next line answer it.
+- Mix very short lines with longer ones. A short line lands the point ("Nobody noticed." / "That was the mistake.").
+- Hold back: hint what is coming ("But that is not what saved him.") and pay it off later in the chapter.
+- Use spoken links between ideas ("So...", "And here is the strange part.", "Now think about that."), never "Firstly", "In conclusion", "It is important to note", "Furthermore".
+- No lists read out, no headings in the text, no brackets. Every sentence must sound natural when spoken aloud.`;
 const LONG_PROMPT = (b, theme, docPlan = null) => `You write premium long-form YouTube documentary episodes for "${b.label}" (Niche: ${b.niche}), in the style of top ${b.authority} channels for a US audience.
 Episode theme: ${theme}.
 STRICT RULES: every chapter delivers concrete, specific ${b.niches[0]} insight — stories, mechanisms, numbers, mistakes, consequences. NO generic motivation, NO repetition between chapters. Documentary storytelling: each chapter opens a tension and closes a payoff.
+${STORYTELLER_RULES}
 Return ONLY valid JSON:
 {"title":"episode title <=60 chars, curiosity gap","intro":"2 sentence cold-open that sets stakes","chapters":[{"title":"<=40 chars","text":"120-150 words of spoken-style narration"}],"outro":"2 sentences with a natural subscribe push"}
 ${docPlan ? docStoryPlanLines(docPlan) : 'Exactly 8 chapters. Every chapter text MUST be 120-150 words.'}`;
@@ -329,7 +340,7 @@ async function renderAndShipEpisode(script, { yt, auth, intents, longSeed = null
     try {
       visuals = await renderDiagramEpisode({
         root: HERE, slug, script, pres,
-        kit: { ...b, voiceProfile: voiceProfileFor(slug) },
+        kit: { ...b, voiceProfile: voiceProfileFor(slug), voiceSpeed: voiceSettingsFor(slug).speed },
         workDir: `demos/deepdive-${slug}`,
         call: async (prompt) => {
           const res = await callScriptBrain({
@@ -550,7 +561,9 @@ async function renderStorybookVisuals(script, pres) {
   } else {
     const voice = edgeVoiceFor(pres.voice || b.voice); // template voice wins; kit falls back
     console.log(`[storybook] tts: ${spoken.length} spoken beats, voice ${voice}`);
-    tts = spawnSync('python', [path.join(EXPL, 'edge_batch.py'), inPath], { ...sOpts, env: { ...process.env, EXPLAINER_VOICE: voice } });
+    const rate = edgeRate(voiceSettingsFor(slug).speed, -2); // the Voice drawer's Speed (2026-11-28)
+    console.log(`[storybook] voice speed ${rate}`);
+    tts = spawnSync('python', [path.join(EXPL, 'edge_batch.py'), inPath], { ...sOpts, env: { ...process.env, EXPLAINER_VOICE: voice, EXPLAINER_RATE: rate } });
   }
   if (tts.status !== 0) throw new Error('storybook tts failed'); // the call site closes 'voice' failed
   const durs = JSON.parse(fs.readFileSync(path.join(audioDir, 'tts-durations.json'), 'utf8'));

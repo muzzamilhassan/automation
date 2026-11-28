@@ -172,11 +172,11 @@ describe('SB-5/SB-6 — timeBeats: make-longform pacing + ms word mapping', () =
   // 3 s, and the longer pause ONLY at a chapter boundary (here every spoken beat
   // sits on one: hero -> divider, split -> end). Full matrix in
   // tests/storybook-flow.test.mjs.
-  test('pacing: lead-in 800, spoken = max(spoken + pad, 1200) (chapter-boundary pad 700), divider 3500, end 4000', () => {
+  test('pacing: lead-in 800, spoken = max(spoken + pad, 1200) (chapter-boundary pad 900, 2026-11-28 storyteller pauses), divider 3500, end 4000', () => {
     assert.equal(beats[0].startMs, 800);
-    assert.equal(beats[0].ms, 4935, 'round(spoken)+700 (hero -> chapter boundary)');
+    assert.equal(beats[0].ms, 5135, 'round(spoken)+900 (hero -> chapter boundary)');
     assert.equal(beats[1].ms, 3500, 'divider');
-    assert.equal(beats[2].ms, 1900, 'spoken 1200 + 700 boundary pad (no more 3000 floor)');
+    assert.equal(beats[2].ms, 2100, 'spoken 1200 + 900 boundary pad (no more 3000 floor)');
     assert.equal(beats[3].ms, 4000, 'end');
   });
   test('audio binds only where the caller found the file', () => {
@@ -188,7 +188,7 @@ describe('SB-5/SB-6 — timeBeats: make-longform pacing + ms word mapping', () =
     assert.deepEqual(beats[2].words, []);
   });
   test('totalMs = cursor + 1500 tail', () => {
-    assert.equal(totalMs, 800 + 4935 + 3500 + 1900 + 4000 + 1500);
+    assert.equal(totalMs, 800 + 5135 + 3500 + 2100 + 4000 + 1500);
   });
   test('beats with no duration entry still get floor timing + null audio', () => {
     assert.equal(beats[3].audio, null);

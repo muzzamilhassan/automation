@@ -68,7 +68,7 @@ export default function HumanVoiceSection({ voice, value, onChange, readOnly = f
           <div className="min-w-0">
             <h3 className="t-13 font-semibold text-ink">Human pacing</h3>
             <p className="t-12 text-muted">{HUMAN_PACING_HINT}</p>
-            {!value.human ? <p className="t-11 text-faint mt-0.5">Off: the channel uses its normal voice.</p> : null}
+            {!value.human ? <p className="t-11 text-faint mt-0.5">Off: the normal voice, at the mood and speed below.</p> : null}
             {value.human && !kokoro ? <p className="t-11 mt-0.5" style={{ color: 'var(--warn-ink)' }}>Works with the voices above only.</p> : null}
           </div>
           <Switch checked={value.human} onChange={(on) => set({ human: on })} label="Human pacing" />

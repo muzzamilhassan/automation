@@ -46,8 +46,9 @@ describe('pacing — when beats are timed, the narration flows (no stop-start)',
   ];
   const { totalMs } = timeBeats(beats, durs, () => null);
 
-  test('the pad between sentences of one chapter is ~150-200 ms', () => {
-    assert.ok(BEAT_PAD_MS >= 150 && BEAT_PAD_MS <= 200, `pad ${BEAT_PAD_MS}`);
+  test('the pause between sentences of one chapter follows how the sentence ends', () => {
+    // 2026-11-28: storyteller pauses (owner: "feels like reading") — a plain sentence breathes ~0.4 s
+    assert.ok(BEAT_PAD_MS >= 300 && BEAT_PAD_MS <= 450, `pad ${BEAT_PAD_MS}`);
     assert.equal(beats[1].ms, 4000 + BEAT_PAD_MS, 'same-chapter sentence: spoken + short pad');
   });
   test('the 3 s floor is gone; a short line floors at a reading-time minimum (~1.2 s)', () => {
@@ -279,4 +280,21 @@ test('a clips channel gets a caption-free copy of its storybook video; the clips
   assert.match(pipe, /fs\.copyFileSync\(clipSource\(slug\), path\.join\(feedDir, 'video\.mp4'\)\)/);
   const clips = fs.readFileSync(new URL('../longvideo/shorts-clips.mjs', import.meta.url), 'utf8');
   assert.match(clips, /a\.name === `lf-clean-\$\{slug\}`/);
+});
+
+// 2026-11-28 owner: "the voice feels like reading, not storytelling"
+test('storyteller pauses: questions and "..." wait longer, a short punch line lands', async () => {
+  const { storyPauseMs, BEAT_PAD_MS: P } = await import('../lib/doc-storybook.mjs');
+  assert.equal(storyPauseMs('He wrote to himself every single morning before the camp woke.'), P);
+  assert.ok(storyPauseMs('So why did he never show anyone what he wrote?') > P);
+  assert.ok(storyPauseMs('And then the letters stopped...') > storyPauseMs('So why did he hide it from everyone around him?'));
+  assert.ok(storyPauseMs('Nobody knew.') > P, 'a short line lands');
+});
+
+test('every channel\'s long-video prompt asks for a storyteller, not an article', () => {
+  const dd = fs.readFileSync(new URL('../yt-deepdive.mjs', import.meta.url), 'utf8');
+  assert.match(dd, /const STORYTELLER_RULES = `HOW IT MUST SOUND — told out loud by one storyteller/);
+  assert.match(dd, /closes a payoff\.\n\$\{STORYTELLER_RULES\}/);
+  const rules = dd.slice(dd.indexOf('const STORYTELLER_RULES'), dd.indexOf('const LONG_PROMPT'));
+  assert.doesNotMatch(rules, /\d/, 'no digits in the rules — facts-first allows no unsourced numbers');
 });

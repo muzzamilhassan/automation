@@ -140,7 +140,7 @@ describe('HV-E: engine precedence (lib/voice-profile.mjs voiceProfileFor)', () =
   test('HV-E7: the default registry is the engine file yt-mcp/studio-channels.json', () => {
     const src = read('lib/voice-profile.mjs');
     assert.match(src, /'yt-mcp', 'studio-channels\.json'/);
-    assert.match(src, /import \{ resolveVoiceProfile \} from '\.\.\/studio\/lib\/human-voice\.mjs'/);
+    assert.match(src, /import \{ resolveVoiceProfile(, voiceSettingsOf)? \} from '\.\.\/studio\/lib\/human-voice\.mjs'/);
   });
 });
 
@@ -148,7 +148,7 @@ describe('HV-L: every narrating lane reads the same profile', () => {
   test('HV-L1 storybook + diagram doc lanes call voiceProfileFor (same reader)', () => {
     const dd = read('yt-deepdive.mjs');
     assert.match(dd, /const prof = voiceProfileFor\(slug\)/);
-    assert.match(dd, /kit: \{ \.\.\.b, voiceProfile: voiceProfileFor\(slug\) \}/);
+    assert.match(dd, /kit: \{ \.\.\.b, voiceProfile: voiceProfileFor\(slug\)(, voiceSpeed: voiceSettingsFor\(slug\)\.speed)? \}/);
   });
 
   test('HV-L2 Shorts + legacy doc narration go through narrate.py voice_profile(), which reads the registry kit first', () => {
